@@ -97,6 +97,7 @@ app.MapBookingEndpoints();
 app.MapPaymentEndpoints();
 app.MapHousekeepingEndpoints();
 app.MapExpenseEndpoints();
+app.MapAuditEndpoints();
 
 if (app.Configuration.GetValue<bool>("Database:AutoMigrate") || app.Configuration.GetValue<bool>("Database:SeedOnStartup"))
 {
