@@ -21,6 +21,8 @@ public sealed class RoomService(AppDbContext db)
                 x.Capacity,
                 x.SortOrder,
                 x.IsActive,
+                x.HousekeepingStatus,
+                x.HousekeepingUpdatedAtUtc,
                 x.Rates.OrderBy(r => r.SortOrder).Select(r => new RoomRateDto(
                     r.Id,
                     r.Name,
@@ -46,6 +48,8 @@ public sealed class RoomService(AppDbContext db)
                 x.Capacity,
                 x.SortOrder,
                 x.IsActive,
+                x.HousekeepingStatus,
+                x.HousekeepingUpdatedAtUtc,
                 x.Rates.OrderBy(r => r.SortOrder).Select(r => new RoomRateDto(
                     r.Id,
                     r.Name,
