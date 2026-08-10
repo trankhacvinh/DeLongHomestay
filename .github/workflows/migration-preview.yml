@@ -1,0 +1,31 @@
+name: Migration Preview
+
+on:
+  push:
+    branches: [ "agent/dotnet10-foundation" ]
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    env:
+      ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=delong_dev;Username=postgres;Password=postgres"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version 10.0.10
+      - name: Restore
+        run: dotnet restore DeLongHomestay.sln
+      - name: Generate InitialCreate migration
+        run: dotnet ef migrations add InitialCreate --project src/DeLong.Web --startup-project src/DeLong.Web --output-dir Data/Migrations
+      - name: Upload migration files
+        uses: actions/upload-artifact@v4
+        with:
+          name: ef-migration
+          path: src/DeLong.Web/Data/Migrations
