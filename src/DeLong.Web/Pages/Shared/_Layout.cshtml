@@ -11,6 +11,7 @@
     <meta name="csrf-token" content="@csrf" />
     <title>@ViewData["Title"] - De Long Homestay</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" />
     @await RenderSectionAsync("Head", required: false)
 </head>
 <body class="@(isAdmin ? "admin-body" : "public-body")">
