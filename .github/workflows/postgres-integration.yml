@@ -1,0 +1,34 @@
+name: PostgreSQL Integration
+
+on:
+  push:
+    branches: [ "agent/**", main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-integration:
+    runs-on: ubuntu-latest
+    env:
+      DELONG_TEST_CONNECTION: "Host=localhost;Port=5432;Database=delong_test;Username=delong_test;Password=delong_test"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Start PostgreSQL
+        shell: bash
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='delong_test'" | grep -q 1 || sudo -u postgres psql -c "CREATE ROLE delong_test LOGIN PASSWORD 'delong_test' CREATEDB;"
+          sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='delong_test'" | grep -q 1 || sudo -u postgres createdb -O delong_test delong_test
+      - name: Restore
+        run: dotnet restore DeLongHomestay.sln
+      - name: Build
+        run: dotnet build DeLongHomestay.sln --configuration Release --no-restore
+      - name: Run PostgreSQL integration tests
+        run: dotnet test tests/DeLong.Tests/DeLong.Tests.csproj --configuration Release --no-build --filter "Category=Integration" --verbosity normal
