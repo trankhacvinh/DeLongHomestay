@@ -5,6 +5,7 @@ using DeLong.Web.Data.Seed;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Expenses;
+using DeLong.Web.Features.Finance;
 using DeLong.Web.Features.Housekeeping;
 using DeLong.Web.Features.Payments;
 using DeLong.Web.Features.Rooms;
@@ -53,6 +54,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ManageBookings", policy => policy.RequireRole("Admin", "Manager", "Staff"));
     options.AddPolicy("ManagePayments", policy => policy.RequireRole("Admin", "Manager", "Staff"));
     options.AddPolicy("ManageHousekeeping", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping"));
+    options.AddPolicy("ViewFinance", policy => policy.RequireRole("Admin", "Manager", "Viewer"));
     options.AddPolicy("ManageFinance", policy => policy.RequireRole("Admin", "Manager"));
 });
 
@@ -74,6 +76,7 @@ builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<HousekeepingService>();
 builder.Services.AddScoped<ExpenseService>();
+builder.Services.AddScoped<FinanceService>();
 
 var app = builder.Build();
 
