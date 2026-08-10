@@ -42,6 +42,20 @@ public static class BookingEndpoints
         .RequireAuthorization("ManageBookings")
         .AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        group.MapPut("/{bookingId:guid}", async (
+            Guid propertyId,
+            Guid bookingId,
+            UpdateBookingRequest request,
+            BookingService service,
+            CancellationToken cancellationToken) =>
+        {
+            var (booking, error) = await service.UpdateAsync(propertyId, bookingId, request, cancellationToken);
+            if (error is not null) return ToProblem(error);
+            return Results.Ok(booking);
+        })
+        .RequireAuthorization("ManageBookings")
+        .AddEndpointFilter<ApiAntiforgeryFilter>();
+
         group.MapPost("/{bookingId:guid}/status", async (
             Guid propertyId,
             Guid bookingId,
@@ -66,6 +80,7 @@ public static class BookingEndpoints
             "not_found" => 404,
             "booking_conflict" => 409,
             "invalid_transition" => 409,
+            "booking_locked" => 409,
             _ => 400
         };
 
