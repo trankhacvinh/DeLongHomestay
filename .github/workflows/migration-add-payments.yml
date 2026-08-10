@@ -3,6 +3,8 @@ name: Add Payments Migration
 on:
   push:
     branches: [ "agent/dotnet10-foundation" ]
+  pull_request:
+    branches: [ main ]
 
 permissions:
   contents: write
@@ -38,7 +40,7 @@ jobs:
         if: steps.migration.outputs.exists == 'false'
         run: dotnet ef migrations add AddPayments --project src/DeLong.Web --startup-project src/DeLong.Web --output-dir Data/Migrations
       - name: Commit migration
-        if: steps.migration.outputs.exists == 'false'
+        if: github.event_name == 'push' && steps.migration.outputs.exists == 'false'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
