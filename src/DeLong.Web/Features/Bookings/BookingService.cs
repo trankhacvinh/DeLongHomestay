@@ -3,6 +3,7 @@ using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Customers;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace DeLong.Web.Features.Bookings;
 
@@ -77,7 +78,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         if (BookingRules.LocksRoom(request.Status) &&
             await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken))
         {
-            return (null, new("booking_conflict", "Phòng đã có booking trong khoảng thời gian này."));
+            return (null, ConflictError());
         }
 
         var customer = await customerService.FindOrCreateEntityAsync(
@@ -104,8 +105,72 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         booking.Code = $"BK-{DateTime.UtcNow:yyMMdd}-{booking.Id.ToString("N")[..6].ToUpperInvariant()}";
 
         db.Bookings.Add(booking);
-        await db.SaveChangesAsync(cancellationToken);
+        var saveError = await SaveWithConflictGuardAsync(cancellationToken);
+        if (saveError is not null) return (null, saveError);
+
         return (await GetAsync(propertyId, booking.Id, cancellationToken), null);
+    }
+
+    public async Task<(BookingDto? Booking, BookingOperationError? Error)> UpdateAsync(
+        Guid propertyId,
+        Guid bookingId,
+        UpdateBookingRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var validation = ValidateUpdate(request);
+        if (validation is not null) return (null, validation);
+
+        var booking = await db.Bookings
+            .Include(x => x.Customer)
+            .SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == bookingId, cancellationToken);
+        if (booking is null) return (null, new("not_found", "Không tìm thấy booking."));
+        if (booking.Status is BookingStatus.Completed or BookingStatus.Cancelled or BookingStatus.NoShow)
+            return (null, new("booking_locked", "Booking đã kết thúc nên không thể sửa thông tin vận hành."));
+
+        var roomExists = await db.Rooms.AnyAsync(
+            x => x.PropertyId == propertyId && x.Id == request.RoomId && (x.IsActive || x.Id == booking.RoomId),
+            cancellationToken);
+        if (!roomExists) return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
+
+        var customer = await db.Customers.SingleOrDefaultAsync(
+            x => x.PropertyId == propertyId && x.Id == request.CustomerId && x.IsActive,
+            cancellationToken);
+        if (customer is null) return (null, new("customer_invalid", "Không tìm thấy khách hàng."));
+
+        var normalizedPhone = CustomerService.NormalizePhone(request.CustomerPhone);
+        if (await db.Customers.AnyAsync(
+                x => x.PropertyId == propertyId && x.NormalizedPhone == normalizedPhone && x.Id != customer.Id,
+                cancellationToken))
+        {
+            return (null, new("customer_invalid", "Số điện thoại đang thuộc một khách hàng khác."));
+        }
+
+        var checkInUtc = request.CheckIn.UtcDateTime;
+        var checkOutUtc = request.CheckOut.UtcDateTime;
+        if (BookingRules.LocksRoom(booking.Status) &&
+            await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, booking.Id, cancellationToken))
+        {
+            return (null, ConflictError());
+        }
+
+        customer.Name = request.CustomerName.Trim();
+        customer.Phone = request.CustomerPhone.Trim();
+        customer.NormalizedPhone = normalizedPhone;
+
+        booking.RoomId = request.RoomId;
+        booking.CustomerId = customer.Id;
+        booking.CheckInUtc = checkInUtc;
+        booking.CheckOutUtc = checkOutUtc;
+        booking.RoomAmount = request.RoomAmount;
+        booking.ExtraAmount = request.ExtraAmount;
+        booking.DiscountAmount = request.DiscountAmount;
+        booking.Source = Clean(request.Source);
+        booking.Note = Clean(request.Note);
+
+        var saveError = await SaveWithConflictGuardAsync(cancellationToken);
+        if (saveError is not null) return (null, saveError);
+
+        return (await GetAsync(propertyId, bookingId, cancellationToken), null);
     }
 
     public async Task<(BookingDto? Booking, BookingOperationError? Error)> ChangeStatusAsync(
@@ -127,11 +192,13 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         if (BookingRules.LocksRoom(nextStatus) &&
             await HasConflictAsync(propertyId, booking.RoomId, booking.CheckInUtc, booking.CheckOutUtc, booking.Id, cancellationToken))
         {
-            return (null, new("booking_conflict", "Phòng đã có booking khác trong khoảng thời gian này."));
+            return (null, ConflictError());
         }
 
         booking.Status = nextStatus;
-        await db.SaveChangesAsync(cancellationToken);
+        var saveError = await SaveWithConflictGuardAsync(cancellationToken);
+        if (saveError is not null) return (null, saveError);
+
         return (await GetAsync(propertyId, bookingId, cancellationToken), null);
     }
 
@@ -153,6 +220,21 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
             cancellationToken);
     }
 
+    private async Task<BookingOperationError?> SaveWithConflictGuardAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+        catch (DbUpdateException ex) when (
+            ex.InnerException is PostgresException postgresException &&
+            postgresException.SqlState == PostgresErrorCodes.ExclusionViolation)
+        {
+            return ConflictError();
+        }
+    }
+
     private static BookingOperationError? ValidateCreate(CreateBookingRequest request)
     {
         if (request.RoomId == Guid.Empty) return new("validation", "Vui lòng chọn phòng.");
@@ -168,6 +250,23 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
             return new("validation", "Tên và số điện thoại khách là bắt buộc khi tạo khách mới.");
         return null;
     }
+
+    private static BookingOperationError? ValidateUpdate(UpdateBookingRequest request)
+    {
+        if (request.RoomId == Guid.Empty) return new("validation", "Vui lòng chọn phòng.");
+        if (request.CustomerId == Guid.Empty) return new("validation", "Khách hàng không hợp lệ.");
+        if (string.IsNullOrWhiteSpace(request.CustomerName)) return new("validation", "Tên khách hàng là bắt buộc.");
+        if (CustomerService.NormalizePhone(request.CustomerPhone).Length < 8) return new("validation", "Số điện thoại không hợp lệ.");
+        if (request.CheckOut <= request.CheckIn) return new("validation", "Giờ trả phòng phải sau giờ nhận phòng.");
+        if (request.RoomAmount < 0 || request.ExtraAmount < 0 || request.DiscountAmount < 0)
+            return new("validation", "Các khoản tiền không được âm.");
+        if (request.RoomAmount + request.ExtraAmount - request.DiscountAmount < 0)
+            return new("validation", "Tổng tiền booking không được âm.");
+        return null;
+    }
+
+    private static BookingOperationError ConflictError() =>
+        new("booking_conflict", "Phòng đã có booking trong khoảng thời gian này.");
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
