@@ -1,3 +1,5 @@
+using DeLong.Web.Domain.Enums;
+
 namespace DeLong.Web.Features.Rooms;
 
 public sealed record RoomRateDto(
@@ -18,6 +20,8 @@ public sealed record RoomDto(
     int Capacity,
     int SortOrder,
     bool IsActive,
+    HousekeepingStatus HousekeepingStatus,
+    DateTime? HousekeepingUpdatedAtUtc,
     IReadOnlyList<RoomRateDto> Rates);
 
 public sealed record CreateRoomRequest(
