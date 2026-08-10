@@ -1,6 +1,8 @@
 using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
 using DeLong.Web.Data.Seed;
+using DeLong.Web.Features.Bookings;
+using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -44,6 +46,7 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminArea", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping", "Viewer"));
     options.AddPolicy("ManageRooms", policy => policy.RequireRole("Admin", "Manager"));
+    options.AddPolicy("ManageBookings", policy => policy.RequireRole("Admin", "Manager", "Staff"));
 });
 
 builder.Services.AddRazorPages(options =>
@@ -57,6 +60,8 @@ builder.Services.AddScoped<ApiAntiforgeryFilter>();
 builder.Services.AddScoped<PropertyAccessService>();
 builder.Services.AddScoped<PropertyAccessFilter>();
 builder.Services.AddScoped<RoomService>();
+builder.Services.AddScoped<CustomerService>();
+builder.Services.AddScoped<BookingService>();
 
 var app = builder.Build();
 
@@ -75,6 +80,8 @@ app.UseAntiforgery();
 
 app.MapRazorPages();
 app.MapRoomEndpoints();
+app.MapCustomerEndpoints();
+app.MapBookingEndpoints();
 
 if (app.Configuration.GetValue<bool>("Database:AutoMigrate") || app.Configuration.GetValue<bool>("Database:SeedOnStartup"))
 {
