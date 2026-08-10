@@ -1,0 +1,87 @@
+@page
+@model DeLong.Web.Pages.Admin.Bookings.IndexModel
+@{
+    ViewData["Title"] = "Booking";
+}
+<div id="bookings-page" v-cloak>
+    <script id="bookings-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+
+    <div class="page-title-row">
+        <div><h1>Booking</h1><p>Tra cứu và xử lý trạng thái; tạo booking mới từ Lịch phòng.</p></div>
+        @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff"))
+        {
+            <a class="btn btn-primary" asp-page="/Admin/Calendar">+ Đặt phòng</a>
+        }
+    </div>
+
+    <section class="panel">
+        <div class="panel-head">
+            <div class="toolbar">
+                <input class="search-input" v-model.trim="search" placeholder="Mã, khách, SĐT, phòng..." />
+                <select class="filter-select" v-model="statusFilter">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="0">Yêu cầu</option>
+                    <option value="1">Giữ phòng</option>
+                    <option value="2">Đã xác nhận</option>
+                    <option value="3">Đang ở</option>
+                    <option value="4">Hoàn tất</option>
+                    <option value="5">Đã hủy</option>
+                    <option value="6">No-show</option>
+                </select>
+            </div>
+            <span class="small muted">{{ filteredBookings.length }} booking</span>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Mã</th><th>Khách</th><th>Phòng</th><th>Thời gian</th><th>Trạng thái</th><th>Tổng</th><th></th></tr></thead>
+                <tbody>
+                    <tr v-for="booking in filteredBookings" v-bind:key="booking.id">
+                        <td><strong>{{ booking.code }}</strong><div class="tiny muted">{{ booking.source || '—' }}</div></td>
+                        <td><strong>{{ booking.customerName }}</strong><div class="tiny muted">{{ booking.customerPhone }}</div></td>
+                        <td>{{ booking.roomName }}</td>
+                        <td>{{ dateTimeText(booking.checkInUtc) }}<div class="tiny muted">→ {{ dateTimeText(booking.checkOutUtc) }}</div></td>
+                        <td><span class="pill" v-bind:class="statusClass(booking.status)">{{ statusText(booking.status) }}</span></td>
+                        <td><strong>{{ money(booking.totalAmount) }}</strong></td>
+                        <td><button class="btn btn-light btn-sm" type="button" v-on:click="openBooking(booking)">Xem</button></td>
+                    </tr>
+                    <tr v-if="filteredBookings.length === 0"><td colspan="7" class="empty-state">Không có booking phù hợp.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="modal-backdrop" v-if="detail.open" v-on:click.self="closeDetail">
+        <section class="modal-card" role="dialog" aria-modal="true" v-if="selectedBooking">
+            <div class="modal-head">
+                <div><h2>{{ selectedBooking.code }}</h2><p class="small muted">{{ statusText(selectedBooking.status) }}</p></div>
+                <button class="icon-btn" type="button" v-on:click="closeDetail">×</button>
+            </div>
+            <div class="detail-list">
+                <div><span>Khách</span><strong>{{ selectedBooking.customerName }} · {{ selectedBooking.customerPhone }}</strong></div>
+                <div><span>Phòng</span><strong>{{ selectedBooking.roomName }}</strong></div>
+                <div><span>Check-in</span><strong>{{ dateTimeText(selectedBooking.checkInUtc) }}</strong></div>
+                <div><span>Check-out</span><strong>{{ dateTimeText(selectedBooking.checkOutUtc) }}</strong></div>
+                <div><span>Tiền phòng</span><strong>{{ money(selectedBooking.roomAmount) }}</strong></div>
+                <div><span>Phụ thu</span><strong>{{ money(selectedBooking.extraAmount) }}</strong></div>
+                <div><span>Giảm giá</span><strong>{{ money(selectedBooking.discountAmount) }}</strong></div>
+                <div><span>Tổng</span><strong>{{ money(selectedBooking.totalAmount) }}</strong></div>
+                <div v-if="selectedBooking.note"><span>Ghi chú</span><strong>{{ selectedBooking.note }}</strong></div>
+            </div>
+            <div class="modal-actions" v-if="canManage && nextActions(selectedBooking).length">
+                <button v-for="action in nextActions(selectedBooking)"
+                        v-bind:key="action.status"
+                        type="button"
+                        class="btn"
+                        v-bind:class="action.className"
+                        v-bind:disabled="saving"
+                        v-on:click="changeStatus(action.status)">{{ action.label }}</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+</div>
+@section Scripts {
+    <script>window.DeLongBookingsCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") ? "true" : "false");</script>
+    <script src="~/js/pages/admin-bookings.js" asp-append-version="true"></script>
+}
