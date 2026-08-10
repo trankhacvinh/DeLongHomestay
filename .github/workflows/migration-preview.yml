@@ -3,6 +3,8 @@ name: Migration Preview
 on:
   push:
     branches: [ "agent/dotnet10-foundation" ]
+  pull_request:
+    branches: [ main ]
 
 permissions:
   contents: read
