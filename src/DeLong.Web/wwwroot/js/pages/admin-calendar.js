@@ -26,6 +26,16 @@
         return `${dayKey}T${time}`;
     }
 
+    function utcToLocalInput(value) {
+        const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone,
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+        }).formatToParts(new Date(value));
+        const get = type => parts.find(part => part.type === type)?.value || '';
+        return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
+    }
+
     createApp({
         data() {
             return {
@@ -39,7 +49,7 @@
                 editor: { open: false, mode: 'create' },
                 selectedBooking: null,
                 selectedDayKey: initial.today,
-                form: this.emptyForm ? this.emptyForm() : {},
+                form: {},
                 toast: { show: false, message: '', type: 'success', timer: null }
             };
         },
@@ -76,7 +86,7 @@
         methods: {
             emptyForm() {
                 return {
-                    roomId: '', rateId: '', customerName: '', customerPhone: '',
+                    roomId: '', rateId: '', customerId: null, customerName: '', customerPhone: '',
                     checkInLocal: '', checkOutLocal: '', status: 1,
                     roomAmount: 0, extraAmount: 0, discountAmount: 0,
                     source: '', note: ''
@@ -116,10 +126,10 @@
             },
             moveRange(amount) {
                 const target = addDays(this.startDate, amount);
-                window.location.assign(`/Admin/Calendar?from=${target}`);
+                window.location.assign(`/Admin/Calendar?propertyId=${this.propertyId}&from=${target}`);
             },
             goToday() {
-                window.location.assign(`/Admin/Calendar?from=${this.today}`);
+                window.location.assign(`/Admin/Calendar?propertyId=${this.propertyId}&from=${this.today}`);
             },
             openCreate(room, day) {
                 if (!this.canManage) return;
@@ -139,8 +149,31 @@
                     this.form.checkOutLocal = toInputValue(this.selectedDayKey, '17:00');
                 }
             },
+            openEditBooking(booking) {
+                if (!this.canEditBooking(booking)) return;
+                const checkInLocal = utcToLocalInput(booking.checkInUtc);
+                this.selectedDayKey = checkInLocal.slice(0, 10);
+                this.selectedBooking = booking;
+                this.form = {
+                    roomId: booking.roomId,
+                    rateId: '',
+                    customerId: booking.customerId,
+                    customerName: booking.customerName,
+                    customerPhone: booking.customerPhone,
+                    checkInLocal,
+                    checkOutLocal: utcToLocalInput(booking.checkOutUtc),
+                    status: booking.status,
+                    roomAmount: Number(booking.roomAmount || 0),
+                    extraAmount: Number(booking.extraAmount || 0),
+                    discountAmount: Number(booking.discountAmount || 0),
+                    source: booking.source || '',
+                    note: booking.note || ''
+                };
+                this.editor = { open: true, mode: 'edit' };
+            },
             roomChanged() {
                 this.form.rateId = '';
+                if (this.editor.mode !== 'create') return;
                 const rate = this.selectedRoomRates[0];
                 if (rate) {
                     this.form.rateId = rate.id;
@@ -162,7 +195,10 @@
             closeEditor() {
                 if (!this.saving) this.editor.open = false;
             },
-            validateCreate() {
+            canEditBooking(booking) {
+                return this.canManage && booking && ![4, 5, 6].includes(booking.status);
+            },
+            validateForm() {
                 if (!this.form.roomId) return 'Vui lòng chọn phòng.';
                 if (!this.form.customerName.trim()) return 'Vui lòng nhập tên khách.';
                 if (!this.form.customerPhone.trim()) return 'Vui lòng nhập số điện thoại.';
@@ -171,30 +207,42 @@
                 return null;
             },
             async saveBooking() {
-                const validation = this.validateCreate();
+                const validation = this.validateForm();
                 if (validation) return this.notify(validation, 'error');
                 this.saving = true;
                 try {
-                    const payload = {
+                    const common = {
                         roomId: this.form.roomId,
-                        customerId: null,
                         customerName: this.form.customerName,
                         customerPhone: this.form.customerPhone,
                         checkIn: `${this.form.checkInLocal}${utcOffset}`,
                         checkOut: `${this.form.checkOutLocal}${utcOffset}`,
-                        status: Number(this.form.status),
                         roomAmount: Number(this.form.roomAmount || 0),
                         extraAmount: Number(this.form.extraAmount || 0),
                         discountAmount: Number(this.form.discountAmount || 0),
                         source: this.form.source || null,
                         note: this.form.note || null
                     };
-                    const booking = await DeLongApi.post(`/api/admin/properties/${this.propertyId}/bookings`, payload);
-                    this.bookings.push(booking);
+
+                    let booking;
+                    if (this.editor.mode === 'edit') {
+                        booking = await DeLongApi.put(
+                            `/api/admin/properties/${this.propertyId}/bookings/${this.selectedBooking.id}`,
+                            { ...common, customerId: this.form.customerId });
+                        const index = this.bookings.findIndex(x => x.id === booking.id);
+                        if (index >= 0) this.bookings.splice(index, 1, booking);
+                        this.selectedBooking = booking;
+                        this.notify(`Đã cập nhật ${booking.code}.`, 'success');
+                    } else {
+                        booking = await DeLongApi.post(
+                            `/api/admin/properties/${this.propertyId}/bookings`,
+                            { ...common, customerId: null, status: Number(this.form.status) });
+                        this.bookings.push(booking);
+                        this.notify(`Đã tạo ${booking.code}.`, 'success');
+                    }
                     this.editor.open = false;
-                    this.notify(`Đã tạo ${booking.code}.`, 'success');
                 } catch (error) {
-                    this.notify(error.message || 'Không thể tạo booking.', 'error');
+                    this.notify(error.message || 'Không thể lưu booking.', 'error');
                 } finally {
                     this.saving = false;
                 }
