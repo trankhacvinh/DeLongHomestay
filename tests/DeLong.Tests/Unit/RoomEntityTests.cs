@@ -1,4 +1,5 @@
 using DeLong.Web.Domain.Entities;
+using DeLong.Web.Domain.Enums;
 using Xunit;
 
 namespace DeLong.Tests.Unit;
@@ -6,11 +7,12 @@ namespace DeLong.Tests.Unit;
 public sealed class RoomEntityTests
 {
     [Fact]
-    public void New_room_defaults_to_active_with_capacity_two()
+    public void New_room_defaults_to_active_clean_with_capacity_two()
     {
         var room = new Room();
         Assert.True(room.IsActive);
         Assert.Equal(2, room.Capacity);
+        Assert.Equal(HousekeepingStatus.Clean, room.HousekeepingStatus);
         Assert.NotEqual(Guid.Empty, room.Id);
     }
 
