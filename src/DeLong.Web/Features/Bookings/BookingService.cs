@@ -157,6 +157,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         Guid propertyId,
         Guid bookingId,
         BookingStatus nextStatus,
+        Guid? actorUserId = null,
         CancellationToken cancellationToken = default)
     {
         var booking = await db.Bookings.SingleOrDefaultAsync(
@@ -176,6 +177,17 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         }
 
         booking.Status = nextStatus;
+
+        if (nextStatus == BookingStatus.Completed)
+        {
+            var room = await db.Rooms.SingleAsync(
+                x => x.PropertyId == propertyId && x.Id == booking.RoomId,
+                cancellationToken);
+            room.HousekeepingStatus = HousekeepingStatus.Dirty;
+            room.HousekeepingUpdatedAtUtc = DateTime.UtcNow;
+            room.HousekeepingUpdatedByUserId = actorUserId;
+        }
+
         var saveError = await SaveWithConflictGuardAsync(cancellationToken);
         if (saveError is not null) return (null, saveError);
 
