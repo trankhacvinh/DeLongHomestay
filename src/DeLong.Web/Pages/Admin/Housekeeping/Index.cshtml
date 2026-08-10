@@ -1,0 +1,64 @@
+@page
+@model DeLong.Web.Pages.Admin.Housekeeping.IndexModel
+@{
+    ViewData["Title"] = "Dọn phòng";
+}
+<div id="housekeeping-page" v-cloak>
+    <script id="housekeeping-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+
+    <div class="page-title-row">
+        <div>
+            <h1>Dọn phòng</h1>
+            <p>Checkout tự chuyển phòng sang Bẩn. Nhân viên chỉ cần cập nhật trạng thái dọn.</p>
+        </div>
+        <span class="pill">{{ rooms.length }} phòng</span>
+    </div>
+
+    <div class="housekeeping-board">
+        <section class="panel housekeeping-column">
+            <div class="panel-head"><h2>🔴 Bẩn</h2><span class="pill danger">{{ dirtyRooms.length }}</span></div>
+            <div class="panel-body housekeeping-list">
+                <article class="housekeeping-card" v-for="room in dirtyRooms" v-bind:key="room.roomId">
+                    <div><strong>{{ room.roomName }}</strong><div class="tiny muted">{{ room.roomCode }} · {{ updatedText(room) }}</div></div>
+                    <div class="toolbar">
+                        <button v-if="canManage" class="btn btn-primary btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 2)">Bắt đầu dọn</button>
+                        <button v-if="canManage" class="btn btn-light btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 0)">Đã sạch</button>
+                    </div>
+                </article>
+                <p v-if="dirtyRooms.length === 0" class="empty-state">Không có phòng bẩn.</p>
+            </div>
+        </section>
+
+        <section class="panel housekeeping-column">
+            <div class="panel-head"><h2>🟡 Đang dọn</h2><span class="pill warning">{{ cleaningRooms.length }}</span></div>
+            <div class="panel-body housekeeping-list">
+                <article class="housekeeping-card" v-for="room in cleaningRooms" v-bind:key="room.roomId">
+                    <div><strong>{{ room.roomName }}</strong><div class="tiny muted">{{ room.roomCode }} · {{ updatedText(room) }}</div></div>
+                    <div class="toolbar">
+                        <button v-if="canManage" class="btn btn-primary btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 0)">Hoàn tất / Sạch</button>
+                        <button v-if="canManage" class="btn btn-light btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 1)">Vẫn bẩn</button>
+                    </div>
+                </article>
+                <p v-if="cleaningRooms.length === 0" class="empty-state">Chưa có phòng đang dọn.</p>
+            </div>
+        </section>
+
+        <section class="panel housekeeping-column">
+            <div class="panel-head"><h2>🟢 Sạch</h2><span class="pill success">{{ cleanRooms.length }}</span></div>
+            <div class="panel-body housekeeping-list">
+                <article class="housekeeping-card" v-for="room in cleanRooms" v-bind:key="room.roomId">
+                    <div><strong>{{ room.roomName }}</strong><div class="tiny muted">{{ room.roomCode }} · {{ updatedText(room) }}</div></div>
+                    <button v-if="canManage" class="btn btn-light btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 1)">Đánh dấu bẩn</button>
+                </article>
+                <p v-if="cleanRooms.length === 0" class="empty-state">Chưa có phòng sạch.</p>
+            </div>
+        </section>
+    </div>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+</div>
+
+@section Scripts {
+    <script>window.DeLongHousekeepingCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") || User.IsInRole("Housekeeping") ? "true" : "false");</script>
+    <script src="~/js/pages/admin-housekeeping.js" asp-append-version="true"></script>
+}
