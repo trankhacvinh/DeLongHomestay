@@ -80,14 +80,14 @@
         <section class="modal-card booking-editor" role="dialog" aria-modal="true">
             <div class="modal-head">
                 <div>
-                    <h2>{{ editor.mode === 'view' ? 'Chi tiết booking' : 'Đặt phòng' }}</h2>
+                    <h2>{{ editor.mode === 'view' ? 'Chi tiết booking' : (editor.mode === 'edit' ? 'Sửa booking' : 'Đặt phòng') }}</h2>
                     <p class="muted small" v-if="editor.mode === 'create'">Khung giờ là preset; có thể sửa giờ nhận/trả thực tế.</p>
                     <p class="muted small" v-else>{{ selectedBooking?.code }}</p>
                 </div>
                 <button class="icon-btn" type="button" v-on:click="closeEditor">×</button>
             </div>
 
-            <template v-if="editor.mode === 'create'">
+            <template v-if="editor.mode === 'create' || editor.mode === 'edit'">
                 <div class="form-grid">
                     <div class="field">
                         <label>Phòng *</label>
@@ -125,13 +125,17 @@
                         <label>Giá phòng</label>
                         <input type="number" min="0" step="1000" v-model.number="form.roomAmount" />
                     </div>
-                    <div class="field">
+                    <div class="field" v-if="editor.mode === 'create'">
                         <label>Trạng thái</label>
                         <select v-model.number="form.status">
                             <option v-bind:value="1">Giữ phòng</option>
                             <option v-bind:value="2">Đã xác nhận</option>
                             <option v-bind:value="0">Yêu cầu</option>
                         </select>
+                    </div>
+                    <div class="field" v-else>
+                        <label>Trạng thái</label>
+                        <input v-bind:value="statusText(selectedBooking?.status)" disabled />
                     </div>
                     <div class="field">
                         <label>Nguồn</label>
@@ -149,6 +153,10 @@
                         <label>Phụ thu</label>
                         <input type="number" min="0" step="1000" v-model.number="form.extraAmount" />
                     </div>
+                    <div class="field">
+                        <label>Giảm giá</label>
+                        <input type="number" min="0" step="1000" v-model.number="form.discountAmount" />
+                    </div>
                     <div class="field full">
                         <label>Ghi chú</label>
                         <textarea v-model.trim="form.note" maxlength="2000" placeholder="Ví dụ: check-in 22:30, thêm gối..."></textarea>
@@ -160,7 +168,7 @@
                 <div class="modal-actions">
                     <button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button>
                     <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveBooking">
-                        {{ saving ? 'Đang lưu...' : 'Lưu booking' }}
+                        {{ saving ? 'Đang lưu...' : (editor.mode === 'edit' ? 'Lưu thay đổi' : 'Lưu booking') }}
                     </button>
                 </div>
             </template>
@@ -174,7 +182,8 @@
                     <div><span>Tổng</span><strong>{{ money(selectedBooking.totalAmount) }}</strong></div>
                     <div v-if="selectedBooking.note"><span>Ghi chú</span><strong>{{ selectedBooking.note }}</strong></div>
                 </div>
-                <div class="modal-actions" v-if="canManage && nextActions(selectedBooking).length">
+                <div class="modal-actions" v-if="canManage">
+                    <button v-if="canEditBooking(selectedBooking)" class="btn btn-light" type="button" v-on:click="openEditBooking(selectedBooking)">Sửa</button>
                     <button v-for="action in nextActions(selectedBooking)"
                             v-bind:key="action.status"
                             type="button"
