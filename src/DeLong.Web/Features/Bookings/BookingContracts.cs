@@ -19,6 +19,8 @@ public sealed record BookingDto(
     decimal ExtraAmount,
     decimal DiscountAmount,
     decimal TotalAmount,
+    decimal PaidAmount,
+    decimal BalanceAmount,
     string? Source,
     string? Note,
     DateTime CreatedAtUtc);
