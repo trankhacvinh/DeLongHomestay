@@ -1,5 +1,6 @@
 using DeLong.Web.Common.Persistence;
 using DeLong.Web.Domain.Entities;
+using DeLong.Web.Domain.Enums;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -39,7 +40,11 @@ public sealed class AppDbContext
             entity.HasIndex(x => new { x.PropertyId, x.Code }).IsUnique();
             entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
-            entity.Property(x => x.HousekeepingStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.HousekeepingStatus)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasDefaultValue(HousekeepingStatus.Clean)
+                .IsRequired();
             entity.HasOne(x => x.Property)
                 .WithMany(x => x.Rooms)
                 .HasForeignKey(x => x.PropertyId)
