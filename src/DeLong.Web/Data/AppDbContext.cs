@@ -39,6 +39,7 @@ public sealed class AppDbContext
             entity.HasIndex(x => new { x.PropertyId, x.Code }).IsUnique();
             entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.HousekeepingStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.HasOne(x => x.Property)
                 .WithMany(x => x.Rooms)
                 .HasForeignKey(x => x.PropertyId)
