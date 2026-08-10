@@ -33,10 +33,12 @@ public static class BookingEndpoints
         group.MapPost("/", async (
             Guid propertyId,
             CreateBookingRequest request,
+            ClaimsPrincipal user,
             BookingService service,
             CancellationToken cancellationToken) =>
         {
-            var (booking, error) = await service.CreateAsync(propertyId, request, cancellationToken);
+            var (booking, error) = await service.CreateAsync(
+                propertyId, request, GetUserId(user), cancellationToken);
             if (error is not null) return ToProblem(error);
             return Results.Created($"/api/admin/properties/{propertyId}/bookings/{booking!.Id}", booking);
         })
@@ -47,10 +49,12 @@ public static class BookingEndpoints
             Guid propertyId,
             Guid bookingId,
             UpdateBookingRequest request,
+            ClaimsPrincipal user,
             BookingService service,
             CancellationToken cancellationToken) =>
         {
-            var (booking, error) = await service.UpdateAsync(propertyId, bookingId, request, cancellationToken);
+            var (booking, error) = await service.UpdateAsync(
+                propertyId, bookingId, request, GetUserId(user), cancellationToken);
             if (error is not null) return ToProblem(error);
             return Results.Ok(booking);
         })
@@ -65,9 +69,8 @@ public static class BookingEndpoints
             BookingService service,
             CancellationToken cancellationToken) =>
         {
-            var actorUserId = GetUserId(user);
             var (booking, error) = await service.ChangeStatusAsync(
-                propertyId, bookingId, request.Status, actorUserId, cancellationToken);
+                propertyId, bookingId, request.Status, GetUserId(user), cancellationToken);
             if (error is not null) return ToProblem(error);
             return Results.Ok(booking);
         })
