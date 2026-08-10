@@ -8,7 +8,7 @@ public static class ExpenseEndpoints
     public static IEndpointRouteBuilder MapExpenseEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/admin/properties/{propertyId:guid}/expenses")
-            .RequireAuthorization("AdminArea")
+            .RequireAuthorization("ViewFinance")
             .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Expenses");
 
