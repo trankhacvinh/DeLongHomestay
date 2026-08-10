@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   generate:
@@ -16,18 +16,79 @@ jobs:
       ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=delong_dev;Username=postgres;Password=postgres"
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check existing migration
+        id: migration
+        shell: bash
+        run: |
+          if compgen -G "src/DeLong.Web/Data/Migrations/*_InitialCreate.cs" > /dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup .NET 10
+        if: steps.migration.outputs.exists == 'false'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+
       - name: Install dotnet-ef
+        if: steps.migration.outputs.exists == 'false'
         run: dotnet tool install --global dotnet-ef --version 10.0.10
+
       - name: Restore
+        if: steps.migration.outputs.exists == 'false'
         run: dotnet restore DeLongHomestay.sln
+
       - name: Generate InitialCreate migration
+        if: steps.migration.outputs.exists == 'false'
         run: dotnet ef migrations add InitialCreate --project src/DeLong.Web --startup-project src/DeLong.Web --output-dir Data/Migrations
+
+      - name: Add PostgreSQL booking overlap constraint
+        if: steps.migration.outputs.exists == 'false'
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          folder = Path('src/DeLong.Web/Data/Migrations')
+          migration = next(p for p in folder.glob('*_InitialCreate.cs') if not p.name.endswith('.Designer.cs'))
+          text = migration.read_text(encoding='utf-8-sig')
+          needle = '\n        }\n\n        /// <inheritdoc />\n        protected override void Down'
+          sql = '''
+
+              migrationBuilder.Sql("""
+                  CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+                  ALTER TABLE bookings
+                  ADD CONSTRAINT ex_bookings_room_time_no_overlap
+                  EXCLUDE USING gist
+                  (
+                      room_id WITH =,
+                      tstzrange(check_in_utc, check_out_utc, '[)') WITH &&
+                  )
+                  WHERE (status IN ('Held', 'Confirmed', 'CheckedIn'));
+                  """);
+          '''
+          if needle not in text:
+              raise SystemExit('Could not find end of Up() in generated migration')
+          migration.write_text(text.replace(needle, sql + needle, 1), encoding='utf-8')
+          PY
+
       - name: Upload migration files
+        if: steps.migration.outputs.exists == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: ef-migration
           path: src/DeLong.Web/Data/Migrations
+
+      - name: Commit migration to branch
+        if: github.event_name == 'push' && steps.migration.outputs.exists == 'false'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/DeLong.Web/Data/Migrations
+          git commit -m "db: add initial ef migration"
+          git push origin HEAD:agent/dotnet10-foundation
