@@ -3,6 +3,7 @@ using DeLong.Web.Data;
 using DeLong.Web.Data.Seed;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Customers;
+using DeLong.Web.Features.Housekeeping;
 using DeLong.Web.Features.Payments;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Identity;
@@ -49,6 +50,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ManageRooms", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageBookings", policy => policy.RequireRole("Admin", "Manager", "Staff"));
     options.AddPolicy("ManagePayments", policy => policy.RequireRole("Admin", "Manager", "Staff"));
+    options.AddPolicy("ManageHousekeeping", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping"));
 });
 
 builder.Services.AddRazorPages(options =>
@@ -66,6 +68,7 @@ builder.Services.AddScoped<RoomService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<PaymentService>();
+builder.Services.AddScoped<HousekeepingService>();
 
 var app = builder.Build();
 
@@ -87,6 +90,7 @@ app.MapRoomEndpoints();
 app.MapCustomerEndpoints();
 app.MapBookingEndpoints();
 app.MapPaymentEndpoints();
+app.MapHousekeepingEndpoints();
 
 if (app.Configuration.GetValue<bool>("Database:AutoMigrate") || app.Configuration.GetValue<bool>("Database:SeedOnStartup"))
 {
