@@ -19,6 +19,7 @@ public sealed class AppDbContext
     public DbSet<RoomRate> RoomRates => Set<RoomRate>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<UserPropertyAccess> UserPropertyAccesses => Set<UserPropertyAccess>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -93,6 +94,26 @@ public sealed class AppDbContext
             entity.HasOne(x => x.Customer)
                 .WithMany()
                 .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Payment>(entity =>
+        {
+            entity.HasIndex(x => new { x.BookingId, x.OccurredAtUtc });
+            entity.HasIndex(x => new { x.PropertyId, x.OccurredAtUtc });
+            entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(x => x.Method).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.Property(x => x.Reference).HasMaxLength(200);
+            entity.Property(x => x.Note).HasMaxLength(2000);
+            entity.Property(x => x.VoidReason).HasMaxLength(1000);
+            entity.HasOne(x => x.Property)
+                .WithMany()
+                .HasForeignKey(x => x.PropertyId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Booking)
+                .WithMany(x => x.Payments)
+                .HasForeignKey(x => x.BookingId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
