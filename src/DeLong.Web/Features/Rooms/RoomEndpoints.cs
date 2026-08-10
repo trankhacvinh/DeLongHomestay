@@ -8,6 +8,7 @@ public static class RoomEndpoints
     {
         var group = app.MapGroup("/api/admin/properties/{propertyId:guid}/rooms")
             .RequireAuthorization("AdminArea")
+            .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Rooms");
 
         group.MapGet("/", async (Guid propertyId, RoomService service, CancellationToken cancellationToken) =>

@@ -54,6 +54,8 @@ builder.Services.AddRazorPages(options =>
 builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 builder.Services.AddScoped<ApiAntiforgeryFilter>();
+builder.Services.AddScoped<PropertyAccessService>();
+builder.Services.AddScoped<PropertyAccessFilter>();
 builder.Services.AddScoped<RoomService>();
 
 var app = builder.Build();
