@@ -1,0 +1,7 @@
+import { getState, bookingBalance } from '../store.js';
+import { qs, publicHeader, publicFooter, getQuery, money, formatDateTime, escapeHtml } from '../core.js';
+const state = getState();
+qs('[data-public-header]').innerHTML = publicHeader(); qs('[data-public-footer]').innerHTML = publicFooter();
+const booking = state.bookings.find(b => b.id === getQuery('id')) || state.bookings[state.bookings.length-1];
+const room = state.rooms.find(r => r.id === booking?.roomId);
+if (booking) qs('[data-success]').innerHTML = `<div class="success-icon">✓</div><div class="eyebrow">Yêu cầu đã được lưu</div><h1>Mã đặt phòng ${escapeHtml(booking.id)}</h1><p class="muted">Nhân viên sẽ kiểm tra lịch và liên hệ xác nhận/cọc. Demo hiện lưu yêu cầu ngay trên trình duyệt bằng localStorage.</p><div class="summary-box text-left mt-24"><div class="summary-line"><span>Phòng</span><strong>${escapeHtml(room?.name || '')}</strong></div><div class="summary-line"><span>Check-in</span><strong>${formatDateTime(booking.checkIn)}</strong></div><div class="summary-line"><span>Check-out</span><strong>${formatDateTime(booking.checkOut)}</strong></div><div class="summary-line total"><span>Tổng dự kiến</span><strong>${money(booking.total)}</strong></div></div><div class="flex gap-8 mt-24" style="justify-content:center"><a class="btn btn-light" href="rooms.html">Xem phòng khác</a><a class="btn btn-primary" href="admin/bookings.html">Mở quản trị demo</a></div>`;

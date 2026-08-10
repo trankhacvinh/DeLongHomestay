@@ -1,0 +1,9 @@
+{
+  "name": "delong-homestay-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/smoke.mjs",
+    "check:js": "find demo/assets/js -name '*.js' -print0 | xargs -0 -n1 node --check"
+  }
+}
