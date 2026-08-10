@@ -1,4 +1,5 @@
 using DeLong.Web.Domain.Entities;
+using Xunit;
 
 namespace DeLong.Tests.Unit;
 
