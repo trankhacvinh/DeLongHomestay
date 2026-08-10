@@ -30,33 +30,13 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
             query = query.Where(x => x.CheckInUtc < toUtc);
         }
 
-        return await query
-            .OrderBy(x => x.CheckInUtc)
-            .Select(x => new BookingDto(
-                x.Id, x.PropertyId, x.Code,
-                x.RoomId, x.Room.Code, x.Room.Name,
-                x.CustomerId, x.Customer.Name, x.Customer.Phone,
-                x.CheckInUtc, x.CheckOutUtc, x.Status,
-                x.RoomAmount, x.ExtraAmount, x.DiscountAmount,
-                x.RoomAmount + x.ExtraAmount - x.DiscountAmount,
-                x.Source, x.Note, x.CreatedAtUtc))
-            .ToListAsync(cancellationToken);
+        return await Project(query.OrderBy(x => x.CheckInUtc)).ToListAsync(cancellationToken);
     }
 
-    public async Task<BookingDto?> GetAsync(Guid propertyId, Guid bookingId, CancellationToken cancellationToken = default)
+    public Task<BookingDto?> GetAsync(Guid propertyId, Guid bookingId, CancellationToken cancellationToken = default)
     {
-        return await db.Bookings
-            .AsNoTracking()
-            .Where(x => x.PropertyId == propertyId && x.Id == bookingId)
-            .Select(x => new BookingDto(
-                x.Id, x.PropertyId, x.Code,
-                x.RoomId, x.Room.Code, x.Room.Name,
-                x.CustomerId, x.Customer.Name, x.Customer.Phone,
-                x.CheckInUtc, x.CheckOutUtc, x.Status,
-                x.RoomAmount, x.ExtraAmount, x.DiscountAmount,
-                x.RoomAmount + x.ExtraAmount - x.DiscountAmount,
-                x.Source, x.Note, x.CreatedAtUtc))
-            .SingleOrDefaultAsync(cancellationToken);
+        var query = db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Id == bookingId);
+        return Project(query).SingleOrDefaultAsync(cancellationToken);
     }
 
     public async Task<(BookingDto? Booking, BookingOperationError? Error)> CreateAsync(
@@ -233,6 +213,33 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         {
             return ConflictError();
         }
+    }
+
+    private static IQueryable<BookingDto> Project(IQueryable<Booking> query)
+    {
+        return query.Select(x => new BookingDto(
+            x.Id,
+            x.PropertyId,
+            x.Code,
+            x.RoomId,
+            x.Room.Code,
+            x.Room.Name,
+            x.CustomerId,
+            x.Customer.Name,
+            x.Customer.Phone,
+            x.CheckInUtc,
+            x.CheckOutUtc,
+            x.Status,
+            x.RoomAmount,
+            x.ExtraAmount,
+            x.DiscountAmount,
+            x.RoomAmount + x.ExtraAmount - x.DiscountAmount,
+            x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
+            x.RoomAmount + x.ExtraAmount - x.DiscountAmount -
+                x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
+            x.Source,
+            x.Note,
+            x.CreatedAtUtc));
     }
 
     private static BookingOperationError? ValidateCreate(CreateBookingRequest request)
