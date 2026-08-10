@@ -1,8 +1,10 @@
+using DeLong.Web.Common.Auditing;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
 using DeLong.Web.Data.Seed;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Customers;
+using DeLong.Web.Features.Expenses;
 using DeLong.Web.Features.Housekeeping;
 using DeLong.Web.Features.Payments;
 using DeLong.Web.Features.Rooms;
@@ -51,6 +53,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ManageBookings", policy => policy.RequireRole("Admin", "Manager", "Staff"));
     options.AddPolicy("ManagePayments", policy => policy.RequireRole("Admin", "Manager", "Staff"));
     options.AddPolicy("ManageHousekeeping", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping"));
+    options.AddPolicy("ManageFinance", policy => policy.RequireRole("Admin", "Manager"));
 });
 
 builder.Services.AddRazorPages(options =>
@@ -64,11 +67,13 @@ builder.Services.AddScoped<ApiAntiforgeryFilter>();
 builder.Services.AddScoped<PropertyAccessService>();
 builder.Services.AddScoped<PropertyAccessFilter>();
 builder.Services.AddScoped<CurrentPropertyService>();
+builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<RoomService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<HousekeepingService>();
+builder.Services.AddScoped<ExpenseService>();
 
 var app = builder.Build();
 
@@ -91,6 +96,7 @@ app.MapCustomerEndpoints();
 app.MapBookingEndpoints();
 app.MapPaymentEndpoints();
 app.MapHousekeepingEndpoints();
+app.MapExpenseEndpoints();
 
 if (app.Configuration.GetValue<bool>("Database:AutoMigrate") || app.Configuration.GetValue<bool>("Database:SeedOnStartup"))
 {
