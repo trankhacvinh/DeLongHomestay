@@ -15,43 +15,48 @@
 - [x] ASP.NET Core Identity.
 - [x] Không Docker.
 - [x] Soft-delete/archive/audit direction.
-- [x] UTC + Asia/Ho_Chi_Minh strategy.
+- [x] UTC + property timezone strategy.
 
 ## Phase 2 — Foundation
 
-- [x] Tạo solution/project skeleton.
-- [x] Cấu hình EF Core/Npgsql/Identity.
-- [x] Domain ban đầu: Property, Room, RoomRate, UserPropertyAccess.
+- [x] Solution/project skeleton.
+- [x] EF Core/Npgsql/Identity.
+- [x] Property, Room, RoomRate, UserPropertyAccess.
 - [x] Seed definition De Long + 6 phòng + rates.
 - [x] Vue + api.js + antiforgery pattern.
-- [x] Feature mẫu Rooms: Razor + modal + API CRUD/archive.
-- [x] CI restore/build/test + JavaScript syntax workflow.
+- [x] Rooms Razor + modal + Minimal API CRUD/archive.
+- [x] CI restore/build/test + JavaScript syntax.
 - [x] Initial EF migration.
-- [ ] Chạy migration trên PostgreSQL local.
+- [ ] Apply migrations trên PostgreSQL local `delong_dev`.
 - [ ] Seed admin bằng User Secrets.
-- [ ] Integration tests dùng database `delong_test`.
+- [ ] Integration tests trên `delong_test`.
 
-## Phase 3 — Customer + Booking core (đang thực hiện)
+## Phase 3 — Customer + Booking core
 
-- [x] Customer entity/service/API.
+- [x] Customer entity/service/API + normalized phone.
 - [x] Booking entity/status/rules.
-- [x] Create booking + status transitions/cancel/no-show.
-- [x] Server conflict validation.
-- [x] PostgreSQL exclusion constraint chống booking trùng phòng.
-- [x] Calendar đọc Rooms + Bookings từ server.
-- [x] Modal tạo booking trên Calendar không reload.
-- [x] Trang danh sách Booking.
-- [x] Trang quản lý Khách hàng.
-- [ ] Edit booking (giờ/phòng/giá) + conflict protection.
+- [x] Create booking + state transitions/cancel/no-show.
+- [x] Edit booking room/time/amount/customer.
+- [x] C# conflict validation.
+- [x] PostgreSQL exclusion constraint chống booking overlap.
+- [x] Database race conflict (`23P01`) → API `409 ProblemDetails`.
+- [x] Calendar server-backed + Vue modal create/edit.
+- [x] Booking list + search/filter/state actions.
+- [x] Customers page + Vue add/edit.
+- [x] CurrentProperty resolver thay seed property ID trong các PageModel vận hành.
+- [ ] Property selector UI khi user có nhiều cơ sở.
 - [ ] Booking audit log.
 - [ ] Booking concurrency integration tests trên PostgreSQL thật.
-- [ ] CurrentProperty resolver/selector thay property seed ID trong PageModel.
 
-## Phase 4 — Payments + Operations
+## Phase 4 — Payments + Operations (đang thực hiện)
 
-- [ ] Payment ledger/balance.
-- [ ] Check-in/check-out side effects.
-- [ ] Housekeeping workflow.
+- [x] Payment ledger: Receipt/Refund.
+- [x] Void payment giữ lịch sử + lý do/người thao tác.
+- [x] Booking PaidAmount/BalanceAmount tính từ ledger.
+- [x] Payment API + Vue modal không reload.
+- [x] EF migration `AddPayments`.
+- [ ] Check-out tự chuyển phòng sang Bẩn.
+- [ ] Housekeeping workflow Bẩn → Đang dọn → Sạch.
 - [ ] Expenses.
 - [ ] Reports.
 - [ ] Settings/rates.
