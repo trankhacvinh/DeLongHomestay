@@ -1,37 +1,25 @@
 using System.Text.Json;
 using DeLong.Web.Common.Security;
-using DeLong.Web.Data;
-using DeLong.Web.Data.Seed;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Rooms;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Pages.Admin;
 
 public sealed class CalendarModel(
-    AppDbContext db,
     RoomService roomService,
     BookingService bookingService,
-    PropertyAccessService propertyAccess) : PageModel
+    CurrentPropertyService currentPropertyService) : PageModel
 {
-    public Guid PropertyId { get; private set; } = DbSeeder.DeLongPropertyId;
+    public Guid PropertyId { get; private set; }
     public string PageDataJson { get; private set; } = "{}";
 
-    public async Task<IActionResult> OnGetAsync(DateOnly? from, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(DateOnly? from, Guid? propertyId, CancellationToken cancellationToken)
     {
-        if (!await propertyAccess.CanAccessAsync(User, PropertyId, cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var property = await db.Properties
-            .AsNoTracking()
-            .Where(x => x.Id == PropertyId && x.IsActive)
-            .Select(x => new { x.Name, x.TimeZoneId })
-            .SingleOrDefaultAsync(cancellationToken);
-        if (property is null) return NotFound();
+        var property = await currentPropertyService.ResolveAsync(User, propertyId, cancellationToken);
+        if (property is null) return Forbid();
+        PropertyId = property.Id;
 
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
         var todayLocal = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
@@ -42,6 +30,8 @@ public sealed class CalendarModel(
         var endLocal = DateTime.SpecifyKind(endDateExclusive.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
         var startUtc = TimeZoneInfo.ConvertTimeToUtc(startLocal, timeZone);
         var endUtc = TimeZoneInfo.ConvertTimeToUtc(endLocal, timeZone);
+        var offset = timeZone.GetUtcOffset(startLocal);
+        var offsetText = $"{(offset < TimeSpan.Zero ? "-" : "+")}{Math.Abs(offset.Hours):00}:{Math.Abs(offset.Minutes):00}";
 
         var rooms = await roomService.GetAllAsync(PropertyId, cancellationToken);
         var bookings = await bookingService.GetAllAsync(
@@ -56,7 +46,7 @@ public sealed class CalendarModel(
                 propertyId = PropertyId,
                 propertyName = property.Name,
                 timeZoneId = property.TimeZoneId,
-                utcOffset = "+07:00",
+                utcOffset = offsetText,
                 startDate = startDate.ToString("yyyy-MM-dd"),
                 today = todayLocal.ToString("yyyy-MM-dd"),
                 rooms,
