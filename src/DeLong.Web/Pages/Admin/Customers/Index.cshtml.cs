@@ -1,6 +1,5 @@
 using System.Text.Json;
 using DeLong.Web.Common.Security;
-using DeLong.Web.Data.Seed;
 using DeLong.Web.Features.Customers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -9,18 +8,20 @@ namespace DeLong.Web.Pages.Admin.Customers;
 
 public sealed class IndexModel(
     CustomerService customerService,
-    PropertyAccessService propertyAccess) : PageModel
+    CurrentPropertyService currentPropertyService) : PageModel
 {
-    public Guid PropertyId { get; private set; } = DbSeeder.DeLongPropertyId;
+    public Guid PropertyId { get; private set; }
     public string PageDataJson { get; private set; } = "{}";
 
-    public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(Guid? propertyId, CancellationToken cancellationToken)
     {
-        if (!await propertyAccess.CanAccessAsync(User, PropertyId, cancellationToken)) return Forbid();
+        var property = await currentPropertyService.ResolveAsync(User, propertyId, cancellationToken);
+        if (property is null) return Forbid();
 
+        PropertyId = property.Id;
         var customers = await customerService.GetAllAsync(PropertyId, null, cancellationToken);
         PageDataJson = JsonSerializer.Serialize(
-            new { propertyId = PropertyId, customers },
+            new { propertyId = PropertyId, propertyName = property.Name, customers },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return Page();
     }
