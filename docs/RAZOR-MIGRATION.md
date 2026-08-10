@@ -1,57 +1,47 @@
-# Mapping Demo → ASP.NET Core Razor Pages
+# Mapping Demo → Production Razor Pages
 
-## Cấu trúc đề xuất
+## Nguyên tắc
 
-```text
-src/DeLong.Web/
-├── Pages/
-│   ├── Index.cshtml
-│   ├── Rooms/
-│   │   ├── Index.cshtml
-│   │   └── Detail.cshtml
-│   ├── Booking/
-│   │   ├── Create.cshtml
-│   │   └── Success.cshtml
-│   └── Admin/
-│       ├── Index.cshtml
-│       ├── Calendar.cshtml
-│       ├── Bookings/
-│       ├── Customers/
-│       ├── Housekeeping/
-│       ├── Finance/
-│       ├── Reports/
-│       └── Settings/
-├── Application/
-├── Domain/
-├── Infrastructure/
-└── wwwroot/
-```
+`demo/` là UI/UX specification. Không viết lại giao diện tùy tiện khi port production.
 
-## Mapping file
+- Static HTML → Razor Page.
+- `localStorage` mutation → Minimal API + Feature Service.
+- `data.js` → PostgreSQL seed/migration.
+- Giữ CSS class/token và interaction flow càng nhiều càng tốt.
+- Vue 3 được dùng trực tiếp trong Razor markup bằng `v-on`, `v-model`, `v-if`, `v-for`, `v-bind`.
+- Business rule quan trọng không nằm trong JavaScript.
 
-| Demo | Razor Pages target |
+## Mapping
+
+| Demo | Production |
 |---|---|
 | `demo/index.html` | `Pages/Index.cshtml` |
 | `demo/rooms.html` | `Pages/Rooms/Index.cshtml` |
 | `demo/room-detail.html` | `Pages/Rooms/Detail.cshtml` |
 | `demo/booking.html` | `Pages/Booking/Create.cshtml` |
 | `demo/admin/calendar.html` | `Pages/Admin/Calendar.cshtml` |
-| `store.addBooking()` | `BookingService.CreateAsync()` |
-| `roomHasConflict()` | domain query + transaction guard |
-| localStorage state | PostgreSQL + EF Core/Npgsql |
+| `store.addBooking()` | `Features/Bookings/BookingService.CreateAsync()` |
+| `roomHasConflict()` | BookingService + PostgreSQL conflict guard |
+| localStorage state | `AppDbContext` + PostgreSQL |
 
-## CSS/HTML
+## Frontend pattern
 
-`demo/assets/css/styles.css` được xem là giao diện chuẩn để port vào `wwwroot/css`. Khi chuyển Razor, ưu tiên giữ class names để giảm rework.
+```text
+Razor initial render
+   ↓
+<script type="application/json">initial state</script>
+   ↓
+Vue page scope
+   ↓ fetch
+/api/admin/...
+```
 
-## JavaScript
+Không dùng SPA router. Chuyển trang lớn vẫn đi qua Razor Pages; CRUD/modal/inline actions đi qua API để tránh reload toàn trang.
 
-Giữ JavaScript UI nhỏ (modal/calendar interaction) nhưng dữ liệu phải lấy từ server. Không để business rule quan trọng chỉ ở client.
+## Production security
 
-## Booking concurrency
-
-Khi 2 nhân viên/khách tạo booking cùng lúc, production phải kiểm tra conflict trong transaction trước commit. Cần test race condition trước go-live.
-
-## Authentication
-
-Production dùng authentication server-side, cookie secure, authorization theo role/property access. Tài khoản demo không được mang sang production.
+- ASP.NET Core Identity, không mang demo auth sang.
+- Cookie HttpOnly/SameSite; HTTPS production.
+- Antiforgery bắt buộc cho mutation API dùng cookie auth.
+- Authorization theo role + property access.
+- Password/connection string nằm trong User Secrets/environment, không commit Git.

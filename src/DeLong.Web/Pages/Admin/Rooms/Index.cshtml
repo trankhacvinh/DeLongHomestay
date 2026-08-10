@@ -1,0 +1,81 @@
+@page
+@model DeLong.Web.Pages.Admin.Rooms.IndexModel
+@{
+    ViewData["Title"] = "Phòng";
+}
+<div id="rooms-page" v-cloak>
+    <script id="rooms-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+    <div class="page-title-row">
+        <div><h1>Phòng</h1><p>Feature mẫu cho Razor + Vue + API. Xóa phòng hiện là ngừng hoạt động, không hard-delete.</p></div>
+        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+        {
+            <button class="btn btn-primary" type="button" v-on:click="openCreate">+ Thêm phòng</button>
+        }
+    </div>
+    <section class="panel">
+        <div class="panel-head">
+            <div class="toolbar">
+                <input class="search-input" v-model.trim="search" placeholder="Tìm tên hoặc mã phòng..." />
+                <label class="check-row"><input type="checkbox" v-model="showInactive" /> Hiện phòng ngừng hoạt động</label>
+            </div>
+            <span class="small muted">{{ filteredRooms.length }} phòng</span>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Thứ tự</th><th>Mã</th><th>Phòng</th><th>Sức chứa</th><th>Khung giá</th><th>Trạng thái</th><th></th></tr></thead>
+                <tbody>
+                    <tr v-for="room in filteredRooms" v-bind:key="room.id">
+                        <td>{{ room.sortOrder }}</td>
+                        <td><code>{{ room.code }}</code></td>
+                        <td><strong>{{ room.name }}</strong></td>
+                        <td>{{ room.capacity }} người</td>
+                        <td>
+                            <div class="rate-inline" v-if="room.rates.length">
+                                <span v-for="rate in room.rates" v-bind:key="rate.id" class="pill">{{ rate.startTime }}–{{ rate.endTime }} · {{ money(rate.price) }}</span>
+                            </div>
+                            <span v-else class="muted small">Chưa cấu hình</span>
+                        </td>
+                        <td><span class="pill" v-bind:class="room.isActive ? 'success' : 'danger'">{{ room.isActive ? 'Hoạt động' : 'Ngừng' }}</span></td>
+                        <td>
+                            @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                            {
+                                <div class="table-actions">
+                                    <button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(room)">Sửa</button>
+                                    <button v-if="room.isActive" class="btn btn-danger btn-sm" type="button" v-on:click="confirmArchive(room)">Ngừng</button>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                    <tr v-if="filteredRooms.length === 0"><td colspan="7" class="empty-state">Không có phòng phù hợp.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="modal-backdrop" v-if="editor.open" v-on:click.self="closeEditor">
+        <section class="modal-card" role="dialog" aria-modal="true">
+            <div class="modal-head"><div><h2>{{ editor.mode === 'create' ? 'Thêm phòng' : 'Sửa phòng' }}</h2><p class="muted small">Thông tin cơ bản. Khung giá sẽ tách thành màn hình cấu hình riêng.</p></div><button class="icon-btn" type="button" v-on:click="closeEditor">×</button></div>
+            <div class="form-grid">
+                <div class="field"><label>Mã phòng</label><input v-model.trim="form.code" maxlength="50" /></div>
+                <div class="field"><label>Tên phòng</label><input v-model.trim="form.name" maxlength="200" /></div>
+                <div class="field"><label>Sức chứa</label><input v-model.number="form.capacity" type="number" min="1" max="50" /></div>
+                <div class="field"><label>Thứ tự hiển thị</label><input v-model.number="form.sortOrder" type="number" min="0" /></div>
+                <label v-if="editor.mode === 'edit'" class="check-row full"><input type="checkbox" v-model="form.isActive" /> Phòng đang hoạt động</label>
+            </div>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveRoom">{{ saving ? 'Đang lưu...' : 'Lưu' }}</button></div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop" v-if="archiveModal.open" v-on:click.self="archiveModal.open = false">
+        <section class="modal-card modal-small" role="dialog" aria-modal="true">
+            <div class="modal-head"><div><h2>Ngừng hoạt động phòng?</h2><p class="muted small">Phòng không bị xóa khỏi lịch sử dữ liệu.</p></div></div>
+            <p>Bạn muốn ngừng <strong>{{ archiveModal.room?.name }}</strong>?</p>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="archiveModal.open = false">Hủy</button><button class="btn btn-danger" type="button" v-bind:disabled="saving" v-on:click="archiveRoom">{{ saving ? 'Đang xử lý...' : 'Xác nhận' }}</button></div>
+        </section>
+    </div>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+</div>
+@section Scripts {
+    <script src="~/js/pages/admin-rooms.js" asp-append-version="true"></script>
+}

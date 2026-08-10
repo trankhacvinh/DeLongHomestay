@@ -3,16 +3,22 @@
 Trước khi sửa dự án, đọc skill phù hợp trong `skills/`.
 
 1. Nghiệp vụ booking/lịch phòng: `skills/domain-booking/SKILL.md`.
-2. HTML/CSS/JavaScript demo: `skills/demo-ui/SKILL.md`.
-3. Chuyển ASP.NET Core Razor Pages + PostgreSQL: `skills/razor-migration/SKILL.md`.
+2. HTML/localStorage demo: `skills/demo-ui/SKILL.md`.
+3. Production .NET/Razor/Vue/PostgreSQL: `skills/razor-migration/SKILL.md`.
 4. Test/nghiệm thu/release: `skills/qa-release/SKILL.md`.
 
-## Nguyên tắc không được phá vỡ
+## Baseline production không được phá vỡ nếu chưa cập nhật ADR/docs
 
-- Không biến lịch thành 4 ô cứng/ngày. `checkIn` và `checkOut` thực tế là nguồn sự thật.
-- Không nhồi thanh toán vào JSON của booking. Payment là entity riêng.
-- Không dùng màu làm trạng thái nghiệp vụ. Màu chỉ là presentation metadata.
-- Không lưu password plaintext trong production.
-- UI phải ưu tiên thao tác nhanh, mobile usable và lịch phòng là trung tâm.
-- Demo không được thêm framework/build step nếu chưa có quyết định kiến trúc mới.
-- Mọi thay đổi schema phải cập nhật `docs/DATA-MODEL.md` và `docs/RAZOR-MIGRATION.md`.
+- 1 production project `src/DeLong.Web` + 1 test project `tests/DeLong.Tests`.
+- Razor Pages render initial page; Vue 3 chỉ progressive-enhance từng page scope.
+- Trong `.cshtml` ưu tiên `v-on`, `v-bind`, `v-model`; không dùng Alpine.
+- CRUD/mutation mượt qua Minimal APIs + fetch; không reload toàn trang cho thao tác nhỏ.
+- API cookie-auth mutation phải có antiforgery + authorization server-side.
+- Không Repository Pattern chỉ để bọc EF Core.
+- PostgreSQL, UUID, decimal money, UTC/timestamptz, `property_id` từ đầu.
+- Không biến lịch thành 4 ô cứng/ngày; check-in/check-out thực tế là nguồn sự thật.
+- Payment là entity riêng; không nhồi payment JSON vào booking.
+- Booking/payment/expense đã phát sinh không hard-delete.
+- Không plaintext password/connection string trong Git.
+- Không Docker theo workflow hiện tại của chủ dự án.
+- Mọi thay đổi schema/architecture cập nhật docs + roadmap/checklist.

@@ -1,49 +1,86 @@
-# Kiến trúc
+# Kiến trúc DeLongHomestay
 
-## 1. Demo hiện tại
+## Baseline production
+
+DeLongHomestay là **modular monolith nhỏ**, cố ý chỉ dùng 1 production project và 1 test project.
 
 ```text
-HTML pages
-   ↓
-Page modules (assets/js/pages/*.js)
-   ↓
-Domain/storage API (assets/js/store.js)
-   ↓
-localStorage
+DeLongHomestay/
+├── demo/
+├── docs/
+├── skills/
+├── src/
+│   └── DeLong.Web/
+│       ├── Pages/
+│       ├── Domain/
+│       ├── Features/
+│       ├── Data/
+│       ├── Identity/
+│       ├── Common/
+│       └── wwwroot/
+└── tests/
+    └── DeLong.Tests/
+        ├── Unit/
+        └── Integration/
 ```
 
-`data.js` chỉ chứa seed data. `store.js` chịu trách nhiệm đọc/ghi, kiểm tra trùng lịch, tạo booking, payment, expense và housekeeping. Page module không được tự ghi localStorage trực tiếp.
+## Stack
 
-## 2. Production mục tiêu
+- .NET 10 / ASP.NET Core Razor Pages.
+- Vue 3 dùng in-DOM progressive enhancement, không SPA.
+- Minimal APIs cho các mutation/CRUD không cần reload trang.
+- EF Core + Npgsql + PostgreSQL.
+- ASP.NET Core Identity + cookie authentication.
+- Không Docker trong workflow phát triển của dự án.
+- Không Alpine.js, Vue Router, Pinia hoặc Repository Pattern nếu chưa có nhu cầu thật.
+
+## Request flow
 
 ```text
 Browser
-   ↓ HTTPS
-ASP.NET Core Razor Pages
-   ├── PageModels
-   ├── Application services
-   ├── Domain rules
-   └── EF Core / Npgsql
-          ↓
-      PostgreSQL
+  ├── GET page -> Razor Page -> initial HTML + initial JSON
+  └── interaction -> Vue -> fetch -> Minimal API -> Feature Service -> AppDbContext -> PostgreSQL
 ```
 
-## 3. Nguyên tắc migration
+Razor Pages sở hữu navigation, auth, initial render và public pages. Vue chỉ sở hữu interaction trong từng page scope: modal, loading, filter, form reactive, toast, inline update.
 
-- Giữ HTML structure, CSS tokens và UX flow càng nhiều càng tốt.
-- Thay `store.js` bằng endpoint/Page Handler/Application Service.
-- Validation ở browser chỉ để UX; production phải validate lại server-side.
-- Conflict booking phải được bảo vệ ở transaction/database level, không chỉ JavaScript.
-- Payment, housekeeping và audit log là entity riêng.
+## Vue convention trong .cshtml
 
-## 4. Phân quyền mục tiêu
+Ưu tiên cú pháp đầy đủ để không xung đột ký tự `@` của Razor:
 
-- Admin: toàn quyền.
-- Manager: booking, finance, report, settings giới hạn.
-- Staff: booking/customer/housekeeping vận hành.
-- Housekeeping: trạng thái dọn phòng.
-- Investor/Viewer: chỉ đọc báo cáo được cấp quyền.
+```html
+<button v-on:click="save" v-bind:disabled="saving">Lưu</button>
+<input v-model="form.name" />
+<div v-if="modal.open">...</div>
+```
 
-## 5. Multi-property
+Mỗi page có app scope nhỏ (`#rooms-page`, `#calendar-page`...), không mount một Vue app toàn website. Không dùng Vue Router/Pinia.
 
-Schema có `property_id` ngay từ đầu. UI chỉ hiển thị selector cơ sở khi user quản lý nhiều hơn 1 cơ sở.
+## API convention
+
+- Prefix admin API: `/api/admin/...`.
+- GET/POST/PUT/PATCH/DELETE đúng semantics.
+- Error response dùng ProblemDetails.
+- API authorization server-side; UI hide button không được xem là security.
+- POST/PUT/PATCH/DELETE dùng antiforgery token gửi qua `X-CSRF-TOKEN`.
+- `wwwroot/js/core/api.js` là wrapper fetch dùng chung.
+
+## Data convention
+
+- PostgreSQL schema/tên object dùng snake_case.
+- Primary key dùng UUID; entity mới ưu tiên UUIDv7.
+- Tiền dùng `decimal`, database `numeric(18,2)` hoặc precision phù hợp.
+- Thời gian nghiệp vụ lưu UTC/`timestamptz`, UI hiển thị theo `Property.TimeZoneId` (`Asia/Ho_Chi_Minh` cho De Long).
+- `property_id` có ngay từ đầu để hỗ trợ nhiều cơ sở.
+- Payment, audit, housekeeping là entity riêng; không nhồi JSON vào booking.
+
+## Booking invariant (milestone tiếp theo)
+
+- `Requested` không khóa phòng.
+- `Held`, `Confirmed`, `CheckedIn` khóa khoảng thời gian.
+- Conflict phải được kiểm tra ở service và bảo vệ ở PostgreSQL/transaction.
+- Booking/payment/expense đã phát sinh không hard-delete; dùng cancel/void/archive + audit.
+
+## Phân quyền mục tiêu
+
+Admin, Manager, Staff, Housekeeping, Viewer. Ngoài role còn có `UserPropertyAccess` để giới hạn cơ sở mà user được phép truy cập.

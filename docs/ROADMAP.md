@@ -1,72 +1,68 @@
 # Roadmap
 
-## Phase 0 — Demo UX bằng localStorage (hiện tại)
+## Phase 0 — Demo UX/localStorage
 
-- [x] Chuẩn hóa room/rate từ Excel.
-- [x] Trang khách: danh sách, chi tiết, gửi yêu cầu booking.
-- [x] Admin dashboard.
-- [x] Lịch phòng 7 ngày + tạo/sửa booking.
-- [x] Chặn trùng lịch ở client.
-- [x] Booking status.
-- [x] Customer history cơ bản.
-- [x] Housekeeping status.
-- [x] Payment/công nợ.
-- [x] Expense.
-- [x] Report demo.
-- [x] Settings + export/import backup JSON.
-- [ ] User nghiệm thu UX thực tế trên desktop/mobile.
-- [ ] Chốt thuật ngữ/trạng thái cuối cùng.
+- [x] Chuẩn hóa dữ liệu Excel và 6 phòng.
+- [x] Public/admin demo bằng localStorage.
 
-## Phase 1 — Freeze nghiệp vụ
+## Phase 1 — Architecture freeze
 
-- [ ] Test demo với người đang quản lý Excel.
-- [ ] Chốt quy tắc giữ phòng/cọc/hủy/no-show.
-- [ ] Chốt logic qua đêm và đổi phòng/pass phòng.
-- [ ] Chốt phụ thu thêm người/gối/late checkout.
-- [ ] Chốt role/permission.
-- [ ] Chốt báo cáo quản trị tối thiểu.
-- [ ] Chốt dữ liệu cần migrate từ Excel lịch sử.
+- [x] 1 production project + 1 test project.
+- [x] .NET 10 Razor Pages.
+- [x] Vue 3 in-DOM progressive enhancement.
+- [x] Minimal APIs cho interaction CRUD.
+- [x] PostgreSQL + EF Core/Npgsql.
+- [x] ASP.NET Core Identity.
+- [x] Không Docker.
+- [x] Soft-delete/archive/audit direction.
+- [x] UTC + Asia/Ho_Chi_Minh strategy.
 
-## Phase 2 — Skeleton Razor Pages + PostgreSQL
+## Phase 2 — Foundation (đang thực hiện)
 
-- [ ] Tạo solution/projects.
-- [ ] PostgreSQL schema + migrations.
-- [ ] EF Core/Npgsql infrastructure.
-- [ ] Authentication/authorization.
-- [ ] Seed property/rooms/rates.
-- [ ] Shared layout port từ demo.
+- [x] Tạo solution/project skeleton.
+- [x] Cấu hình EF Core/Npgsql/Identity.
+- [x] Domain ban đầu: Property, Room, RoomRate, UserPropertyAccess.
+- [x] Seed definition De Long + 6 phòng + rates.
+- [x] Vue + api.js + antiforgery pattern.
+- [x] Feature mẫu Rooms: Razor + modal + API CRUD/archive.
+- [x] CI build/test workflow.
+- [ ] Initial EF migration.
+- [ ] Chạy migration trên PostgreSQL local.
+- [ ] Seed admin bằng User Secrets.
+- [ ] Integration tests dùng database `delong_test`.
 
-## Phase 3 — Booking core
+## Phase 3 — Customer + Booking core
 
-- [ ] Customer service.
-- [ ] Booking create/edit/status.
-- [ ] Calendar server-backed.
-- [ ] Conflict check + transaction/concurrency test.
-- [ ] Payments + balance.
-- [ ] Booking audit log.
+- [ ] Customer entity/service/API.
+- [ ] Booking entities/status/audit.
+- [ ] Create/update/cancel booking.
+- [ ] Server validation + PostgreSQL overlap protection.
+- [ ] Booking concurrency tests.
+- [ ] Calendar đọc từ PostgreSQL.
+- [ ] Modal create/edit booking không reload.
 
-## Phase 4 — Operations
+## Phase 4 — Payments + Operations
 
+- [ ] Payment ledger/balance.
+- [ ] Check-in/check-out.
 - [ ] Housekeeping workflow.
 - [ ] Expenses.
 - [ ] Reports.
-- [ ] Settings/room rates.
-- [ ] Multi-property access.
+- [ ] Settings/rates.
 
 ## Phase 5 — Public booking
 
-- [ ] Room catalog.
-- [ ] Availability query.
+- [ ] Public room catalog port từ demo.
+- [ ] Availability.
 - [ ] Booking request.
 - [ ] Anti-spam/rate limiting.
-- [ ] Notification workflow (kênh sẽ chốt sau).
+- [ ] Notification workflow.
 
 ## Phase 6 — Migration & go-live
 
-- [ ] Import master data từ Excel.
-- [ ] Import booking lịch sử cần thiết.
-- [ ] UAT với dữ liệu clone.
+- [ ] Import Excel cần thiết.
+- [ ] UAT.
 - [ ] Backup/restore rehearsal.
 - [ ] Production deployment.
-- [ ] Monitoring/logging.
-- [ ] Hướng dẫn nhân viên + bàn giao.
+- [ ] Logging/monitoring.
+- [ ] Hướng dẫn nhân viên.
