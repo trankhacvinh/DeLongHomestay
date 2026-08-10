@@ -1,3 +1,4 @@
+using DeLong.Web.Common.Auditing;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
@@ -7,7 +8,7 @@ using Npgsql;
 
 namespace DeLong.Web.Features.Bookings;
 
-public sealed class BookingService(AppDbContext db, CustomerService customerService)
+public sealed class BookingService(AppDbContext db, CustomerService customerService, AuditService auditService)
 {
     private static readonly BookingStatus[] LockingStatuses =
     [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
@@ -42,6 +43,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
     public async Task<(BookingDto? Booking, BookingOperationError? Error)> CreateAsync(
         Guid propertyId,
         CreateBookingRequest request,
+        Guid? actorUserId = null,
         CancellationToken cancellationToken = default)
     {
         var validation = ValidateCreate(request);
@@ -85,6 +87,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         booking.Code = $"BK-{DateTime.UtcNow:yyMMdd}-{booking.Id.ToString("N")[..6].ToUpperInvariant()}";
 
         db.Bookings.Add(booking);
+        auditService.Add(propertyId, "Booking", booking.Id, "Created", actorUserId, after: Snapshot(booking));
         var saveError = await SaveWithConflictGuardAsync(cancellationToken);
         if (saveError is not null) return (null, saveError);
 
@@ -95,6 +98,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         Guid propertyId,
         Guid bookingId,
         UpdateBookingRequest request,
+        Guid? actorUserId = null,
         CancellationToken cancellationToken = default)
     {
         var validation = ValidateUpdate(request);
@@ -133,6 +137,8 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
             return (null, ConflictError());
         }
 
+        var before = Snapshot(booking);
+
         customer.Name = request.CustomerName.Trim();
         customer.Phone = request.CustomerPhone.Trim();
         customer.NormalizedPhone = normalizedPhone;
@@ -147,6 +153,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         booking.Source = Clean(request.Source);
         booking.Note = Clean(request.Note);
 
+        auditService.Add(propertyId, "Booking", booking.Id, "Updated", actorUserId, before, Snapshot(booking));
         var saveError = await SaveWithConflictGuardAsync(cancellationToken);
         if (saveError is not null) return (null, saveError);
 
@@ -176,6 +183,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
             return (null, ConflictError());
         }
 
+        var before = Snapshot(booking);
         booking.Status = nextStatus;
 
         if (nextStatus == BookingStatus.Completed)
@@ -188,6 +196,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
             room.HousekeepingUpdatedByUserId = actorUserId;
         }
 
+        auditService.Add(propertyId, "Booking", booking.Id, "StatusChanged", actorUserId, before, Snapshot(booking));
         var saveError = await SaveWithConflictGuardAsync(cancellationToken);
         if (saveError is not null) return (null, saveError);
 
@@ -253,6 +262,22 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
             x.Note,
             x.CreatedAtUtc));
     }
+
+    private static object Snapshot(Booking booking) => new
+    {
+        booking.Id,
+        booking.Code,
+        booking.RoomId,
+        booking.CustomerId,
+        booking.CheckInUtc,
+        booking.CheckOutUtc,
+        Status = booking.Status.ToString(),
+        booking.RoomAmount,
+        booking.ExtraAmount,
+        booking.DiscountAmount,
+        booking.Source,
+        booking.Note
+    };
 
     private static BookingOperationError? ValidateCreate(CreateBookingRequest request)
     {
