@@ -11,6 +11,7 @@ public sealed record AuditLogDto(
     Guid EntityId,
     string Action,
     Guid? ActorUserId,
+    string? ActorName,
     DateTime CreatedAtUtc,
     string? BeforeJson,
     string? AfterJson);
@@ -46,19 +47,24 @@ public sealed class AuditService(AppDbContext db)
         Guid entityId,
         CancellationToken cancellationToken = default)
     {
-        return await db.AuditLogs
-            .AsNoTracking()
-            .Where(x => x.PropertyId == propertyId && x.EntityType == entityType && x.EntityId == entityId)
-            .OrderByDescending(x => x.CreatedAtUtc)
-            .Select(x => new AuditLogDto(
-                x.Id,
-                x.EntityType,
-                x.EntityId,
-                x.Action,
-                x.ActorUserId,
-                x.CreatedAtUtc,
-                x.BeforeJson,
-                x.AfterJson))
-            .ToListAsync(cancellationToken);
+        var query =
+            from log in db.AuditLogs.AsNoTracking()
+            join user in db.Users.AsNoTracking()
+                on log.ActorUserId equals (Guid?)user.Id into users
+            from user in users.DefaultIfEmpty()
+            where log.PropertyId == propertyId && log.EntityType == entityType && log.EntityId == entityId
+            orderby log.CreatedAtUtc descending
+            select new AuditLogDto(
+                log.Id,
+                log.EntityType,
+                log.EntityId,
+                log.Action,
+                log.ActorUserId,
+                user == null ? null : (user.DisplayName ?? user.Email ?? user.UserName),
+                log.CreatedAtUtc,
+                log.BeforeJson,
+                log.AfterJson);
+
+        return await query.ToListAsync(cancellationToken);
     }
 }
