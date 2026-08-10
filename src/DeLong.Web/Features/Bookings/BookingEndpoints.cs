@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using DeLong.Web.Common.Security;
 
 namespace DeLong.Web.Features.Bookings;
@@ -60,10 +61,13 @@ public static class BookingEndpoints
             Guid propertyId,
             Guid bookingId,
             ChangeBookingStatusRequest request,
+            ClaimsPrincipal user,
             BookingService service,
             CancellationToken cancellationToken) =>
         {
-            var (booking, error) = await service.ChangeStatusAsync(propertyId, bookingId, request.Status, cancellationToken);
+            var actorUserId = GetUserId(user);
+            var (booking, error) = await service.ChangeStatusAsync(
+                propertyId, bookingId, request.Status, actorUserId, cancellationToken);
             if (error is not null) return ToProblem(error);
             return Results.Ok(booking);
         })
@@ -71,6 +75,12 @@ public static class BookingEndpoints
         .AddEndpointFilter<ApiAntiforgeryFilter>();
 
         return app;
+    }
+
+    private static Guid? GetUserId(ClaimsPrincipal user)
+    {
+        var value = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(value, out var userId) ? userId : null;
     }
 
     private static IResult ToProblem(BookingOperationError error)
