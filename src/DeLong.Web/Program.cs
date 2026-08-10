@@ -59,6 +59,7 @@ builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 builder.Services.AddScoped<ApiAntiforgeryFilter>();
 builder.Services.AddScoped<PropertyAccessService>();
 builder.Services.AddScoped<PropertyAccessFilter>();
+builder.Services.AddScoped<CurrentPropertyService>();
 builder.Services.AddScoped<RoomService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<BookingService>();
