@@ -1,0 +1,99 @@
+@page
+@model DeLong.Web.Pages.Admin.Settings.IndexModel
+@{
+    ViewData["Title"] = "Cấu hình";
+}
+<div id="settings-page" v-cloak>
+    <script id="settings-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+
+    <div class="page-title-row">
+        <div>
+            <h1>Cấu hình</h1>
+            <p>Quản lý preset khung giờ/giá. Booking vẫn được phép dùng giờ thực tế khác preset.</p>
+        </div>
+        <button class="btn btn-primary" type="button" v-on:click="openCreate">+ Thêm khung giá</button>
+    </div>
+
+    <div class="settings-room-grid">
+        <section class="panel settings-room" v-for="room in activeRooms" v-bind:key="room.id">
+            <div class="panel-head">
+                <div>
+                    <h2>{{ room.name }}</h2>
+                    <div class="tiny muted">{{ room.code }} · {{ room.capacity }} người</div>
+                </div>
+                <button class="btn btn-light btn-sm" type="button" v-on:click="openCreate(room)">+ Khung giá</button>
+            </div>
+            <div class="panel-body">
+                <div class="rate-settings-list" v-if="sortedRates(room).length">
+                    <article class="rate-settings-row" v-for="rate in sortedRates(room)" v-bind:key="rate.id" v-bind:class="{ 'rate-inactive': !rate.isActive }">
+                        <div>
+                            <div class="flex items-center gap-8">
+                                <strong>{{ rate.name }}</strong>
+                                <span v-if="rate.isOvernight" class="pill info">Qua đêm</span>
+                                <span v-if="!rate.isActive" class="pill danger">Ngừng</span>
+                            </div>
+                            <div class="small muted">{{ rate.startTime }} → {{ rate.endTime }} · Thứ tự {{ rate.sortOrder }}</div>
+                        </div>
+                        <div class="rate-settings-actions">
+                            <strong>{{ money(rate.price) }}</strong>
+                            <button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(room, rate)">Sửa</button>
+                            <button v-if="rate.isActive" class="btn btn-danger btn-sm" type="button" v-on:click="openArchive(room, rate)">Ngừng</button>
+                        </div>
+                    </article>
+                </div>
+                <p v-else class="empty-state">Phòng chưa có khung giá.</p>
+            </div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop" v-if="editor.open" v-on:click.self="closeEditor">
+        <section class="modal-card" role="dialog" aria-modal="true">
+            <div class="modal-head">
+                <div>
+                    <h2>{{ editor.mode === 'create' ? 'Thêm khung giá' : 'Sửa khung giá' }}</h2>
+                    <p class="small muted">Nếu giờ kết thúc nhỏ hơn hoặc bằng giờ bắt đầu, hệ thống tự hiểu là qua đêm.</p>
+                </div>
+                <button class="icon-btn" type="button" v-on:click="closeEditor">×</button>
+            </div>
+            <div class="form-grid">
+                <div class="field">
+                    <label>Phòng *</label>
+                    <select v-model="form.roomId" v-bind:disabled="editor.mode === 'edit'">
+                        <option value="">Chọn phòng</option>
+                        <option v-for="room in activeRooms" v-bind:key="room.id" v-bind:value="room.id">{{ room.name }}</option>
+                    </select>
+                </div>
+                <div class="field"><label>Tên khung *</label><input v-model.trim="form.name" maxlength="100" placeholder="Ví dụ: Qua đêm" /></div>
+                <div class="field"><label>Bắt đầu *</label><input type="time" v-model="form.startTime" /></div>
+                <div class="field"><label>Kết thúc *</label><input type="time" v-model="form.endTime" /></div>
+                <div class="field"><label>Giá *</label><input type="number" min="0" step="1000" v-model.number="form.price" /></div>
+                <div class="field"><label>Thứ tự</label><input type="number" min="0" max="999" v-model.number="form.sortOrder" /></div>
+                <label v-if="editor.mode === 'edit'" class="check-row full"><input type="checkbox" v-model="form.isActive" /> Khung giá đang hoạt động</label>
+            </div>
+            <div class="notice mt-16">Preset chỉ giúp nhập nhanh trên lịch. Nhân viên vẫn có thể sửa check-in/check-out thực tế của từng booking.</div>
+            <div class="modal-actions">
+                <button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button>
+                <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveRate">{{ saving ? 'Đang lưu...' : 'Lưu khung giá' }}</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop modal-top" v-if="archiveEditor.open" v-on:click.self="closeArchive">
+        <section class="modal-card" role="dialog" aria-modal="true">
+            <div class="modal-head">
+                <div><h2>Ngừng khung giá?</h2><p class="small muted">Khung giá sẽ không còn xuất hiện trong preset nhưng lịch sử không bị xóa.</p></div>
+                <button class="icon-btn" type="button" v-on:click="closeArchive">×</button>
+            </div>
+            <p v-if="archiveEditor.rate"><strong>{{ archiveEditor.rate.name }}</strong> · {{ archiveEditor.room?.name }}</p>
+            <div class="modal-actions">
+                <button class="btn btn-light" type="button" v-on:click="closeArchive">Hủy</button>
+                <button class="btn btn-danger" type="button" v-bind:disabled="saving" v-on:click="confirmArchive">Xác nhận ngừng</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+</div>
+@section Scripts {
+    <script src="~/js/pages/admin-settings.js" asp-append-version="true"></script>
+}

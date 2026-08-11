@@ -1,0 +1,103 @@
+@page
+@model DeLong.Web.Pages.Admin.Finance.IndexModel
+@{
+    ViewData["Title"] = "Thu chi";
+}
+<div id="finance-page" v-cloak>
+    <script id="finance-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+
+    <div class="page-title-row">
+        <div><h1>Thu chi</h1><p>Khoản thu/hoàn lấy từ Payment ledger; chi phí sai được void chứ không xóa lịch sử.</p></div>
+        <div class="toolbar">
+            <button class="btn btn-light btn-sm" type="button" v-on:click="moveMonth(-1)">← Tháng trước</button>
+            <strong class="pill">{{ monthLabel }}</strong>
+            <button class="btn btn-light btn-sm" type="button" v-on:click="moveMonth(1)">Tháng sau →</button>
+            @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+            {
+                <button class="btn btn-primary btn-sm" type="button" v-on:click="openExpense">+ Ghi chi phí</button>
+            }
+        </div>
+    </div>
+
+    <div class="kpi-grid finance-kpis">
+        <div class="kpi"><div class="kpi-label">Thu khách</div><div class="kpi-value text-success">{{ money(receipts) }}</div><div class="kpi-note">Các khoản Receipt hợp lệ</div></div>
+        <div class="kpi"><div class="kpi-label">Hoàn tiền</div><div class="kpi-value text-danger">{{ money(refunds) }}</div><div class="kpi-note">Các khoản Refund hợp lệ</div></div>
+        <div class="kpi"><div class="kpi-label">Chi phí</div><div class="kpi-value text-danger">{{ money(expenseTotal) }}</div><div class="kpi-note">Không tính khoản đã void</div></div>
+        <div class="kpi"><div class="kpi-label">Dòng tiền ròng</div><div class="kpi-value" v-bind:class="netCash >= 0 ? 'text-success' : 'text-danger'">{{ money(netCash) }}</div><div class="kpi-note">Thu - hoàn - chi</div></div>
+    </div>
+    <div class="notice mb-16"><strong>Công nợ booking hiện tại:</strong> {{ money(outstanding) }}</div>
+
+    <div class="grid-2 finance-grid">
+        <section class="panel">
+            <div class="panel-head"><h2>Thanh toán booking</h2><span class="small muted">{{ payments.length }} giao dịch</span></div>
+            <div class="table-wrap">
+                <table class="data-table finance-table">
+                    <thead><tr><th>Ngày</th><th>Booking/Khách</th><th>Phương thức</th><th>Số tiền</th></tr></thead>
+                    <tbody>
+                        <tr v-for="payment in payments" v-bind:key="payment.id" v-bind:class="{ 'row-voided': payment.isVoided }">
+                            <td>{{ dateTimeText(payment.occurredAtUtc) }}</td>
+                            <td><strong>{{ payment.bookingCode }}</strong><div class="tiny muted">{{ payment.customerName }}</div></td>
+                            <td>{{ paymentMethodText(payment.method) }}<div v-if="payment.reference" class="tiny muted">{{ payment.reference }}</div></td>
+                            <td><strong v-bind:class="payment.type === 0 ? 'text-success' : 'text-danger'">{{ payment.type === 0 ? '+' : '-' }}{{ money(payment.amount) }}</strong><div v-if="payment.isVoided" class="tiny muted">VOID</div></td>
+                        </tr>
+                        <tr v-if="payments.length === 0"><td colspan="4" class="empty-state">Chưa có giao dịch tháng này.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head"><h2>Chi phí</h2><span class="small muted">{{ expenses.length }} khoản</span></div>
+            <div class="table-wrap">
+                <table class="data-table finance-table">
+                    <thead><tr><th>Ngày</th><th>Nội dung</th><th>Phương thức</th><th>Số tiền</th><th></th></tr></thead>
+                    <tbody>
+                        <tr v-for="expense in expenses" v-bind:key="expense.id" v-bind:class="{ 'row-voided': expense.isVoided }">
+                            <td>{{ dateTimeText(expense.occurredAtUtc) }}</td>
+                            <td><strong>{{ expense.category }}</strong><div>{{ expense.description }}</div><div v-if="expense.vendor" class="tiny muted">{{ expense.vendor }}</div><div v-if="expense.isVoided" class="tiny muted">VOID · {{ expense.voidReason }}</div></td>
+                            <td>{{ paymentMethodText(expense.method) }}</td>
+                            <td><strong class="text-danger">{{ money(expense.amount) }}</strong></td>
+                            <td>
+                                @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                                {
+                                    <button v-if="!expense.isVoided" class="btn btn-light btn-sm" type="button" v-on:click="openVoid(expense)">Void</button>
+                                }
+                            </td>
+                        </tr>
+                        <tr v-if="expenses.length === 0"><td colspan="5" class="empty-state">Chưa có chi phí tháng này.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop" v-if="expenseEditor.open" v-on:click.self="closeExpense">
+        <section class="modal-card" role="dialog" aria-modal="true">
+            <div class="modal-head"><div><h2>Ghi chi phí</h2><p class="small muted">Khoản chi sau khi lưu chỉ có thể void, không xóa.</p></div><button class="icon-btn" type="button" v-on:click="closeExpense">×</button></div>
+            <div class="form-grid">
+                <div class="field"><label>Nhóm chi phí *</label><select v-model="expenseForm.category"><option>Dọn phòng</option><option>Điện nước</option><option>Giặt ủi</option><option>Vật tư</option><option>Sửa chữa</option><option>Marketing</option><option>Phí nền tảng</option><option>Khác</option></select></div>
+                <div class="field"><label>Số tiền *</label><input type="number" min="1" step="1000" v-model.number="expenseForm.amount" /></div>
+                <div class="field full"><label>Nội dung *</label><input v-model.trim="expenseForm.description" maxlength="500" placeholder="Ví dụ: mua vật tư vệ sinh" /></div>
+                <div class="field"><label>Phương thức</label><select v-model.number="expenseForm.method"><option v-bind:value="1">Chuyển khoản</option><option v-bind:value="0">Tiền mặt</option><option v-bind:value="2">Thẻ</option><option v-bind:value="3">Khác</option></select></div>
+                <div class="field"><label>Nhà cung cấp</label><input v-model.trim="expenseForm.vendor" maxlength="200" /></div>
+                <div class="field"><label>Tham chiếu</label><input v-model.trim="expenseForm.reference" maxlength="200" /></div>
+                <div class="field full"><label>Ghi chú</label><textarea v-model.trim="expenseForm.note" maxlength="2000"></textarea></div>
+            </div>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closeExpense">Hủy</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveExpense">{{ saving ? 'Đang lưu...' : 'Ghi chi phí' }}</button></div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop modal-top" v-if="voidEditor.open" v-on:click.self="closeVoid">
+        <section class="modal-card" role="dialog" aria-modal="true">
+            <div class="modal-head"><div><h2>Void khoản chi?</h2><p class="small muted">Lịch sử vẫn được giữ nguyên.</p></div><button class="icon-btn" type="button" v-on:click="closeVoid">×</button></div>
+            <div class="field"><label>Lý do *</label><textarea v-model.trim="voidEditor.reason" maxlength="1000"></textarea></div>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closeVoid">Hủy</button><button class="btn btn-danger" type="button" v-bind:disabled="saving" v-on:click="confirmVoid">Xác nhận void</button></div>
+        </section>
+    </div>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+</div>
+@section Scripts {
+    <script>window.DeLongFinanceCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") ? "true" : "false");</script>
+    <script src="~/js/pages/admin-finance.js" asp-append-version="true"></script>
+}

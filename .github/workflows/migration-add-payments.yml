@@ -1,0 +1,13 @@
+name: Add Payments Migration (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  info:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "AddPayments migration is already committed. This workflow is retained only as historical/manual documentation."

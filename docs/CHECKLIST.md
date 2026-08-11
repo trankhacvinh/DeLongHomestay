@@ -1,53 +1,56 @@
 # Checklist nghiệm thu
 
-## A. Trang khách
+## Foundation
 
-- [ ] Desktop/mobile không vỡ layout.
-- [ ] Danh sách đủ 6 phòng.
-- [ ] Lọc ngày/số khách/bồn tắm hoạt động.
-- [ ] Chi tiết hiển thị đúng preset và giá.
-- [ ] Slot đã có booking được báo không còn theo preset.
-- [ ] Form bắt buộc tên + SĐT.
-- [ ] Cho phép sửa check-in/check-out linh hoạt.
-- [ ] Booking gửi từ web vào `pending`.
-- [ ] Booking trùng giờ bị chặn.
+- [x] `dotnet restore` pass trên GitHub Actions.
+- [x] `dotnet build -c Release` pass trên GitHub Actions.
+- [x] `dotnet test -c Release` pass trên GitHub Actions.
+- [x] JavaScript page modules được `node --check` trong CI.
+- [ ] PostgreSQL local có database `delong_dev`.
+- [ ] Connection string thật nằm trong User Secrets, không nằm trong Git.
+- [x] Initial migration được EF Core sinh và commit.
+- [x] Migration có `btree_gist` + exclusion constraint chống overlap booking.
+- [ ] Apply InitialCreate thành công trên PostgreSQL local.
+- [ ] Seed tạo De Long + 6 phòng đúng rates.
+- [ ] Seed admin từ User Secrets.
+- [ ] Login/logout Identity hoạt động với PostgreSQL local.
+- [x] API kiểm tra role + `UserPropertyAccess`.
 
-## B. Lịch admin
+## Vue/API mẫu Rooms
 
-- [ ] Hiển thị đủ 6 phòng × 7 ngày.
-- [ ] Previous/Today/Next hoạt động.
-- [ ] Bấm ô trống mở form đúng phòng/ngày.
-- [ ] Chọn preset tự điền giờ + giá.
-- [ ] Sửa giờ custom được.
-- [ ] Bấm booking mở chi tiết.
-- [ ] Status hiển thị phân biệt.
+- [ ] Trang `/Admin/Rooms` render initial data từ PostgreSQL local.
+- [x] Vue mount trong page scope, không SPA.
+- [x] Search/filter không reload.
+- [x] Thêm phòng dùng modal + POST API.
+- [x] Sửa phòng dùng modal + PUT API.
+- [x] Ngừng phòng dùng confirm modal + DELETE API.
+- [x] Mutation API dùng antiforgery token.
+- [x] API validation dùng ProblemDetails.
+- [ ] Kiểm tra trực tiếp loading state/toast trên browser với PostgreSQL local.
 
-## C. Booking/customer/payment
+## Customer + Booking
 
-- [ ] Search/filter booking.
-- [ ] Xác nhận booking pending.
-- [ ] Customer cùng SĐT không bị nhân bản không cần thiết.
-- [ ] Ghi cọc khi tạo booking.
-- [ ] Ghi thêm payment.
-- [ ] Còn phải thu tính đúng.
+- [x] Customer entity/service/API.
+- [x] Nhận diện khách cũ theo normalized phone trong cùng cơ sở.
+- [x] Booking status/rules.
+- [x] Create booking qua API.
+- [x] C# conflict check.
+- [x] PostgreSQL overlap guard cho Held/Confirmed/CheckedIn.
+- [x] Conflict API trả `409 ProblemDetails`.
+- [x] Calendar Razor + Vue đọc dữ liệu server.
+- [x] Click ô trống mở modal tạo booking.
+- [x] Preset rate tự điền giờ/giá nhưng cho sửa giờ thực tế.
+- [x] Booking detail/status actions không reload.
+- [x] Trang Booking search/filter.
+- [x] Trang Customers add/edit modal.
+- [ ] Edit booking room/time/amount.
+- [ ] Audit log booking.
+- [ ] Integration test race condition trên `delong_test`.
+- [ ] Kiểm tra calendar trực tiếp trên browser với PostgreSQL local.
 
-## D. Housekeeping/finance
+## Trước Payments milestone
 
-- [ ] Đổi Bẩn/Đang dọn/Đã dọn.
-- [ ] Ghi expense.
-- [ ] KPI thu/chi/công nợ cập nhật.
-
-## E. Data safety demo
-
-- [ ] Refresh trang vẫn giữ dữ liệu.
-- [ ] Export JSON được.
-- [ ] Reset rồi import JSON khôi phục được.
-- [ ] Không có password thật trong source.
-
-## F. Trước khi chuyển production
-
-- [ ] User owner ký duyệt workflow.
-- [ ] Chốt retention/backup.
-- [ ] Chốt privacy cho CCCD/SĐT.
-- [ ] Chốt roles.
-- [ ] Chốt validation/edge cases.
+- [ ] CurrentProperty resolver/selector thay seed property ID trong các PageModel.
+- [ ] Chốt logic thanh toán/cọc/hoàn tiền.
+- [ ] Thêm Payment ledger thay vì số tiền thanh toán nằm trong Booking.
+- [ ] Check-out tự tạo housekeeping task/trạng thái Bẩn.

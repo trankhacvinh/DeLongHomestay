@@ -1,72 +1,79 @@
 # Roadmap
 
-## Phase 0 — Demo UX bằng localStorage (hiện tại)
+## Phase 0 — Demo UX/localStorage
 
-- [x] Chuẩn hóa room/rate từ Excel.
-- [x] Trang khách: danh sách, chi tiết, gửi yêu cầu booking.
-- [x] Admin dashboard.
-- [x] Lịch phòng 7 ngày + tạo/sửa booking.
-- [x] Chặn trùng lịch ở client.
-- [x] Booking status.
-- [x] Customer history cơ bản.
-- [x] Housekeeping status.
-- [x] Payment/công nợ.
-- [x] Expense.
-- [x] Report demo.
-- [x] Settings + export/import backup JSON.
-- [ ] User nghiệm thu UX thực tế trên desktop/mobile.
-- [ ] Chốt thuật ngữ/trạng thái cuối cùng.
+- [x] Chuẩn hóa dữ liệu Excel và 6 phòng.
+- [x] Public/admin demo bằng localStorage.
 
-## Phase 1 — Freeze nghiệp vụ
+## Phase 1 — Architecture freeze
 
-- [ ] Test demo với người đang quản lý Excel.
-- [ ] Chốt quy tắc giữ phòng/cọc/hủy/no-show.
-- [ ] Chốt logic qua đêm và đổi phòng/pass phòng.
-- [ ] Chốt phụ thu thêm người/gối/late checkout.
-- [ ] Chốt role/permission.
-- [ ] Chốt báo cáo quản trị tối thiểu.
-- [ ] Chốt dữ liệu cần migrate từ Excel lịch sử.
+- [x] 1 production project + 1 test project.
+- [x] .NET 10 Razor Pages.
+- [x] Vue 3 in-DOM progressive enhancement.
+- [x] Minimal APIs cho interaction CRUD.
+- [x] PostgreSQL + EF Core/Npgsql.
+- [x] ASP.NET Core Identity.
+- [x] Không Docker.
+- [x] Soft-delete/archive/audit direction.
+- [x] UTC + property timezone strategy.
 
-## Phase 2 — Skeleton Razor Pages + PostgreSQL
+## Phase 2 — Foundation
 
-- [ ] Tạo solution/projects.
-- [ ] PostgreSQL schema + migrations.
-- [ ] EF Core/Npgsql infrastructure.
-- [ ] Authentication/authorization.
-- [ ] Seed property/rooms/rates.
-- [ ] Shared layout port từ demo.
+- [x] Solution/project skeleton.
+- [x] EF Core/Npgsql/Identity.
+- [x] Property, Room, RoomRate, UserPropertyAccess.
+- [x] Seed definition De Long + 6 phòng + rates.
+- [x] Vue + api.js + antiforgery pattern.
+- [x] Rooms Razor + modal + Minimal API CRUD/archive.
+- [x] CI restore/build/test + JavaScript syntax.
+- [x] Initial EF migration.
+- [ ] Apply migrations trên PostgreSQL local `delong_dev`.
+- [ ] Seed admin bằng User Secrets.
+- [ ] Integration tests trên `delong_test`.
 
-## Phase 3 — Booking core
+## Phase 3 — Customer + Booking core
 
-- [ ] Customer service.
-- [ ] Booking create/edit/status.
-- [ ] Calendar server-backed.
-- [ ] Conflict check + transaction/concurrency test.
-- [ ] Payments + balance.
+- [x] Customer entity/service/API + normalized phone.
+- [x] Booking entity/status/rules.
+- [x] Create booking + state transitions/cancel/no-show.
+- [x] Edit booking room/time/amount/customer.
+- [x] C# conflict validation.
+- [x] PostgreSQL exclusion constraint chống booking overlap.
+- [x] Database race conflict (`23P01`) → API `409 ProblemDetails`.
+- [x] Calendar server-backed + Vue modal create/edit.
+- [x] Booking list + search/filter/state actions.
+- [x] Customers page + Vue add/edit.
+- [x] CurrentProperty resolver thay seed property ID trong các PageModel vận hành.
+- [ ] Property selector UI khi user có nhiều cơ sở.
 - [ ] Booking audit log.
+- [ ] Booking concurrency integration tests trên PostgreSQL thật.
 
-## Phase 4 — Operations
+## Phase 4 — Payments + Operations (đang thực hiện)
 
-- [ ] Housekeeping workflow.
+- [x] Payment ledger: Receipt/Refund.
+- [x] Void payment giữ lịch sử + lý do/người thao tác.
+- [x] Booking PaidAmount/BalanceAmount tính từ ledger.
+- [x] Payment API + Vue modal không reload.
+- [x] EF migration `AddPayments`.
+- [ ] Check-out tự chuyển phòng sang Bẩn.
+- [ ] Housekeeping workflow Bẩn → Đang dọn → Sạch.
 - [ ] Expenses.
 - [ ] Reports.
-- [ ] Settings/room rates.
-- [ ] Multi-property access.
+- [ ] Settings/rates.
 
 ## Phase 5 — Public booking
 
-- [ ] Room catalog.
-- [ ] Availability query.
+- [ ] Public room catalog port từ demo.
+- [ ] Availability.
 - [ ] Booking request.
 - [ ] Anti-spam/rate limiting.
-- [ ] Notification workflow (kênh sẽ chốt sau).
+- [ ] Notification workflow.
 
 ## Phase 6 — Migration & go-live
 
-- [ ] Import master data từ Excel.
-- [ ] Import booking lịch sử cần thiết.
-- [ ] UAT với dữ liệu clone.
+- [ ] Import Excel cần thiết.
+- [ ] UAT.
 - [ ] Backup/restore rehearsal.
 - [ ] Production deployment.
-- [ ] Monitoring/logging.
-- [ ] Hướng dẫn nhân viên + bàn giao.
+- [ ] Logging/monitoring.
+- [ ] Hướng dẫn nhân viên.

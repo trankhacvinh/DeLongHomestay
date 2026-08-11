@@ -1,33 +1,46 @@
 ---
 name: razor-migration
-description: Quy ước chuyển prototype sang ASP.NET Core Razor Pages + PostgreSQL.
+description: Quy ước production DeLongHomestay bằng .NET 10 Razor Pages, Vue progressive enhancement và PostgreSQL.
 ---
 
-# Razor Migration Skill
+# Production Development Skill
 
-## Mục tiêu
+## Kiến trúc cố định
 
-Port UX đã nghiệm thu, không thiết kế lại tùy tiện.
+- 1 production project: `src/DeLong.Web`.
+- 1 test project: `tests/DeLong.Tests`.
+- Razor Pages render shell/initial HTML.
+- Vue 3 dùng in-DOM progressive enhancement trong `.cshtml`.
+- Trong Razor ưu tiên `v-on:`, `v-bind:`, `v-model`, tránh shorthand `@click` gây xung đột Razor.
+- Minimal APIs xử lý CRUD/mutation không cần reload.
+- Feature code đặt gần nhau trong `Features/<Feature>/`.
+- Service dùng `AppDbContext` trực tiếp; không tạo Repository Pattern chỉ để wrap EF Core.
 
-## Mapping
+## Frontend
 
-- Static page → Razor Page.
-- `store.js` mutation → Application Service/Page Handler.
-- `data.js` → database seed/migration.
-- CSS class/tokens giữ tối đa.
-- PostgreSQL dùng normalized tables; không mang JSON blob từ Excel nếu không có lý do domain rõ ràng.
+- Mỗi Razor Page có Vue app scope nhỏ nếu cần interaction.
+- Không Vue Router, Pinia, Alpine hoặc SPA shell nếu chưa có quyết định kiến trúc mới.
+- `wwwroot/js/core/api.js` xử lý fetch, JSON, antiforgery và ProblemDetails thống nhất.
+- Modal/confirm/loading/toast dùng Vue, không dùng browser `confirm()` cho UX chính.
 
-## Backend rules
+## Backend
 
-- Validate server-side.
-- Transaction cho booking conflict/payment state changes.
+- Validate server-side dù client đã validate.
 - Authorization theo role + property.
-- Audit sensitive mutations.
-- UTC strategy phải được quyết định rõ; UI hiển thị timezone Việt Nam.
-- Database indexes tối thiểu cho room/check-in/check-out, customer phone, booking status/property.
+- Mutation API dùng antiforgery.
+- Booking conflict phải được bảo vệ bằng transaction/database guard.
+- Payment/audit/housekeeping là entity riêng.
+- Không hard-delete dữ liệu nghiệp vụ đã phát sinh.
 
-## Không làm
+## Data
 
-- Không port localStorage auth.
-- Không lưu plaintext password.
-- Không dựa vào client-side conflict check.
+- PostgreSQL, snake_case.
+- UUID/UUIDv7 cho ID mới.
+- `decimal` cho tiền.
+- UTC/timestamptz trong DB, hiển thị theo timezone property.
+- Không Docker theo workflow của chủ dự án.
+- Secrets dùng User Secrets/environment variables.
+
+## Khi thay đổi kiến trúc
+
+Cập nhật đồng thời `docs/ARCHITECTURE.md`, `docs/RAZOR-MIGRATION.md`, `docs/ROADMAP.md` và checklist liên quan.

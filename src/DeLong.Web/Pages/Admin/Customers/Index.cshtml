@@ -1,0 +1,73 @@
+@page
+@model DeLong.Web.Pages.Admin.Customers.IndexModel
+@{
+    ViewData["Title"] = "Khách hàng";
+}
+<div id="customers-page" v-cloak>
+    <script id="customers-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+
+    <div class="page-title-row">
+        <div><h1>Khách hàng</h1><p>Tìm theo tên/SĐT. Khách được giữ lịch sử thay vì xóa cứng.</p></div>
+        @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff"))
+        {
+            <button class="btn btn-primary" type="button" v-on:click="openCreate">+ Thêm khách</button>
+        }
+    </div>
+
+    <section class="panel">
+        <div class="panel-head">
+            <div class="toolbar">
+                <input class="search-input" v-model.trim="search" placeholder="Tìm tên hoặc số điện thoại..." />
+                <label class="check-row"><input type="checkbox" v-model="showInactive" /> Hiện khách ngừng hoạt động</label>
+            </div>
+            <span class="small muted">{{ filteredCustomers.length }} khách</span>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Khách</th><th>Điện thoại</th><th>Email/CCCD</th><th>Ngày thêm</th><th>Trạng thái</th><th></th></tr></thead>
+                <tbody>
+                    <tr v-for="customer in filteredCustomers" v-bind:key="customer.id">
+                        <td><strong>{{ customer.name }}</strong><div v-if="customer.note" class="tiny muted">{{ customer.note }}</div></td>
+                        <td>{{ customer.phone }}</td>
+                        <td><span>{{ customer.email || '—' }}</span><div v-if="customer.identityNumber" class="tiny muted">{{ customer.identityNumber }}</div></td>
+                        <td>{{ dateText(customer.createdAtUtc) }}</td>
+                        <td><span class="pill" v-bind:class="customer.isActive ? 'success' : 'danger'">{{ customer.isActive ? 'Hoạt động' : 'Ngừng' }}</span></td>
+                        <td>
+                            @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff"))
+                            {
+                                <button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(customer)">Sửa</button>
+                            }
+                        </td>
+                    </tr>
+                    <tr v-if="filteredCustomers.length === 0"><td colspan="6" class="empty-state">Không có khách phù hợp.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="modal-backdrop" v-if="editor.open" v-on:click.self="closeEditor">
+        <section class="modal-card" role="dialog" aria-modal="true">
+            <div class="modal-head">
+                <div><h2>{{ editor.mode === 'create' ? 'Thêm khách hàng' : 'Sửa khách hàng' }}</h2><p class="small muted">Số điện thoại được chuẩn hóa để nhận diện khách cũ khi đặt phòng.</p></div>
+                <button class="icon-btn" type="button" v-on:click="closeEditor">×</button>
+            </div>
+            <div class="form-grid">
+                <div class="field"><label>Tên khách *</label><input v-model.trim="form.name" maxlength="200" /></div>
+                <div class="field"><label>Số điện thoại *</label><input v-model.trim="form.phone" maxlength="30" /></div>
+                <div class="field"><label>Email</label><input type="email" v-model.trim="form.email" maxlength="254" /></div>
+                <div class="field"><label>CCCD/Hộ chiếu</label><input v-model.trim="form.identityNumber" maxlength="100" /></div>
+                <div class="field full"><label>Ghi chú</label><textarea v-model.trim="form.note" maxlength="2000"></textarea></div>
+                <label v-if="editor.mode === 'edit'" class="check-row full"><input type="checkbox" v-model="form.isActive" /> Khách đang hoạt động</label>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button>
+                <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveCustomer">{{ saving ? 'Đang lưu...' : 'Lưu' }}</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+</div>
+@section Scripts {
+    <script src="~/js/pages/admin-customers.js" asp-append-version="true"></script>
+}

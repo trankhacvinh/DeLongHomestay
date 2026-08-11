@@ -1,0 +1,13 @@
+name: Add Housekeeping Migration (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  info:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "AddHousekeepingState migration is already committed. This workflow is retained only as historical/manual documentation."

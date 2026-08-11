@@ -1,0 +1,66 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var csrf = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+    var isAdmin = Context.Request.Path.StartsWithSegments("/Admin");
+}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="@csrf" />
+    <title>@ViewData["Title"] - De Long Homestay</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" />
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body class="@(isAdmin ? "admin-body" : "public-body")">
+@if (isAdmin)
+{
+    <div class="admin-shell">
+        <aside class="sidebar">
+            <a class="brand" asp-page="/Admin/Index"><span class="brand-mark">DL</span><span>De Long<small>Homestay Admin</small></span></a>
+            <nav class="sidebar-nav">
+                <a class="side-link" asp-page="/Admin/Index">Tổng quan</a>
+                <a class="side-link" asp-page="/Admin/Calendar">Lịch phòng</a>
+                <a class="side-link" asp-page="/Admin/Bookings/Index">Booking</a>
+                <a class="side-link" asp-page="/Admin/Customers/Index">Khách hàng</a>
+                <a class="side-link" asp-page="/Admin/Housekeeping/Index">Dọn phòng</a>
+                <a class="side-link" asp-page="/Admin/Rooms/Index">Phòng</a>
+            </nav>
+        </aside>
+        <main class="admin-main">
+            <header class="admin-topbar">
+                <strong>De Long Homestay</strong>
+                <span class="spacer"></span>
+                <span class="small muted">@User.Identity?.Name</span>
+                <form method="post" asp-page="/Account/Logout"><button class="btn btn-light btn-sm" type="submit">Đăng xuất</button></form>
+            </header>
+            <div class="admin-content">@RenderBody()</div>
+        </main>
+    </div>
+}
+else
+{
+    <header class="site-header">
+        <div class="container site-nav">
+            <a class="brand" asp-page="/Index"><span class="brand-mark">DL</span><span>De Long Homestay</span></a>
+            <span class="spacer"></span>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a class="btn btn-light btn-sm" asp-page="/Admin/Index">Quản trị</a>
+            }
+            else
+            {
+                <a class="btn btn-light btn-sm" asp-page="/Account/Login">Đăng nhập</a>
+            }
+        </div>
+    </header>
+    <main class="container public-main">@RenderBody()</main>
+}
+<div id="global-toast-root" class="toast-root" aria-live="polite"></div>
+<script src="https://cdn.jsdelivr.net/npm/vue@3.5.40/dist/vue.global.prod.js"></script>
+<script src="~/js/core/api.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
