@@ -1,0 +1,31 @@
+.entity-toolbar { min-height:68px; padding:13px 16px; display:flex; align-items:center; justify-content:space-between; gap:14px; border-bottom:1px solid var(--line); background:#fff; }
+.entity-toolbar-main { min-width:0; display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.entity-count { min-width:72px; padding:6px 10px; border-radius:999px; background:var(--surface-soft); color:var(--muted); font-size:11px; font-weight:700; text-align:center; }
+.entity-cell { display:flex; align-items:center; gap:10px; min-width:0; }
+.entity-avatar { width:34px; height:34px; flex:0 0 34px; border-radius:10px; display:grid; place-items:center; background:var(--brand-100); color:var(--brand-800); font-size:11px; font-weight:850; text-transform:uppercase; }
+.entity-copy { min-width:0; display:grid; gap:2px; }
+.entity-copy strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.entity-copy span { color:var(--muted); font-size:10px; }
+.booking-code { color:var(--brand-700); font-size:12px; font-weight:800; }
+.room-badge { display:inline-flex; padding:5px 8px; border-radius:8px; background:#f1f5f3; color:#53615e; font-size:11px; font-weight:700; }
+.money-stack { display:grid; gap:2px; white-space:nowrap; }
+.money-stack strong { font-size:12px; }
+.money-stack span { color:var(--muted); font-size:10px; }
+.row-action { min-width:70px; }
+.modal-intro { margin:20px 20px 0; padding:13px 14px; border-radius:12px; background:var(--brand-50); color:var(--text-soft); font-size:11px; line-height:1.55; }
+.modal-intro strong { color:var(--brand-800); }
+.customer-form .form-grid { padding-top:20px; }
+.payment-summary-grid { margin:0 20px 18px; display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+.payment-summary-card { padding:12px; border:1px solid var(--line); border-radius:11px; background:var(--surface-soft); display:grid; gap:4px; }
+.payment-summary-card span { color:var(--muted); font-size:9px; text-transform:uppercase; letter-spacing:.06em; }
+.payment-summary-card strong { font-size:15px; }
+.modal-panel { margin:0 20px 18px; }
+.modal-panel .panel-head { min-height:52px; }
+.modal-panel .panel-body { padding:14px; }
+@media (max-width:680px) {
+    .entity-toolbar { align-items:stretch; flex-direction:column; }
+    .entity-toolbar-main { width:100%; }
+    .entity-toolbar-main .filter-select { flex:1; }
+    .entity-count { align-self:flex-start; }
+    .payment-summary-grid { grid-template-columns:1fr; }
+}

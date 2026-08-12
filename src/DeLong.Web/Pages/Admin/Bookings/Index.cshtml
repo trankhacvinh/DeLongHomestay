@@ -3,44 +3,53 @@
 @{
     ViewData["Title"] = "Booking";
 }
+@section Head {
+    <link rel="stylesheet" href="~/css/entities.css" asp-append-version="true" />
+}
 <div id="bookings-page" v-cloak>
     <script id="bookings-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
     <div class="page-title-row">
-        <div><h1>Booking</h1><p>Tra cứu, trạng thái và thanh toán; tạo booking mới từ Lịch phòng.</p></div>
+        <div>
+            <div class="page-eyebrow">Vận hành đặt phòng</div>
+            <h1>Booking</h1>
+            <p>Tra cứu booking, theo dõi công nợ và xử lý trạng thái từ lúc giữ phòng đến check-out.</p>
+        </div>
         @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff"))
         {
-            <a class="btn btn-primary" asp-page="/Admin/Calendar">+ Đặt phòng</a>
+            <a class="btn btn-primary" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId"><svg><use href="#i-plus" /></svg>Đặt phòng</a>
         }
     </div>
 
     <section class="panel">
-        <div class="panel-head">
-            <div class="toolbar">
-                <input class="search-input" v-model.trim="search" placeholder="Mã, khách, SĐT, phòng..." />
-                <select class="filter-select" v-model="statusFilter">
+        <div class="entity-toolbar">
+            <div class="entity-toolbar-main">
+                <input class="search-input" v-model.trim="search" placeholder="Tìm mã, khách, SĐT hoặc phòng..." aria-label="Tìm booking" />
+                <select class="filter-select" v-model="statusFilter" aria-label="Lọc trạng thái">
                     <option value="">Tất cả trạng thái</option>
                     <option value="0">Yêu cầu</option><option value="1">Giữ phòng</option><option value="2">Đã xác nhận</option>
                     <option value="3">Đang ở</option><option value="4">Hoàn tất</option><option value="5">Đã hủy</option><option value="6">No-show</option>
                 </select>
             </div>
-            <span class="small muted">{{ filteredBookings.length }} booking</span>
+            <span class="entity-count">{{ filteredBookings.length }} booking</span>
         </div>
         <div class="table-wrap">
             <table class="data-table">
-                <thead><tr><th>Mã</th><th>Khách</th><th>Phòng</th><th>Thời gian</th><th>Trạng thái</th><th>Tổng</th><th>Còn lại</th><th></th></tr></thead>
+                <thead><tr><th>Mã</th><th>Khách hàng</th><th>Phòng</th><th>Thời gian</th><th>Trạng thái</th><th>Thanh toán</th><th>Còn lại</th><th></th></tr></thead>
                 <tbody>
                     <tr v-for="booking in filteredBookings" v-bind:key="booking.id">
-                        <td><strong>{{ booking.code }}</strong><div class="tiny muted">{{ booking.source || '—' }}</div></td>
-                        <td><strong>{{ booking.customerName }}</strong><div class="tiny muted">{{ booking.customerPhone }}</div></td>
-                        <td>{{ booking.roomName }}</td>
-                        <td>{{ dateTimeText(booking.checkInUtc) }}<div class="tiny muted">→ {{ dateTimeText(booking.checkOutUtc) }}</div></td>
+                        <td><span class="booking-code">{{ booking.code }}</span><div class="tiny muted">{{ booking.source || 'Không rõ nguồn' }}</div></td>
+                        <td>
+                            <div class="entity-cell"><span class="entity-avatar">{{ (booking.customerName || '?').charAt(0) }}</span><div class="entity-copy"><strong>{{ booking.customerName }}</strong><span>{{ booking.customerPhone }}</span></div></div>
+                        </td>
+                        <td><span class="room-badge">{{ booking.roomName }}</span></td>
+                        <td><strong>{{ dateTimeText(booking.checkInUtc) }}</strong><div class="tiny muted">đến {{ dateTimeText(booking.checkOutUtc) }}</div></td>
                         <td><span class="pill" v-bind:class="statusClass(booking.status)">{{ statusText(booking.status) }}</span></td>
-                        <td><strong>{{ money(booking.totalAmount) }}</strong><div class="tiny muted">Đã thu {{ money(booking.paidAmount) }}</div></td>
+                        <td><div class="money-stack"><strong>{{ money(booking.totalAmount) }}</strong><span>Đã thu {{ money(booking.paidAmount) }}</span></div></td>
                         <td><strong v-bind:class="{ 'text-success': booking.balanceAmount <= 0, 'text-danger': booking.balanceAmount > 0 }">{{ money(booking.balanceAmount) }}</strong></td>
-                        <td><button class="btn btn-light btn-sm" type="button" v-on:click="openBooking(booking)">Xem</button></td>
+                        <td><button class="btn btn-light btn-sm row-action" type="button" v-on:click="openBooking(booking)">Chi tiết</button></td>
                     </tr>
-                    <tr v-if="filteredBookings.length === 0"><td colspan="8" class="empty-state">Không có booking phù hợp.</td></tr>
+                    <tr v-if="filteredBookings.length === 0"><td colspan="8" class="empty-state"><strong>Không tìm thấy booking</strong>Thử đổi từ khóa hoặc bộ lọc trạng thái.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -49,38 +58,38 @@
     <div class="modal-backdrop" v-if="detail.open" v-on:click.self="closeDetail">
         <section class="modal-card booking-editor" role="dialog" aria-modal="true" v-if="selectedBooking">
             <div class="modal-head">
-                <div><h2>{{ selectedBooking.code }}</h2><p class="small muted">{{ statusText(selectedBooking.status) }}</p></div>
-                <button class="icon-btn" type="button" v-on:click="closeDetail">×</button>
+                <div><h2>{{ selectedBooking.code }}</h2><p class="small muted">{{ selectedBooking.customerName }} · {{ selectedBooking.roomName }}</p></div>
+                <button class="icon-btn" type="button" v-on:click="closeDetail" aria-label="Đóng">×</button>
+            </div>
+            <div class="booking-detail-hero">
+                <div><span>Khách hàng</span><strong>{{ selectedBooking.customerName }}</strong><span>{{ selectedBooking.customerPhone }} · {{ dateTimeText(selectedBooking.checkInUtc) }}</span></div>
+                <span class="pill" v-bind:class="statusClass(selectedBooking.status)">{{ statusText(selectedBooking.status) }}</span>
+            </div>
+            <div class="payment-summary-grid">
+                <div class="payment-summary-card"><span>Tổng booking</span><strong>{{ money(selectedBooking.totalAmount) }}</strong></div>
+                <div class="payment-summary-card"><span>Đã thanh toán</span><strong class="text-success">{{ money(selectedBooking.paidAmount) }}</strong></div>
+                <div class="payment-summary-card"><span>Còn lại</span><strong v-bind:class="selectedBooking.balanceAmount > 0 ? 'text-danger' : 'text-success'">{{ money(selectedBooking.balanceAmount) }}</strong></div>
             </div>
             <div class="detail-list">
-                <div><span>Khách</span><strong>{{ selectedBooking.customerName }} · {{ selectedBooking.customerPhone }}</strong></div>
                 <div><span>Phòng</span><strong>{{ selectedBooking.roomName }}</strong></div>
                 <div><span>Thời gian</span><strong>{{ dateTimeText(selectedBooking.checkInUtc) }} → {{ dateTimeText(selectedBooking.checkOutUtc) }}</strong></div>
-                <div><span>Tổng booking</span><strong>{{ money(selectedBooking.totalAmount) }}</strong></div>
-                <div><span>Đã thanh toán</span><strong class="text-success">{{ money(selectedBooking.paidAmount) }}</strong></div>
-                <div><span>Còn lại</span><strong v-bind:class="selectedBooking.balanceAmount > 0 ? 'text-danger' : 'text-success'">{{ money(selectedBooking.balanceAmount) }}</strong></div>
                 <div v-if="selectedBooking.note"><span>Ghi chú</span><strong>{{ selectedBooking.note }}</strong></div>
             </div>
 
-            <div class="panel mt-16">
+            <div class="panel modal-panel">
                 <div class="panel-head">
-                    <h3>Thanh toán</h3>
-                    <button v-if="canManage" class="btn btn-primary btn-sm" type="button" v-on:click="openPayment">+ Ghi nhận</button>
+                    <div><h3>Giao dịch thanh toán</h3><span class="tiny muted">Lịch sử thu / hoàn tiền</span></div>
+                    <button v-if="canManage" class="btn btn-primary btn-sm" type="button" v-on:click="openPayment"><svg><use href="#i-plus" /></svg>Ghi nhận</button>
                 </div>
                 <div class="panel-body">
                     <p v-if="loadingPayments" class="small muted">Đang tải giao dịch...</p>
                     <div v-else-if="payments.length" class="payment-list">
                         <div class="payment-row" v-for="payment in payments" v-bind:key="payment.id" v-bind:class="{ 'payment-voided': payment.isVoided }">
-                            <div>
-                                <strong v-bind:class="payment.type === 0 ? 'text-success' : 'text-danger'">{{ payment.type === 0 ? '+' : '-' }}{{ money(payment.amount) }}</strong>
-                                <div class="tiny muted">{{ paymentMethodText(payment.method) }} · {{ dateTimeText(payment.occurredAtUtc) }}</div>
-                                <div class="tiny" v-if="payment.reference">Tham chiếu: {{ payment.reference }}</div>
-                                <div class="tiny muted" v-if="payment.isVoided">VOID · {{ payment.voidReason }}</div>
-                            </div>
+                            <div><strong v-bind:class="payment.type === 0 ? 'text-success' : 'text-danger'">{{ payment.type === 0 ? '+' : '-' }}{{ money(payment.amount) }}</strong><div class="tiny muted">{{ paymentMethodText(payment.method) }} · {{ dateTimeText(payment.occurredAtUtc) }}</div><div class="tiny" v-if="payment.reference">Tham chiếu: {{ payment.reference }}</div><div class="tiny muted" v-if="payment.isVoided">VOID · {{ payment.voidReason }}</div></div>
                             <button v-if="canManage && !payment.isVoided" class="btn btn-light btn-sm" type="button" v-on:click="openVoid(payment)">Void</button>
                         </div>
                     </div>
-                    <p v-else class="small muted">Chưa có giao dịch thanh toán.</p>
+                    <div v-else class="empty-state"><strong>Chưa có giao dịch</strong>Ghi nhận tiền cọc hoặc thanh toán tại đây.</div>
                 </div>
             </div>
 
@@ -92,22 +101,23 @@
 
     <div class="modal-backdrop modal-top" v-if="paymentEditor.open" v-on:click.self="closePayment">
         <section class="modal-card" role="dialog" aria-modal="true">
-            <div class="modal-head"><div><h2>Ghi nhận thanh toán</h2><p class="small muted">{{ selectedBooking?.code }}</p></div><button class="icon-btn" type="button" v-on:click="closePayment">×</button></div>
+            <div class="modal-head"><div><h2>Ghi nhận thanh toán</h2><p class="small muted">{{ selectedBooking?.code }} · không reload trang</p></div><button class="icon-btn" type="button" v-on:click="closePayment" aria-label="Đóng">×</button></div>
+            <div class="modal-intro"><strong>Lưu theo giao dịch.</strong> Số đã thanh toán và còn lại sẽ được tính lại từ ledger, không sửa tổng bằng tay.</div>
             <div class="form-grid">
-                <div class="field"><label>Loại</label><select v-model.number="paymentForm.type"><option v-bind:value="0">Thu tiền / Cọc</option><option v-bind:value="1">Hoàn tiền</option></select></div>
+                <div class="field"><label>Loại giao dịch</label><select v-model.number="paymentForm.type"><option v-bind:value="0">Thu tiền / Cọc</option><option v-bind:value="1">Hoàn tiền</option></select></div>
                 <div class="field"><label>Phương thức</label><select v-model.number="paymentForm.method"><option v-bind:value="1">Chuyển khoản</option><option v-bind:value="0">Tiền mặt</option><option v-bind:value="2">Thẻ</option><option v-bind:value="3">Khác</option></select></div>
                 <div class="field"><label>Số tiền *</label><input type="number" min="1" step="1000" v-model.number="paymentForm.amount" /></div>
-                <div class="field"><label>Mã/Tham chiếu</label><input v-model.trim="paymentForm.reference" maxlength="200" /></div>
+                <div class="field"><label>Mã / tham chiếu</label><input v-model.trim="paymentForm.reference" maxlength="200" placeholder="Mã giao dịch ngân hàng..." /></div>
                 <div class="field full"><label>Ghi chú</label><textarea v-model.trim="paymentForm.note" maxlength="2000"></textarea></div>
             </div>
-            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closePayment">Hủy</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="savePayment">{{ saving ? 'Đang lưu...' : 'Ghi nhận' }}</button></div>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closePayment">Hủy</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="savePayment">{{ saving ? 'Đang lưu...' : 'Ghi nhận thanh toán' }}</button></div>
         </section>
     </div>
 
     <div class="modal-backdrop modal-top" v-if="voidEditor.open" v-on:click.self="closeVoid">
-        <section class="modal-card" role="dialog" aria-modal="true">
-            <div class="modal-head"><div><h2>Void giao dịch?</h2><p class="small muted">Giao dịch không bị xóa khỏi lịch sử.</p></div><button class="icon-btn" type="button" v-on:click="closeVoid">×</button></div>
-            <div class="field"><label>Lý do *</label><textarea v-model.trim="voidEditor.reason" maxlength="1000" placeholder="Nhập sai số tiền, ghi nhận nhầm..."></textarea></div>
+        <section class="modal-card modal-small" role="dialog" aria-modal="true">
+            <div class="modal-head"><div><h2>Void giao dịch?</h2><p class="small muted">Giao dịch vẫn được giữ trong lịch sử.</p></div><button class="icon-btn" type="button" v-on:click="closeVoid" aria-label="Đóng">×</button></div>
+            <div class="panel-body"><div class="field"><label>Lý do *</label><textarea v-model.trim="voidEditor.reason" maxlength="1000" placeholder="Nhập sai số tiền, ghi nhận nhầm..."></textarea></div></div>
             <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closeVoid">Hủy</button><button class="btn btn-danger" type="button" v-bind:disabled="saving" v-on:click="confirmVoid">Xác nhận void</button></div>
         </section>
     </div>
