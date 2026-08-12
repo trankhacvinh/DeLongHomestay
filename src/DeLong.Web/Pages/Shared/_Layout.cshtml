@@ -2,6 +2,17 @@
 @{
     var csrf = Antiforgery.GetAndStoreTokens(Context).RequestToken;
     var isAdmin = Context.Request.Path.StartsWithSegments("/Admin");
+    var path = Context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
+    string? propertyId = Context.Request.Query["propertyId"].ToString();
+    if (string.IsNullOrWhiteSpace(propertyId)) propertyId = null;
+
+    string NavClass(string prefix, bool exact = false)
+    {
+        var active = exact
+            ? string.Equals(path, prefix, StringComparison.OrdinalIgnoreCase)
+            : path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+        return active ? "side-link active" : "side-link";
+    }
 }
 <!doctype html>
 <html lang="vi">
@@ -9,32 +20,88 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content="@csrf" />
+    <meta name="theme-color" content="#0d2b2e" />
     <title>@ViewData["Title"] - De Long Homestay</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" />
     @await RenderSectionAsync("Head", required: false)
 </head>
 <body class="@(isAdmin ? "admin-body" : "public-body")">
+<svg class="svg-sprite" aria-hidden="true">
+    <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></symbol>
+    <symbol id="i-booking" viewBox="0 0 24 24"><path d="M5 5h14v15H5zM8 2v5M16 2v5M8 11h8M8 15h5"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM17 11a3 3 0 1 0 0-6M17 14c2.2 0 4 1.8 4 4v2"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m12 3 1.1 3.2L16 7.5l-2.9 1.3L12 12l-1.1-3.2L8 7.5l2.9-1.3L12 3ZM5 12l.8 2.2L8 15l-2.2.8L5 18l-.8-2.2L2 15l2.2-.8L5 12ZM18 13l1 2.8L22 17l-3 1.2L18 21l-1-2.8L14 17l3-1.2 1-2.8Z"/></symbol>
+    <symbol id="i-bed" viewBox="0 0 24 24"><path d="M3 12v7M21 12v7M3 17h18M5 12V7h6a3 3 0 0 1 3 3v2M14 10h4a3 3 0 0 1 3 3v4"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M4 6h14a2 2 0 0 1 2 2v11H4a2 2 0 0 1-2-2V6a3 3 0 0 1 3-3h12M16 11h6v5h-6a2 2 0 0 1 0-5Z"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1H21v4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 5H4v14h6M14 8l4 4-4 4M18 12H8"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+</svg>
 @if (isAdmin)
 {
     <div class="admin-shell">
-        <aside class="sidebar">
-            <a class="brand" asp-page="/Admin/Index"><span class="brand-mark">DL</span><span>De Long<small>Homestay Admin</small></span></a>
+        <div class="sidebar-overlay" data-sidebar-overlay></div>
+        <aside class="sidebar" aria-label="Điều hướng quản trị">
+            <div class="sidebar-head">
+                <a class="brand admin-brand" asp-page="/Admin/Index" asp-route-propertyId="@propertyId">
+                    <span class="brand-mark">DL</span>
+                    <span class="brand-copy"><strong>De Long</strong><small>Homestay</small></span>
+                </a>
+                <button class="sidebar-close btn-icon" type="button" data-sidebar-toggle aria-label="Đóng menu">×</button>
+            </div>
+
             <nav class="sidebar-nav">
-                <a class="side-link" asp-page="/Admin/Index">Tổng quan</a>
-                <a class="side-link" asp-page="/Admin/Calendar">Lịch phòng</a>
-                <a class="side-link" asp-page="/Admin/Bookings/Index">Booking</a>
-                <a class="side-link" asp-page="/Admin/Customers/Index">Khách hàng</a>
-                <a class="side-link" asp-page="/Admin/Housekeeping/Index">Dọn phòng</a>
-                <a class="side-link" asp-page="/Admin/Rooms/Index">Phòng</a>
+                <div class="nav-group">
+                    <div class="nav-label">Vận hành</div>
+                    <a class="@NavClass("/Admin", true)" asp-page="/Admin/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-grid" /></svg><span>Tổng quan</span></a>
+                    <a class="@NavClass("/Admin/Calendar")" asp-page="/Admin/Calendar" asp-route-propertyId="@propertyId"><svg><use href="#i-calendar" /></svg><span>Lịch phòng</span></a>
+                    <a class="@NavClass("/Admin/Bookings")" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-booking" /></svg><span>Booking</span></a>
+                    <a class="@NavClass("/Admin/Customers")" asp-page="/Admin/Customers/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-users" /></svg><span>Khách hàng</span></a>
+                    <a class="@NavClass("/Admin/Housekeeping")" asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-sparkles" /></svg><span>Dọn phòng</span></a>
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-label">Quản lý</div>
+                    <a class="@NavClass("/Admin/Rooms")" asp-page="/Admin/Rooms/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-bed" /></svg><span>Phòng</span></a>
+                    <a class="@NavClass("/Admin/Settings")" asp-page="/Admin/Settings/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-settings" /></svg><span>Cấu hình</span></a>
+                </div>
+
+                @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Viewer"))
+                {
+                    <div class="nav-group">
+                        <div class="nav-label">Tài chính</div>
+                        <a class="@NavClass("/Admin/Finance")" asp-page="/Admin/Finance/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-wallet" /></svg><span>Thu chi</span></a>
+                        <a class="@NavClass("/Admin/Reports")" asp-page="/Admin/Reports/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-chart" /></svg><span>Báo cáo</span></a>
+                    </div>
+                }
             </nav>
+
+            <div class="sidebar-foot">
+                <div class="sidebar-hint"><span class="status-dot"></span><span>Hệ thống đang hoạt động</span></div>
+            </div>
         </aside>
+
         <main class="admin-main">
             <header class="admin-topbar">
-                <strong>De Long Homestay</strong>
+                <button class="mobile-menu btn-icon" type="button" data-sidebar-toggle aria-label="Mở menu"><svg><use href="#i-menu" /></svg></button>
+                <div class="topbar-context">
+                    <span class="topbar-property">De Long Homestay</span>
+                    <span class="topbar-page">@ViewData["Title"]</span>
+                </div>
                 <span class="spacer"></span>
-                <span class="small muted">@User.Identity?.Name</span>
-                <form method="post" asp-page="/Account/Logout"><button class="btn btn-light btn-sm" type="submit">Đăng xuất</button></form>
+                <div class="user-chip">
+                    <span class="user-avatar">@((User.Identity?.Name ?? "A").Substring(0, 1).ToUpperInvariant())</span>
+                    <span class="user-copy"><strong>@User.Identity?.Name</strong><small>Quản trị hệ thống</small></span>
+                </div>
+                <form method="post" asp-page="/Account/Logout">
+                    <button class="btn-icon logout-btn" type="submit" title="Đăng xuất" aria-label="Đăng xuất"><svg><use href="#i-logout" /></svg></button>
+                </form>
             </header>
             <div class="admin-content">@RenderBody()</div>
         </main>
@@ -61,6 +128,7 @@ else
 <div id="global-toast-root" class="toast-root" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/vue@3.5.40/dist/vue.global.prod.js"></script>
 <script src="~/js/core/api.js" asp-append-version="true"></script>
+<script src="~/js/core/shell.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
