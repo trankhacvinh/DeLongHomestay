@@ -1,0 +1,56 @@
+name: UI Design System Generator
+
+on:
+  push:
+    branches: [agent/ui-redesign]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/ui-redesign
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Generate required design system
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="design-system/de-long-homestay"
+          if [ -f "$ROOT/MASTER.md" ]; then
+            echo "Design system already generated; skipping."
+            exit 0
+          fi
+
+          SCRIPT="src/DeLong.Web/.codex/skills/ui-ux-pro-max/scripts/search.py"
+          QUERY="hotel hospitality property management admin dashboard boutique elegant professional operational data-dense calm"
+
+          python3 "$SCRIPT" "$QUERY" --design-system --persist -p "De Long Homestay" -f markdown -o .
+          python3 "$SCRIPT" "$QUERY dashboard operations overview arrivals departures housekeeping occupancy" --design-system --persist -p "De Long Homestay" -f markdown --page dashboard -o .
+          python3 "$SCRIPT" "$QUERY calendar occupancy room timeline booking schedule" --design-system --persist -p "De Long Homestay" -f markdown --page calendar -o .
+
+          python3 "$SCRIPT" "razor server rendered progressive enhancement modal forms table responsive accessibility" --stack vue -n 10 > "$ROOT/VUE-GUIDELINES.md"
+          python3 "$SCRIPT" "dashboard calendar modal form table animation accessibility keyboard focus mobile responsive" --domain ux -n 10 > "$ROOT/UX-GUIDELINES.md"
+          python3 "$SCRIPT" "form input aria focus keyboard semantic responsive table" --domain web -n 10 > "$ROOT/WEB-GUIDELINES.md"
+
+      - name: Commit generated design system
+        shell: bash
+        run: |
+          if git diff --quiet -- design-system/ && [ -z "$(git status --porcelain design-system/)" ]; then
+            echo "No generated design-system changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add design-system/
+          git commit -m "docs: generate ui-ux-pro-max design system"
+          git push origin HEAD:agent/ui-redesign
