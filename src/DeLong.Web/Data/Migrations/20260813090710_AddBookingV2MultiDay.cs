@@ -19,6 +19,14 @@ namespace DeLong.Web.Data.Migrations
                 nullable: false,
                 defaultValue: "TimeSlot");
 
+            // Existing preset rows already carry the legacy IsOvernight flag.
+            // Preserve their meaning while introducing the explicit rate type.
+            migrationBuilder.Sql("""
+                UPDATE room_rates
+                SET type = 'Overnight'
+                WHERE is_overnight = TRUE;
+                """);
+
             migrationBuilder.AddColumn<int>(
                 name: "night_count",
                 table: "bookings",
