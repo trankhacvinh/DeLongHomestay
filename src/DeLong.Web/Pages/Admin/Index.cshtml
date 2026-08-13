@@ -4,11 +4,115 @@
     ViewData["Title"] = "Tổng quan";
 }
 <div class="page-title-row">
-    <div><h1>Production foundation</h1><p>Razor Pages + Vue progressive enhancement + Minimal APIs + PostgreSQL.</p></div>
+    <div>
+        <div class="page-eyebrow">@Model.PropertyName</div>
+        <h1>Tổng quan hôm nay</h1>
+        <p>@Model.TodayLabel · Những việc cần chú ý trong ca vận hành hiện tại.</p>
+    </div>
+    <div class="toolbar">
+        <a class="btn btn-light btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Xem booking</a>
+        <a class="btn btn-primary btn-sm" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId"><svg><use href="#i-plus" /></svg>Đặt phòng</a>
+    </div>
 </div>
+
 <div class="kpi-grid">
-    <article class="kpi"><span class="kpi-label">Milestone</span><strong class="kpi-value">01</strong><span class="kpi-note">Foundation</span></article>
-    <article class="kpi"><span class="kpi-label">UI interaction</span><strong class="kpi-value">Vue 3</strong><span class="kpi-note">in-DOM</span></article>
-    <article class="kpi"><span class="kpi-label">Storage</span><strong class="kpi-value">PG</strong><span class="kpi-note">PostgreSQL</span></article>
-    <article class="kpi"><span class="kpi-label">Next</span><strong class="kpi-value">Rooms</strong><span class="kpi-note">API CRUD</span></article>
+    <article class="kpi">
+        <div class="kpi-top"><span class="kpi-label">Khách đến</span><span class="kpi-icon"><svg><use href="#i-calendar" /></svg></span></div>
+        <strong class="kpi-value">@Model.ArrivalsCount</strong>
+        <span class="kpi-note">Check-in trong hôm nay</span>
+    </article>
+    <article class="kpi">
+        <div class="kpi-top"><span class="kpi-label">Khách trả</span><span class="kpi-icon"><svg><use href="#i-booking" /></svg></span></div>
+        <strong class="kpi-value">@Model.DeparturesCount</strong>
+        <span class="kpi-note">Check-out trong hôm nay</span>
+    </article>
+    <article class="kpi">
+        <div class="kpi-top"><span class="kpi-label">Đang ở</span><span class="kpi-icon"><svg><use href="#i-bed" /></svg></span></div>
+        <strong class="kpi-value">@Model.OccupiedCount</strong>
+        <span class="kpi-note">Booking đã check-in</span>
+    </article>
+    <article class="kpi">
+        <div class="kpi-top"><span class="kpi-label">Cần dọn</span><span class="kpi-icon"><svg><use href="#i-sparkles" /></svg></span></div>
+        <strong class="kpi-value">@Model.DirtyCount</strong>
+        <span class="kpi-note">Phòng đang ở trạng thái bẩn</span>
+    </article>
+</div>
+
+@if (Model.CanViewFinance)
+{
+    <div class="finance-strip">
+        <div><span>Thực thu hôm nay</span><strong>@Model.ReceiptsToday.ToString("N0") đ</strong></div>
+        <div><span>Công nợ hiện tại</span><strong>@Model.Outstanding.ToString("N0") đ</strong></div>
+        <div><span>Truy cập nhanh</span><strong><a asp-page="/Admin/Finance/Index" asp-route-propertyId="@Model.PropertyId">Thu chi →</a></strong></div>
+    </div>
+}
+
+<div class="dashboard-grid">
+    <section class="panel">
+        <div class="panel-head"><div><h2>Sắp check-in</h2><span class="tiny muted">Theo thứ tự thời gian hôm nay</span></div><a class="btn btn-ghost btn-sm" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId">Mở lịch</a></div>
+        <div class="dashboard-list">
+            @if (Model.Arrivals.Count == 0)
+            {
+                <div class="empty-state"><strong>Chưa có khách đến hôm nay</strong>Lịch sẽ xuất hiện ở đây khi có booking.</div>
+            }
+            else
+            {
+                @foreach (var item in Model.Arrivals)
+                {
+                    <div class="dashboard-item">
+                        <span class="dashboard-time">@item.TimeText</span>
+                        <div class="dashboard-main"><strong>@item.CustomerName</strong><span>@item.RoomName · @item.Code</span></div>
+                        @if (item.BalanceAmount > 0) { <span class="dashboard-amount text-danger">Còn @item.BalanceAmount.ToString("N0") đ</span> }
+                        else { <span class="dashboard-amount text-success">Đã đủ tiền</span> }
+                    </div>
+                }
+            }
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head"><div><h2>Vận hành nhanh</h2><span class="tiny muted">Các màn hình thường dùng trong ca</span></div></div>
+        <div class="quick-actions">
+            <a class="quick-action" asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@Model.PropertyId"><strong>Dọn phòng</strong><span>@Model.DirtyRooms.Count phòng cần chú ý →</span></a>
+            <a class="quick-action" asp-page="/Admin/Customers/Index" asp-route-propertyId="@Model.PropertyId"><strong>Khách hàng</strong><span>Tra cứu SĐT / lịch sử →</span></a>
+            <a class="quick-action" asp-page="/Admin/Rooms/Index" asp-route-propertyId="@Model.PropertyId"><strong>Phòng & giá</strong><span>Quản lý phòng →</span></a>
+            <a class="quick-action" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId"><strong>Booking</strong><span>Tra cứu & thanh toán →</span></a>
+        </div>
+    </section>
+</div>
+
+<div class="dashboard-grid">
+    <section class="panel">
+        <div class="panel-head"><div><h2>Sắp check-out</h2><span class="tiny muted">Chuẩn bị thanh toán và dọn phòng</span></div></div>
+        <div class="dashboard-list">
+            @if (Model.Departures.Count == 0)
+            {
+                <div class="empty-state"><strong>Không có khách trả hôm nay</strong>Không có check-out trong ngày hiện tại.</div>
+            }
+            else
+            {
+                @foreach (var item in Model.Departures)
+                {
+                    <div class="dashboard-item"><span class="dashboard-time">@item.TimeText</span><div class="dashboard-main"><strong>@item.CustomerName</strong><span>@item.RoomName · @item.Code</span></div>@if (item.BalanceAmount > 0){<span class="dashboard-amount text-danger">Còn @item.BalanceAmount.ToString("N0") đ</span>}</div>
+                }
+            }
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head"><div><h2>Trạng thái dọn phòng</h2><span class="tiny muted">Phòng bẩn / đang dọn</span></div><a class="btn btn-ghost btn-sm" asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@Model.PropertyId">Chi tiết</a></div>
+        <div class="dashboard-list">
+            @if (Model.DirtyRooms.Count == 0)
+            {
+                <div class="empty-state"><strong>Tất cả phòng đã sẵn sàng</strong>Không có phòng bẩn hoặc đang dọn.</div>
+            }
+            else
+            {
+                @foreach (var room in Model.DirtyRooms)
+                {
+                    <div class="dashboard-item"><span class="dashboard-time">@(room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty ? "Bẩn" : "Dọn")</span><div class="dashboard-main"><strong>@room.Name</strong><span>@room.Code</span></div><span class="pill @(room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty ? "warning" : "")">@(room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty ? "Cần dọn" : "Đang dọn")</span></div>
+                }
+            }
+        </div>
+    </section>
 </div>
