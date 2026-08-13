@@ -1,9 +1,9 @@
-/* Final mobile polish for the public hospitality experience. Scoped to public pages only. */
+/* Final mobile polish for the public hospitality experience. Scoped to public pages only.
+   The .public-body prefix intentionally gives this final layer higher specificity than
+   earlier responsive rules imported from public-polish.css. */
 
 @media (max-width: 820px) {
-    /* On narrow screens the booking summary should follow the interaction flow,
-       not appear before step 01. */
-    .public-booking-summary {
+    .public-body .public-booking-summary {
         order: 0;
         position: static;
         display: grid;
@@ -11,212 +11,210 @@
         margin-top: 4px;
     }
 
-    .public-summary-room-art {
+    .public-body .public-summary-room-art {
         min-height: 100%;
     }
 }
 
 @media (max-width: 640px) {
-    .public-hero {
+    .public-body .public-hero {
         padding-top: 38px;
         padding-bottom: 26px;
     }
 
-    .public-hero-copy h1 {
+    .public-body .public-hero-copy h1 {
         margin-top: 10px;
         margin-bottom: 16px;
         font-size: clamp(39px, 11.5vw, 48px);
         line-height: .96;
     }
 
-    .public-hero-copy > p {
+    .public-body .public-hero-copy > p {
         font-size: 14px;
         line-height: 1.65;
     }
 
-    .public-hero-actions {
+    .public-body .public-hero-actions {
         margin-top: 22px;
     }
 
-    .public-contact-line {
+    .public-body .public-contact-line {
         margin-top: 22px;
         padding-top: 16px;
         gap: 10px 18px;
     }
 
-    .public-hero-art {
+    .public-body .public-hero-art {
         min-height: 310px;
         border-radius: 24px;
     }
 
-    .hero-art-main {
+    .public-body .hero-art-main {
         left: 24px;
         bottom: 30px;
     }
 
-    .hero-art-main strong {
+    .public-body .hero-art-main strong {
         font-size: 34px;
     }
 
-    .hero-art-float {
+    .public-body .hero-art-float {
         top: 20px;
         right: 18px;
     }
 
-    .public-check-section {
+    .public-body .public-check-section {
         padding-bottom: 30px;
     }
 
-    .public-home-rooms,
-    .public-room-catalog-section {
+    .public-body .public-home-rooms,
+    .public-body .public-room-catalog-section {
         padding-top: 34px;
     }
 
-    /* Room posters remain intentionally branded until real photography is added,
-       but should not dominate the entire mobile viewport. */
-    .public-room-card .public-room-art,
-    .public-room-card-large .public-room-art {
+    .public-body .public-room-card .public-room-art,
+    .public-body .public-room-card-large .public-room-art {
         min-height: 190px;
     }
 
-    .public-room-card-large {
+    .public-body .public-room-card-large {
         border-radius: 20px;
     }
 
-    .public-room-poster,
-    .public-room-poster-large {
+    .public-body .public-room-poster,
+    .public-body .public-room-poster-large {
         max-width: 78%;
         gap: 6px;
     }
 
-    .public-room-poster strong,
-    .public-room-poster-large strong {
+    .public-body .public-room-poster strong,
+    .public-body .public-room-poster-large strong {
         font-size: 27px;
     }
 
-    .public-room-body {
+    .public-body .public-room-body {
         padding: 14px 15px 16px;
     }
 
-    .public-room-body-stack {
+    .public-body .public-room-body-stack {
         gap: 11px;
     }
 
-    .public-rate-preview {
+    .public-body .public-rate-preview {
         gap: 5px;
     }
 
-    .public-rate-preview span {
+    .public-body .public-rate-preview span {
         padding: 6px 7px;
         font-size: 9px;
     }
 
-    .public-room-note {
+    .public-body .public-room-note {
         max-width: 62%;
     }
 
-    .public-booking-hero {
+    .public-body .public-booking-hero {
         padding-top: 38px;
     }
 
-    .public-booking-journey-wrap {
+    .public-body .public-booking-journey-wrap {
         padding-top: 4px;
     }
 
-    .public-booking-section {
+    .public-body .public-booking-section {
         padding-top: 14px;
         padding-bottom: 54px;
     }
 
-    .public-booking-summary {
+    .public-body .public-booking-summary {
         display: block;
         margin-top: 2px;
         border-radius: 18px;
     }
 
-    .public-summary-room-art {
+    .public-body .public-summary-room-art {
         min-height: 105px;
         padding: 18px;
     }
 
-    .public-summary-room-art strong {
+    .public-body .public-summary-room-art strong {
         font-size: 24px;
     }
 
-    .public-summary-content {
+    .public-body .public-summary-content {
         padding: 18px;
     }
 
-    .public-summary-content dl {
+    .public-body .public-summary-content dl {
         margin-top: 12px;
     }
 
-    .public-summary-content dl > div {
+    .public-body .public-summary-content dl > div {
         padding: 8px 0;
     }
 
-    .public-step-card {
+    .public-body .public-step-card {
         padding: 16px;
         border-radius: 17px;
     }
 
-    .public-step-head {
+    .public-body .public-step-head {
         margin-bottom: 14px;
     }
 
-    .public-booking-room {
+    .public-body .public-booking-room {
         min-height: 60px;
         padding: 9px 10px;
     }
 
-    .public-rate-choice {
+    .public-body .public-rate-choice {
         min-height: 66px;
     }
 }
 
 @media (max-width: 430px) {
-    .public-container {
+    .public-body .public-container {
         width: min(100% - 28px, 1180px);
     }
 
-    .public-page-hero {
+    .public-body .public-page-hero {
         padding-top: 38px;
     }
 
-    .public-page-hero h1 {
+    .public-body .public-page-hero h1 {
         font-size: 38px;
         line-height: .98;
     }
 
-    .public-room-grid-catalog {
+    .public-body .public-room-grid-catalog {
         gap: 15px;
     }
 
-    .public-room-card .public-room-art,
-    .public-room-card-large .public-room-art {
+    .public-body .public-room-card .public-room-art,
+    .public-body .public-room-card-large .public-room-art {
         min-height: 176px;
     }
 
-    .public-room-poster strong,
-    .public-room-poster-large strong {
+    .public-body .public-room-poster strong,
+    .public-body .public-room-poster-large strong {
         font-size: 25px;
     }
 
-    .public-booking-journey {
+    .public-body .public-booking-journey {
         gap: 6px;
         padding: 7px;
     }
 
-    .public-booking-journey span {
+    .public-body .public-booking-journey span {
         padding: 0 8px;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .public-room-card,
-    .public-btn,
-    .public-booking-room,
-    .public-rate-choice {
+    .public-body .public-room-card,
+    .public-body .public-btn,
+    .public-body .public-booking-room,
+    .public-body .public-rate-choice {
         transition: none !important;
     }
 }
