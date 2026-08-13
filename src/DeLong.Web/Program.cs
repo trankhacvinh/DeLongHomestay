@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using DeLong.Web.Common.Auditing;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
@@ -8,10 +9,12 @@ using DeLong.Web.Features.Expenses;
 using DeLong.Web.Features.Finance;
 using DeLong.Web.Features.Housekeeping;
 using DeLong.Web.Features.Payments;
+using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.Reports;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -67,6 +70,21 @@ builder.Services.AddRazorPages(options =>
 });
 builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("public-booking", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
+
 builder.Services.AddScoped<ApiAntiforgeryFilter>();
 builder.Services.AddScoped<PropertyAccessService>();
 builder.Services.AddScoped<PropertyAccessFilter>();
@@ -80,6 +98,7 @@ builder.Services.AddScoped<HousekeepingService>();
 builder.Services.AddScoped<ExpenseService>();
 builder.Services.AddScoped<FinanceService>();
 builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<PublicBookingService>();
 
 var app = builder.Build();
 
@@ -94,6 +113,7 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.UseAntiforgery();
 
 app.MapRazorPages();
@@ -104,6 +124,7 @@ app.MapPaymentEndpoints();
 app.MapHousekeepingEndpoints();
 app.MapExpenseEndpoints();
 app.MapAuditEndpoints();
+app.MapPublicBookingEndpoints();
 
 if (app.Configuration.GetValue<bool>("Database:AutoMigrate") || app.Configuration.GetValue<bool>("Database:SeedOnStartup"))
 {
