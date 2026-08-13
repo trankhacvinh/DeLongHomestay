@@ -25,6 +25,9 @@
                 return new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric', timeZone: 'UTC' })
                     .format(new Date(Date.UTC(year, month - 1, 1)));
             },
+            hasTrendData() {
+                return (this.report.trend || []).some(x => Number(x.netReceipts || 0) !== 0 || Number(x.expenses || 0) !== 0);
+            },
             trendMax() {
                 const values = this.report.trend.flatMap(x => [Math.abs(Number(x.netReceipts || 0)), Math.abs(Number(x.expenses || 0))]);
                 return Math.max(1, ...values);
