@@ -77,7 +77,7 @@
     }
 
     /* Keep management tables usable by swiping instead of squeezing columns. */
-    .data-table:not(.responsive-ledger) { min-width:760px; }
+    .data-table:not(.responsive-ledger):not(.responsive-booking-table) { min-width:760px; }
 
     .management-toolbar { padding:11px 13px; }
     .settings-room-grid { gap:13px; }
@@ -88,6 +88,7 @@
         -webkit-overflow-scrolling:touch;
         overscroll-behavior-x:contain;
         scrollbar-width:thin;
+        scroll-snap-type:x proximity;
     }
     .booking-calendar { min-width:905px!important; }
     .booking-calendar thead th:first-child,
@@ -142,6 +143,64 @@
     }
     .rate-settings-row { gap:10px; }
 
+    /* Booking list becomes an action-friendly card ledger instead of a wide table. */
+    .booking-table-wrap { overflow:visible; }
+    .responsive-booking-table {
+        min-width:0!important;
+        width:100%;
+        display:block;
+    }
+    .responsive-booking-table thead { display:none; }
+    .responsive-booking-table tbody {
+        display:grid;
+        gap:10px;
+        padding:10px;
+    }
+    .responsive-booking-table tbody tr:not(.booking-empty-row) {
+        display:block;
+        border:1px solid var(--line);
+        border-radius:13px;
+        background:#fff;
+        overflow:hidden;
+        box-shadow:var(--shadow-xs);
+    }
+    .responsive-booking-table tbody tr:not(.booking-empty-row):hover { background:#fff; }
+    .responsive-booking-table td {
+        min-height:39px;
+        padding:8px 11px;
+        border-bottom:1px solid #edf1ef;
+        display:grid;
+        grid-template-columns:82px minmax(0,1fr);
+        gap:10px;
+        align-items:center;
+        text-align:left!important;
+    }
+    .responsive-booking-table td:last-child { border-bottom:0; }
+    .responsive-booking-table td::before {
+        content:attr(data-label);
+        color:var(--muted);
+        font-size:8.5px;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.055em;
+    }
+    .responsive-booking-table .entity-cell,
+    .responsive-booking-table .money-stack,
+    .responsive-booking-table .room-badge,
+    .responsive-booking-table .pill,
+    .responsive-booking-table .booking-code {
+        justify-self:start;
+    }
+    .responsive-booking-table .row-action { width:100%; }
+    .responsive-booking-table .booking-empty-row { display:block; }
+    .responsive-booking-table .booking-empty-row td {
+        display:block;
+        min-height:150px;
+        padding:28px 16px;
+        border:0;
+    }
+    .responsive-booking-table .booking-empty-row td::before { display:none; }
+
     /* Calendar title/actions stack cleanly on phones. */
     .calendar-page-head .page-title-row { gap:12px; }
     .calendar-controls {
@@ -171,11 +230,14 @@
     .booking-calendar thead th:first-child,
     .booking-calendar tbody th { width:126px!important; min-width:126px!important; }
     .booking-calendar thead th:not(:first-child) { width:106px!important; min-width:106px!important; }
+    /* Empty cells remain fully tappable; hide repeated labels until the user presses a cell. */
     .empty-cell-action {
         inset:5px!important;
-        opacity:.42!important;
+        opacity:0!important;
         font-size:8px!important;
+        pointer-events:none;
     }
+    .day-cell:active .empty-cell-action { opacity:.55!important; }
 
     .booking-form-title {
         align-items:flex-start;
@@ -218,6 +280,10 @@
     .kpi-grid,.finance-strip { grid-template-columns:1fr; }
     .kpi { min-height:102px; }
 
+    /* Keep the operational shortcut section compact instead of four tall rows. */
+    .quick-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .quick-action { min-height:72px; padding:11px; }
+
     .modal-backdrop { padding:0; }
     .modal-card {
         max-height:94dvh;
@@ -230,6 +296,14 @@
     .modal-card .form-grid { padding-left:16px; padding-right:16px; }
     .modal-actions { padding-left:16px; padding-right:16px; }
     .modal-actions .btn { flex:1 1 auto; }
+
+    .responsive-booking-table tbody { padding:8px; }
+    .responsive-booking-table td {
+        grid-template-columns:74px minmax(0,1fr);
+        padding:8px 10px;
+        gap:8px;
+    }
+    .responsive-booking-table .entity-avatar { width:30px; height:30px; }
 
     .calendar-controls {
         grid-template-columns:42px minmax(0,1fr) 42px;
