@@ -99,6 +99,7 @@ builder.Services.AddScoped<ExpenseService>();
 builder.Services.AddScoped<FinanceService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<PublicBookingService>();
+builder.Services.AddScoped<PublicRequestInboxService>();
 
 var app = builder.Build();
 
