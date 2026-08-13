@@ -16,10 +16,18 @@ public sealed class IndexModel(PublicBookingService publicBookingService) : Page
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(catalog.TimeZoneId);
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
         var selectedDate = DateOnly.TryParse(date, out var parsedDate) && parsedDate >= today ? parsedDate : today;
+
         var selectedRoom = catalog.Rooms.FirstOrDefault(x => string.Equals(x.Code, room, StringComparison.OrdinalIgnoreCase));
-        var selectedRate = rate.HasValue
-            ? catalog.Rooms.SelectMany(x => x.Rates).FirstOrDefault(x => x.Id == rate.Value)
-            : null;
+        PublicRateDto? selectedRate = null;
+        if (rate.HasValue)
+        {
+            var rateRoom = catalog.Rooms.FirstOrDefault(x => x.Rates.Any(r => r.Id == rate.Value));
+            if (rateRoom is not null && (selectedRoom is null || selectedRoom.Id == rateRoom.Id))
+            {
+                selectedRoom ??= rateRoom;
+                selectedRate = rateRoom.Rates.First(r => r.Id == rate.Value);
+            }
+        }
 
         PageDataJson = JsonSerializer.Serialize(new
         {
