@@ -4,12 +4,12 @@
     ViewData["Title"] = "Phòng";
 }
 
-<section class="public-page-hero">
+<section class="public-page-hero public-rooms-hero">
     <div class="public-container public-page-hero-inner">
         <div>
             <span class="public-eyebrow">6 không gian</span>
             <h1>Chọn căn phòng dành cho bạn</h1>
-            <p>Mỗi phòng có nhiều khung giờ và mức giá khác nhau. Bạn có thể kiểm tra phòng trống theo ngày trước khi gửi yêu cầu.</p>
+            <p>Mỗi phòng mang một sắc thái riêng, với nhiều khung giờ và mức giá rõ ràng. Chọn phòng trước, sau đó kiểm tra đúng ngày bạn muốn ghé.</p>
         </div>
         <a class="public-btn public-btn-primary" asp-page="/Booking/Index">Kiểm tra phòng trống</a>
     </div>
@@ -21,17 +21,23 @@
             @foreach (var room in Model.Catalog?.Rooms ?? [])
             {
                 <article class="public-room-card public-room-card-large">
-                    <a class="public-room-art" asp-page="/Rooms/Details" asp-route-code="@room.Code" data-room-code="@room.Code">
-                        <span class="public-room-number">0@room.Code[^1]</span>
+                    <a class="public-room-art" asp-page="/Rooms/Details" asp-route-code="@room.Code" data-room-code="@room.Code" aria-label="Xem chi tiết @room.Name">
+                        <span class="public-room-poster public-room-poster-large">
+                            <small>DE LONG · @room.Code</small>
+                            <strong>@room.Name</strong>
+                        </span>
                         <div class="public-room-art-tags">
                             <span>@room.Capacity người</span>
                             @if (room.HasBathtub) { <span>Bồn tắm</span> }
                         </div>
                     </a>
                     <div class="public-room-body public-room-body-stack">
-                        <div>
-                            <h2><a asp-page="/Rooms/Details" asp-route-code="@room.Code">@room.Name</a></h2>
-                            <p>@room.Code · @room.Rates.Count lựa chọn khung giờ</p>
+                        <div class="public-room-title-row">
+                            <div>
+                                <h2><a asp-page="/Rooms/Details" asp-route-code="@room.Code">@room.Name</a></h2>
+                                <p>@room.Code · @room.Rates.Count lựa chọn khung giờ</p>
+                            </div>
+                            <div class="public-room-price public-room-price-prominent"><small>Từ</small><strong>@room.FromPrice.ToString("N0")đ</strong></div>
                         </div>
                         <div class="public-rate-preview">
                             @foreach (var rate in room.Rates.Take(3))
@@ -40,7 +46,7 @@
                             }
                         </div>
                         <div class="public-room-footer">
-                            <div class="public-room-price"><small>Từ</small><strong>@room.FromPrice.ToString("N0")đ</strong></div>
+                            <span class="public-room-note">Khung qua đêm và giờ thực tế xem trong chi tiết.</span>
                             <a class="public-text-link" asp-page="/Rooms/Details" asp-route-code="@room.Code">Xem chi tiết →</a>
                         </div>
                     </div>
