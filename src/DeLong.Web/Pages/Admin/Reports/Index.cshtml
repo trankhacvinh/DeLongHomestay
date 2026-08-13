@@ -3,67 +3,107 @@
 @{
     ViewData["Title"] = "Báo cáo";
 }
-<div id="reports-page" v-cloak>
+<div id="reports-page" class="reports-page" v-cloak>
     <script id="reports-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
-    <div class="page-title-row">
-        <div><h1>Báo cáo</h1><p>Tách giá trị booking, tiền thực thu và dòng tiền để tránh hiểu nhầm số liệu.</p></div>
-        <div class="toolbar">
-            <button class="btn btn-light btn-sm" type="button" v-on:click="moveMonth(-1)">← Tháng trước</button>
-            <strong class="pill">{{ monthLabel }}</strong>
-            <button class="btn btn-light btn-sm" type="button" v-on:click="moveMonth(1)">Tháng sau →</button>
+    <div class="page-title-row reports-page-head">
+        <div>
+            <div class="page-eyebrow">Phân tích kinh doanh</div>
+            <h1>Báo cáo</h1>
+            <p>Đọc riêng giá trị booking, tiền thực thu và dòng tiền để tránh nhầm doanh thu với tiền đã nhận.</p>
+        </div>
+        <div class="toolbar report-toolbar" aria-label="Điều hướng tháng">
+            <button class="btn-icon" type="button" v-on:click="moveMonth(-1)" aria-label="Tháng trước"><svg><use href="#i-chevron-left" /></svg></button>
+            <div class="month-selector"><svg><use href="#i-calendar" /></svg><strong>{{ monthLabel }}</strong></div>
+            <button class="btn-icon" type="button" v-on:click="moveMonth(1)" aria-label="Tháng sau"><svg><use href="#i-chevron-right" /></svg></button>
         </div>
     </div>
 
-    <div class="kpi-grid report-kpis">
-        <div class="kpi"><div class="kpi-label">Booking</div><div class="kpi-value">{{ report.bookingCount }}</div><div class="kpi-note">{{ report.bookedHours }} giờ đã đặt</div></div>
-        <div class="kpi"><div class="kpi-label">Giá trị booking</div><div class="kpi-value">{{ money(report.bookingValue) }}</div><div class="kpi-note">Theo check-in trong tháng</div></div>
-        <div class="kpi"><div class="kpi-label">Tiền thực thu</div><div class="kpi-value text-success">{{ money(report.netReceipts) }}</div><div class="kpi-note">Thu trừ hoàn tiền</div></div>
-        <div class="kpi"><div class="kpi-label">Chi phí</div><div class="kpi-value text-danger">{{ money(report.expenses) }}</div><div class="kpi-note">Chi phí hợp lệ trong tháng</div></div>
-        <div class="kpi"><div class="kpi-label">Dòng tiền ròng</div><div class="kpi-value" v-bind:class="report.netCashFlow >= 0 ? 'text-success' : 'text-danger'">{{ money(report.netCashFlow) }}</div><div class="kpi-note">Thực thu - chi phí</div></div>
-        <div class="kpi"><div class="kpi-label">Công nợ hiện tại</div><div class="kpi-value" v-bind:class="report.outstanding > 0 ? 'text-danger' : 'text-success'">{{ money(report.outstanding) }}</div><div class="kpi-note">Booking chưa hủy/no-show</div></div>
-    </div>
+    <section class="report-overview" aria-label="Chỉ số tháng">
+        <article class="report-stat">
+            <span class="report-stat-label">Booking</span>
+            <strong class="report-stat-value">{{ report.bookingCount }}</strong>
+            <span class="report-stat-note">{{ report.bookedHours }} giờ đã đặt</span>
+        </article>
+        <article class="report-stat">
+            <span class="report-stat-label">Giá trị booking</span>
+            <strong class="report-stat-value">{{ money(report.bookingValue) }}</strong>
+            <span class="report-stat-note">Theo check-in trong tháng</span>
+        </article>
+        <article class="report-stat positive">
+            <span class="report-stat-label">Tiền thực thu</span>
+            <strong class="report-stat-value text-success">{{ money(report.netReceipts) }}</strong>
+            <span class="report-stat-note">Thu trừ hoàn tiền</span>
+        </article>
+        <article class="report-stat negative">
+            <span class="report-stat-label">Chi phí</span>
+            <strong class="report-stat-value text-danger">{{ money(report.expenses) }}</strong>
+            <span class="report-stat-note">Chi phí hợp lệ trong tháng</span>
+        </article>
+        <article class="report-stat" v-bind:class="report.netCashFlow < 0 ? 'negative' : 'positive'">
+            <span class="report-stat-label">Dòng tiền ròng</span>
+            <strong class="report-stat-value" v-bind:class="report.netCashFlow >= 0 ? 'text-success' : 'text-danger'">{{ money(report.netCashFlow) }}</strong>
+            <span class="report-stat-note">Thực thu − chi phí</span>
+        </article>
+        <article class="report-stat" v-bind:class="report.outstanding > 0 ? 'warning' : 'positive'">
+            <span class="report-stat-label">Công nợ hiện tại</span>
+            <strong class="report-stat-value" v-bind:class="report.outstanding > 0 ? 'text-danger' : 'text-success'">{{ money(report.outstanding) }}</strong>
+            <span class="report-stat-note">Booking chưa hủy / no-show</span>
+        </article>
+    </section>
 
-    <section class="panel mt-16">
-        <div class="panel-head"><h2>Dòng tiền 6 tháng</h2><span class="small muted">Tiền thực thu và chi phí theo tháng</span></div>
-        <div class="panel-body">
-            <div class="trend-chart">
+    <section class="panel report-trend-panel">
+        <div class="panel-head report-panel-head">
+            <div><h2>Dòng tiền 6 tháng</h2><span>So sánh tiền thực thu và chi phí theo thời gian</span></div>
+            <div class="chart-legend" v-if="hasTrendData"><span><i class="legend-dot receipts"></i> Thực thu</span><span><i class="legend-dot expenses"></i> Chi phí</span></div>
+        </div>
+        <div class="panel-body" v-if="hasTrendData">
+            <div class="trend-chart" role="img" aria-label="Biểu đồ tiền thực thu và chi phí sáu tháng gần nhất">
                 <div class="trend-column" v-for="item in report.trend" v-bind:key="item.month">
+                    <div class="trend-value-row"><span>{{ compactMoney(item.netReceipts) }}</span><span>{{ compactMoney(item.expenses) }}</span></div>
                     <div class="trend-bars">
-                        <span class="trend-bar receipts" v-bind:style="{ height: barHeight(item.netReceipts) + '%' }" v-bind:title="money(item.netReceipts)"></span>
-                        <span class="trend-bar expenses" v-bind:style="{ height: barHeight(item.expenses) + '%' }" v-bind:title="money(item.expenses)"></span>
+                        <span class="trend-bar receipts" v-bind:style="{ height: barHeight(item.netReceipts) + '%' }" v-bind:title="'Thực thu ' + money(item.netReceipts)"></span>
+                        <span class="trend-bar expenses" v-bind:style="{ height: barHeight(item.expenses) + '%' }" v-bind:title="'Chi phí ' + money(item.expenses)"></span>
                     </div>
                     <strong>{{ shortMonth(item.month) }}</strong>
                     <small v-bind:class="item.netCashFlow >= 0 ? 'text-success' : 'text-danger'">{{ compactMoney(item.netCashFlow) }}</small>
                 </div>
             </div>
-            <div class="chart-legend"><span><i class="legend-dot receipts"></i> Thực thu</span><span><i class="legend-dot expenses"></i> Chi phí</span></div>
+        </div>
+        <div v-else class="report-trend-empty">
+            <span class="report-trend-empty-icon"><svg><use href="#i-chart" /></svg></span>
+            <div><strong>Chưa có dữ liệu dòng tiền</strong><span>Khi có giao dịch thu hoặc chi, xu hướng 6 tháng sẽ xuất hiện tại đây.</span></div>
         </div>
     </section>
 
-    <div class="grid-2 mt-16 report-grid">
-        <section class="panel">
-            <div class="panel-head"><h2>Theo phòng</h2></div>
-            <div class="panel-body report-list">
-                <div class="report-row" v-for="room in report.byRoom" v-bind:key="room.roomName">
-                    <div><strong>{{ room.roomName }}</strong><div class="tiny muted">{{ room.bookingCount }} booking · {{ room.bookedHours }} giờ</div></div>
-                    <strong>{{ money(room.bookingValue) }}</strong>
+    <div class="report-breakdown-grid">
+        <section class="panel report-breakdown-panel">
+            <div class="panel-head report-panel-head"><div><h2>Hiệu quả theo phòng</h2><span>Giá trị booking và thời lượng sử dụng</span></div><span class="count-badge">{{ report.byRoom.length }} phòng</span></div>
+            <div class="panel-body report-ranking">
+                <div class="report-ranking-row" v-for="(room, index) in report.byRoom" v-bind:key="room.roomName">
+                    <span class="rank-index">{{ index + 1 }}</span>
+                    <div class="report-ranking-main"><strong>{{ room.roomName }}</strong><span>{{ room.bookingCount }} booking · {{ room.bookedHours }} giờ</span></div>
+                    <strong class="report-ranking-value">{{ money(room.bookingValue) }}</strong>
                 </div>
-                <p v-if="report.byRoom.length === 0" class="empty-state">Chưa có booking.</p>
+                <div v-if="report.byRoom.length === 0" class="empty-state"><strong>Chưa có booking</strong>Dữ liệu theo phòng sẽ xuất hiện khi có booking trong tháng.</div>
             </div>
         </section>
-        <section class="panel">
-            <div class="panel-head"><h2>Nguồn booking</h2></div>
-            <div class="panel-body report-list">
-                <div class="report-row" v-for="source in report.bySource" v-bind:key="source.source">
-                    <div><strong>{{ source.source }}</strong><div class="tiny muted">{{ source.bookingCount }} booking</div></div>
-                    <strong>{{ money(source.bookingValue) }}</strong>
+        <section class="panel report-breakdown-panel">
+            <div class="panel-head report-panel-head"><div><h2>Nguồn booking</h2><span>Kênh mang booking về trong tháng</span></div><span class="count-badge">{{ report.bySource.length }} nguồn</span></div>
+            <div class="panel-body report-ranking">
+                <div class="report-ranking-row" v-for="(source, index) in report.bySource" v-bind:key="source.source">
+                    <span class="rank-index">{{ index + 1 }}</span>
+                    <div class="report-ranking-main"><strong>{{ source.source }}</strong><span>{{ source.bookingCount }} booking</span></div>
+                    <strong class="report-ranking-value">{{ money(source.bookingValue) }}</strong>
                 </div>
-                <p v-if="report.bySource.length === 0" class="empty-state">Chưa có booking.</p>
+                <div v-if="report.bySource.length === 0" class="empty-state"><strong>Chưa có nguồn booking</strong>Dữ liệu theo nguồn sẽ xuất hiện khi có booking trong tháng.</div>
             </div>
         </section>
     </div>
 </div>
+@section Head {
+    <link rel="stylesheet" href="~/css/finance-reports.css" asp-append-version="true" />
+}
 @section Scripts {
     <script src="~/js/pages/admin-reports.js" asp-append-version="true"></script>
 }

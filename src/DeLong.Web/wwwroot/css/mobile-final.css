@@ -1,0 +1,339 @@
+/* Final responsive polish — De Long Homestay
+   Mobile-first overrides layered after page-specific styles. */
+
+/* Reports: don't spend a full chart viewport when there is no signal yet. */
+.report-trend-empty {
+    min-height:150px;
+    padding:28px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    color:var(--muted);
+    text-align:left;
+}
+.report-trend-empty-icon {
+    width:42px;
+    height:42px;
+    flex:0 0 42px;
+    border-radius:12px;
+    display:grid;
+    place-items:center;
+    background:var(--brand-50);
+    color:var(--brand-700);
+}
+.report-trend-empty-icon svg {
+    width:19px;
+    height:19px;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.8;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+}
+.report-trend-empty>div { display:grid; gap:4px; }
+.report-trend-empty strong { color:var(--text); font-size:13px; }
+.report-trend-empty span { font-size:11px; line-height:1.5; }
+
+/* Tablet / collapsed navigation */
+@media (max-width:980px) {
+    :root { --topbar:64px; }
+
+    .admin-topbar {
+        min-height:64px;
+        padding:0 14px;
+        gap:9px;
+    }
+    .admin-content {
+        padding:22px 16px 34px;
+    }
+    .topbar-context { min-width:0; }
+    .topbar-property {
+        max-width:220px;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+    }
+    .user-chip { padding-right:2px; }
+
+    .page-title-row {
+        margin-bottom:17px;
+        gap:16px;
+    }
+    .page-title-row h1 { font-size:30px; }
+    .page-title-row p { max-width:680px; }
+
+    .btn { min-height:44px; }
+    .btn-sm { min-height:40px; }
+    .btn-icon { width:42px; height:42px; }
+
+    .panel-head { min-height:54px; padding:13px 15px; }
+    .panel-body { padding:15px; }
+
+    .table-wrap {
+        -webkit-overflow-scrolling:touch;
+        overscroll-behavior-x:contain;
+        scrollbar-width:thin;
+    }
+
+    /* Keep management tables usable by swiping instead of squeezing columns. */
+    .data-table:not(.responsive-ledger):not(.responsive-booking-table) { min-width:760px; }
+
+    .management-toolbar { padding:11px 13px; }
+    .settings-room-grid { gap:13px; }
+    .housekeeping-board { gap:13px; }
+
+    /* Calendar becomes a touch timeline: sticky room + roughly two days visible. */
+    .calendar-wrap {
+        -webkit-overflow-scrolling:touch;
+        overscroll-behavior-x:contain;
+        scrollbar-width:thin;
+        scroll-snap-type:x proximity;
+    }
+    .booking-calendar { min-width:905px!important; }
+    .booking-calendar thead th:first-child,
+    .booking-calendar tbody th { width:135px!important; min-width:135px!important; }
+    .booking-calendar thead th:not(:first-child) { width:110px!important; min-width:110px!important; }
+    .booking-calendar tbody th { padding:8px 9px; }
+    .day-cell { height:84px!important; padding:5px!important; }
+    .room-row-title strong { font-size:11px!important; }
+    .room-meta { font-size:8px!important; }
+    .room-state { font-size:8px!important; }
+    .booking-chip { padding:6px 6px 6px 8px!important; }
+    .booking-chip strong,.booking-chip .booking-time { font-size:9px!important; }
+    .booking-chip .booking-meta { font-size:8px!important; }
+}
+
+@media (max-width:680px) {
+    .admin-content { padding:18px 14px 30px; }
+    .admin-topbar { padding-left:12px; padding-right:12px; }
+    .topbar-property { max-width:160px; font-size:13px; }
+    .mobile-menu { flex:0 0 42px; }
+    .logout-btn { flex:0 0 42px; }
+
+    .page-title-row {
+        margin-bottom:15px;
+        gap:13px;
+    }
+    .page-title-row h1 { font-size:28px; }
+    .page-title-row p { margin-top:5px; font-size:12px; line-height:1.5; }
+    .page-eyebrow { margin-bottom:6px; font-size:9px; }
+
+    .panel { border-radius:14px; }
+    .panel-head { align-items:flex-start; }
+
+    .kpi-grid { gap:10px; }
+    .kpi { min-height:112px; padding:14px; }
+    .kpi-value { font-size:27px; }
+    .finance-strip { gap:12px; padding:14px; }
+
+    .quick-actions { padding:12px; gap:8px; }
+    .quick-action { min-height:68px; }
+
+    .management-toolbar-main { align-items:stretch; }
+    .management-toolbar-main .search-input { flex:1 1 100%; }
+
+    .housekeeping-column .panel-head { min-height:52px; }
+    .housekeeping-card { padding:12px; }
+    .housekeeping-actions .btn { flex:1 1 auto; }
+
+    .settings-room .panel-head {
+        align-items:center;
+        flex-direction:row;
+    }
+    .rate-settings-row { gap:10px; }
+
+    /* Booking list becomes an action-friendly card ledger instead of a wide table. */
+    .booking-table-wrap { overflow:visible; }
+    .responsive-booking-table {
+        min-width:0!important;
+        width:100%;
+        display:block;
+    }
+    .responsive-booking-table thead { display:none; }
+    .responsive-booking-table tbody {
+        display:grid;
+        gap:10px;
+        padding:10px;
+    }
+    .responsive-booking-table tbody tr:not(.booking-empty-row) {
+        display:block;
+        border:1px solid var(--line);
+        border-radius:13px;
+        background:#fff;
+        overflow:hidden;
+        box-shadow:var(--shadow-xs);
+    }
+    .responsive-booking-table tbody tr:not(.booking-empty-row):hover { background:#fff; }
+    .responsive-booking-table td {
+        min-height:39px;
+        padding:8px 11px;
+        border-bottom:1px solid #edf1ef;
+        display:grid;
+        grid-template-columns:82px minmax(0,1fr);
+        gap:10px;
+        align-items:center;
+        text-align:left!important;
+    }
+    .responsive-booking-table td:last-child { border-bottom:0; }
+    .responsive-booking-table td::before {
+        content:attr(data-label);
+        color:var(--muted);
+        font-size:8.5px;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.055em;
+    }
+    .responsive-booking-table .entity-cell,
+    .responsive-booking-table .money-stack,
+    .responsive-booking-table .room-badge,
+    .responsive-booking-table .pill,
+    .responsive-booking-table .booking-code {
+        justify-self:start;
+    }
+    .responsive-booking-table .row-action { width:100%; }
+    .responsive-booking-table .booking-empty-row { display:block; }
+    .responsive-booking-table .booking-empty-row td {
+        display:block;
+        min-height:150px;
+        padding:28px 16px;
+        border:0;
+    }
+    .responsive-booking-table .booking-empty-row td::before { display:none; }
+
+    /* Calendar title/actions stack cleanly on phones. */
+    .calendar-page-head .page-title-row { gap:12px; }
+    .calendar-controls {
+        display:grid;
+        grid-template-columns:42px minmax(0,1fr) 42px auto;
+        gap:7px;
+    }
+    .calendar-controls .btn-icon { width:42px; height:42px; }
+    .calendar-controls .btn-light { min-height:42px; }
+    .calendar-controls .btn-primary { margin-left:0; white-space:nowrap; }
+    .calendar-toolbar-card {
+        padding:9px 11px;
+        gap:8px;
+    }
+    .calendar-range strong { font-size:12px; }
+    .calendar-range span { font-size:8.5px; }
+    .calendar-legend { gap:6px 10px; }
+    .legend-item { font-size:8.5px; }
+    .calendar-wrap {
+        margin-left:-14px;
+        margin-right:-14px;
+        border-left:0;
+        border-right:0;
+        border-radius:0;
+    }
+    .booking-calendar { min-width:870px!important; }
+    .booking-calendar thead th:first-child,
+    .booking-calendar tbody th { width:126px!important; min-width:126px!important; }
+    .booking-calendar thead th:not(:first-child) { width:106px!important; min-width:106px!important; }
+    /* Empty cells remain fully tappable; hide repeated labels until the user presses a cell. */
+    .empty-cell-action {
+        inset:5px!important;
+        opacity:0!important;
+        font-size:8px!important;
+        pointer-events:none;
+    }
+    .day-cell:active .empty-cell-action { opacity:.55!important; }
+
+    .booking-form-title {
+        align-items:flex-start;
+        flex-direction:column;
+        gap:3px;
+    }
+    .booking-form-section { padding-left:16px; padding-right:16px; }
+    .booking-editor .summary-box { margin-left:16px; margin-right:16px; }
+    .booking-detail-hero {
+        margin-left:16px;
+        margin-right:16px;
+        align-items:flex-start;
+        flex-direction:column;
+        gap:10px;
+    }
+
+    .toast {
+        left:12px;
+        right:12px;
+        bottom:12px;
+        max-width:none;
+    }
+
+    .report-trend-empty {
+        min-height:130px;
+        padding:24px 16px;
+    }
+}
+
+@media (max-width:430px) {
+    .admin-content { padding:16px 12px 26px; }
+    .admin-topbar { gap:7px; }
+    .topbar-property { max-width:128px; }
+    .user-avatar { width:31px; height:31px; border-radius:9px; }
+    .user-chip { padding:0; }
+
+    .page-title-row h1 { font-size:27px; }
+    .page-title-row p { font-size:11.5px; }
+
+    .kpi-grid,.finance-strip { grid-template-columns:1fr; }
+    .kpi { min-height:102px; }
+
+    /* Keep the operational shortcut section compact instead of four tall rows. */
+    .quick-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .quick-action { min-height:72px; padding:11px; }
+
+    .modal-backdrop { padding:0; }
+    .modal-card {
+        max-height:94dvh;
+        border-left:0;
+        border-right:0;
+        border-bottom:0;
+        border-radius:18px 18px 0 0;
+    }
+    .modal-head { padding:16px; }
+    .modal-card .form-grid { padding-left:16px; padding-right:16px; }
+    .modal-actions { padding-left:16px; padding-right:16px; }
+    .modal-actions .btn { flex:1 1 auto; }
+
+    .responsive-booking-table tbody { padding:8px; }
+    .responsive-booking-table td {
+        grid-template-columns:74px minmax(0,1fr);
+        padding:8px 10px;
+        gap:8px;
+    }
+    .responsive-booking-table .entity-avatar { width:30px; height:30px; }
+
+    .calendar-controls {
+        grid-template-columns:42px minmax(0,1fr) 42px;
+        width:100%;
+    }
+    .calendar-controls .btn-primary {
+        grid-column:1/-1;
+        width:100%;
+    }
+    .calendar-toolbar-card { margin-bottom:8px; }
+    .calendar-legend { display:none; }
+    .calendar-wrap {
+        margin-left:-12px;
+        margin-right:-12px;
+    }
+
+    .settings-room .panel-head {
+        align-items:flex-start;
+        flex-direction:column;
+    }
+    .settings-room .panel-head>.btn { width:100%; }
+    .rate-settings-actions .btn { flex:1 1 auto; }
+
+    .report-trend-empty {
+        align-items:flex-start;
+        min-height:118px;
+        text-align:left;
+    }
+}
+
+@media (prefers-reduced-motion:reduce) {
+    .sidebar,.sidebar-overlay { transition:none!important; }
+}

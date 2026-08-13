@@ -8,6 +8,7 @@ using DeLong.Web.Features.Expenses;
 using DeLong.Web.Features.Finance;
 using DeLong.Web.Features.Housekeeping;
 using DeLong.Web.Features.Payments;
+using DeLong.Web.Features.Reports;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -56,6 +57,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ManageHousekeeping", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping"));
     options.AddPolicy("ViewFinance", policy => policy.RequireRole("Admin", "Manager", "Viewer"));
     options.AddPolicy("ManageFinance", policy => policy.RequireRole("Admin", "Manager"));
+    options.AddPolicy("ViewReports", policy => policy.RequireRole("Admin", "Manager", "Viewer"));
 });
 
 builder.Services.AddRazorPages(options =>
@@ -77,6 +79,7 @@ builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<HousekeepingService>();
 builder.Services.AddScoped<ExpenseService>();
 builder.Services.AddScoped<FinanceService>();
+builder.Services.AddScoped<ReportService>();
 
 var app = builder.Build();
 
