@@ -1,6 +1,6 @@
 # Implementation Status
 
-Cập nhật cho branch production `agent/dotnet10-foundation`.
+Cập nhật cho production sau Admin UI redesign và branch `agent/public-booking`.
 
 ## Kiến trúc đã chốt
 
@@ -13,50 +13,54 @@ Cập nhật cho branch production `agent/dotnet10-foundation`.
 - ASP.NET Core Identity + Role + `UserPropertyAccess`.
 - Không Docker.
 
-## Đã triển khai ở source
+## Admin/back-office đã triển khai
 
 - Identity/login/logout và role nền.
-- Multi-property data model + resolver/selector UI.
-- Phòng + archive phòng.
-- Preset RoomRate + trang Cấu hình thêm/sửa/ngừng khung giá.
+- Multi-property model + resolver/selector UI.
+- Phòng, RoomRate, archive phòng.
 - Khách hàng + normalized phone.
 - Booking create/edit/status workflow.
-- Lịch phòng 7 ngày, modal Vue, không reload cho mutation.
-- C# conflict check + PostgreSQL exclusion constraint chống overlap.
-- Payment ledger Receipt/Refund + void.
-- Paid/Balance tính từ ledger.
-- Housekeeping Clean/Dirty/Cleaning.
-- Checkout tự chuyển phòng thành Dirty.
-- Expense ledger + void.
-- Finance snapshot/tháng.
-- Management Reports.
-- Generic AuditLog; Booking mutations có audit timeline.
+- Calendar 7 ngày + Vue modal.
+- PostgreSQL exclusion constraint chống overlap + `23P01` → `409`.
+- Payment Receipt/Refund + void; Paid/Balance từ ledger.
+- Housekeeping Clean/Dirty/Cleaning; checkout → Dirty.
+- Expense + void, Finance, Reports.
+- Audit timeline cho Booking.
+- Admin UI/UX desktop/mobile đã visual UAT và merge.
 
-## EF migrations đã commit
+## Public booking đang triển khai
+
+- Public home theo phong cách boutique hospitality.
+- Room catalog + room detail + rates.
+- Availability theo ngày/khung giờ từ PostgreSQL.
+- Public request tạo Booking `Requested`; public không tự giữ/xác nhận phòng.
+- Giá và giờ lấy server-side từ RoomRate.
+- Conflict check với Held/Confirmed/CheckedIn trước khi nhận request.
+- Antiforgery + honeypot + fixed-window rate limit 5 request/IP/10 phút.
+- Success page sau khi gửi.
+- Dashboard Admin inbox cho `Requested` mới từ website.
+- Integration test riêng cho public booking flow.
+- Ảnh thật/gallery chưa triển khai; UI hiện dùng branded visual placeholders có chủ đích.
+
+## EF migrations hiện có
 
 1. `InitialCreate`
 2. `AddPayments`
 3. `AddHousekeepingState`
 4. `AddAuditAndExpenses`
+5. data-only migration sửa preset seed theo Excel gốc
+
+Public booking hiện không cần schema migration mới.
 
 ## CI
 
-Workflow `.NET` kiểm tra restore, Release build, xUnit tests và JavaScript syntax.
+- Workflow `.NET`: restore, Release build, xUnit, JavaScript syntax.
+- Workflow `PostgreSQL Integration`: PostgreSQL cài sẵn trên GitHub runner, apply migrations và kiểm tra DB-level booking overlap.
+- Public flow integration test kiểm tra server-authoritative rate, trạng thái `Requested` và availability khi slot bị khóa.
 
-Workflow `PostgreSQL Integration` không dùng Docker. Nó khởi động PostgreSQL cài sẵn trên GitHub runner, apply migrations và kiểm tra database-level booking overlap constraint (`23P01`).
+## Việc tiếp theo
 
-## Còn phải kiểm tra trên máy development
-
-- Cài PostgreSQL trực tiếp trên máy.
-- Tạo `delong_dev` và `delong_test`.
-- Đặt connection strings/admin seed bằng .NET User Secrets.
-- `dotnet ef database update`.
-- Chạy ứng dụng và UAT trên browser desktop/mobile.
-
-## Các phần tiếp theo
-
-- Hoàn thiện dashboard vận hành.
-- Hoàn thiện audit cho Payment/Expense và các mutation nhạy cảm khác.
-- Public room catalog + availability + booking request.
-- Import dữ liệu Excel cần thiết.
-- UAT/go-live/backup/logging.
+1. Visual UAT public: home, room catalog/detail, booking form, success — desktop + mobile.
+2. End-to-end UAT: website request → Admin inbox → Held/Confirmed → Payment.
+3. Bổ sung ảnh thật/gallery cho 6 phòng khi có asset.
+4. Sau đó mới chuyển sang import Excel cần thiết và go-live hardening.

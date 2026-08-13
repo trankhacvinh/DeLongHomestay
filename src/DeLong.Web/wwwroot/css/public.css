@@ -1,0 +1,234 @@
+/* De Long Homestay — public hospitality experience */
+.public-body { background:#f7f6f1; color:#172422; }
+.public-container { width:min(1180px,calc(100% - 40px)); margin:0 auto; }
+.public-main { min-height:calc(100vh - 76px); }
+.public-eyebrow { display:block; color:#236d70; font-size:11px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+.public-btn { min-height:48px; padding:0 20px; border:1px solid transparent; border-radius:13px; display:inline-flex; align-items:center; justify-content:center; gap:8px; font-weight:750; text-decoration:none; cursor:pointer; transition:background .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease; }
+.public-btn-primary { background:#15585c; color:#fff; box-shadow:0 12px 28px rgba(21,88,92,.15); }
+.public-btn-primary:hover { background:#104d51; box-shadow:0 15px 32px rgba(21,88,92,.2); }
+.public-btn-primary:disabled { opacity:.52; cursor:not-allowed; box-shadow:none; }
+.public-btn-ghost { border-color:#d5dedb; background:#fff; color:#273d3a; }
+.public-btn-ghost:hover { border-color:#9eb8b2; background:#fbfdfc; }
+.public-text-link { color:#185f63; font-weight:750; text-decoration:none; }
+.public-text-link:hover { color:#0e4c50; text-decoration:underline; text-underline-offset:4px; }
+
+.public-site-header { position:sticky; top:0; z-index:70; border-bottom:1px solid rgba(26,62,58,.09); background:rgba(250,249,245,.94); backdrop-filter:blur(16px); }
+.public-site-nav { min-height:76px; display:flex; align-items:center; gap:28px; }
+.public-site-brand { display:flex; align-items:center; gap:11px; color:#172422; text-decoration:none; }
+.public-site-brand .brand-mark { width:42px; height:42px; border-radius:13px; display:grid; place-items:center; background:#1a686c; color:#fff; font-weight:850; }
+.public-site-brand strong { display:block; font-size:16px; letter-spacing:-.02em; }
+.public-site-brand small { display:block; margin-top:2px; color:#7a8784; font-size:9px; letter-spacing:.13em; text-transform:uppercase; }
+.public-site-links { margin-left:auto; display:flex; align-items:center; gap:22px; }
+.public-site-links a { color:#536461; font-size:13px; font-weight:700; text-decoration:none; }
+.public-site-links a:hover { color:#15585c; }
+.public-site-actions { display:flex; align-items:center; gap:9px; }
+.public-admin-link { color:#667673; font-size:12px; text-decoration:none; }
+.public-mobile-toggle { display:none; }
+
+.public-hero { padding:72px 0 42px; overflow:hidden; }
+.public-hero-grid { display:grid; grid-template-columns:minmax(0,1.03fr) minmax(420px,.97fr); gap:70px; align-items:center; }
+.public-hero-copy h1 { max-width:720px; margin:14px 0 20px; font-size:clamp(48px,5.5vw,78px); line-height:.98; letter-spacing:-.055em; }
+.public-hero-copy>p { max-width:620px; margin:0; color:#65736f; font-size:17px; line-height:1.75; }
+.public-hero-actions { margin-top:30px; display:flex; gap:10px; flex-wrap:wrap; }
+.public-contact-line { margin-top:30px; padding-top:22px; border-top:1px solid #dce2df; display:flex; gap:22px; flex-wrap:wrap; color:#71807c; font-size:12px; }
+.public-hero-art { position:relative; min-height:500px; border-radius:34px; background:linear-gradient(145deg,#174f52,#2f7a78 56%,#b8945b); box-shadow:0 30px 80px rgba(19,63,63,.18); overflow:hidden; }
+.public-hero-art::before,.public-hero-art::after { content:""; position:absolute; border:1px solid rgba(255,255,255,.2); border-radius:50%; }
+.public-hero-art::before { width:420px; height:420px; left:-110px; bottom:-210px; }
+.public-hero-art::after { width:300px; height:300px; right:-95px; top:-110px; }
+.hero-art-card { position:absolute; z-index:2; color:#fff; }
+.hero-art-main { left:42px; bottom:52px; }
+.hero-art-main span { display:block; font-size:12px; font-weight:800; letter-spacing:.22em; }
+.hero-art-main strong { display:block; margin-top:10px; font-size:46px; line-height:.95; letter-spacing:-.05em; }
+.hero-art-float { top:35px; right:30px; padding:16px 18px; border:1px solid rgba(255,255,255,.3); border-radius:15px; background:rgba(255,255,255,.14); backdrop-filter:blur(12px); }
+.hero-art-float small,.hero-art-float strong { display:block; }
+.hero-art-float small { opacity:.76; font-size:10px; }
+.hero-art-float strong { margin-top:4px; font-size:15px; }
+
+.public-check-section { padding:0 0 42px; }
+.public-check-card { padding:22px 24px; border:1px solid #dbe1de; border-radius:20px; background:#fff; box-shadow:0 14px 42px rgba(28,58,53,.06); display:grid; grid-template-columns:1fr 260px auto; gap:20px; align-items:end; }
+.public-check-card h2 { margin:6px 0 0; font-size:22px; letter-spacing:-.03em; }
+.public-date-field { display:grid; gap:7px; }
+.public-date-field>span { color:#71807c; font-size:10px; font-weight:750; text-transform:uppercase; letter-spacing:.07em; }
+.public-date-field input { width:100%; min-height:48px; padding:0 13px; border:1px solid #d5dedb; border-radius:12px; background:#fff; color:#172422; font:inherit; }
+.public-date-field input:focus { outline:2px solid rgba(30,108,111,.18); border-color:#5d9898; }
+
+.public-section { padding:72px 0; }
+.public-section-soft { background:#eef2ee; }
+.public-section-head { margin-bottom:28px; display:flex; align-items:end; justify-content:space-between; gap:20px; }
+.public-section-head h2,.public-story-grid h2,.public-page-hero h1,.public-detail-content-grid h2 { margin:7px 0 0; font-size:clamp(32px,3.6vw,50px); line-height:1.04; letter-spacing:-.045em; }
+.public-room-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+.public-room-grid-catalog { grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
+.public-room-card { overflow:hidden; border:1px solid #dce2df; border-radius:20px; background:#fff; transition:border-color .18s ease,box-shadow .18s ease; }
+.public-room-card:hover { border-color:#b8cbc5; box-shadow:0 17px 42px rgba(28,58,53,.08); }
+.public-room-art { position:relative; min-height:260px; padding:22px; display:flex; align-items:flex-end; justify-content:space-between; overflow:hidden; color:#fff; text-decoration:none; background:linear-gradient(145deg,#194f54,#6f9990); }
+.public-room-card-large .public-room-art { min-height:350px; }
+.public-room-art::before { content:""; position:absolute; inset:0; background:radial-gradient(circle at 72% 18%,rgba(255,255,255,.2),transparent 27%),linear-gradient(to top,rgba(7,34,34,.32),transparent 60%); }
+.public-room-art[data-room-code="COCO-01"] { background:linear-gradient(140deg,#164c56,#2e7d84 55%,#bdb98a); }
+.public-room-art[data-room-code="ABAUS-02"] { background:linear-gradient(140deg,#3d4b43,#7b8f70 52%,#c3a77f); }
+.public-room-art[data-room-code="HONGKONG-03"] { background:linear-gradient(140deg,#472f32,#86534d 55%,#c6a064); }
+.public-room-art[data-room-code="MOON-04"] { background:linear-gradient(140deg,#303b4b,#657789 55%,#c3b7a0); }
+.public-room-art[data-room-code="AMBER-05"] { background:linear-gradient(140deg,#6c4935,#a67349 55%,#d8b16b); }
+.public-room-art[data-room-code="ROMAN-06"] { background:linear-gradient(140deg,#4e3430,#80625a 55%,#baa28b); }
+.public-room-number { position:relative; z-index:1; font-size:54px; font-weight:800; letter-spacing:-.06em; opacity:.94; }
+.public-room-feature,.public-room-art-tags span { position:relative; z-index:1; padding:7px 10px; border:1px solid rgba(255,255,255,.3); border-radius:999px; background:rgba(16,48,47,.18); font-size:10px; font-weight:750; backdrop-filter:blur(8px); }
+.public-room-art-tags { position:relative; z-index:2; display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.public-room-body { padding:17px 18px 19px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.public-room-body h2,.public-room-body h3 { margin:0; font-size:18px; letter-spacing:-.025em; }
+.public-room-body h2 { font-size:24px; }
+.public-room-body h2 a,.public-room-body h3 a { color:#172422; text-decoration:none; }
+.public-room-body p { margin:5px 0 0; color:#788682; font-size:11px; }
+.public-room-price { text-align:right; white-space:nowrap; }
+.public-room-price small,.public-room-price strong { display:block; }
+.public-room-price small { color:#8a9693; font-size:9px; }
+.public-room-price strong { margin-top:2px; color:#15585c; font-size:15px; }
+.public-room-body-stack { display:grid; gap:17px; }
+.public-rate-preview { display:flex; gap:7px; flex-wrap:wrap; }
+.public-rate-preview span { padding:8px 9px; border-radius:10px; background:#f0f4f1; color:#64736f; font-size:10px; }
+.public-rate-preview strong { margin-right:6px; color:#334b47; }
+.public-room-footer { display:flex; align-items:end; justify-content:space-between; gap:12px; }
+
+.public-story-grid { display:grid; grid-template-columns:.9fr 1.1fr; gap:70px; align-items:start; }
+.public-story-copy>p { margin:0; color:#5f706c; font-size:15px; line-height:1.8; }
+.public-benefits { margin-top:26px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.public-benefits span { padding:13px 14px; border:1px solid #d5ded8; border-radius:12px; background:rgba(255,255,255,.55); color:#415753; font-size:11px; font-weight:700; }
+
+.public-page-hero { padding:62px 0 22px; }
+.public-page-hero-inner { display:flex; align-items:end; justify-content:space-between; gap:36px; }
+.public-page-hero p { max-width:700px; margin:14px 0 0; color:#687873; line-height:1.7; }
+.public-room-catalog-section { padding-top:30px; }
+
+.public-room-detail-hero { padding:50px 0 26px; }
+.public-room-detail-grid { display:grid; grid-template-columns:1.05fr .95fr; gap:54px; align-items:center; }
+.public-room-detail-art { min-height:560px; border-radius:28px; box-shadow:0 22px 60px rgba(29,59,54,.12); }
+.public-room-detail-copy h1 { margin:10px 0 16px; font-size:clamp(48px,5vw,72px); line-height:.98; letter-spacing:-.055em; }
+.public-room-detail-copy>p { max-width:520px; color:#677773; font-size:15px; line-height:1.75; }
+.public-room-detail-facts { margin:28px 0; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.public-room-detail-facts div { padding:13px; border:1px solid #dce2df; border-radius:12px; background:#fff; }
+.public-room-detail-facts small,.public-room-detail-facts strong { display:block; }
+.public-room-detail-facts small { color:#87938f; font-size:9px; }
+.public-room-detail-facts strong { margin-top:5px; font-size:13px; }
+.public-detail-content-grid { display:grid; grid-template-columns:1.2fr .8fr; gap:50px; align-items:start; }
+.public-rate-list { margin-top:22px; display:grid; gap:9px; }
+.public-rate-row { padding:15px 16px; border:1px solid #dce2df; border-radius:13px; background:#fff; color:#172422; text-decoration:none; display:flex; align-items:center; justify-content:space-between; gap:20px; transition:border-color .18s ease,background .18s ease; }
+.public-rate-row:hover { border-color:#98b5ae; background:#fbfdfc; }
+.public-rate-row span { display:block; margin-top:4px; color:#7d8986; font-size:10px; }
+.public-rate-row>strong { color:#15585c; }
+.public-detail-note { padding:24px; border:1px solid #d8dfdb; border-radius:18px; background:#eef2ee; }
+.public-detail-note h3 { margin:8px 0 12px; font-size:24px; letter-spacing:-.035em; }
+.public-detail-note p,.public-detail-note li { color:#5f706c; font-size:12px; line-height:1.65; }
+.public-detail-note ul { margin:18px 0 0; padding-left:18px; }
+
+.public-booking-hero { padding-bottom:10px; }
+.public-booking-section { padding-top:24px; }
+.public-booking-grid { display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:26px; align-items:start; }
+.public-booking-main { display:grid; gap:14px; }
+.public-step-card { padding:22px; border:1px solid #dbe1de; border-radius:18px; background:#fff; box-shadow:0 8px 30px rgba(25,56,51,.035); }
+.public-step-head { margin-bottom:18px; display:flex; align-items:flex-start; gap:13px; }
+.public-step-head>span { width:32px; height:32px; flex:0 0 32px; border-radius:10px; display:grid; place-items:center; background:#e8f2ef; color:#176166; font-size:10px; font-weight:850; }
+.public-step-head h2 { margin:0; font-size:19px; letter-spacing:-.025em; }
+.public-step-head p { margin:4px 0 0; color:#7a8784; font-size:10px; }
+.public-date-field-block { max-width:280px; }
+.public-booking-room-list { display:grid; gap:8px; }
+.public-booking-room { width:100%; padding:10px 12px; border:1px solid #dce2df; border-radius:13px; background:#fff; color:#172422; text-align:left; display:grid; grid-template-columns:42px 1fr auto; gap:11px; align-items:center; cursor:pointer; transition:border-color .18s ease,background .18s ease; }
+.public-booking-room:hover { border-color:#9ab9b1; }
+.public-booking-room.active { border-color:#3f8281; background:#f1f8f5; box-shadow:inset 0 0 0 1px rgba(34,109,112,.14); }
+.public-mini-room-art { width:42px; height:42px; border-radius:11px; display:grid; place-items:center; background:#e6efec; color:#1c6568; font-size:16px; font-weight:850; }
+.public-booking-room-copy strong,.public-booking-room-copy small { display:block; }
+.public-booking-room-copy small { margin-top:3px; color:#7d8986; font-size:9px; }
+.public-booking-room-state { padding:6px 8px; border-radius:999px; background:#e9f5ef; color:#2d795c; font-size:9px; font-weight:750; white-space:nowrap; }
+.public-booking-room-state.sold { background:#f3efeb; color:#8a6d5b; }
+.public-rate-choice-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.public-rate-choice { min-height:70px; padding:12px; border:1px solid #dce2df; border-radius:13px; background:#fff; color:#172422; text-align:left; display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; }
+.public-rate-choice:hover:not(:disabled) { border-color:#9ab9b1; }
+.public-rate-choice.active { border-color:#3f8281; background:#f1f8f5; }
+.public-rate-choice.disabled { opacity:.45; cursor:not-allowed; }
+.public-rate-choice span strong,.public-rate-choice span small { display:block; }
+.public-rate-choice span small { margin-top:4px; color:#7d8986; font-size:9px; }
+.public-rate-choice>strong { color:#15585c; white-space:nowrap; }
+.public-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
+.public-form-grid label { display:grid; gap:7px; }
+.public-form-grid label>span { color:#60716d; font-size:10px; font-weight:750; }
+.public-form-grid input,.public-form-grid textarea { width:100%; min-height:46px; padding:11px 12px; border:1px solid #d5dedb; border-radius:11px; background:#fff; color:#172422; font:inherit; }
+.public-form-grid textarea { min-height:92px; resize:vertical; }
+.public-form-grid input:focus,.public-form-grid textarea:focus { outline:2px solid rgba(30,108,111,.17); border-color:#5d9898; }
+.public-form-full { grid-column:1/-1; }
+.public-honeypot { position:absolute!important; left:-10000px!important; width:1px!important; height:1px!important; overflow:hidden!important; }
+.public-booking-notice { margin-top:15px; padding:11px 13px; border-radius:11px; background:#f4f1e8; color:#716653; font-size:10px; line-height:1.55; }
+.public-submit-booking { width:100%; margin-top:13px; }
+.public-form-error { margin:9px 0 0; color:#b34a45; font-size:11px; }
+.public-booking-summary { position:sticky; top:96px; padding:22px; border:1px solid #d6dfdb; border-radius:18px; background:#eef2ee; }
+.public-booking-summary h3 { margin:8px 0 18px; font-size:24px; letter-spacing:-.035em; }
+.public-booking-summary dl { margin:0; display:grid; }
+.public-booking-summary dl div { padding:11px 0; border-bottom:1px solid #d6ded9; display:flex; justify-content:space-between; gap:15px; }
+.public-booking-summary dt { color:#778581; font-size:10px; }
+.public-booking-summary dd { margin:0; font-size:11px; font-weight:750; text-align:right; }
+.public-booking-summary dl .total { padding-top:16px; border-bottom:0; }
+.public-booking-summary .total dd { color:#15585c; font-size:18px; }
+.public-booking-summary>p { margin:10px 0 0; color:#73817d; font-size:9.5px; line-height:1.55; }
+
+.public-success-section { min-height:calc(100vh - 76px); padding:70px 0; display:grid; place-items:center; }
+.public-success-card { width:min(700px,100%); margin:auto; padding:42px; border:1px solid #d9e1dd; border-radius:24px; background:#fff; text-align:center; box-shadow:0 18px 60px rgba(27,56,52,.08); }
+.public-success-icon { width:54px; height:54px; margin:0 auto 18px; border-radius:50%; display:grid; place-items:center; background:#e9f5ef; color:#257758; font-size:25px; font-weight:800; }
+.public-success-card h1 { margin:10px auto 14px; max-width:570px; font-size:38px; line-height:1.08; letter-spacing:-.045em; }
+.public-success-card>p { max-width:560px; margin:0 auto; color:#687873; line-height:1.7; }
+.public-success-summary { margin:26px 0; padding:15px; border-radius:15px; background:#f3f6f3; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.public-success-summary div { padding:7px; }
+.public-success-summary small,.public-success-summary strong { display:block; }
+.public-success-summary small { color:#81908c; font-size:9px; }
+.public-success-summary strong { margin-top:5px; }
+.public-success-actions { display:flex; justify-content:center; gap:9px; flex-wrap:wrap; }
+.public-success-contact { margin-top:24px!important; font-size:10px!important; }
+
+@media (max-width:900px) {
+    .public-hero-grid,.public-room-detail-grid,.public-detail-content-grid { grid-template-columns:1fr; }
+    .public-hero-art { min-height:410px; }
+    .public-room-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .public-story-grid { grid-template-columns:1fr; gap:28px; }
+    .public-check-card { grid-template-columns:1fr 220px; }
+    .public-check-card>.public-btn { grid-column:1/-1; }
+    .public-booking-grid { grid-template-columns:1fr; }
+    .public-booking-summary { position:static; }
+    .public-room-detail-art { min-height:460px; }
+}
+
+@media (max-width:680px) {
+    .public-container { width:min(100% - 28px,1180px); }
+    .public-site-nav { min-height:66px; }
+    .public-site-links,.public-admin-link { display:none; }
+    .public-site-actions { margin-left:auto; }
+    .public-site-actions .public-btn { min-height:40px; padding:0 13px; font-size:11px; }
+    .public-hero { padding:44px 0 28px; }
+    .public-hero-grid { gap:28px; }
+    .public-hero-copy h1 { font-size:45px; }
+    .public-hero-copy>p { font-size:14px; }
+    .public-hero-art { min-height:330px; border-radius:24px; }
+    .hero-art-main { left:25px; bottom:28px; }
+    .hero-art-main strong { font-size:36px; }
+    .hero-art-float { top:20px; right:18px; }
+    .public-contact-line { gap:9px 18px; }
+    .public-check-card { padding:18px; grid-template-columns:1fr; }
+    .public-check-card>.public-btn { grid-column:auto; }
+    .public-section { padding:48px 0; }
+    .public-section-head,.public-page-hero-inner { align-items:flex-start; flex-direction:column; }
+    .public-section-head h2,.public-story-grid h2,.public-page-hero h1,.public-detail-content-grid h2 { font-size:34px; }
+    .public-room-grid,.public-room-grid-catalog { grid-template-columns:1fr; }
+    .public-room-card-large .public-room-art,.public-room-art { min-height:300px; }
+    .public-benefits { grid-template-columns:1fr; }
+    .public-page-hero { padding-top:40px; }
+    .public-room-detail-hero { padding-top:30px; }
+    .public-room-detail-art { min-height:380px; }
+    .public-room-detail-copy h1 { font-size:46px; }
+    .public-room-detail-facts { grid-template-columns:1fr 1fr; }
+    .public-rate-choice-grid,.public-form-grid { grid-template-columns:1fr; }
+    .public-form-full { grid-column:auto; }
+    .public-step-card { padding:17px; }
+    .public-booking-room { grid-template-columns:42px 1fr; }
+    .public-booking-room-state { grid-column:2; justify-self:start; }
+    .public-success-card { padding:28px 18px; }
+    .public-success-card h1 { font-size:31px; }
+    .public-success-summary { grid-template-columns:1fr; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+    .public-btn,.public-room-card,.public-rate-row,.public-booking-room { transition:none; }
+}

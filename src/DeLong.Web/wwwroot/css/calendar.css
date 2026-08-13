@@ -61,7 +61,7 @@
 .booking-editor .summary-box { margin-top:16px; margin-left:20px; margin-right:20px; }
 .preset-select { grid-column:1/-1; }
 .booking-money-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-.booking-detail-hero { margin:20px 20px 0; padding:15px; border:1px solid #dbe9e4; border-radius:14px; background:linear-gradient(135deg,#f1faf7,#fff); display:flex; align-items:center; justify-content:space-between; gap:18px; }
+.booking-detail-hero { margin:20px 20px 14px; padding:15px; border:1px solid #dbe9e4; border-radius:14px; background:linear-gradient(135deg,#f1faf7,#fff); display:flex; align-items:center; justify-content:space-between; gap:18px; }
 .booking-detail-hero strong { display:block; font-size:18px; letter-spacing:-.02em; }
 .booking-detail-hero span { color:var(--muted); font-size:10px; }
 

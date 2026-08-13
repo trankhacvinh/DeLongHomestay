@@ -7,6 +7,7 @@ using Xunit;
 
 namespace DeLong.Tests.Integration;
 
+[Collection("PostgreSQL integration")]
 public sealed class PostgresBookingConstraintTests
 {
     [Fact]

@@ -1,0 +1,29 @@
+@page "/booking/success"
+@model DeLong.Web.Pages.Booking.SuccessModel
+@{
+    ViewData["Title"] = "Đã gửi yêu cầu";
+}
+
+<section class="public-success-section">
+    <div class="public-container">
+        <div class="public-success-card">
+            <div class="public-success-icon" aria-hidden="true">✓</div>
+            <span class="public-eyebrow">Đã nhận yêu cầu</span>
+            <h1>Cảm ơn bạn. De Long sẽ liên hệ để xác nhận.</h1>
+            <p>Yêu cầu online chưa tự động giữ phòng. Nhân viên sẽ kiểm tra lại lịch và liên hệ qua số điện thoại bạn đã cung cấp.</p>
+            @if (!string.IsNullOrWhiteSpace(Model.Code))
+            {
+                <div class="public-success-summary">
+                    <div><small>Mã yêu cầu</small><strong>@Model.Code</strong></div>
+                    @if (!string.IsNullOrWhiteSpace(Model.Room)) { <div><small>Phòng</small><strong>@Model.Room</strong></div> }
+                    @if (Model.Amount > 0) { <div><small>Tạm tính</small><strong>@Model.Amount.ToString("N0")đ</strong></div> }
+                </div>
+            }
+            <div class="public-success-actions">
+                <a class="public-btn public-btn-primary" asp-page="/Index">Về trang chủ</a>
+                <a class="public-btn public-btn-ghost" asp-page="/Rooms/Index">Xem thêm phòng</a>
+            </div>
+            <p class="public-success-contact">Cần hỗ trợ ngay? Gọi De Long: <strong>0352 291 921</strong></p>
+        </div>
+    </div>
+</section>

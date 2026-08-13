@@ -15,13 +15,25 @@
         const response = await fetch(url, config);
         if (response.status === 204) return null;
 
-        const contentType = response.headers.get('content-type') || '';
-        const payload = contentType.includes('application/json') ? await response.json() : await response.text();
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        const isJson = contentType.includes('json');
+        let payload;
+        if (isJson) {
+            try {
+                payload = await response.json();
+            } catch {
+                payload = null;
+            }
+        } else {
+            payload = await response.text();
+        }
 
         if (!response.ok) {
-            const error = new Error(payload?.detail || payload?.title || payload || `HTTP ${response.status}`);
+            const objectPayload = payload && typeof payload === 'object' ? payload : null;
+            const message = objectPayload?.detail || objectPayload?.title || payload || `HTTP ${response.status}`;
+            const error = new Error(message);
             error.status = response.status;
-            error.problem = payload;
+            error.problem = objectPayload;
             throw error;
         }
         return payload;

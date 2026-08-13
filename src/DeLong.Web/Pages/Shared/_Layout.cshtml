@@ -27,6 +27,7 @@
     <link rel="stylesheet" href="~/css/operational-polish.css" asp-append-version="true" />
     @await RenderSectionAsync("Head", required: false)
     <link rel="stylesheet" href="~/css/mobile-final.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/public.css" asp-append-version="true" />
 </head>
 <body class="@(isAdmin ? "admin-body" : "public-body")">
 <a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
@@ -58,23 +59,20 @@
                 </a>
                 <button class="sidebar-close btn-icon" type="button" data-sidebar-toggle aria-label="Đóng menu" aria-expanded="false">×</button>
             </div>
-
             <nav class="sidebar-nav">
                 <div class="nav-group">
                     <div class="nav-label">Vận hành</div>
                     <a class="@NavClass("/Admin", true)" asp-page="/Admin/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-grid" /></svg><span>Tổng quan</span></a>
                     <a class="@NavClass("/Admin/Calendar")" asp-page="/Admin/Calendar" asp-route-propertyId="@propertyId"><svg><use href="#i-calendar" /></svg><span>Lịch phòng</span></a>
-                    <a class="@NavClass("/Admin/Bookings")" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-booking" /></svg><span>Booking</span></a>
+                    <a class="@NavClass("/Admin/Bookings")" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-booking" /></svg><span>Đặt phòng</span></a>
                     <a class="@NavClass("/Admin/Customers")" asp-page="/Admin/Customers/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-users" /></svg><span>Khách hàng</span></a>
                     <a class="@NavClass("/Admin/Housekeeping")" asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-sparkles" /></svg><span>Dọn phòng</span></a>
                 </div>
-
                 <div class="nav-group">
                     <div class="nav-label">Quản lý</div>
                     <a class="@NavClass("/Admin/Rooms")" asp-page="/Admin/Rooms/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-bed" /></svg><span>Phòng</span></a>
                     <a class="@NavClass("/Admin/Settings")" asp-page="/Admin/Settings/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-settings" /></svg><span>Cấu hình</span></a>
                 </div>
-
                 @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Viewer"))
                 {
                     <div class="nav-group">
@@ -84,27 +82,15 @@
                     </div>
                 }
             </nav>
-
-            <div class="sidebar-foot">
-                <div class="sidebar-hint"><span class="status-dot"></span><span>Hệ thống đang hoạt động</span></div>
-            </div>
+            <div class="sidebar-foot"><div class="sidebar-hint"><span class="status-dot"></span><span>Hệ thống đang hoạt động</span></div></div>
         </aside>
-
         <main class="admin-main">
             <header class="admin-topbar">
                 <button class="mobile-menu btn-icon" type="button" data-sidebar-toggle aria-label="Mở menu" aria-expanded="false"><svg><use href="#i-menu" /></svg></button>
-                <div class="topbar-context">
-                    <span class="topbar-property">De Long Homestay</span>
-                    <span class="topbar-page">@ViewData["Title"]</span>
-                </div>
+                <div class="topbar-context"><span class="topbar-property">De Long Homestay</span><span class="topbar-page">@ViewData["Title"]</span></div>
                 <span class="spacer"></span>
-                <div class="user-chip">
-                    <span class="user-avatar">@((User.Identity?.Name ?? "A").Substring(0, 1).ToUpperInvariant())</span>
-                    <span class="user-copy"><strong>@User.Identity?.Name</strong><small>Quản trị hệ thống</small></span>
-                </div>
-                <form method="post" asp-page="/Account/Logout">
-                    <button class="btn-icon logout-btn" type="submit" title="Đăng xuất" aria-label="Đăng xuất"><svg><use href="#i-logout" /></svg></button>
-                </form>
+                <div class="user-chip"><span class="user-avatar">@((User.Identity?.Name ?? "A").Substring(0, 1).ToUpperInvariant())</span><span class="user-copy"><strong>@User.Identity?.Name</strong><small>Quản trị hệ thống</small></span></div>
+                <form method="post" asp-page="/Account/Logout"><button class="btn-icon logout-btn" type="submit" title="Đăng xuất" aria-label="Đăng xuất"><svg><use href="#i-logout" /></svg></button></form>
             </header>
             <div class="admin-content" id="main-content" tabindex="-1">@RenderBody()</div>
         </main>
@@ -112,21 +98,28 @@
 }
 else
 {
-    <header class="site-header">
-        <div class="container site-nav">
-            <a class="brand" asp-page="/Index"><span class="brand-mark">DL</span><span>De Long Homestay</span></a>
-            <span class="spacer"></span>
-            @if (User.Identity?.IsAuthenticated == true)
-            {
-                <a class="btn btn-light btn-sm" asp-page="/Admin/Index">Quản trị</a>
-            }
-            else
-            {
-                <a class="btn btn-light btn-sm" asp-page="/Account/Login">Đăng nhập</a>
-            }
+    <header class="public-site-header">
+        <div class="public-container public-site-nav">
+            <a class="public-site-brand" asp-page="/Index"><span class="brand-mark">DL</span><span><strong>De Long Homestay</strong><small>Long Thành · Đồng Nai</small></span></a>
+            <nav class="public-site-links" aria-label="Điều hướng trang khách">
+                <a asp-page="/Index">Trang chủ</a>
+                <a asp-page="/Rooms/Index">Phòng</a>
+                <a asp-page="/Booking/Index">Đặt phòng</a>
+            </nav>
+            <div class="public-site-actions">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <a class="public-admin-link" asp-page="/Admin/Index">Quản trị</a>
+                }
+                else
+                {
+                    <a class="public-admin-link" asp-page="/Account/Login">Đăng nhập</a>
+                }
+                <a class="public-btn public-btn-primary" asp-page="/Booking/Index">Kiểm tra phòng</a>
+            </div>
         </div>
     </header>
-    <main class="container public-main" id="main-content" tabindex="-1">@RenderBody()</main>
+    <main class="public-main" id="main-content" tabindex="-1">@RenderBody()</main>
 }
 <div id="global-toast-root" class="toast-root" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/vue@3.5.40/dist/vue.global.prod.js"></script>

@@ -10,6 +10,7 @@ namespace DeLong.Web.Features.Bookings;
 
 public sealed class BookingService(AppDbContext db, CustomerService customerService, AuditService auditService)
 {
+    private const string BookingCodeUniqueConstraint = "i_x_bookings_property_id_code";
     private static readonly BookingStatus[] LockingStatuses =
     [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
 
@@ -84,7 +85,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
             Source = Clean(request.Source),
             Note = Clean(request.Note)
         };
-        booking.Code = $"BK-{DateTime.UtcNow:yyMMdd}-{booking.Id.ToString("N")[..6].ToUpperInvariant()}";
+        booking.Code = CreateBookingCode(booking.CreatedAtUtc);
 
         db.Bookings.Add(booking);
         auditService.Add(propertyId, "Booking", booking.Id, "Created", actorUserId, after: Snapshot(booking));
@@ -234,6 +235,13 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         {
             return ConflictError();
         }
+        catch (DbUpdateException ex) when (
+            ex.InnerException is PostgresException postgresException &&
+            postgresException.SqlState == PostgresErrorCodes.UniqueViolation &&
+            string.Equals(postgresException.ConstraintName, BookingCodeUniqueConstraint, StringComparison.OrdinalIgnoreCase))
+        {
+            return new("booking_code_conflict", "Không thể tạo mã booking duy nhất. Vui lòng thử gửi lại yêu cầu.");
+        }
     }
 
     private static IQueryable<BookingDto> Project(IQueryable<Booking> query)
@@ -307,6 +315,15 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         if (request.RoomAmount + request.ExtraAmount - request.DiscountAmount < 0)
             return new("validation", "Tổng tiền booking không được âm.");
         return null;
+    }
+
+    private static string CreateBookingCode(DateTime createdAtUtc)
+    {
+        // UUIDv7 prefixes are timestamp-ordered, so using the first characters of Booking.Id
+        // causes deterministic collisions for bookings created in the same time window.
+        // A v4 token keeps the human-readable date prefix while providing 40 random bits.
+        var token = Guid.NewGuid().ToString("N")[..10].ToUpperInvariant();
+        return $"BK-{createdAtUtc:yyMMdd}-{token}";
     }
 
     private static BookingOperationError ConflictError() =>

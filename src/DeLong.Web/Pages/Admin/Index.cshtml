@@ -15,6 +15,26 @@
     </div>
 </div>
 
+@if (Model.RequestedCount > 0)
+{
+    <section class="panel website-request-panel">
+        <div class="panel-head">
+            <div><h2>Yêu cầu mới từ website</h2><span class="tiny muted">Khách đã gửi yêu cầu nhưng phòng chưa được giữ chính thức</span></div>
+            <div class="toolbar"><span class="pill warning">@Model.RequestedCount yêu cầu</span><a class="btn btn-light btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Xử lý</a></div>
+        </div>
+        <div class="dashboard-list">
+            @foreach (var item in Model.WebsiteRequests)
+            {
+                <div class="dashboard-item">
+                    <span class="dashboard-time">@item.DateTimeText</span>
+                    <div class="dashboard-main"><strong>@item.CustomerName</strong><span>@item.CustomerPhone · @item.RoomName · @item.Code</span></div>
+                    <span class="dashboard-amount">@item.TotalAmount.ToString("N0") đ</span>
+                </div>
+            }
+        </div>
+    </section>
+}
+
 <div class="kpi-grid">
     <article class="kpi">
         <div class="kpi-top"><span class="kpi-label">Khách đến</span><span class="kpi-icon"><svg><use href="#i-calendar" /></svg></span></div>

@@ -1,0 +1,66 @@
+@page "/rooms/{code}"
+@model DeLong.Web.Pages.Rooms.DetailsModel
+@{
+    ViewData["Title"] = Model.Room.Name;
+}
+
+@section Head {
+    <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
+}
+
+<section class="public-room-detail-hero">
+    <div class="public-container public-room-detail-grid">
+        <div class="public-room-detail-art public-room-art" data-room-code="@Model.Room.Code">
+            <span class="public-room-poster public-room-poster-detail">
+                <small>DE LONG STAY · @Model.Room.Code</small>
+                <strong>@Model.Room.Name</strong>
+            </span>
+            <div class="public-room-art-tags">
+                <span>@Model.Room.Capacity người</span>
+                @if (Model.Room.HasBathtub) { <span>Bồn tắm</span> }
+            </div>
+        </div>
+        <div class="public-room-detail-copy">
+            <span class="public-eyebrow">@Model.Room.Code</span>
+            <h1>@Model.Room.Name</h1>
+            <p>Một không gian riêng tư dành cho tối đa @Model.Room.Capacity người, với nhiều khung giờ linh hoạt để bạn chọn theo kế hoạch trong ngày.</p>
+            <div class="public-room-detail-facts">
+                <div><small>Sức chứa</small><strong>@Model.Room.Capacity người</strong></div>
+                <div><small>Khung giá</small><strong>@Model.Room.Rates.Count lựa chọn</strong></div>
+                <div><small>Giá từ</small><strong>@Model.Room.FromPrice.ToString("N0")đ</strong></div>
+            </div>
+            <a class="public-btn public-btn-primary" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code">Kiểm tra phòng trống</a>
+        </div>
+    </div>
+</section>
+
+<section class="public-section public-room-detail-rates">
+    <div class="public-container public-detail-content-grid">
+        <div>
+            <span class="public-eyebrow">Khung giờ</span>
+            <h2>Chọn khoảng thời gian phù hợp</h2>
+            <div class="public-rate-list">
+                @foreach (var rate in Model.Room.Rates)
+                {
+                    <a class="public-rate-row" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code" asp-route-rate="@rate.Id">
+                        <div>
+                            <strong>@rate.Name</strong>
+                            <span>@rate.StartTime → @rate.EndTime @(rate.IsOvernight ? "· qua đêm" : "")</span>
+                        </div>
+                        <strong>@rate.Price.ToString("N0")đ</strong>
+                    </a>
+                }
+            </div>
+        </div>
+        <aside class="public-detail-note">
+            <span class="public-eyebrow">Lưu ý</span>
+            <h3>Giờ trên website là khung đặt nhanh.</h3>
+            <p>Nếu cần nhận/trả khác một chút, hãy ghi chú khi gửi yêu cầu. Nhân viên De Long sẽ liên hệ xác nhận trước khi giữ phòng chính thức.</p>
+            <ul>
+                <li>Yêu cầu online chưa tự động khóa phòng.</li>
+                <li>Giá cuối cùng được xác nhận trước khi đặt cọc.</li>
+                <li>Phòng chỉ được giữ sau khi nhân viên xác nhận.</li>
+            </ul>
+        </aside>
+    </div>
+</section>

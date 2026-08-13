@@ -1,11 +1,102 @@
 @page
 @model DeLong.Web.Pages.IndexModel
 @{
-    ViewData["Title"] = "Trang chủ";
+    ViewData["Title"] = "De Long Homestay";
 }
-<section class="hero-simple">
-    <span class="eyebrow">Production foundation</span>
-    <h1>De Long Homestay</h1>
-    <p>Bản ASP.NET Core Razor Pages đang được xây dựng từ demo đã nghiệm thu.</p>
-    <div class="toolbar mt-24"><a class="btn btn-primary" asp-page="/Account/Login">Vào quản trị</a></div>
+
+@section Head {
+    <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
+}
+
+<section class="public-hero">
+    <div class="public-container public-hero-grid">
+        <div class="public-hero-copy">
+            <span class="public-eyebrow">Long Thành · Đồng Nai</span>
+            <h1>Một khoảng nghỉ riêng tư, vừa đủ để chậm lại.</h1>
+            <p>6 không gian nghỉ được thiết kế cho những buổi hẹn ngắn, một tối thư giãn hoặc một đêm yên tĩnh tại Long Thành.</p>
+            <div class="public-hero-actions">
+                <a class="public-btn public-btn-primary" asp-page="/Booking/Index">Kiểm tra phòng trống</a>
+                <a class="public-btn public-btn-ghost" asp-page="/Rooms/Index">Xem 6 phòng</a>
+            </div>
+            <div class="public-contact-line">
+                <span>Hẻm 39 Nguyễn Đình Chiểu, Long Thành</span>
+                <span>0352 291 921</span>
+            </div>
+        </div>
+        <div class="public-hero-art" aria-label="De Long Homestay">
+            <div class="hero-art-card hero-art-main"><span>DE LONG</span><strong>STAY SLOW</strong><small>Private rooms · flexible stay</small></div>
+            <div class="hero-art-card hero-art-float"><small>6 phòng</small><strong>Từ 210.000đ</strong></div>
+        </div>
+    </div>
+</section>
+
+<section class="public-check-section">
+    <div class="public-container">
+        <form class="public-check-card" method="get" asp-page="/Booking/Index">
+            <div>
+                <span class="public-eyebrow">Kiểm tra nhanh</span>
+                <h2>Chọn ngày bạn muốn ghé</h2>
+            </div>
+            <label class="public-date-field">
+                <span>Ngày sử dụng</span>
+                <input type="date" name="date" value="@Model.DefaultDate" required />
+            </label>
+            <button class="public-btn public-btn-primary" type="submit">Xem phòng trống</button>
+        </form>
+    </div>
+</section>
+
+<section class="public-section public-home-rooms">
+    <div class="public-container">
+        <div class="public-section-head">
+            <div>
+                <span class="public-eyebrow">Không gian</span>
+                <h2>Chọn căn phòng hợp với nhịp của bạn</h2>
+            </div>
+            <a class="public-text-link" asp-page="/Rooms/Index">Xem tất cả phòng →</a>
+        </div>
+
+        <div class="public-room-grid">
+            @foreach (var room in Model.Catalog?.Rooms.Take(6) ?? [])
+            {
+                <article class="public-room-card">
+                    <a class="public-room-art" asp-page="/Rooms/Details" asp-route-code="@room.Code" data-room-code="@room.Code" aria-label="Xem @room.Name">
+                        <span class="public-room-poster">
+                            <small>DE LONG STAY · @room.Code</small>
+                            <strong>@room.Name</strong>
+                        </span>
+                        @if (room.HasBathtub)
+                        {
+                            <span class="public-room-feature">Bồn tắm</span>
+                        }
+                    </a>
+                    <div class="public-room-body">
+                        <div>
+                            <h3><a asp-page="/Rooms/Details" asp-route-code="@room.Code">@room.Name</a></h3>
+                            <p>@room.Capacity người · @room.Rates.Count khung giờ linh hoạt</p>
+                        </div>
+                        <div class="public-room-price"><small>Từ</small><strong>@room.FromPrice.ToString("N0")đ</strong></div>
+                    </div>
+                </article>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="public-section public-section-soft">
+    <div class="public-container public-story-grid">
+        <div>
+            <span class="public-eyebrow">De Long Homestay</span>
+            <h2>Không cần một chuyến đi xa để có một khoảng nghỉ.</h2>
+        </div>
+        <div class="public-story-copy">
+            <p>Chúng tôi tập trung vào sự riêng tư, giờ nhận phòng linh hoạt và trải nghiệm gọn nhẹ. Bạn chọn phòng và khung giờ phù hợp; đội ngũ De Long sẽ xác nhận lại trước khi giữ phòng chính thức.</p>
+            <div class="public-benefits">
+                <span>Nhận phòng linh hoạt</span>
+                <span>Không gian riêng tư</span>
+                <span>Giá hiển thị rõ ràng</span>
+                <span>Nhân viên xác nhận trực tiếp</span>
+            </div>
+        </div>
+    </div>
 </section>

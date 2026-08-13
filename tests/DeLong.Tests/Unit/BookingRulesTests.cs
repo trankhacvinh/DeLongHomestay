@@ -31,4 +31,25 @@ public sealed class BookingRulesTests
         Assert.True(BookingRules.CanTransition(BookingStatus.Confirmed, BookingStatus.CheckedIn));
         Assert.False(BookingRules.CanTransition(BookingStatus.Confirmed, BookingStatus.Completed));
     }
+
+    [Fact]
+    public void Mistaken_cancel_can_be_recovered_to_requested()
+    {
+        Assert.True(BookingRules.CanTransition(BookingStatus.Cancelled, BookingStatus.Requested));
+        Assert.False(BookingRules.CanTransition(BookingStatus.Cancelled, BookingStatus.Confirmed));
+    }
+
+    [Fact]
+    public void Mistaken_no_show_can_be_recovered_to_confirmed()
+    {
+        Assert.True(BookingRules.CanTransition(BookingStatus.NoShow, BookingStatus.Confirmed));
+        Assert.False(BookingRules.CanTransition(BookingStatus.NoShow, BookingStatus.CheckedIn));
+    }
+
+    [Fact]
+    public void Completed_booking_remains_terminal()
+    {
+        Assert.False(BookingRules.CanTransition(BookingStatus.Completed, BookingStatus.CheckedIn));
+        Assert.False(BookingRules.CanTransition(BookingStatus.Completed, BookingStatus.Confirmed));
+    }
 }

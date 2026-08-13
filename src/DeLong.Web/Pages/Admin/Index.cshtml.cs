@@ -2,6 +2,7 @@ using DeLong.Web.Common.Security;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Finance;
+using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.Rooms;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -17,11 +18,20 @@ public sealed record DashboardBookingItem(
 
 public sealed record DashboardRoomItem(string Name, string Code, HousekeepingStatus Status);
 
+public sealed record DashboardRequestItem(
+    string Code,
+    string CustomerName,
+    string CustomerPhone,
+    string RoomName,
+    string DateTimeText,
+    decimal TotalAmount);
+
 public sealed class IndexModel(
     CurrentPropertyService currentPropertyService,
     BookingService bookingService,
     RoomService roomService,
-    FinanceService financeService) : PageModel
+    FinanceService financeService,
+    PublicRequestInboxService requestInboxService) : PageModel
 {
     public Guid PropertyId { get; private set; }
     public string PropertyName { get; private set; } = "De Long Homestay";
@@ -30,12 +40,14 @@ public sealed class IndexModel(
     public int DeparturesCount { get; private set; }
     public int OccupiedCount { get; private set; }
     public int DirtyCount { get; private set; }
+    public int RequestedCount { get; private set; }
     public bool CanViewFinance { get; private set; }
     public decimal ReceiptsToday { get; private set; }
     public decimal Outstanding { get; private set; }
     public IReadOnlyList<DashboardBookingItem> Arrivals { get; private set; } = [];
     public IReadOnlyList<DashboardBookingItem> Departures { get; private set; } = [];
     public IReadOnlyList<DashboardRoomItem> DirtyRooms { get; private set; } = [];
+    public IReadOnlyList<DashboardRequestItem> WebsiteRequests { get; private set; } = [];
 
     public async Task<IActionResult> OnGetAsync(Guid? propertyId, CancellationToken cancellationToken)
     {
@@ -60,8 +72,10 @@ public sealed class IndexModel(
             new DateTimeOffset(endUtc, TimeSpan.Zero),
             cancellationToken);
         var rooms = await roomService.GetAllAsync(PropertyId, cancellationToken);
+        var requests = await requestInboxService.GetRecentAsync(PropertyId, 5, cancellationToken);
+        RequestedCount = await requestInboxService.CountAsync(PropertyId, cancellationToken);
 
-        var activeBookings = bookings.Where(x => x.Status is not BookingStatus.Cancelled and not BookingStatus.NoShow).ToList();
+        var activeBookings = bookings.Where(x => x.Status is not BookingStatus.Requested and not BookingStatus.Cancelled and not BookingStatus.NoShow).ToList();
         var arrivals = activeBookings.Where(x => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(x.CheckInUtc, timeZone)) == today).OrderBy(x => x.CheckInUtc).ToList();
         var departures = activeBookings.Where(x => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(x.CheckOutUtc, timeZone)) == today).OrderBy(x => x.CheckOutUtc).ToList();
 
@@ -77,6 +91,17 @@ public sealed class IndexModel(
             .Select(x => new DashboardRoomItem(x.Name, x.Code, x.HousekeepingStatus))
             .Take(6)
             .ToList();
+        WebsiteRequests = requests.Select(x =>
+        {
+            var local = TimeZoneInfo.ConvertTimeFromUtc(x.CheckInUtc, timeZone);
+            return new DashboardRequestItem(
+                x.Code,
+                x.CustomerName,
+                x.CustomerPhone,
+                x.RoomName,
+                local.ToString("dd/MM · HH:mm"),
+                x.TotalAmount);
+        }).ToList();
 
         CanViewFinance = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Viewer");
         if (CanViewFinance)
