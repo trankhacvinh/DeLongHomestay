@@ -17,7 +17,7 @@ De Long có hai kiểu đặt phòng độc lập:
 - `BookingType.TimeSlot`: booking theo khung giờ.
 - `BookingType.MultiDay`: booking liên tục từ ngày nhận tới ngày trả.
 
-Booking multi-day lưu snapshot `RateName`, `UnitPrice`, `NightCount`, `RoomAmount` để thay đổi giá sau này không làm sai lịch sử.
+Booking multi-day lưu snapshot `RoomRateId`, `RateName`, `UnitPrice`, `NightCount`, `RoomAmount` để thay đổi giá sau này không làm sai lịch sử.
 
 ## Availability
 
@@ -30,6 +30,8 @@ Multi-day khóa **một khoảng liên tục** từ check-in ngày đầu tới 
 `RoomAmount = NightlyRate.Price × NightCount`.
 
 Không seed giá Nightly tự động vì chưa có giá thật từ chủ cơ sở. Admin phải cấu hình giá/đêm cho từng phòng; public chỉ hiển thị multi-day khi phòng có rate Nightly active và giá > 0.
+
+Migration `AddBookingV2MultiDay` được sinh bằng EF Core từ model thật; các rate cũ sẽ được backfill `TimeSlot` hoặc `Overnight` dựa trên `IsOvernight` hiện có.
 
 ## Calendar
 
