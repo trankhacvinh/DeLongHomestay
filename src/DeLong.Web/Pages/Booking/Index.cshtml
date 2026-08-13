@@ -18,6 +18,17 @@
         </div>
     </section>
 
+    <section class="public-booking-journey-wrap">
+        <div class="public-container">
+            <div class="public-booking-journey" aria-label="Quy trình đặt phòng">
+                <span class="active"><b>01</b>Chọn ngày</span>
+                <span><b>02</b>Chọn phòng</span>
+                <span><b>03</b>Chọn giờ</span>
+                <span><b>04</b>Gửi yêu cầu</span>
+            </div>
+        </div>
+    </section>
+
     <section class="public-section public-booking-section">
         <div class="public-container public-booking-grid">
             <div class="public-booking-main">
@@ -33,7 +44,7 @@
                     <div class="public-step-head"><span>02</span><div><h2>Chọn phòng</h2><p>Nhấn một phòng để xem các khung còn trống.</p></div></div>
                     <div class="public-booking-room-list">
                         <button v-for="room in rooms" v-bind:key="room.id" type="button" class="public-booking-room" v-bind:class="{ active: selectedRoomId === room.id }" v-on:click="chooseRoom(room)">
-                            <span class="public-mini-room-art" v-bind:data-room-code="room.code">{{ room.code.slice(-1) }}</span>
+                            <span class="public-mini-room-art" v-bind:data-room-code="room.code">{{ room.code.split('-').slice(-1)[0] }}</span>
                             <span class="public-booking-room-copy"><strong>{{ room.name }}</strong><small>{{ room.capacity }} người · từ {{ money(room.fromPrice) }}</small></span>
                             <span class="public-booking-room-state" v-if="availableCount(room) > 0">{{ availableCount(room) }} khung trống</span>
                             <span class="public-booking-room-state sold" v-else>Hết khung</span>
@@ -51,7 +62,7 @@
                     </div>
                 </div>
 
-                <div class="public-step-card" v-if="selectedRate">
+                <div class="public-step-card public-contact-step" v-if="selectedRate">
                     <div class="public-step-head"><span>04</span><div><h2>Thông tin liên hệ</h2><p>Nhân viên sẽ gọi lại để xác nhận phòng và tiền cọc.</p></div></div>
                     <div class="public-form-grid">
                         <label><span>Tên khách *</span><input v-model.trim="form.customerName" maxlength="200" autocomplete="name" placeholder="Nguyễn Minh Anh" /></label>
@@ -66,15 +77,21 @@
             </div>
 
             <aside class="public-booking-summary" v-if="selectedRoom && selectedRate">
-                <span class="public-eyebrow">Yêu cầu của bạn</span>
-                <h3>{{ selectedRoom.name }}</h3>
-                <dl>
-                    <div><dt>Ngày</dt><dd>{{ dateText }}</dd></div>
-                    <div><dt>Khung giờ</dt><dd>{{ selectedRate.startTime }} → {{ selectedRate.endTime }}</dd></div>
-                    <div><dt>Gói</dt><dd>{{ selectedRate.name }}</dd></div>
-                    <div class="total"><dt>Tạm tính</dt><dd>{{ money(selectedRate.price) }}</dd></div>
-                </dl>
-                <p>Giờ thực tế có thể được nhân viên điều chỉnh khi xác nhận theo ghi chú của bạn.</p>
+                <div class="public-summary-room-art" v-bind:data-room-code="selectedRoom.code">
+                    <small>DE LONG STAY</small>
+                    <strong>{{ selectedRoom.name }}</strong>
+                </div>
+                <div class="public-summary-content">
+                    <span class="public-eyebrow">Yêu cầu của bạn</span>
+                    <h3>{{ selectedRoom.name }}</h3>
+                    <dl>
+                        <div><dt>Ngày</dt><dd>{{ dateText }}</dd></div>
+                        <div><dt>Khung giờ</dt><dd>{{ selectedRate.startTime }} → {{ selectedRate.endTime }}</dd></div>
+                        <div><dt>Gói</dt><dd>{{ selectedRate.name }}</dd></div>
+                        <div class="total"><dt>Tạm tính</dt><dd>{{ money(selectedRate.price) }}</dd></div>
+                    </dl>
+                    <p>Giờ thực tế có thể được nhân viên điều chỉnh khi xác nhận theo ghi chú của bạn.</p>
+                </div>
             </aside>
         </div>
     </section>
