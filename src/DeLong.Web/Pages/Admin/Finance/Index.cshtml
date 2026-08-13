@@ -131,6 +131,9 @@
 
     <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
 </div>
+@section Head {
+    <link rel="stylesheet" href="~/css/finance-reports.css" asp-append-version="true" />
+}
 @section Scripts {
     <script>window.DeLongFinanceCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") ? "true" : "false");</script>
     <script src="~/js/pages/admin-finance.js" asp-append-version="true"></script>
