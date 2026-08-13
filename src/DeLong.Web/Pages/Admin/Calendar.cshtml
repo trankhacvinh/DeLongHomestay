@@ -11,7 +11,7 @@
             <div>
                 <div class="page-eyebrow">Vận hành phòng</div>
                 <h1>Lịch phòng</h1>
-                <p>Theo dõi tình trạng phòng theo 7 ngày. Bấm vào vùng trống để đặt nhanh; giờ nhận/trả thực tế luôn có thể chỉnh khác preset.</p>
+                <p>Theo dõi tình trạng phòng theo 7 ngày. Lưu trú nhiều ngày hiển thị thành một dải liên tục; bấm vùng trống để đặt nhanh theo khung giờ.</p>
             </div>
             <div class="calendar-controls">
                 <button class="btn-icon" type="button" v-on:click="moveRange(-7)" title="7 ngày trước" aria-label="7 ngày trước"><svg><use href="#i-chevron-left" /></svg></button>
@@ -30,7 +30,7 @@
             <strong>{{ rangeLabel }}</strong>
             <span>{{ activeRooms.length }} phòng đang hoạt động · múi giờ {{ timeZoneId }}</span>
         </div>
-        <div class="calendar-legend" aria-label="Chú thích trạng thái booking">
+        <div class="calendar-legend" aria-label="Chú thích trạng thái đặt phòng">
             <span class="legend-item"><i class="legend-dot held"></i>Giữ phòng</span>
             <span class="legend-item"><i class="legend-dot confirmed"></i>Đã xác nhận / đang ở</span>
             <span class="legend-item"><i class="legend-dot requested"></i>Yêu cầu</span>
@@ -68,17 +68,18 @@
                         class="day-cell"
                         v-bind:class="{ 'calendar-today': day.key === today }"
                         v-on:click="openCreate(room, day)">
-                        <button v-for="booking in bookingsFor(room.id, day.key)"
+                        <button v-for="booking in bookingsToRender(room.id, day.key)"
                                 v-bind:key="booking.id"
                                 type="button"
                                 class="booking-chip"
-                                v-bind:class="bookingClass(booking.status)"
+                                v-bind:class="[bookingClass(booking.status), { 'booking-multiday': booking.type === 1 }]"
+                                v-bind:style="booking.type === 1 ? { '--booking-span': bookingSpan(booking, day.key) } : null"
                                 v-on:click.stop="openBooking(booking)">
-                            <span class="booking-time">{{ timeRange(booking) }}</span>
+                            <span class="booking-time">{{ booking.type === 1 ? multiDayLabel(booking) : timeRange(booking) }}</span>
                             <strong>{{ booking.customerName }}</strong>
                             <span class="booking-meta"><span>{{ money(booking.totalAmount) }}</span><span>{{ statusText(booking.status) }}</span></span>
                         </button>
-                        <span v-if="bookingsFor(room.id, day.key).length === 0" class="empty-cell-action"><svg><use href="#i-plus" /></svg>Đặt phòng</span>
+                        <span v-if="!cellHasBooking(room.id, day.key)" class="empty-cell-action"><svg><use href="#i-plus" /></svg>Đặt phòng</span>
                     </td>
                 </tr>
             </tbody>
@@ -89,7 +90,7 @@
         <section class="modal-card booking-editor" role="dialog" aria-modal="true">
             <div class="modal-head">
                 <div>
-                    <h2>{{ editor.mode === 'view' ? 'Chi tiết booking' : (editor.mode === 'edit' ? 'Sửa booking' : 'Đặt phòng') }}</h2>
+                    <h2>{{ editor.mode === 'view' ? 'Chi tiết lượt đặt' : (editor.mode === 'edit' ? 'Sửa lượt đặt' : 'Đặt phòng') }}</h2>
                     <p class="muted small" v-if="editor.mode === 'create'">Preset giúp nhập nhanh, không khóa giờ nhận/trả thực tế.</p>
                     <p class="muted small" v-else>{{ selectedBooking?.code }}</p>
                 </div>
@@ -114,28 +115,16 @@
                                 <option v-for="rate in selectedRoomRates" v-bind:key="rate.id" v-bind:value="rate.id">{{ rate.name }} · {{ rate.startTime }}–{{ rate.endTime }} · {{ money(rate.price) }}</option>
                             </select>
                         </div>
-                        <div class="field">
-                            <label>Check-in *</label>
-                            <input type="datetime-local" v-model="form.checkInLocal" />
-                        </div>
-                        <div class="field">
-                            <label>Check-out *</label>
-                            <input type="datetime-local" v-model="form.checkOutLocal" />
-                        </div>
+                        <div class="field"><label>Nhận phòng *</label><input type="datetime-local" v-model="form.checkInLocal" /></div>
+                        <div class="field"><label>Trả phòng *</label><input type="datetime-local" v-model="form.checkOutLocal" /></div>
                     </div>
                 </section>
 
                 <section class="booking-form-section">
                     <div class="booking-form-title">Khách hàng <span>SĐT dùng để nhận diện khách cũ</span></div>
                     <div class="form-grid">
-                        <div class="field">
-                            <label>Tên khách *</label>
-                            <input v-model.trim="form.customerName" maxlength="200" placeholder="Ví dụ: Nguyễn Minh Anh" />
-                        </div>
-                        <div class="field">
-                            <label>Số điện thoại *</label>
-                            <input v-model.trim="form.customerPhone" maxlength="30" inputmode="tel" placeholder="09xx xxx xxx" />
-                        </div>
+                        <div class="field"><label>Tên khách *</label><input v-model.trim="form.customerName" maxlength="200" placeholder="Ví dụ: Nguyễn Minh Anh" /></div>
+                        <div class="field"><label>Số điện thoại *</label><input v-model.trim="form.customerPhone" maxlength="30" inputmode="tel" placeholder="09xx xxx xxx" /></div>
                         <div class="field">
                             <label>Nguồn</label>
                             <select v-model="form.source">
@@ -162,13 +151,13 @@
                         <div class="field"><label>Phụ thu</label><input type="number" min="0" step="1000" v-model.number="form.extraAmount" /></div>
                         <div class="field"><label>Giảm giá</label><input type="number" min="0" step="1000" v-model.number="form.discountAmount" /></div>
                     </div>
-                    <div class="field mt-16"><label>Ghi chú</label><textarea v-model.trim="form.note" maxlength="2000" placeholder="Ví dụ: check-in 22:30, thêm gối, khách cần hóa đơn..."></textarea></div>
+                    <div class="field mt-16"><label>Ghi chú</label><textarea v-model.trim="form.note" maxlength="2000" placeholder="Ví dụ: nhận phòng 22:30, thêm gối, khách cần hóa đơn..."></textarea></div>
                 </section>
 
-                <div class="summary-box"><div class="summary-line"><span>Tổng booking</span><strong>{{ money(totalAmount) }}</strong></div></div>
+                <div class="summary-box"><div class="summary-line"><span>Tổng lượt đặt</span><strong>{{ money(totalAmount) }}</strong></div></div>
                 <div class="modal-actions">
                     <button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button>
-                    <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveBooking">{{ saving ? 'Đang lưu...' : (editor.mode === 'edit' ? 'Lưu thay đổi' : 'Lưu booking') }}</button>
+                    <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveBooking">{{ saving ? 'Đang lưu...' : (editor.mode === 'edit' ? 'Lưu thay đổi' : 'Lưu lượt đặt') }}</button>
                 </div>
             </template>
 
@@ -178,14 +167,18 @@
                     <span class="pill" v-bind:class="statusText(selectedBooking.status).includes('xác nhận') || selectedBooking.status === 3 ? 'success' : ''">{{ statusText(selectedBooking.status) }}</span>
                 </div>
                 <div class="detail-list">
+                    <div><span>Kiểu đặt</span><strong>{{ selectedBooking.type === 1 ? 'Lưu trú nhiều ngày' : 'Theo khung giờ' }}</strong></div>
+                    <div v-if="selectedBooking.type === 1"><span>Giá lưu trú</span><strong>{{ selectedBooking.nightCount }} đêm × {{ money(selectedBooking.unitPrice) }}</strong></div>
+                    <div v-if="selectedBooking.rateName"><span>Mức giá</span><strong>{{ selectedBooking.rateName }}</strong></div>
                     <div><span>Thời gian</span><strong>{{ dateTimeText(selectedBooking.checkInUtc) }} → {{ dateTimeText(selectedBooking.checkOutUtc) }}</strong></div>
-                    <div><span>Tổng booking</span><strong>{{ money(selectedBooking.totalAmount) }}</strong></div>
+                    <div><span>Tổng lượt đặt</span><strong>{{ money(selectedBooking.totalAmount) }}</strong></div>
                     <div><span>Đã thanh toán</span><strong class="text-success">{{ money(selectedBooking.paidAmount) }}</strong></div>
                     <div><span>Còn lại</span><strong v-bind:class="selectedBooking.balanceAmount > 0 ? 'text-danger' : 'text-success'">{{ money(selectedBooking.balanceAmount) }}</strong></div>
                     <div v-if="selectedBooking.note"><span>Ghi chú</span><strong>{{ selectedBooking.note }}</strong></div>
                 </div>
+                <div class="notice" v-if="selectedBooking.type === 1 && canManage">Sửa phòng/ngày của lưu trú nhiều ngày sẽ được mở trong editor Booking V2. Hiện bạn vẫn có thể đổi trạng thái và xử lý thanh toán bình thường.</div>
                 <div class="modal-actions" v-if="canManage">
-                    <button v-if="canEditBooking(selectedBooking)" class="btn btn-light" type="button" v-on:click="openEditBooking(selectedBooking)">Sửa booking</button>
+                    <button v-if="canEditBooking(selectedBooking)" class="btn btn-light" type="button" v-on:click="openEditBooking(selectedBooking)">Sửa lượt đặt</button>
                     <button v-for="action in nextActions(selectedBooking)" v-bind:key="action.status" type="button" class="btn" v-bind:class="action.className" v-bind:disabled="saving" v-on:click="changeStatus(action.status)">{{ action.label }}</button>
                 </div>
             </template>
