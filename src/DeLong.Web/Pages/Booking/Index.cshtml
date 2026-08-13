@@ -4,6 +4,10 @@
     ViewData["Title"] = "Đặt phòng";
 }
 
+@section Head {
+    <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
+}
+
 <div id="public-booking-page" class="public-booking-page" v-cloak>
     <script id="public-booking-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
