@@ -10,6 +10,7 @@ using Xunit;
 
 namespace DeLong.Tests.Integration;
 
+[Collection("PostgreSQL integration")]
 public sealed class PublicBookingFlowTests
 {
     [Fact]
@@ -26,22 +27,19 @@ public sealed class PublicBookingFlowTests
         await using var db = new AppDbContext(options);
         await db.Database.MigrateAsync();
 
-        var existing = await db.Properties.SingleOrDefaultAsync(x => x.Code == "DELONG");
-        if (existing is not null)
-        {
-            db.Properties.Remove(existing);
-            await db.SaveChangesAsync();
-        }
+        Assert.False(await db.Properties.AnyAsync(x => x.Code == "DELONG"));
 
         var property = new Property
         {
+            Id = Guid.CreateVersion7(),
             Code = "DELONG",
             Name = "De Long Integration",
             TimeZoneId = "Asia/Ho_Chi_Minh"
         };
         var room = new Room
         {
-            Property = property,
+            Id = Guid.CreateVersion7(),
+            PropertyId = property.Id,
             Code = "PUBLIC-01",
             Name = "Public Test Room",
             Capacity = 2,
@@ -49,7 +47,8 @@ public sealed class PublicBookingFlowTests
         };
         var rate = new RoomRate
         {
-            Room = room,
+            Id = Guid.CreateVersion7(),
+            RoomId = room.Id,
             Name = "Khung chiều",
             StartTime = new TimeOnly(14, 0),
             EndTime = new TimeOnly(17, 0),
@@ -57,8 +56,10 @@ public sealed class PublicBookingFlowTests
             SortOrder = 1,
             IsActive = true
         };
-        room.Rates.Add(rate);
+
         db.Properties.Add(property);
+        db.Rooms.Add(room);
+        db.RoomRates.Add(rate);
         await db.SaveChangesAsync();
 
         var customerService = new CustomerService(db);
