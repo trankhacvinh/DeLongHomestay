@@ -33,23 +33,23 @@
             </div>
             <span class="entity-count">{{ filteredBookings.length }} booking</span>
         </div>
-        <div class="table-wrap">
-            <table class="data-table">
+        <div class="table-wrap booking-table-wrap">
+            <table class="data-table responsive-booking-table">
                 <thead><tr><th>Mã</th><th>Khách hàng</th><th>Phòng</th><th>Thời gian</th><th>Trạng thái</th><th>Thanh toán</th><th>Còn lại</th><th></th></tr></thead>
                 <tbody>
                     <tr v-for="booking in filteredBookings" v-bind:key="booking.id">
-                        <td><span class="booking-code">{{ booking.code }}</span><div class="tiny muted">{{ booking.source || 'Không rõ nguồn' }}</div></td>
-                        <td>
+                        <td data-label="Booking"><span class="booking-code">{{ booking.code }}</span><div class="tiny muted">{{ booking.source || 'Không rõ nguồn' }}</div></td>
+                        <td data-label="Khách hàng">
                             <div class="entity-cell"><span class="entity-avatar">{{ (booking.customerName || '?').charAt(0) }}</span><div class="entity-copy"><strong>{{ booking.customerName }}</strong><span>{{ booking.customerPhone }}</span></div></div>
                         </td>
-                        <td><span class="room-badge">{{ booking.roomName }}</span></td>
-                        <td><strong>{{ dateTimeText(booking.checkInUtc) }}</strong><div class="tiny muted">đến {{ dateTimeText(booking.checkOutUtc) }}</div></td>
-                        <td><span class="pill" v-bind:class="statusClass(booking.status)">{{ statusText(booking.status) }}</span></td>
-                        <td><div class="money-stack"><strong>{{ money(booking.totalAmount) }}</strong><span>Đã thu {{ money(booking.paidAmount) }}</span></div></td>
-                        <td><strong v-bind:class="{ 'text-success': booking.balanceAmount <= 0, 'text-danger': booking.balanceAmount > 0 }">{{ money(booking.balanceAmount) }}</strong></td>
-                        <td><button class="btn btn-light btn-sm row-action" type="button" v-on:click="openBooking(booking)">Chi tiết</button></td>
+                        <td data-label="Phòng"><span class="room-badge">{{ booking.roomName }}</span></td>
+                        <td data-label="Thời gian"><strong>{{ dateTimeText(booking.checkInUtc) }}</strong><div class="tiny muted">đến {{ dateTimeText(booking.checkOutUtc) }}</div></td>
+                        <td data-label="Trạng thái"><span class="pill" v-bind:class="statusClass(booking.status)">{{ statusText(booking.status) }}</span></td>
+                        <td data-label="Thanh toán"><div class="money-stack"><strong>{{ money(booking.totalAmount) }}</strong><span>Đã thu {{ money(booking.paidAmount) }}</span></div></td>
+                        <td data-label="Còn lại"><strong v-bind:class="{ 'text-success': booking.balanceAmount <= 0, 'text-danger': booking.balanceAmount > 0 }">{{ money(booking.balanceAmount) }}</strong></td>
+                        <td data-label="Thao tác"><button class="btn btn-light btn-sm row-action" type="button" v-on:click="openBooking(booking)">Chi tiết</button></td>
                     </tr>
-                    <tr v-if="filteredBookings.length === 0"><td colspan="8" class="empty-state"><strong>Không tìm thấy booking</strong>Thử đổi từ khóa hoặc bộ lọc trạng thái.</td></tr>
+                    <tr v-if="filteredBookings.length === 0" class="booking-empty-row"><td colspan="8" class="empty-state"><strong>Không tìm thấy booking</strong>Thử đổi từ khóa hoặc bộ lọc trạng thái.</td></tr>
                 </tbody>
             </table>
         </div>
