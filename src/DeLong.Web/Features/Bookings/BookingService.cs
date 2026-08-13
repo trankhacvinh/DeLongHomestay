@@ -56,6 +56,12 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         var booking = await db.Bookings.Include(x => x.Customer).SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == bookingId, cancellationToken);
         if (booking is null) return (null, new("not_found", "Không tìm thấy booking."));
         if (booking.Status is BookingStatus.Completed or BookingStatus.Cancelled or BookingStatus.NoShow) return (null, new("booking_locked", "Booking đã kết thúc nên không thể sửa thông tin vận hành."));
+
+        // Calendar/editor V1 does not know about the nightly pricing snapshot. Do not allow an
+        // older client to silently convert a MultiDay booking back to TimeSlot and erase its rate metadata.
+        if (booking.Type == BookingType.MultiDay && request.Type != BookingType.MultiDay)
+            return (null, new("multiday_edit_requires_v2", "Lượt lưu trú nhiều ngày phải được sửa bằng trình chỉnh sửa nhiều ngày."));
+
         if (!await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id == request.RoomId && (x.IsActive || x.Id == booking.RoomId), cancellationToken)) return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
         if (request.RoomRateId.HasValue && !await db.RoomRates.AnyAsync(x => x.Id == request.RoomRateId && x.RoomId == request.RoomId, cancellationToken)) return (null, new("rate_not_found", "Giá phòng không hợp lệ."));
 
