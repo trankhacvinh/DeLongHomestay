@@ -11,323 +11,137 @@ namespace DeLong.Web.Features.Bookings;
 public sealed class BookingService(AppDbContext db, CustomerService customerService, AuditService auditService)
 {
     private const string BookingCodeUniqueConstraint = "i_x_bookings_property_id_code";
-    private static readonly BookingStatus[] LockingStatuses =
-    [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
+    private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
 
-    public async Task<IReadOnlyList<BookingDto>> GetAllAsync(
-        Guid propertyId,
-        DateTimeOffset? from = null,
-        DateTimeOffset? to = null,
-        CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<BookingDto>> GetAllAsync(Guid propertyId, DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken cancellationToken = default)
     {
         var query = db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId);
-        if (from.HasValue)
-        {
-            var fromUtc = from.Value.UtcDateTime;
-            query = query.Where(x => x.CheckOutUtc > fromUtc);
-        }
-        if (to.HasValue)
-        {
-            var toUtc = to.Value.UtcDateTime;
-            query = query.Where(x => x.CheckInUtc < toUtc);
-        }
-
+        if (from.HasValue) { var utc = from.Value.UtcDateTime; query = query.Where(x => x.CheckOutUtc > utc); }
+        if (to.HasValue) { var utc = to.Value.UtcDateTime; query = query.Where(x => x.CheckInUtc < utc); }
         return await Project(query.OrderBy(x => x.CheckInUtc)).ToListAsync(cancellationToken);
     }
 
-    public Task<BookingDto?> GetAsync(Guid propertyId, Guid bookingId, CancellationToken cancellationToken = default)
+    public Task<BookingDto?> GetAsync(Guid propertyId, Guid bookingId, CancellationToken cancellationToken = default) =>
+        Project(db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Id == bookingId)).SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<(BookingDto? Booking, BookingOperationError? Error)> CreateAsync(Guid propertyId, CreateBookingRequest request, Guid? actorUserId = null, CancellationToken cancellationToken = default)
     {
-        var query = db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Id == bookingId);
-        return Project(query).SingleOrDefaultAsync(cancellationToken);
-    }
+        var validation = ValidateCreate(request); if (validation is not null) return (null, validation);
+        if (!await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id == request.RoomId && x.IsActive, cancellationToken)) return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
+        if (request.RoomRateId.HasValue && !await db.RoomRates.AnyAsync(x => x.Id == request.RoomRateId && x.RoomId == request.RoomId, cancellationToken)) return (null, new("rate_not_found", "Giá phòng không hợp lệ."));
 
-    public async Task<(BookingDto? Booking, BookingOperationError? Error)> CreateAsync(
-        Guid propertyId,
-        CreateBookingRequest request,
-        Guid? actorUserId = null,
-        CancellationToken cancellationToken = default)
-    {
-        var validation = ValidateCreate(request);
-        if (validation is not null) return (null, validation);
-
-        var roomExists = await db.Rooms.AnyAsync(
-            x => x.PropertyId == propertyId && x.Id == request.RoomId && x.IsActive,
-            cancellationToken);
-        if (!roomExists)
-            return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
-
-        var checkInUtc = request.CheckIn.UtcDateTime;
-        var checkOutUtc = request.CheckOut.UtcDateTime;
-        if (BookingRules.LocksRoom(request.Status) &&
-            await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken))
-        {
-            return (null, ConflictError());
-        }
-
-        var customer = await customerService.FindOrCreateEntityAsync(
-            propertyId, request.CustomerId, request.CustomerName, request.CustomerPhone, cancellationToken);
-        if (customer is null)
-        {
-            return (null, new("customer_invalid", "Không tìm thấy khách hàng hoặc thông tin khách chưa hợp lệ."));
-        }
+        var checkInUtc = request.CheckIn.UtcDateTime; var checkOutUtc = request.CheckOut.UtcDateTime;
+        if (BookingRules.LocksRoom(request.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken)) return (null, ConflictError());
+        var customer = await customerService.FindOrCreateEntityAsync(propertyId, request.CustomerId, request.CustomerName, request.CustomerPhone, cancellationToken);
+        if (customer is null) return (null, new("customer_invalid", "Không tìm thấy khách hàng hoặc thông tin khách chưa hợp lệ."));
 
         var booking = new Booking
         {
-            PropertyId = propertyId,
-            RoomId = request.RoomId,
-            Customer = customer,
-            CheckInUtc = checkInUtc,
-            CheckOutUtc = checkOutUtc,
-            Status = request.Status,
-            RoomAmount = request.RoomAmount,
-            ExtraAmount = request.ExtraAmount,
-            DiscountAmount = request.DiscountAmount,
-            Source = Clean(request.Source),
-            Note = Clean(request.Note)
+            PropertyId = propertyId, RoomId = request.RoomId, Customer = customer,
+            Type = request.Type, RoomRateId = request.RoomRateId, RateName = Clean(request.RateName), UnitPrice = request.UnitPrice, NightCount = request.NightCount,
+            CheckInUtc = checkInUtc, CheckOutUtc = checkOutUtc, Status = request.Status,
+            RoomAmount = request.RoomAmount, ExtraAmount = request.ExtraAmount, DiscountAmount = request.DiscountAmount,
+            Source = Clean(request.Source), Note = Clean(request.Note)
         };
         booking.Code = CreateBookingCode(booking.CreatedAtUtc);
-
         db.Bookings.Add(booking);
         auditService.Add(propertyId, "Booking", booking.Id, "Created", actorUserId, after: Snapshot(booking));
-        var saveError = await SaveWithConflictGuardAsync(cancellationToken);
-        if (saveError is not null) return (null, saveError);
-
+        var saveError = await SaveWithConflictGuardAsync(cancellationToken); if (saveError is not null) return (null, saveError);
         return (await GetAsync(propertyId, booking.Id, cancellationToken), null);
     }
 
-    public async Task<(BookingDto? Booking, BookingOperationError? Error)> UpdateAsync(
-        Guid propertyId,
-        Guid bookingId,
-        UpdateBookingRequest request,
-        Guid? actorUserId = null,
-        CancellationToken cancellationToken = default)
+    public async Task<(BookingDto? Booking, BookingOperationError? Error)> UpdateAsync(Guid propertyId, Guid bookingId, UpdateBookingRequest request, Guid? actorUserId = null, CancellationToken cancellationToken = default)
     {
-        var validation = ValidateUpdate(request);
-        if (validation is not null) return (null, validation);
-
-        var booking = await db.Bookings
-            .Include(x => x.Customer)
-            .SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == bookingId, cancellationToken);
+        var validation = ValidateUpdate(request); if (validation is not null) return (null, validation);
+        var booking = await db.Bookings.Include(x => x.Customer).SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == bookingId, cancellationToken);
         if (booking is null) return (null, new("not_found", "Không tìm thấy booking."));
-        if (booking.Status is BookingStatus.Completed or BookingStatus.Cancelled or BookingStatus.NoShow)
-            return (null, new("booking_locked", "Booking đã kết thúc nên không thể sửa thông tin vận hành."));
+        if (booking.Status is BookingStatus.Completed or BookingStatus.Cancelled or BookingStatus.NoShow) return (null, new("booking_locked", "Booking đã kết thúc nên không thể sửa thông tin vận hành."));
+        if (!await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id == request.RoomId && (x.IsActive || x.Id == booking.RoomId), cancellationToken)) return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
+        if (request.RoomRateId.HasValue && !await db.RoomRates.AnyAsync(x => x.Id == request.RoomRateId && x.RoomId == request.RoomId, cancellationToken)) return (null, new("rate_not_found", "Giá phòng không hợp lệ."));
 
-        var roomExists = await db.Rooms.AnyAsync(
-            x => x.PropertyId == propertyId && x.Id == request.RoomId && (x.IsActive || x.Id == booking.RoomId),
-            cancellationToken);
-        if (!roomExists) return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
-
-        var customer = await db.Customers.SingleOrDefaultAsync(
-            x => x.PropertyId == propertyId && x.Id == request.CustomerId && x.IsActive,
-            cancellationToken);
+        var customer = await db.Customers.SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == request.CustomerId && x.IsActive, cancellationToken);
         if (customer is null) return (null, new("customer_invalid", "Không tìm thấy khách hàng."));
-
         var normalizedPhone = CustomerService.NormalizePhone(request.CustomerPhone);
-        if (await db.Customers.AnyAsync(
-                x => x.PropertyId == propertyId && x.NormalizedPhone == normalizedPhone && x.Id != customer.Id,
-                cancellationToken))
-        {
-            return (null, new("customer_invalid", "Số điện thoại đang thuộc một khách hàng khác."));
-        }
+        if (await db.Customers.AnyAsync(x => x.PropertyId == propertyId && x.NormalizedPhone == normalizedPhone && x.Id != customer.Id, cancellationToken)) return (null, new("customer_invalid", "Số điện thoại đang thuộc một khách hàng khác."));
 
-        var checkInUtc = request.CheckIn.UtcDateTime;
-        var checkOutUtc = request.CheckOut.UtcDateTime;
-        if (BookingRules.LocksRoom(booking.Status) &&
-            await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, booking.Id, cancellationToken))
-        {
-            return (null, ConflictError());
-        }
-
+        var checkInUtc = request.CheckIn.UtcDateTime; var checkOutUtc = request.CheckOut.UtcDateTime;
+        if (BookingRules.LocksRoom(booking.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, booking.Id, cancellationToken)) return (null, ConflictError());
         var before = Snapshot(booking);
-
-        customer.Name = request.CustomerName.Trim();
-        customer.Phone = request.CustomerPhone.Trim();
-        customer.NormalizedPhone = normalizedPhone;
-
-        booking.RoomId = request.RoomId;
-        booking.CustomerId = customer.Id;
-        booking.CheckInUtc = checkInUtc;
-        booking.CheckOutUtc = checkOutUtc;
-        booking.RoomAmount = request.RoomAmount;
-        booking.ExtraAmount = request.ExtraAmount;
-        booking.DiscountAmount = request.DiscountAmount;
-        booking.Source = Clean(request.Source);
-        booking.Note = Clean(request.Note);
-
+        customer.Name = request.CustomerName.Trim(); customer.Phone = request.CustomerPhone.Trim(); customer.NormalizedPhone = normalizedPhone;
+        booking.RoomId = request.RoomId; booking.CustomerId = customer.Id; booking.Type = request.Type; booking.RoomRateId = request.RoomRateId;
+        booking.RateName = Clean(request.RateName); booking.UnitPrice = request.UnitPrice; booking.NightCount = request.NightCount;
+        booking.CheckInUtc = checkInUtc; booking.CheckOutUtc = checkOutUtc; booking.RoomAmount = request.RoomAmount;
+        booking.ExtraAmount = request.ExtraAmount; booking.DiscountAmount = request.DiscountAmount; booking.Source = Clean(request.Source); booking.Note = Clean(request.Note);
         auditService.Add(propertyId, "Booking", booking.Id, "Updated", actorUserId, before, Snapshot(booking));
-        var saveError = await SaveWithConflictGuardAsync(cancellationToken);
-        if (saveError is not null) return (null, saveError);
-
+        var saveError = await SaveWithConflictGuardAsync(cancellationToken); if (saveError is not null) return (null, saveError);
         return (await GetAsync(propertyId, bookingId, cancellationToken), null);
     }
 
-    public async Task<(BookingDto? Booking, BookingOperationError? Error)> ChangeStatusAsync(
-        Guid propertyId,
-        Guid bookingId,
-        BookingStatus nextStatus,
-        Guid? actorUserId = null,
-        CancellationToken cancellationToken = default)
+    public async Task<(BookingDto? Booking, BookingOperationError? Error)> ChangeStatusAsync(Guid propertyId, Guid bookingId, BookingStatus nextStatus, Guid? actorUserId = null, CancellationToken cancellationToken = default)
     {
-        var booking = await db.Bookings.SingleOrDefaultAsync(
-            x => x.PropertyId == propertyId && x.Id == bookingId,
-            cancellationToken);
+        var booking = await db.Bookings.SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == bookingId, cancellationToken);
         if (booking is null) return (null, new("not_found", "Không tìm thấy booking."));
-
-        if (!BookingRules.CanTransition(booking.Status, nextStatus))
-        {
-            return (null, new("invalid_transition", $"Không thể chuyển trạng thái từ {booking.Status} sang {nextStatus}."));
-        }
-
-        if (BookingRules.LocksRoom(nextStatus) &&
-            await HasConflictAsync(propertyId, booking.RoomId, booking.CheckInUtc, booking.CheckOutUtc, booking.Id, cancellationToken))
-        {
-            return (null, ConflictError());
-        }
-
-        var before = Snapshot(booking);
-        booking.Status = nextStatus;
-
+        if (!BookingRules.CanTransition(booking.Status, nextStatus)) return (null, new("invalid_transition", $"Không thể chuyển trạng thái từ {booking.Status} sang {nextStatus}."));
+        if (BookingRules.LocksRoom(nextStatus) && await HasConflictAsync(propertyId, booking.RoomId, booking.CheckInUtc, booking.CheckOutUtc, booking.Id, cancellationToken)) return (null, ConflictError());
+        var before = Snapshot(booking); booking.Status = nextStatus;
         if (nextStatus == BookingStatus.Completed)
         {
-            var room = await db.Rooms.SingleAsync(
-                x => x.PropertyId == propertyId && x.Id == booking.RoomId,
-                cancellationToken);
-            room.HousekeepingStatus = HousekeepingStatus.Dirty;
-            room.HousekeepingUpdatedAtUtc = DateTime.UtcNow;
-            room.HousekeepingUpdatedByUserId = actorUserId;
+            var room = await db.Rooms.SingleAsync(x => x.PropertyId == propertyId && x.Id == booking.RoomId, cancellationToken);
+            room.HousekeepingStatus = HousekeepingStatus.Dirty; room.HousekeepingUpdatedAtUtc = DateTime.UtcNow; room.HousekeepingUpdatedByUserId = actorUserId;
         }
-
         auditService.Add(propertyId, "Booking", booking.Id, "StatusChanged", actorUserId, before, Snapshot(booking));
-        var saveError = await SaveWithConflictGuardAsync(cancellationToken);
-        if (saveError is not null) return (null, saveError);
-
+        var saveError = await SaveWithConflictGuardAsync(cancellationToken); if (saveError is not null) return (null, saveError);
         return (await GetAsync(propertyId, bookingId, cancellationToken), null);
     }
 
-    public Task<bool> HasConflictAsync(
-        Guid propertyId,
-        Guid roomId,
-        DateTime checkInUtc,
-        DateTime checkOutUtc,
-        Guid? excludeBookingId = null,
-        CancellationToken cancellationToken = default)
-    {
-        return db.Bookings.AnyAsync(x =>
-            x.PropertyId == propertyId &&
-            x.RoomId == roomId &&
-            LockingStatuses.Contains(x.Status) &&
-            (!excludeBookingId.HasValue || x.Id != excludeBookingId.Value) &&
-            x.CheckInUtc < checkOutUtc &&
-            checkInUtc < x.CheckOutUtc,
-            cancellationToken);
-    }
+    public Task<bool> HasConflictAsync(Guid propertyId, Guid roomId, DateTime checkInUtc, DateTime checkOutUtc, Guid? excludeBookingId = null, CancellationToken cancellationToken = default) =>
+        db.Bookings.AnyAsync(x => x.PropertyId == propertyId && x.RoomId == roomId && LockingStatuses.Contains(x.Status) && (!excludeBookingId.HasValue || x.Id != excludeBookingId.Value) && x.CheckInUtc < checkOutUtc && checkInUtc < x.CheckOutUtc, cancellationToken);
 
     private async Task<BookingOperationError?> SaveWithConflictGuardAsync(CancellationToken cancellationToken)
     {
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-            return null;
-        }
-        catch (DbUpdateException ex) when (
-            ex.InnerException is PostgresException postgresException &&
-            postgresException.SqlState == PostgresErrorCodes.ExclusionViolation)
-        {
-            return ConflictError();
-        }
-        catch (DbUpdateException ex) when (
-            ex.InnerException is PostgresException postgresException &&
-            postgresException.SqlState == PostgresErrorCodes.UniqueViolation &&
-            string.Equals(postgresException.ConstraintName, BookingCodeUniqueConstraint, StringComparison.OrdinalIgnoreCase))
-        {
-            return new("booking_code_conflict", "Không thể tạo mã booking duy nhất. Vui lòng thử gửi lại yêu cầu.");
-        }
+        try { await db.SaveChangesAsync(cancellationToken); return null; }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == PostgresErrorCodes.ExclusionViolation) { return ConflictError(); }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == PostgresErrorCodes.UniqueViolation && string.Equals(pg.ConstraintName, BookingCodeUniqueConstraint, StringComparison.OrdinalIgnoreCase)) { return new("booking_code_conflict", "Không thể tạo mã booking duy nhất. Vui lòng thử gửi lại yêu cầu."); }
     }
 
-    private static IQueryable<BookingDto> Project(IQueryable<Booking> query)
+    private static IQueryable<BookingDto> Project(IQueryable<Booking> query) => query.Select(x => new BookingDto(
+        x.Id, x.PropertyId, x.Code, x.Type, x.RoomId, x.Room.Code, x.Room.Name, x.CustomerId, x.Customer.Name, x.Customer.Phone,
+        x.RoomRateId, x.RateName, x.UnitPrice, x.NightCount, x.CheckInUtc, x.CheckOutUtc, x.Status,
+        x.RoomAmount, x.ExtraAmount, x.DiscountAmount, x.RoomAmount + x.ExtraAmount - x.DiscountAmount,
+        x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
+        x.RoomAmount + x.ExtraAmount - x.DiscountAmount - x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
+        x.Source, x.Note, x.CreatedAtUtc));
+
+    private static object Snapshot(Booking b) => new { b.Id, b.Code, Type = b.Type.ToString(), b.RoomId, b.CustomerId, b.RoomRateId, b.RateName, b.UnitPrice, b.NightCount, b.CheckInUtc, b.CheckOutUtc, Status = b.Status.ToString(), b.RoomAmount, b.ExtraAmount, b.DiscountAmount, b.Source, b.Note };
+
+    private static BookingOperationError? ValidateCreate(CreateBookingRequest r)
     {
-        return query.Select(x => new BookingDto(
-            x.Id,
-            x.PropertyId,
-            x.Code,
-            x.RoomId,
-            x.Room.Code,
-            x.Room.Name,
-            x.CustomerId,
-            x.Customer.Name,
-            x.Customer.Phone,
-            x.CheckInUtc,
-            x.CheckOutUtc,
-            x.Status,
-            x.RoomAmount,
-            x.ExtraAmount,
-            x.DiscountAmount,
-            x.RoomAmount + x.ExtraAmount - x.DiscountAmount,
-            x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
-            x.RoomAmount + x.ExtraAmount - x.DiscountAmount -
-                x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
-            x.Source,
-            x.Note,
-            x.CreatedAtUtc));
+        if (r.RoomId == Guid.Empty) return new("validation", "Vui lòng chọn phòng.");
+        if (r.CheckOut <= r.CheckIn) return new("validation", "Giờ trả phòng phải sau giờ nhận phòng.");
+        if (r.RoomAmount < 0 || r.ExtraAmount < 0 || r.DiscountAmount < 0 || r.RoomAmount + r.ExtraAmount - r.DiscountAmount < 0) return new("validation", "Các khoản tiền không hợp lệ.");
+        if (r.Status is not (BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed)) return new("validation", "Trạng thái tạo booking không hợp lệ.");
+        if (!r.CustomerId.HasValue && (string.IsNullOrWhiteSpace(r.CustomerName) || CustomerService.NormalizePhone(r.CustomerPhone).Length < 8)) return new("validation", "Tên và số điện thoại khách là bắt buộc khi tạo khách mới.");
+        return ValidatePricingSnapshot(r.Type, r.RoomRateId, r.RateName, r.UnitPrice, r.NightCount, r.RoomAmount);
     }
 
-    private static object Snapshot(Booking booking) => new
+    private static BookingOperationError? ValidateUpdate(UpdateBookingRequest r)
     {
-        booking.Id,
-        booking.Code,
-        booking.RoomId,
-        booking.CustomerId,
-        booking.CheckInUtc,
-        booking.CheckOutUtc,
-        Status = booking.Status.ToString(),
-        booking.RoomAmount,
-        booking.ExtraAmount,
-        booking.DiscountAmount,
-        booking.Source,
-        booking.Note
-    };
+        if (r.RoomId == Guid.Empty || r.CustomerId == Guid.Empty) return new("validation", "Phòng hoặc khách hàng không hợp lệ.");
+        if (string.IsNullOrWhiteSpace(r.CustomerName) || CustomerService.NormalizePhone(r.CustomerPhone).Length < 8) return new("validation", "Thông tin khách hàng không hợp lệ.");
+        if (r.CheckOut <= r.CheckIn) return new("validation", "Giờ trả phòng phải sau giờ nhận phòng.");
+        if (r.RoomAmount < 0 || r.ExtraAmount < 0 || r.DiscountAmount < 0 || r.RoomAmount + r.ExtraAmount - r.DiscountAmount < 0) return new("validation", "Các khoản tiền không hợp lệ.");
+        return ValidatePricingSnapshot(r.Type, r.RoomRateId, r.RateName, r.UnitPrice, r.NightCount, r.RoomAmount);
+    }
 
-    private static BookingOperationError? ValidateCreate(CreateBookingRequest request)
+    private static BookingOperationError? ValidatePricingSnapshot(BookingType type, Guid? rateId, string? rateName, decimal? unitPrice, int? nights, decimal roomAmount)
     {
-        if (request.RoomId == Guid.Empty) return new("validation", "Vui lòng chọn phòng.");
-        if (request.CheckOut <= request.CheckIn) return new("validation", "Giờ trả phòng phải sau giờ nhận phòng.");
-        if (request.RoomAmount < 0 || request.ExtraAmount < 0 || request.DiscountAmount < 0)
-            return new("validation", "Các khoản tiền không được âm.");
-        if (request.RoomAmount + request.ExtraAmount - request.DiscountAmount < 0)
-            return new("validation", "Tổng tiền booking không được âm.");
-        if (request.Status is not (BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed))
-            return new("validation", "Trạng thái tạo booking không hợp lệ.");
-        if (!request.CustomerId.HasValue &&
-            (string.IsNullOrWhiteSpace(request.CustomerName) || CustomerService.NormalizePhone(request.CustomerPhone).Length < 8))
-            return new("validation", "Tên và số điện thoại khách là bắt buộc khi tạo khách mới.");
+        if (type != BookingType.MultiDay) return null;
+        if (!rateId.HasValue || string.IsNullOrWhiteSpace(rateName) || !unitPrice.HasValue || unitPrice <= 0 || !nights.HasValue || nights <= 0) return new("validation", "Booking nhiều ngày phải có giá theo đêm và số đêm hợp lệ.");
+        if (roomAmount != unitPrice.Value * nights.Value) return new("validation", "Tổng tiền phòng nhiều ngày không khớp giá theo đêm × số đêm.");
         return null;
     }
 
-    private static BookingOperationError? ValidateUpdate(UpdateBookingRequest request)
-    {
-        if (request.RoomId == Guid.Empty) return new("validation", "Vui lòng chọn phòng.");
-        if (request.CustomerId == Guid.Empty) return new("validation", "Khách hàng không hợp lệ.");
-        if (string.IsNullOrWhiteSpace(request.CustomerName)) return new("validation", "Tên khách hàng là bắt buộc.");
-        if (CustomerService.NormalizePhone(request.CustomerPhone).Length < 8) return new("validation", "Số điện thoại không hợp lệ.");
-        if (request.CheckOut <= request.CheckIn) return new("validation", "Giờ trả phòng phải sau giờ nhận phòng.");
-        if (request.RoomAmount < 0 || request.ExtraAmount < 0 || request.DiscountAmount < 0)
-            return new("validation", "Các khoản tiền không được âm.");
-        if (request.RoomAmount + request.ExtraAmount - request.DiscountAmount < 0)
-            return new("validation", "Tổng tiền booking không được âm.");
-        return null;
-    }
-
-    private static string CreateBookingCode(DateTime createdAtUtc)
-    {
-        // UUIDv7 prefixes are timestamp-ordered, so using the first characters of Booking.Id
-        // causes deterministic collisions for bookings created in the same time window.
-        // A v4 token keeps the human-readable date prefix while providing 40 random bits.
-        var token = Guid.NewGuid().ToString("N")[..10].ToUpperInvariant();
-        return $"BK-{createdAtUtc:yyMMdd}-{token}";
-    }
-
-    private static BookingOperationError ConflictError() =>
-        new("booking_conflict", "Phòng đã có booking trong khoảng thời gian này.");
-
+    private static string CreateBookingCode(DateTime createdAtUtc) { var token = Guid.NewGuid().ToString("N")[..10].ToUpperInvariant(); return $"BK-{createdAtUtc:yyMMdd}-{token}"; }
+    private static BookingOperationError ConflictError() => new("booking_conflict", "Phòng đã có booking trong khoảng thời gian này.");
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

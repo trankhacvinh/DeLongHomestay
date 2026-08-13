@@ -11,9 +11,7 @@ namespace DeLong.Web.Data;
 public sealed class AppDbContext
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
-    {
-    }
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<Property> Properties => Set<Property>();
     public DbSet<Room> Rooms => Set<Room>();
@@ -42,25 +40,16 @@ public sealed class AppDbContext
             entity.HasIndex(x => new { x.PropertyId, x.Code }).IsUnique();
             entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
-            entity.Property(x => x.HousekeepingStatus)
-                .HasConversion<string>()
-                .HasMaxLength(20)
-                .HasDefaultValue(HousekeepingStatus.Clean)
-                .IsRequired();
-            entity.HasOne(x => x.Property)
-                .WithMany(x => x.Rooms)
-                .HasForeignKey(x => x.PropertyId)
-                .OnDelete(DeleteBehavior.Restrict);
+            entity.Property(x => x.HousekeepingStatus).HasConversion<string>().HasMaxLength(20).HasDefaultValue(HousekeepingStatus.Clean).IsRequired();
+            entity.HasOne(x => x.Property).WithMany(x => x.Rooms).HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<RoomRate>(entity =>
         {
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(20).HasDefaultValue(RoomRateType.TimeSlot).IsRequired();
             entity.Property(x => x.Price).HasPrecision(18, 2);
-            entity.HasOne(x => x.Room)
-                .WithMany(x => x.Rates)
-                .HasForeignKey(x => x.RoomId)
-                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Room).WithMany(x => x.Rates).HasForeignKey(x => x.RoomId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Customer>(entity =>
@@ -73,10 +62,7 @@ public sealed class AppDbContext
             entity.Property(x => x.Email).HasMaxLength(254);
             entity.Property(x => x.IdentityNumber).HasMaxLength(100);
             entity.Property(x => x.Note).HasMaxLength(2000);
-            entity.HasOne(x => x.Property)
-                .WithMany()
-                .HasForeignKey(x => x.PropertyId)
-                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Booking>(entity =>
@@ -85,24 +71,19 @@ public sealed class AppDbContext
             entity.HasIndex(x => new { x.PropertyId, x.Status });
             entity.HasIndex(x => new { x.RoomId, x.CheckInUtc, x.CheckOutUtc });
             entity.Property(x => x.Code).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(20).HasDefaultValue(BookingType.TimeSlot).IsRequired();
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(x => x.RateName).HasMaxLength(100);
+            entity.Property(x => x.UnitPrice).HasPrecision(18, 2);
             entity.Property(x => x.RoomAmount).HasPrecision(18, 2);
             entity.Property(x => x.ExtraAmount).HasPrecision(18, 2);
             entity.Property(x => x.DiscountAmount).HasPrecision(18, 2);
             entity.Property(x => x.Source).HasMaxLength(100);
             entity.Property(x => x.Note).HasMaxLength(2000);
-            entity.HasOne(x => x.Property)
-                .WithMany()
-                .HasForeignKey(x => x.PropertyId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.Room)
-                .WithMany()
-                .HasForeignKey(x => x.RoomId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.Customer)
-                .WithMany()
-                .HasForeignKey(x => x.CustomerId)
-                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Room).WithMany().HasForeignKey(x => x.RoomId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.RoomRate).WithMany().HasForeignKey(x => x.RoomRateId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Payment>(entity =>
@@ -115,14 +96,8 @@ public sealed class AppDbContext
             entity.Property(x => x.Reference).HasMaxLength(200);
             entity.Property(x => x.Note).HasMaxLength(2000);
             entity.Property(x => x.VoidReason).HasMaxLength(1000);
-            entity.HasOne(x => x.Property)
-                .WithMany()
-                .HasForeignKey(x => x.PropertyId)
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.Booking)
-                .WithMany(x => x.Payments)
-                .HasForeignKey(x => x.BookingId)
-                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Booking).WithMany(x => x.Payments).HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Expense>(entity =>
@@ -136,10 +111,7 @@ public sealed class AppDbContext
             entity.Property(x => x.Reference).HasMaxLength(200);
             entity.Property(x => x.Note).HasMaxLength(2000);
             entity.Property(x => x.VoidReason).HasMaxLength(1000);
-            entity.HasOne(x => x.Property)
-                .WithMany()
-                .HasForeignKey(x => x.PropertyId)
-                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<AuditLog>(entity =>
@@ -149,30 +121,17 @@ public sealed class AppDbContext
             entity.Property(x => x.Action).HasMaxLength(50).IsRequired();
             entity.Property(x => x.BeforeJson).HasColumnType("jsonb");
             entity.Property(x => x.AfterJson).HasColumnType("jsonb");
-            entity.HasOne(x => x.Property)
-                .WithMany()
-                .HasForeignKey(x => x.PropertyId)
-                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<UserPropertyAccess>(entity =>
         {
             entity.HasKey(x => new { x.UserId, x.PropertyId });
-            entity.HasOne(x => x.User)
-                .WithMany()
-                .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(x => x.Property)
-                .WithMany()
-                .HasForeignKey(x => x.PropertyId)
-                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<ApplicationUser>(entity =>
-        {
-            entity.Property(x => x.DisplayName).HasMaxLength(200);
-        });
-
+        modelBuilder.Entity<ApplicationUser>(entity => entity.Property(x => x.DisplayName).HasMaxLength(200));
         modelBuilder.ApplySnakeCaseNames();
     }
 
@@ -191,7 +150,6 @@ public sealed class AppDbContext
                 entry.Entity.UpdatedAtUtc = now;
             }
         }
-
         return base.SaveChangesAsync(cancellationToken);
     }
 }
