@@ -7,7 +7,10 @@
 <section class="public-room-detail-hero">
     <div class="public-container public-room-detail-grid">
         <div class="public-room-detail-art public-room-art" data-room-code="@Model.Room.Code">
-            <span class="public-room-number">0@Model.Room.Code[^1]</span>
+            <span class="public-room-poster public-room-poster-detail">
+                <small>DE LONG STAY · @Model.Room.Code</small>
+                <strong>@Model.Room.Name</strong>
+            </span>
             <div class="public-room-art-tags">
                 <span>@Model.Room.Capacity người</span>
                 @if (Model.Room.HasBathtub) { <span>Bồn tắm</span> }
@@ -27,7 +30,7 @@
     </div>
 </section>
 
-<section class="public-section">
+<section class="public-section public-room-detail-rates">
     <div class="public-container public-detail-content-grid">
         <div>
             <span class="public-eyebrow">Khung giờ</span>
