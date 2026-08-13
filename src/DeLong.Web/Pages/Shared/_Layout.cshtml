@@ -24,9 +24,11 @@
     <title>@ViewData["Title"] - De Long Homestay</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/operational-polish.css" asp-append-version="true" />
     @await RenderSectionAsync("Head", required: false)
 </head>
 <body class="@(isAdmin ? "admin-body" : "public-body")">
+<a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
 <svg class="svg-sprite" aria-hidden="true">
     <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></symbol>
@@ -53,7 +55,7 @@
                     <span class="brand-mark">DL</span>
                     <span class="brand-copy"><strong>De Long</strong><small>Homestay</small></span>
                 </a>
-                <button class="sidebar-close btn-icon" type="button" data-sidebar-toggle aria-label="Đóng menu">×</button>
+                <button class="sidebar-close btn-icon" type="button" data-sidebar-toggle aria-label="Đóng menu" aria-expanded="false">×</button>
             </div>
 
             <nav class="sidebar-nav">
@@ -89,7 +91,7 @@
 
         <main class="admin-main">
             <header class="admin-topbar">
-                <button class="mobile-menu btn-icon" type="button" data-sidebar-toggle aria-label="Mở menu"><svg><use href="#i-menu" /></svg></button>
+                <button class="mobile-menu btn-icon" type="button" data-sidebar-toggle aria-label="Mở menu" aria-expanded="false"><svg><use href="#i-menu" /></svg></button>
                 <div class="topbar-context">
                     <span class="topbar-property">De Long Homestay</span>
                     <span class="topbar-page">@ViewData["Title"]</span>
@@ -103,7 +105,7 @@
                     <button class="btn-icon logout-btn" type="submit" title="Đăng xuất" aria-label="Đăng xuất"><svg><use href="#i-logout" /></svg></button>
                 </form>
             </header>
-            <div class="admin-content">@RenderBody()</div>
+            <div class="admin-content" id="main-content" tabindex="-1">@RenderBody()</div>
         </main>
     </div>
 }
@@ -123,7 +125,7 @@ else
             }
         </div>
     </header>
-    <main class="container public-main">@RenderBody()</main>
+    <main class="container public-main" id="main-content" tabindex="-1">@RenderBody()</main>
 }
 <div id="global-toast-root" class="toast-root" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/vue@3.5.40/dist/vue.global.prod.js"></script>

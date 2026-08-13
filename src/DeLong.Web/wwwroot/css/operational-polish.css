@@ -1,0 +1,198 @@
+/* Operational UI polish — De Long Homestay
+   Applies ui-ux-pro-max accessibility/density guidance while keeping the
+   boutique hospitality palette from the production redesign. */
+
+/* Accessibility / interaction */
+.skip-link {
+    position:fixed;
+    top:10px;
+    left:10px;
+    z-index:200;
+    padding:9px 13px;
+    border-radius:10px;
+    background:#fff;
+    color:var(--brand-900);
+    box-shadow:var(--shadow-md);
+    transform:translateY(-160%);
+    transition:transform .16s ease;
+}
+.skip-link:focus { transform:none; }
+.btn:hover,.quick-action:hover,.booking-chip:hover { transform:none; }
+.quick-action:hover { box-shadow:0 7px 20px rgba(20,37,35,.05); }
+
+/* Dashboard density */
+.dashboard-grid { align-items:start; }
+.dashboard-list .empty-state {
+    min-height:112px;
+    padding:26px 18px!important;
+    display:grid;
+    place-content:center;
+}
+.dashboard-list .empty-state strong { font-size:13px; }
+.finance-strip { position:relative; overflow:hidden; }
+.finance-strip::before {
+    content:"";
+    position:absolute;
+    inset:0 auto 0 0;
+    width:3px;
+    background:var(--brand-600);
+}
+.quick-action { min-height:74px; }
+
+/* Calendar: compact desktop occupancy board */
+.booking-calendar { min-width:1040px; }
+.booking-calendar thead th { height:56px; padding:8px 9px; }
+.booking-calendar thead th:first-child,
+.booking-calendar tbody th { width:205px; }
+.booking-calendar thead th:not(:first-child) { width:calc((100% - 205px)/7); }
+.booking-calendar tbody th { padding:10px 12px; vertical-align:middle; }
+.day-cell { height:106px; padding:6px; }
+.room-row-title strong { font-size:12.5px; }
+.room-meta { margin-top:3px; }
+.room-state { margin-top:6px; }
+.empty-cell-action { inset:6px; }
+.booking-chip { margin-bottom:4px; padding:7px 7px 6px 9px; gap:2px; }
+.booking-chip strong,.booking-chip .booking-time { font-size:9.5px; }
+.booking-chip .booking-meta { font-size:8.5px; }
+.calendar-wrap { scrollbar-gutter:stable; }
+
+/* Housekeeping */
+.housekeeping-summary {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:7px 10px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:#fff;
+    color:var(--muted);
+    font-size:11px;
+    font-weight:700;
+}
+.housekeeping-summary strong { color:var(--text); }
+.housekeeping-column .panel-head { min-height:56px; }
+.housekeeping-heading { display:flex; align-items:center; gap:9px; }
+.housekeeping-heading-copy { display:grid; gap:2px; }
+.housekeeping-heading-copy h2 { font-size:14px; }
+.housekeeping-heading-copy span { color:var(--muted); font-size:10px; }
+.housekeeping-status-dot {
+    width:10px;
+    height:10px;
+    flex:0 0 10px;
+    border-radius:50%;
+    background:var(--success);
+    box-shadow:0 0 0 4px rgba(36,116,90,.09);
+}
+.housekeeping-status-dot.dirty { background:#c88b36; box-shadow:0 0 0 4px rgba(200,139,54,.10); }
+.housekeeping-status-dot.cleaning { background:#66869a; box-shadow:0 0 0 4px rgba(102,134,154,.10); }
+.housekeeping-list { gap:10px; }
+.housekeeping-card {
+    min-height:112px;
+    padding:13px;
+    align-items:stretch;
+    flex-direction:column;
+    justify-content:space-between;
+    transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;
+}
+.housekeeping-card:hover { border-color:var(--line-strong); box-shadow:0 7px 20px rgba(20,37,35,.045); }
+.housekeeping-room { display:flex; align-items:center; gap:10px; min-width:0; }
+.housekeeping-room-icon {
+    width:34px;
+    height:34px;
+    flex:0 0 34px;
+    border-radius:10px;
+    display:grid;
+    place-items:center;
+    background:var(--brand-50);
+    color:var(--brand-700);
+}
+.housekeeping-room-icon svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.housekeeping-room-copy { min-width:0; display:grid; gap:3px; }
+.housekeeping-room-copy strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.housekeeping-room-copy span { color:var(--muted); font-size:10px; }
+.housekeeping-actions { display:flex; gap:7px; flex-wrap:wrap; }
+.housekeeping-column .empty-state { min-height:120px; padding:28px 16px!important; }
+
+/* Rooms management */
+.management-toolbar { min-height:66px; padding:12px 15px; display:flex; align-items:center; justify-content:space-between; gap:14px; border-bottom:1px solid var(--line); }
+.management-toolbar-main { min-width:0; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.room-cell { display:flex; align-items:center; gap:10px; min-width:180px; }
+.room-cell-icon {
+    width:34px;
+    height:34px;
+    flex:0 0 34px;
+    border-radius:10px;
+    display:grid;
+    place-items:center;
+    background:var(--brand-50);
+    color:var(--brand-700);
+}
+.room-cell-icon svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.room-cell-copy { min-width:0; display:grid; gap:2px; }
+.room-cell-copy strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.room-cell-copy span { color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.04em; }
+.room-order { color:var(--muted); font-weight:750; font-variant-numeric:tabular-nums; }
+.archive-copy { margin:18px 20px 0; color:var(--text-soft); line-height:1.55; }
+
+/* Rate/settings management */
+.settings-room-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; }
+.settings-room .panel-head { min-height:64px; }
+.settings-room-title { display:flex; align-items:center; gap:10px; }
+.settings-room-title .room-cell-icon { width:32px; height:32px; flex-basis:32px; }
+.rate-settings-list { display:grid; gap:9px; }
+.rate-settings-row {
+    min-height:70px;
+    padding:12px 13px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:var(--surface-soft);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    transition:border-color .16s ease,background .16s ease,box-shadow .16s ease;
+}
+.rate-settings-row:hover { border-color:var(--line-strong); background:#fff; box-shadow:0 5px 16px rgba(20,37,35,.04); }
+.rate-settings-row.rate-inactive { opacity:.6; }
+.rate-settings-main { min-width:0; display:grid; gap:5px; }
+.rate-settings-name { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.rate-settings-meta { color:var(--muted); font-size:10px; }
+.rate-settings-actions { display:flex; align-items:center; justify-content:flex-end; gap:7px; flex-wrap:wrap; }
+.rate-settings-actions>strong { min-width:88px; color:var(--brand-800); text-align:right; font-size:13px; }
+.notice {
+    margin-left:20px;
+    margin-right:20px;
+    padding:11px 13px;
+    border:1px solid #d8e8e3;
+    border-radius:11px;
+    background:var(--brand-50);
+    color:var(--text-soft);
+    font-size:11px;
+    line-height:1.55;
+}
+
+@media (max-width:1280px) {
+    .settings-room-grid { grid-template-columns:1fr; }
+}
+
+@media (max-width:1180px) {
+    .booking-calendar { min-width:1020px; }
+    .booking-calendar thead th:first-child,
+    .booking-calendar tbody th { width:190px; }
+    .booking-calendar thead th:not(:first-child) { width:118px; }
+}
+
+@media (max-width:980px) {
+    .booking-calendar { min-width:1040px; }
+    .housekeeping-card { min-height:0; }
+}
+
+@media (max-width:680px) {
+    .management-toolbar { align-items:stretch; flex-direction:column; }
+    .management-toolbar-main { width:100%; }
+    .settings-room-grid { grid-template-columns:1fr; }
+    .rate-settings-row { align-items:flex-start; flex-direction:column; }
+    .rate-settings-actions { width:100%; justify-content:flex-start; }
+    .rate-settings-actions>strong { min-width:0; margin-right:auto; text-align:left; }
+    .housekeeping-summary { align-self:flex-start; }
+}
