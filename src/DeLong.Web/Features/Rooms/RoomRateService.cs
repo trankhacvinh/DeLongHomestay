@@ -11,7 +11,11 @@ public sealed class RoomRateService(AppDbContext db)
     {
         var validation = Validate(request.Name, request.StartTime, request.EndTime, request.Type, request.Price);
         if (validation.Error is not null) return (null, validation.Error);
-        if (!await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id == roomId && x.IsActive, cancellationToken)) return (null, new("room_not_found", "Không tìm thấy phòng hoặc phòng đã ngừng hoạt động."));
+        if (!await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id == roomId && x.IsActive, cancellationToken))
+            return (null, new("room_not_found", "Không tìm thấy phòng hoặc phòng đã ngừng hoạt động."));
+
+        if (request.Type == RoomRateType.Nightly && await HasOtherActiveNightlyRateAsync(roomId, null, cancellationToken))
+            return (null, new("nightly_exists", "Phòng đã có một giá lưu trú theo đêm đang hoạt động. Vui lòng sửa giá hiện có."));
 
         var rate = new RoomRate
         {
@@ -34,26 +38,51 @@ public sealed class RoomRateService(AppDbContext db)
     {
         var validation = Validate(request.Name, request.StartTime, request.EndTime, request.Type, request.Price);
         if (validation.Error is not null) return (null, validation.Error);
-        var rate = await db.RoomRates.Include(x => x.Room).SingleOrDefaultAsync(x => x.Id == rateId && x.RoomId == roomId && x.Room.PropertyId == propertyId, cancellationToken);
+        var rate = await db.RoomRates.Include(x => x.Room).SingleOrDefaultAsync(
+            x => x.Id == rateId && x.RoomId == roomId && x.Room.PropertyId == propertyId,
+            cancellationToken);
         if (rate is null) return (null, new("not_found", "Không tìm thấy khung giá."));
 
-        rate.Name = request.Name.Trim(); rate.StartTime = validation.Start!.Value; rate.EndTime = validation.End!.Value;
-        rate.Type = request.Type; rate.IsOvernight = request.Type == RoomRateType.Overnight; rate.Price = request.Price;
-        rate.SortOrder = request.SortOrder; rate.IsActive = request.IsActive;
+        if (request.Type == RoomRateType.Nightly && request.IsActive && await HasOtherActiveNightlyRateAsync(roomId, rateId, cancellationToken))
+            return (null, new("nightly_exists", "Phòng đã có một giá lưu trú theo đêm đang hoạt động. Vui lòng ngừng giá kia trước."));
+
+        rate.Name = request.Name.Trim();
+        rate.StartTime = validation.Start!.Value;
+        rate.EndTime = validation.End!.Value;
+        rate.Type = request.Type;
+        rate.IsOvernight = request.Type == RoomRateType.Overnight;
+        rate.Price = request.Price;
+        rate.SortOrder = request.SortOrder;
+        rate.IsActive = request.IsActive;
         await db.SaveChangesAsync(cancellationToken);
         return (ToDto(rate), null);
     }
 
     public async Task<bool> ArchiveAsync(Guid propertyId, Guid roomId, Guid rateId, CancellationToken cancellationToken = default)
     {
-        var rate = await db.RoomRates.Include(x => x.Room).SingleOrDefaultAsync(x => x.Id == rateId && x.RoomId == roomId && x.Room.PropertyId == propertyId, cancellationToken);
+        var rate = await db.RoomRates.Include(x => x.Room).SingleOrDefaultAsync(
+            x => x.Id == rateId && x.RoomId == roomId && x.Room.PropertyId == propertyId,
+            cancellationToken);
         if (rate is null) return false;
         rate.IsActive = false;
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }
 
-    private static (TimeOnly? Start, TimeOnly? End, RoomRateOperationError? Error) Validate(string name, string startTime, string endTime, RoomRateType type, decimal price)
+    private Task<bool> HasOtherActiveNightlyRateAsync(Guid roomId, Guid? excludeRateId, CancellationToken cancellationToken) =>
+        db.RoomRates.AnyAsync(x =>
+            x.RoomId == roomId &&
+            x.IsActive &&
+            x.Type == RoomRateType.Nightly &&
+            (!excludeRateId.HasValue || x.Id != excludeRateId.Value),
+            cancellationToken);
+
+    private static (TimeOnly? Start, TimeOnly? End, RoomRateOperationError? Error) Validate(
+        string name,
+        string startTime,
+        string endTime,
+        RoomRateType type,
+        decimal price)
     {
         if (string.IsNullOrWhiteSpace(name)) return (null, null, new("validation", "Tên khung giá là bắt buộc."));
         if (name.Trim().Length > 100) return (null, null, new("validation", "Tên khung giá tối đa 100 ký tự."));
@@ -65,5 +94,14 @@ public sealed class RoomRateService(AppDbContext db)
         return (start, end, null);
     }
 
-    private static RoomRateDto ToDto(RoomRate rate) => new(rate.Id, rate.Name, rate.StartTime.ToString("HH:mm"), rate.EndTime.ToString("HH:mm"), rate.Type, rate.IsOvernight, rate.Price, rate.IsActive, rate.SortOrder);
+    private static RoomRateDto ToDto(RoomRate rate) => new(
+        rate.Id,
+        rate.Name,
+        rate.StartTime.ToString("HH:mm"),
+        rate.EndTime.ToString("HH:mm"),
+        rate.Type,
+        rate.IsOvernight,
+        rate.Price,
+        rate.IsActive,
+        rate.SortOrder);
 }
