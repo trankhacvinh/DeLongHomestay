@@ -80,10 +80,43 @@ public static class DbSeeder
             IsActive = true
         };
 
-        room.Rates.Add(Rate("Khung 1", 1, new TimeOnly(10, 30), new TimeOnly(13, 30), dayPrice));
-        room.Rates.Add(Rate("Khung 2", 2, new TimeOnly(14, 0), new TimeOnly(17, 0), dayPrice));
-        room.Rates.Add(Rate("Khung 3", 3, new TimeOnly(17, 30), new TimeOnly(20, 30), dayPrice));
-        room.Rates.Add(Rate("Qua đêm", 4, new TimeOnly(21, 0), new TimeOnly(9, 30), overnightPrice, true));
+        var schedule = code switch
+        {
+            "COCO-01" => new (TimeOnly Start, TimeOnly End)[]
+            {
+                (new TimeOnly(10, 30), new TimeOnly(13, 30)),
+                (new TimeOnly(14, 0), new TimeOnly(17, 0)),
+                (new TimeOnly(17, 30), new TimeOnly(20, 30)),
+                (new TimeOnly(21, 0), new TimeOnly(9, 30))
+            },
+            "ABAUS-02" or "HONGKONG-03" => new (TimeOnly Start, TimeOnly End)[]
+            {
+                (new TimeOnly(11, 0), new TimeOnly(14, 0)),
+                (new TimeOnly(14, 30), new TimeOnly(17, 30)),
+                (new TimeOnly(18, 0), new TimeOnly(21, 0)),
+                (new TimeOnly(21, 30), new TimeOnly(10, 0))
+            },
+            "MOON-04" => new (TimeOnly Start, TimeOnly End)[]
+            {
+                (new TimeOnly(11, 30), new TimeOnly(14, 30)),
+                (new TimeOnly(15, 0), new TimeOnly(18, 0)),
+                (new TimeOnly(18, 30), new TimeOnly(21, 30)),
+                (new TimeOnly(22, 0), new TimeOnly(10, 30))
+            },
+            "AMBER-05" or "ROMAN-06" => new (TimeOnly Start, TimeOnly End)[]
+            {
+                (new TimeOnly(12, 0), new TimeOnly(15, 0)),
+                (new TimeOnly(15, 30), new TimeOnly(18, 30)),
+                (new TimeOnly(19, 0), new TimeOnly(22, 0)),
+                (new TimeOnly(22, 30), new TimeOnly(11, 0))
+            },
+            _ => throw new InvalidOperationException($"Unknown seeded room code: {code}")
+        };
+
+        room.Rates.Add(Rate("Khung 1", 1, schedule[0].Start, schedule[0].End, dayPrice));
+        room.Rates.Add(Rate("Khung 2", 2, schedule[1].Start, schedule[1].End, dayPrice));
+        room.Rates.Add(Rate("Khung 3", 3, schedule[2].Start, schedule[2].End, dayPrice));
+        room.Rates.Add(Rate("Qua đêm", 4, schedule[3].Start, schedule[3].End, overnightPrice, true));
         return room;
     }
 
