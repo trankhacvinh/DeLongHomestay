@@ -1,0 +1,85 @@
+@page "/booking"
+@model DeLong.Web.Pages.Booking.IndexModel
+@{
+    ViewData["Title"] = "Đặt phòng";
+}
+
+<div id="public-booking-page" class="public-booking-page" v-cloak>
+    <script id="public-booking-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+
+    <section class="public-page-hero public-booking-hero">
+        <div class="public-container public-page-hero-inner">
+            <div>
+                <span class="public-eyebrow">Đặt phòng online</span>
+                <h1>Chọn ngày, phòng và khung giờ</h1>
+                <p>Website chỉ nhận yêu cầu. De Long sẽ liên hệ xác nhận trước khi giữ phòng và nhận cọc.</p>
+            </div>
+            <a class="public-text-link" asp-page="/Rooms/Index">Xem mô tả phòng →</a>
+        </div>
+    </section>
+
+    <section class="public-section public-booking-section">
+        <div class="public-container public-booking-grid">
+            <div class="public-booking-main">
+                <div class="public-step-card">
+                    <div class="public-step-head"><span>01</span><div><h2>Chọn ngày</h2><p>Phòng trống được kiểm tra theo từng khung giờ.</p></div></div>
+                    <label class="public-date-field public-date-field-block">
+                        <span>Ngày sử dụng</span>
+                        <input type="date" v-model="date" v-on:change="loadAvailability" required />
+                    </label>
+                </div>
+
+                <div class="public-step-card">
+                    <div class="public-step-head"><span>02</span><div><h2>Chọn phòng</h2><p>Nhấn một phòng để xem các khung còn trống.</p></div></div>
+                    <div class="public-booking-room-list">
+                        <button v-for="room in rooms" v-bind:key="room.id" type="button" class="public-booking-room" v-bind:class="{ active: selectedRoomId === room.id }" v-on:click="chooseRoom(room)">
+                            <span class="public-mini-room-art" v-bind:data-room-code="room.code">{{ room.code.slice(-1) }}</span>
+                            <span class="public-booking-room-copy"><strong>{{ room.name }}</strong><small>{{ room.capacity }} người · từ {{ money(room.fromPrice) }}</small></span>
+                            <span class="public-booking-room-state" v-if="availableCount(room) > 0">{{ availableCount(room) }} khung trống</span>
+                            <span class="public-booking-room-state sold" v-else>Hết khung</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="public-step-card" v-if="selectedRoom">
+                    <div class="public-step-head"><span>03</span><div><h2>Chọn khung giờ</h2><p>Giá hiển thị là giá của khung đặt nhanh.</p></div></div>
+                    <div class="public-rate-choice-grid">
+                        <button v-for="rate in selectedRoom.rates" v-bind:key="rate.id" type="button" class="public-rate-choice" v-bind:class="{ active: selectedRateId === rate.id, disabled: !rate.available }" v-bind:disabled="!rate.available" v-on:click="selectedRateId = rate.id">
+                            <span><strong>{{ rate.name }}</strong><small>{{ rate.startTime }} → {{ rate.endTime }} <template v-if="rate.isOvernight">· qua đêm</template></small></span>
+                            <strong>{{ money(rate.price) }}</strong>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="public-step-card" v-if="selectedRate">
+                    <div class="public-step-head"><span>04</span><div><h2>Thông tin liên hệ</h2><p>Nhân viên sẽ gọi lại để xác nhận phòng và tiền cọc.</p></div></div>
+                    <div class="public-form-grid">
+                        <label><span>Tên khách *</span><input v-model.trim="form.customerName" maxlength="200" autocomplete="name" placeholder="Nguyễn Minh Anh" /></label>
+                        <label><span>Số điện thoại *</span><input v-model.trim="form.customerPhone" maxlength="30" inputmode="tel" autocomplete="tel" placeholder="09xx xxx xxx" /></label>
+                        <label class="public-form-full"><span>Ghi chú</span><textarea v-model.trim="form.note" maxlength="1000" placeholder="Ví dụ: muốn nhận phòng trễ hơn 30 phút..."></textarea></label>
+                        <label class="public-honeypot" aria-hidden="true"><span>Website</span><input v-model="form.website" tabindex="-1" autocomplete="off" /></label>
+                    </div>
+                    <div class="public-booking-notice">Yêu cầu này <strong>chưa tự động giữ phòng</strong>. De Long sẽ liên hệ xác nhận trước khi booking chuyển sang trạng thái giữ/xác nhận.</div>
+                    <button class="public-btn public-btn-primary public-submit-booking" type="button" v-bind:disabled="submitting || !canSubmit" v-on:click="submitRequest">{{ submitting ? 'Đang gửi...' : 'Gửi yêu cầu đặt phòng' }}</button>
+                    <p class="public-form-error" v-if="errorMessage">{{ errorMessage }}</p>
+                </div>
+            </div>
+
+            <aside class="public-booking-summary" v-if="selectedRoom && selectedRate">
+                <span class="public-eyebrow">Yêu cầu của bạn</span>
+                <h3>{{ selectedRoom.name }}</h3>
+                <dl>
+                    <div><dt>Ngày</dt><dd>{{ dateText }}</dd></div>
+                    <div><dt>Khung giờ</dt><dd>{{ selectedRate.startTime }} → {{ selectedRate.endTime }}</dd></div>
+                    <div><dt>Gói</dt><dd>{{ selectedRate.name }}</dd></div>
+                    <div class="total"><dt>Tạm tính</dt><dd>{{ money(selectedRate.price) }}</dd></div>
+                </dl>
+                <p>Giờ thực tế có thể được nhân viên điều chỉnh khi xác nhận theo ghi chú của bạn.</p>
+            </aside>
+        </div>
+    </section>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/public-booking.js" asp-append-version="true"></script>
+}
