@@ -20,7 +20,7 @@
             </div>
         </div>
         <div class="public-hero-art" aria-label="De Long Homestay">
-            <div class="hero-art-card hero-art-main"><span>DE LONG</span><strong>STAY SLOW</strong></div>
+            <div class="hero-art-card hero-art-main"><span>DE LONG</span><strong>STAY SLOW</strong><small>Private rooms · flexible stay</small></div>
             <div class="hero-art-card hero-art-float"><small>6 phòng</small><strong>Từ 210.000đ</strong></div>
         </div>
     </div>
@@ -42,7 +42,7 @@
     </div>
 </section>
 
-<section class="public-section">
+<section class="public-section public-home-rooms">
     <div class="public-container">
         <div class="public-section-head">
             <div>
@@ -57,7 +57,10 @@
             {
                 <article class="public-room-card">
                     <a class="public-room-art" asp-page="/Rooms/Details" asp-route-code="@room.Code" data-room-code="@room.Code" aria-label="Xem @room.Name">
-                        <span class="public-room-number">0@room.Code[^1]</span>
+                        <span class="public-room-poster">
+                            <small>DE LONG STAY · @room.Code</small>
+                            <strong>@room.Name</strong>
+                        </span>
                         @if (room.HasBathtub)
                         {
                             <span class="public-room-feature">Bồn tắm</span>
