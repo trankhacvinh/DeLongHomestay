@@ -55,9 +55,9 @@
     <section class="panel report-trend-panel">
         <div class="panel-head report-panel-head">
             <div><h2>Dòng tiền 6 tháng</h2><span>So sánh tiền thực thu và chi phí theo thời gian</span></div>
-            <div class="chart-legend"><span><i class="legend-dot receipts"></i> Thực thu</span><span><i class="legend-dot expenses"></i> Chi phí</span></div>
+            <div class="chart-legend" v-if="hasTrendData"><span><i class="legend-dot receipts"></i> Thực thu</span><span><i class="legend-dot expenses"></i> Chi phí</span></div>
         </div>
-        <div class="panel-body">
+        <div class="panel-body" v-if="hasTrendData">
             <div class="trend-chart" role="img" aria-label="Biểu đồ tiền thực thu và chi phí sáu tháng gần nhất">
                 <div class="trend-column" v-for="item in report.trend" v-bind:key="item.month">
                     <div class="trend-value-row"><span>{{ compactMoney(item.netReceipts) }}</span><span>{{ compactMoney(item.expenses) }}</span></div>
@@ -69,6 +69,10 @@
                     <small v-bind:class="item.netCashFlow >= 0 ? 'text-success' : 'text-danger'">{{ compactMoney(item.netCashFlow) }}</small>
                 </div>
             </div>
+        </div>
+        <div v-else class="report-trend-empty">
+            <span class="report-trend-empty-icon"><svg><use href="#i-chart" /></svg></span>
+            <div><strong>Chưa có dữ liệu dòng tiền</strong><span>Khi có giao dịch thu hoặc chi, xu hướng 6 tháng sẽ xuất hiện tại đây.</span></div>
         </div>
     </section>
 
