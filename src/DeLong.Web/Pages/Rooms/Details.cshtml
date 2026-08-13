@@ -4,6 +4,10 @@
     ViewData["Title"] = Model.Room.Name;
 }
 
+@section Head {
+    <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
+}
+
 <section class="public-room-detail-hero">
     <div class="public-container public-room-detail-grid">
         <div class="public-room-detail-art public-room-art" data-room-code="@Model.Room.Code">
