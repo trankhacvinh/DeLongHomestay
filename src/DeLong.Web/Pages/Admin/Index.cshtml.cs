@@ -75,7 +75,7 @@ public sealed class IndexModel(
         var requests = await requestInboxService.GetRecentAsync(PropertyId, 5, cancellationToken);
         RequestedCount = await requestInboxService.CountAsync(PropertyId, cancellationToken);
 
-        var activeBookings = bookings.Where(x => x.Status is not BookingStatus.Cancelled and not BookingStatus.NoShow).ToList();
+        var activeBookings = bookings.Where(x => x.Status is not BookingStatus.Requested and not BookingStatus.Cancelled and not BookingStatus.NoShow).ToList();
         var arrivals = activeBookings.Where(x => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(x.CheckInUtc, timeZone)) == today).OrderBy(x => x.CheckInUtc).ToList();
         var departures = activeBookings.Where(x => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(x.CheckOutUtc, timeZone)) == today).OrderBy(x => x.CheckOutUtc).ToList();
 
