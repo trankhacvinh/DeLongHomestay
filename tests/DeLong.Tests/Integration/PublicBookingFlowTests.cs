@@ -89,6 +89,23 @@ public sealed class PublicBookingFlowTests
         Assert.Equal(123_000m, booking.RoomAmount);
         Assert.Equal("Website", booking.Source);
 
+        // Requested does not lock the room, so another guest may submit a request for the
+        // same slot. The two rows must still receive distinct human-facing booking codes.
+        var (secondResult, secondError) = await publicService.CreateRequestAsync(new PublicBookingRequest
+        {
+            RoomId = room.Id,
+            RateId = rate.Id,
+            StayDate = stayDate.ToString("yyyy-MM-dd"),
+            CustomerName = "Second Public Guest",
+            CustomerPhone = "0907654321",
+            Note = "Second integration request"
+        });
+
+        Assert.Null(secondError);
+        Assert.NotNull(secondResult);
+        Assert.NotEqual(result.Code, secondResult!.Code);
+        Assert.Equal(2, await db.Bookings.CountAsync());
+
         booking.Status = BookingStatus.Held;
         await db.SaveChangesAsync();
 
