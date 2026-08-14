@@ -110,6 +110,11 @@ public sealed class StaffAccountFlowTests
         Assert.True(await userManager.IsInRoleAsync(staffUser!, StaffRoles.Staff));
         Assert.True(await db.UserPropertyAccesses.AnyAsync(x => x.UserId == staffUser!.Id && x.PropertyId == property.Id));
 
+        // Simulate historical/bad data with more than one operational role. Updating the
+        // account must normalize it back to exactly the role selected by the Admin.
+        var extraRole = await userManager.AddToRoleAsync(staffUser!, StaffRoles.Viewer);
+        Assert.True(extraRole.Succeeded, string.Join("; ", extraRole.Errors.Select(x => x.Description)));
+
         var (updated, updateError) = await service.UpdateAsync(
             admin.Id,
             staffUser!.Id,
@@ -125,6 +130,8 @@ public sealed class StaffAccountFlowTests
         Assert.Equal(StaffRoles.Housekeeping, updated!.Role);
         Assert.True(await userManager.IsInRoleAsync(staffUser, StaffRoles.Housekeeping));
         Assert.False(await userManager.IsInRoleAsync(staffUser, StaffRoles.Staff));
+        Assert.False(await userManager.IsInRoleAsync(staffUser, StaffRoles.Viewer));
+        Assert.Single((await userManager.GetRolesAsync(staffUser)).Where(StaffRoles.IsAllowed));
 
         var resetPassword = "Reset-staff-456";
         var resetError = await service.ResetPasswordAsync(
