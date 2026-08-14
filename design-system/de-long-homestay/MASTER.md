@@ -7,7 +7,7 @@
 ---
 
 **Project:** De Long Homestay
-**Generated:** 2026-08-12 15:37:12
+**Generated:** 2026-08-14 04:09:11
 **Category:** Hotel/Hospitality
 
 ---
@@ -28,14 +28,14 @@
 
 ### Typography
 
-- **Heading Font:** Fira Code
-- **Body Font:** Fira Sans
-- **Mood:** dashboard, data, analytics, code, technical, precise
-- **Google Fonts:** [Fira Code + Fira Sans](https://fonts.google.com/share?selection.family=Fira+Code:wght@400;500;600;700|Fira+Sans:wght@300;400;500;600;700)
+- **Heading Font:** Libre Bodoni
+- **Body Font:** Public Sans
+- **Mood:** magazine, editorial, publishing, refined, journalism, print
+- **Google Fonts:** [Libre Bodoni + Public Sans](https://fonts.google.com/share?selection.family=Libre+Bodoni:wght@400;500;600;700|Public+Sans:wght@300;400;500;600;700)
 
 **CSS Import:**
 ```css
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Bodoni:wght@400;500;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap');
 ```
 
 ### Spacing Variables
@@ -163,11 +163,11 @@
 
 ### Page Pattern
 
-**Pattern Name:** Event/Conference Landing
+**Pattern Name:** Video-First Hero
 
-- **Conversion Strategy:** Early bird pricing with deadline. Social proof (past attendees). Speaker credibility. Multi-ticket discounts.
-- **CTA Placement:** Register CTA sticky + After speakers + Bottom
-- **Section Order:** 1. Hero (date/location/countdown), 2. Speakers grid, 3. Agenda/schedule, 4. Sponsors, 5. Register CTA
+- **Conversion Strategy:** 86% higher engagement with video. Add captions for accessibility. Compress video for performance.
+- **CTA Placement:** Overlay on video (center/bottom) + Bottom section
+- **Section Order:** 1. Hero with video background, 2. Key features overlay, 3. Benefits section, 4. CTA
 
 ---
 
