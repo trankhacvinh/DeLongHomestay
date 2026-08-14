@@ -2,10 +2,13 @@
 @model DeLong.Web.Pages.IndexModel
 @{
     ViewData["Title"] = "De Long Homestay";
+    var roomCount = Model.Catalog.Rooms.Count;
+    var fromPrice = Model.Catalog.Rooms.Where(x => x.QuickFromPrice > 0).Select(x => x.QuickFromPrice).DefaultIfEmpty(0).Min();
 }
 
 @section Head {
     <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/public-room-content.css" asp-append-version="true" />
 }
 
 <section class="public-hero">
@@ -13,10 +16,10 @@
         <div class="public-hero-copy">
             <span class="public-eyebrow">Long Thành · Đồng Nai</span>
             <h1>Một khoảng nghỉ riêng tư, vừa đủ để chậm lại.</h1>
-            <p>6 không gian nghỉ cho những buổi hẹn ngắn, một đêm thư giãn hoặc vài ngày riêng tư tại Long Thành.</p>
+            <p>@roomCount không gian nghỉ cho những buổi hẹn ngắn, một đêm thư giãn hoặc vài ngày riêng tư tại Long Thành.</p>
             <div class="public-hero-actions">
                 <a class="public-btn public-btn-primary" asp-page="/Booking/Index">Kiểm tra phòng trống</a>
-                <a class="public-btn public-btn-ghost" asp-page="/Rooms/Index">Xem 6 phòng</a>
+                <a class="public-btn public-btn-ghost" asp-page="/Rooms/Index">Xem @roomCount phòng</a>
             </div>
             <div class="public-contact-line">
                 <span>Hẻm 39 Nguyễn Đình Chiểu, Long Thành</span>
@@ -25,7 +28,7 @@
         </div>
         <div class="public-hero-art" aria-label="De Long Homestay">
             <div class="hero-art-card hero-art-main"><span>DE LONG</span><strong>STAY SLOW</strong><small>Private rooms · flexible stay</small></div>
-            <div class="hero-art-card hero-art-float"><small>6 phòng</small><strong>Từ 210.000đ</strong></div>
+            <div class="hero-art-card hero-art-float"><small>@roomCount phòng</small><strong>@(fromPrice > 0 ? $"Đặt nhanh từ {fromPrice:N0}đ" : "Giá rõ ràng")</strong></div>
         </div>
     </div>
 </section>
@@ -57,14 +60,23 @@
         </div>
 
         <div class="public-room-grid">
-            @foreach (var room in Model.Catalog?.Rooms.Take(6) ?? [])
+            @foreach (var room in Model.Catalog.Rooms.Take(6))
             {
-                <article class="public-room-card">
-                    <a class="public-room-art" asp-page="/Rooms/Details" asp-route-code="@room.Code" data-room-code="@room.Code" aria-label="Xem @room.Name">
-                        <span class="public-room-poster">
-                            <small>DE LONG STAY · @room.Code</small>
-                            <strong>@room.Name</strong>
-                        </span>
+                <article class="public-room-card public-room-card-content">
+                    <a class="public-room-art" asp-page="/Rooms/Details" asp-route-code="@room.Slug" data-room-code="@room.Code" aria-label="Xem @room.Name">
+                        @if (!string.IsNullOrWhiteSpace(room.CoverCardUrl))
+                        {
+                            <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" width="900" height="675" loading="lazy" />
+                            <span class="public-room-image-scrim"></span>
+                            <span class="public-room-image-title"><small>DE LONG · @room.Code</small><strong>@room.Name</strong></span>
+                        }
+                        else
+                        {
+                            <span class="public-room-poster">
+                                <small>DE LONG STAY · @room.Code</small>
+                                <strong>@room.Name</strong>
+                            </span>
+                        }
                         @if (room.HasBathtub)
                         {
                             <span class="public-room-feature">Bồn tắm</span>
@@ -72,10 +84,10 @@
                     </a>
                     <div class="public-room-body">
                         <div>
-                            <h3><a asp-page="/Rooms/Details" asp-route-code="@room.Code">@room.Name</a></h3>
-                            <p>@room.Capacity người · nhiều lựa chọn thời gian</p>
+                            <h3><a asp-page="/Rooms/Details" asp-route-code="@room.Slug">@room.Name</a></h3>
+                            <p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người · nhiều lựa chọn thời gian" : room.ShortDescription)</p>
                         </div>
-                        <div class="public-room-price"><small>Từ</small><strong>@room.FromPrice.ToString("N0")đ</strong></div>
+                        <div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div>
                     </div>
                 </article>
             }

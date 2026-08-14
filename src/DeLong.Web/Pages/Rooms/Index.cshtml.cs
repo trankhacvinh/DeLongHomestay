@@ -1,14 +1,14 @@
-using DeLong.Web.Features.PublicBooking;
+using DeLong.Web.Features.PublicRooms;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace DeLong.Web.Pages.Rooms;
 
-public sealed class IndexModel(PublicBookingService publicBookingService) : PageModel
+public sealed class IndexModel(PublicRoomContentService publicRoomContentService) : PageModel
 {
-    public PublicCatalogDto? Catalog { get; private set; }
+    public PublicRoomCatalogDto Catalog { get; private set; } = new([]);
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
-        Catalog = await publicBookingService.GetCatalogAsync(null, cancellationToken);
+        Catalog = await publicRoomContentService.GetCatalogAsync(cancellationToken);
     }
 }

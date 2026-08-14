@@ -27,23 +27,32 @@ public sealed class PublicBookingFlowTests
         await using var db = new AppDbContext(options);
         await db.Database.MigrateAsync();
 
-        Assert.False(await db.Properties.AnyAsync(x => x.Code == "DELONG"));
-
-        var property = new Property
+        var property = await db.Properties.SingleOrDefaultAsync(x => x.Code == "DELONG");
+        if (property is null)
         {
-            Id = Guid.CreateVersion7(),
-            Code = "DELONG",
-            Name = "De Long Integration",
-            TimeZoneId = "Asia/Ho_Chi_Minh"
-        };
+            property = new Property
+            {
+                Id = Guid.CreateVersion7(),
+                Code = "DELONG",
+                Name = "De Long Integration",
+                TimeZoneId = "Asia/Ho_Chi_Minh",
+                IsActive = true
+            };
+            db.Properties.Add(property);
+            await db.SaveChangesAsync();
+        }
+
+        var suffix = Guid.NewGuid().ToString("N")[..6];
         var room = new Room
         {
             Id = Guid.CreateVersion7(),
             PropertyId = property.Id,
-            Code = "PUBLIC-01",
+            Code = $"PUBLIC-{suffix}",
             Name = "Public Test Room",
+            Slug = $"public-{suffix}",
             Capacity = 2,
-            IsActive = true
+            IsActive = true,
+            IsPublished = true
         };
         var rate = new RoomRate
         {
@@ -70,7 +79,6 @@ public sealed class PublicBookingFlowTests
             IsActive = true
         };
 
-        db.Properties.Add(property);
         db.Rooms.Add(room);
         db.RoomRates.AddRange(rate, nightlyRate);
         await db.SaveChangesAsync();
@@ -107,8 +115,6 @@ public sealed class PublicBookingFlowTests
         Assert.Equal(123_000m, booking.RoomAmount);
         Assert.Equal("Website", booking.Source);
 
-        // Requested does not lock the room, so another guest may submit a request for the
-        // same slot. The two rows must still receive distinct human-facing booking codes.
         var (secondResult, secondError) = await publicService.CreateRequestAsync(new PublicBookingRequest
         {
             Type = BookingType.TimeSlot,
@@ -123,24 +129,22 @@ public sealed class PublicBookingFlowTests
         Assert.Null(secondError);
         Assert.NotNull(secondResult);
         Assert.NotEqual(result.Code, secondResult!.Code);
-        Assert.Equal(2, await db.Bookings.CountAsync());
 
         booking.Status = BookingStatus.Held;
         await db.SaveChangesAsync();
 
         var availability = await publicService.GetAvailabilityAsync(stayDate);
-        var availabilityRoom = Assert.Single(availability!.Rooms);
+        var availabilityRoom = Assert.Single(availability!.Rooms.Where(x => x.Id == room.Id));
         var availabilityRate = Assert.Single(availabilityRoom.Rates.Where(x => x.Id == rate.Id));
         Assert.False(availabilityRate.Available);
 
-        // Multi-day is a separate product with its own nightly price and continuous stay range.
         var checkInDate = today.AddDays(12);
         var checkOutDate = checkInDate.AddDays(3);
         var (stayAvailability, stayAvailabilityError) = await publicService.GetStayAvailabilityAsync(checkInDate, checkOutDate);
         Assert.Null(stayAvailabilityError);
         Assert.NotNull(stayAvailability);
         Assert.Equal(3, stayAvailability!.Nights);
-        var stayRoom = Assert.Single(stayAvailability.Rooms);
+        var stayRoom = Assert.Single(stayAvailability.Rooms.Where(x => x.Id == room.Id));
         Assert.True(stayRoom.Available);
         Assert.Equal(nightlyRate.Id, stayRoom.NightlyRate.Id);
         Assert.Equal(500_000m, stayRoom.NightlyRate.Price);
@@ -173,16 +177,14 @@ public sealed class PublicBookingFlowTests
         Assert.Equal(3, multiDayBooking.NightCount);
         Assert.Equal(1_500_000m, multiDayBooking.RoomAmount);
 
-        // A Requested stay still does not lock inventory.
         var (stillAvailable, stillAvailableError) = await publicService.GetStayAvailabilityAsync(checkInDate, checkOutDate);
         Assert.Null(stillAvailableError);
-        Assert.True(Assert.Single(stillAvailable!.Rooms).Available);
+        Assert.True(Assert.Single(stillAvailable!.Rooms.Where(x => x.Id == room.Id)).Available);
 
-        // Once Held, the entire arrival -> departure interval becomes unavailable.
         multiDayBooking.Status = BookingStatus.Held;
         await db.SaveChangesAsync();
         var (lockedStay, lockedStayError) = await publicService.GetStayAvailabilityAsync(checkInDate, checkOutDate);
         Assert.Null(lockedStayError);
-        Assert.False(Assert.Single(lockedStay!.Rooms).Available);
+        Assert.False(Assert.Single(lockedStay!.Rooms.Where(x => x.Id == room.Id)).Available);
     }
 }

@@ -16,6 +16,14 @@ public sealed class AppDbContext
     public DbSet<Property> Properties => Set<Property>();
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<RoomRate> RoomRates => Set<RoomRate>();
+    public DbSet<RoomImage> RoomImages => Set<RoomImage>();
+    public DbSet<Amenity> Amenities => Set<Amenity>();
+    public DbSet<RoomAmenity> RoomAmenities => Set<RoomAmenity>();
+    public DbSet<AmenityPreset> AmenityPresets => Set<AmenityPreset>();
+    public DbSet<AmenityPresetItem> AmenityPresetItems => Set<AmenityPresetItem>();
+    public DbSet<RoomTag> RoomTags => Set<RoomTag>();
+    public DbSet<RoomTagAssignment> RoomTagAssignments => Set<RoomTagAssignment>();
+    public DbSet<RoomHighlight> RoomHighlights => Set<RoomHighlight>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<Payment> Payments => Set<Payment>();
@@ -132,6 +140,7 @@ public sealed class AppDbContext
         });
 
         modelBuilder.Entity<ApplicationUser>(entity => entity.Property(x => x.DisplayName).HasMaxLength(200));
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         modelBuilder.ApplySnakeCaseNames();
     }
 

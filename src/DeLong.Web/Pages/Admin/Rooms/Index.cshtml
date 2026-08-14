@@ -10,7 +10,7 @@
         <div>
             <div class="page-eyebrow">Quản lý phòng</div>
             <h1>Phòng</h1>
-            <p>Quản lý danh mục phòng, sức chứa và trạng thái hoạt động. Ngừng phòng không xóa lịch sử booking.</p>
+            <p>Quản lý danh mục phòng, sức chứa, nội dung website và trạng thái hoạt động. Ngừng phòng không xóa lịch sử booking.</p>
         </div>
         @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
         {
@@ -52,6 +52,7 @@
                             @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                             {
                                 <div class="table-actions">
+                                    <a class="btn btn-light btn-sm" v-bind:href="'/Admin/Rooms/' + room.id + '/Content?propertyId=' + propertyId">Nội dung</a>
                                     <button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(room)">Sửa</button>
                                     <button v-if="room.isActive" class="btn btn-danger btn-sm" type="button" v-on:click="confirmArchive(room)">Ngừng</button>
                                 </div>

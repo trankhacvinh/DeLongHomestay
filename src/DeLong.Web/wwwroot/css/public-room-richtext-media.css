@@ -1,0 +1,14 @@
+.public-room-richtext img.room-image-size-25 { width:25%; }
+.public-room-richtext img.room-image-size-50 { width:50%; }
+.public-room-richtext img.room-image-size-75 { width:75%; }
+.public-room-richtext img.room-image-size-100 { width:100%; }
+.public-room-richtext img.room-image-align-left { margin-left:0; margin-right:auto; }
+.public-room-richtext img.room-image-align-center { margin-left:auto; margin-right:auto; }
+.public-room-richtext img.room-image-align-right { margin-left:auto; margin-right:0; }
+
+@media (max-width:680px) {
+    .public-room-richtext img.room-image-size-25 { width:55%; }
+    .public-room-richtext img.room-image-size-50 { width:70%; }
+    .public-room-richtext img.room-image-size-75 { width:85%; }
+    .public-room-richtext img.room-image-size-100 { width:100%; }
+}

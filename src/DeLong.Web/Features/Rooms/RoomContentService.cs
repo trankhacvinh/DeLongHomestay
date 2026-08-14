@@ -1,0 +1,416 @@
+using System.Globalization;
+using System.Net;
+using System.Text;
+using System.Text.RegularExpressions;
+using DeLong.Web.Data;
+using DeLong.Web.Domain.Entities;
+using Ganss.Xss;
+using Microsoft.EntityFrameworkCore;
+
+namespace DeLong.Web.Features.Rooms;
+
+public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageStorage)
+{
+    private static readonly Regex SlugInvalid = new("[^a-z0-9]+", RegexOptions.Compiled);
+    private static readonly Regex IframeRegex = new("<iframe\\b[^>]*>.*?</iframe>", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+    private static readonly Regex ImageRegex = new("<img\\b[^>]*>", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+    private static readonly Regex SrcRegex = new("\\bsrc\\s*=\\s*([\"'])(?<src>.*?)\\1", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+    private static readonly HtmlSanitizer Sanitizer = CreateSanitizer();
+    private static readonly HashSet<string> AllowedYouTubeHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "youtube.com", "www.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com"
+    };
+
+    public async Task<RoomContentDto?> GetAsync(Guid propertyId, Guid roomId, CancellationToken cancellationToken = default)
+    {
+        var room = await db.Rooms.AsNoTracking()
+            .Include(x => x.Images)
+            .Include(x => x.Amenities).ThenInclude(x => x.Amenity)
+            .Include(x => x.Tags).ThenInclude(x => x.RoomTag)
+            .Include(x => x.Highlights)
+            .SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == roomId, cancellationToken);
+        return room is null ? null : ToDto(room);
+    }
+
+    public async Task<IReadOnlyList<string>> GetAmenityCatalogAsync(Guid propertyId, CancellationToken cancellationToken = default) =>
+        await db.Amenities.AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.IsActive)
+            .OrderBy(x => x.Name)
+            .Select(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<AmenityPresetDto>> GetAmenityPresetsAsync(Guid propertyId, CancellationToken cancellationToken = default)
+    {
+        var presets = await db.AmenityPresets.AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.IsActive)
+            .Include(x => x.Items).ThenInclude(x => x.Amenity)
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+        return presets.Select(ToPresetDto).ToList();
+    }
+
+    public async Task<(AmenityPresetDto? Preset, RoomContentError? Error)> CreateAmenityPresetAsync(
+        Guid propertyId,
+        CreateAmenityPresetRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var name = Clean(request.Name);
+        if (name is null || name.Length > 120)
+            return (null, new("validation", "Tên bộ tiện nghi phải từ 1 đến 120 ký tự."));
+
+        var amenities = NormalizeItems(request.Amenities, 30, 100);
+        if (amenities.Error is not null) return (null, new("validation", amenities.Error));
+        if (amenities.Items.Count == 0) return (null, new("validation", "Bộ tiện nghi cần ít nhất một tiện nghi."));
+
+        var normalized = NormalizeName(name);
+        if (await db.AmenityPresets.AnyAsync(x => x.PropertyId == propertyId && x.NormalizedName == normalized && x.IsActive, cancellationToken))
+            return (null, new("preset_exists", "Tên bộ tiện nghi này đã tồn tại."));
+
+        var catalog = await EnsureAmenitiesAsync(propertyId, amenities.Items, cancellationToken);
+        var preset = new AmenityPreset
+        {
+            PropertyId = propertyId,
+            Name = name,
+            NormalizedName = normalized,
+            IsActive = true,
+            SortOrder = await db.AmenityPresets.CountAsync(x => x.PropertyId == propertyId, cancellationToken)
+        };
+        foreach (var amenity in catalog)
+            preset.Items.Add(new AmenityPresetItem { AmenityPreset = preset, Amenity = amenity });
+
+        db.AmenityPresets.Add(preset);
+        await db.SaveChangesAsync(cancellationToken);
+        return (ToPresetDto(preset), null);
+    }
+
+    public async Task<RoomContentError?> DeleteAmenityPresetAsync(Guid propertyId, Guid presetId, CancellationToken cancellationToken = default)
+    {
+        var preset = await db.AmenityPresets.SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == presetId, cancellationToken);
+        if (preset is null) return new("not_found", "Không tìm thấy bộ tiện nghi.");
+        preset.IsActive = false;
+        await db.SaveChangesAsync(cancellationToken);
+        return null;
+    }
+
+    public async Task<(RoomContentDto? Room, RoomContentError? Error)> UpdateAsync(Guid propertyId, Guid roomId, UpdateRoomContentRequest request, CancellationToken cancellationToken = default)
+    {
+        var room = await db.Rooms
+            .Include(x => x.Amenities).ThenInclude(x => x.Amenity)
+            .Include(x => x.Tags).ThenInclude(x => x.RoomTag)
+            .Include(x => x.Highlights)
+            .SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == roomId, cancellationToken);
+        if (room is null) return (null, new("not_found", "Không tìm thấy phòng."));
+
+        var code = string.IsNullOrWhiteSpace(request.Code) ? room.Code : request.Code.Trim().ToUpperInvariant();
+        var name = string.IsNullOrWhiteSpace(request.Name) ? room.Name : request.Name.Trim();
+        var capacity = request.Capacity ?? room.Capacity;
+        if (code.Length > 50) return (null, new("validation", "Mã phòng tối đa 50 ký tự."));
+        if (name.Length > 200) return (null, new("validation", "Tên phòng tối đa 200 ký tự."));
+        if (capacity is < 1 or > 50) return (null, new("validation", "Sức chứa phải từ 1 đến 50 người."));
+        if (await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id != roomId && x.Code == code, cancellationToken))
+            return (null, new("code_exists", "Mã phòng đã tồn tại trong cơ sở này."));
+
+        var shortDescription = Clean(request.ShortDescription);
+        if (shortDescription?.Length > 600) return (null, new("validation", "Mô tả ngắn tối đa 600 ký tự."));
+
+        var slug = CreateSlug(string.IsNullOrWhiteSpace(request.Slug) ? name : request.Slug!);
+        if (string.IsNullOrWhiteSpace(slug)) slug = code.ToLowerInvariant();
+        if (await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id != roomId && x.Slug == slug, cancellationToken))
+            return (null, new("slug_exists", "Đường dẫn phòng này đã được dùng. Vui lòng chọn slug khác."));
+
+        var amenities = NormalizeItems(request.Amenities, 30, 100);
+        var tags = NormalizeItems(request.Tags, 20, 100);
+        var highlights = NormalizeItems(request.Highlights, 8, 180);
+        if (amenities.Error is not null) return (null, new("validation", amenities.Error));
+        if (tags.Error is not null) return (null, new("validation", tags.Error));
+        if (highlights.Error is not null) return (null, new("validation", highlights.Error));
+
+        room.Code = code;
+        room.Name = name;
+        room.Capacity = capacity;
+        room.Slug = slug;
+        room.ShortDescription = shortDescription;
+        room.DescriptionHtml = string.IsNullOrWhiteSpace(request.DescriptionHtml) ? null : SanitizeDescription(request.DescriptionHtml);
+        room.IsPublished = request.IsPublished;
+
+        await SyncAmenitiesAsync(room, amenities.Items, cancellationToken);
+        await SyncTagsAsync(room, tags.Items, cancellationToken);
+        SyncHighlights(room, highlights.Items);
+
+        await db.SaveChangesAsync(cancellationToken);
+        return (await GetAsync(propertyId, roomId, cancellationToken), null);
+    }
+
+    public async Task<(RoomImageDto? Image, RoomContentError? Error)> UploadImageAsync(Guid propertyId, Guid roomId, IFormFile file, CancellationToken cancellationToken = default)
+    {
+        var room = await db.Rooms.Include(x => x.Images).SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == roomId, cancellationToken);
+        if (room is null) return (null, new("not_found", "Không tìm thấy phòng."));
+        if (room.Images.Count >= 20) return (null, new("image_limit", "Mỗi phòng tối đa 20 ảnh."));
+
+        var imageId = Guid.CreateVersion7();
+        var (stored, error) = await imageStorage.SaveAsync(roomId, imageId, file, cancellationToken);
+        if (stored is null) return (null, new("image_invalid", error ?? "Không thể xử lý ảnh."));
+
+        var image = new RoomImage
+        {
+            Id = imageId,
+            RoomId = roomId,
+            OriginalFileName = stored.OriginalFileName,
+            OriginalStoragePath = stored.OriginalStoragePath,
+            LargePath = stored.LargeUrl,
+            CardPath = stored.CardUrl,
+            ThumbnailPath = stored.ThumbnailUrl,
+            ContentType = stored.ContentType,
+            OriginalBytes = stored.OriginalBytes,
+            Width = stored.Width,
+            Height = stored.Height,
+            IsCover = room.Images.Count == 0,
+            SortOrder = room.Images.Count == 0 ? 0 : room.Images.Max(x => x.SortOrder) + 1,
+            FocalX = 0.5,
+            FocalY = 0.5
+        };
+        db.RoomImages.Add(image);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            await imageStorage.DeleteAsync(stored, cancellationToken);
+            throw;
+        }
+        return (ToImageDto(image), null);
+    }
+
+    public async Task<(RoomImageDto? Image, RoomContentError? Error)> UpdateImageAsync(Guid propertyId, Guid roomId, Guid imageId, UpdateRoomImageRequest request, CancellationToken cancellationToken = default)
+    {
+        var room = await db.Rooms.Include(x => x.Images).SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == roomId, cancellationToken);
+        if (room is null) return (null, new("not_found", "Không tìm thấy phòng."));
+        var image = room.Images.SingleOrDefault(x => x.Id == imageId);
+        if (image is null) return (null, new("not_found", "Không tìm thấy ảnh."));
+
+        var alt = Clean(request.AltText);
+        if (alt?.Length > 300) return (null, new("validation", "Alt text tối đa 300 ký tự."));
+        if (request.FocalX is < 0 or > 1 || request.FocalY is < 0 or > 1)
+            return (null, new("validation", "Điểm lấy nét ảnh không hợp lệ."));
+
+        var focalX = request.FocalX ?? image.FocalX;
+        var focalY = request.FocalY ?? image.FocalY;
+        if (Math.Abs(focalX - image.FocalX) > 0.0001 || Math.Abs(focalY - image.FocalY) > 0.0001)
+        {
+            var stored = new StoredRoomImage(image.OriginalStoragePath, image.LargePath, image.CardPath, image.ThumbnailPath, image.Width, image.Height, image.OriginalBytes, image.ContentType, image.OriginalFileName);
+            var cropError = await imageStorage.RegenerateCropsAsync(stored, focalX, focalY, cancellationToken);
+            if (cropError is not null) return (null, new("image_crop_failed", cropError));
+        }
+
+        image.AltText = alt;
+        image.FocalX = focalX;
+        image.FocalY = focalY;
+        if (request.IsCover)
+        {
+            foreach (var item in room.Images) item.IsCover = item.Id == imageId;
+        }
+        else if (image.IsCover && room.Images.Count > 1)
+        {
+            var replacement = room.Images.Where(x => x.Id != image.Id).OrderBy(x => x.SortOrder).First();
+            image.IsCover = false;
+            replacement.IsCover = true;
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        return (ToImageDto(image), null);
+    }
+
+    public async Task<RoomContentError?> ReorderImagesAsync(Guid propertyId, Guid roomId, ReorderRoomImagesRequest request, CancellationToken cancellationToken = default)
+    {
+        var images = await db.RoomImages.Where(x => x.RoomId == roomId && x.Room.PropertyId == propertyId).ToListAsync(cancellationToken);
+        if (images.Count != request.ImageIds.Distinct().Count() || images.Any(x => !request.ImageIds.Contains(x.Id)))
+            return new("validation", "Danh sách sắp xếp ảnh không hợp lệ.");
+        for (var i = 0; i < request.ImageIds.Count; i++) images.Single(x => x.Id == request.ImageIds[i]).SortOrder = i;
+        await db.SaveChangesAsync(cancellationToken);
+        return null;
+    }
+
+    public async Task<RoomContentError?> DeleteImageAsync(Guid propertyId, Guid roomId, Guid imageId, CancellationToken cancellationToken = default)
+    {
+        var room = await db.Rooms.Include(x => x.Images).SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == roomId, cancellationToken);
+        if (room is null) return new("not_found", "Không tìm thấy phòng.");
+        var image = room.Images.SingleOrDefault(x => x.Id == imageId);
+        if (image is null) return new("not_found", "Không tìm thấy ảnh.");
+
+        var stored = new StoredRoomImage(image.OriginalStoragePath, image.LargePath, image.CardPath, image.ThumbnailPath, image.Width, image.Height, image.OriginalBytes, image.ContentType, image.OriginalFileName);
+        var wasCover = image.IsCover;
+        db.RoomImages.Remove(image);
+        if (wasCover)
+        {
+            var replacement = room.Images.Where(x => x.Id != imageId).OrderBy(x => x.SortOrder).FirstOrDefault();
+            if (replacement is not null) replacement.IsCover = true;
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        await imageStorage.DeleteAsync(stored, cancellationToken);
+        return null;
+    }
+
+    private async Task SyncAmenitiesAsync(Room room, IReadOnlyList<string> names, CancellationToken ct)
+    {
+        var catalog = await EnsureAmenitiesAsync(room.PropertyId, names, ct);
+        var desiredIds = catalog.Select(x => x.Id).ToHashSet();
+        foreach (var assignment in room.Amenities.Where(x => !desiredIds.Contains(x.AmenityId)).ToList())
+            db.RoomAmenities.Remove(assignment);
+
+        var currentIds = room.Amenities.Select(x => x.AmenityId).ToHashSet();
+        foreach (var amenity in catalog.Where(x => !currentIds.Contains(x.Id)))
+            db.RoomAmenities.Add(new RoomAmenity { RoomId = room.Id, AmenityId = amenity.Id, Room = room, Amenity = amenity });
+    }
+
+    private async Task<List<Amenity>> EnsureAmenitiesAsync(Guid propertyId, IReadOnlyList<string> names, CancellationToken ct)
+    {
+        if (names.Count == 0) return [];
+        var desired = names.ToDictionary(NormalizeName, x => x, StringComparer.Ordinal);
+        var catalog = await db.Amenities
+            .Where(x => x.PropertyId == propertyId && desired.Keys.Contains(x.NormalizedName))
+            .ToListAsync(ct);
+
+        foreach (var pair in desired)
+        {
+            if (catalog.Any(x => x.NormalizedName == pair.Key)) continue;
+            var amenity = new Amenity { PropertyId = propertyId, Name = pair.Value, NormalizedName = pair.Key, IsActive = true };
+            db.Amenities.Add(amenity);
+            catalog.Add(amenity);
+        }
+        return catalog;
+    }
+
+    private async Task SyncTagsAsync(Room room, IReadOnlyList<string> names, CancellationToken ct)
+    {
+        var desired = names.ToDictionary(NormalizeName, x => x, StringComparer.Ordinal);
+        List<RoomTag> catalog = desired.Count == 0
+            ? []
+            : await db.RoomTags.Where(x => x.PropertyId == room.PropertyId && desired.Keys.Contains(x.NormalizedName)).ToListAsync(ct);
+
+        foreach (var pair in desired)
+        {
+            if (catalog.Any(x => x.NormalizedName == pair.Key)) continue;
+            var tag = new RoomTag { PropertyId = room.PropertyId, Name = pair.Value, NormalizedName = pair.Key, IsActive = true };
+            db.RoomTags.Add(tag);
+            catalog.Add(tag);
+        }
+
+        var desiredIds = catalog.Select(x => x.Id).ToHashSet();
+        foreach (var assignment in room.Tags.Where(x => !desiredIds.Contains(x.RoomTagId)).ToList())
+            db.RoomTagAssignments.Remove(assignment);
+
+        var currentIds = room.Tags.Select(x => x.RoomTagId).ToHashSet();
+        foreach (var tag in catalog.Where(x => !currentIds.Contains(x.Id)))
+            db.RoomTagAssignments.Add(new RoomTagAssignment { RoomId = room.Id, RoomTagId = tag.Id, Room = room, RoomTag = tag });
+    }
+
+    private void SyncHighlights(Room room, IReadOnlyList<string> values)
+    {
+        var existing = room.Highlights.OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc).ToList();
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (i < existing.Count)
+            {
+                existing[i].Text = values[i];
+                existing[i].SortOrder = i;
+            }
+            else
+            {
+                db.RoomHighlights.Add(new RoomHighlight { RoomId = room.Id, Room = room, Text = values[i], SortOrder = i });
+            }
+        }
+        foreach (var highlight in existing.Skip(values.Count)) db.RoomHighlights.Remove(highlight);
+    }
+
+    public static string CreateSlug(string raw)
+    {
+        var value = raw.Trim().ToLowerInvariant().Replace('đ', 'd');
+        var normalized = value.Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder();
+        foreach (var ch in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark) builder.Append(ch);
+        }
+        var slug = SlugInvalid.Replace(builder.ToString().Normalize(NormalizationForm.FormC), "-").Trim('-');
+        return slug.Length <= 180 ? slug : slug[..180].TrimEnd('-');
+    }
+
+    internal static string SanitizeDescription(string rawHtml)
+    {
+        var sanitized = Sanitizer.Sanitize(rawHtml);
+        sanitized = IframeRegex.Replace(sanitized, match => IsAllowedYouTubeEmbed(match.Value) ? match.Value : string.Empty);
+        sanitized = ImageRegex.Replace(sanitized, match => IsAllowedRoomImage(match.Value) ? match.Value : string.Empty);
+        return sanitized.Trim();
+    }
+
+    private static bool IsAllowedYouTubeEmbed(string iframeHtml)
+    {
+        var src = GetSrc(iframeHtml);
+        if (src is null || !Uri.TryCreate(src, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return false;
+        return AllowedYouTubeHosts.Contains(uri.Host) && uri.AbsolutePath.StartsWith("/embed/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAllowedRoomImage(string imageHtml)
+    {
+        var src = GetSrc(imageHtml);
+        return src is not null && src.StartsWith("/uploads/rooms/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? GetSrc(string html)
+    {
+        var match = SrcRegex.Match(html);
+        return match.Success ? WebUtility.HtmlDecode(match.Groups["src"].Value) : null;
+    }
+
+    private static (IReadOnlyList<string> Items, string? Error) NormalizeItems(IReadOnlyList<string>? input, int maxItems, int maxLength)
+    {
+        var items = (input ?? []).Select(x => x?.Trim() ?? string.Empty).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (items.Count > maxItems) return ([], $"Tối đa {maxItems} mục.");
+        if (items.Any(x => x.Length > maxLength)) return ([], $"Mỗi mục tối đa {maxLength} ký tự.");
+        return (items, null);
+    }
+
+    private static string NormalizeName(string value) => value.Trim().ToUpperInvariant();
+    private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static RoomContentDto ToDto(Room room) => new(
+        room.Id, room.Code, room.Name, room.Capacity, room.Slug ?? CreateSlug(room.Name), room.ShortDescription, room.DescriptionHtml, room.IsPublished,
+        room.Amenities.Where(x => x.Amenity.IsActive).Select(x => x.Amenity.Name).OrderBy(x => x).ToList(),
+        room.Tags.Where(x => x.RoomTag.IsActive).Select(x => x.RoomTag.Name).OrderBy(x => x).ToList(),
+        room.Highlights.OrderBy(x => x.SortOrder).Select(x => x.Text).ToList(),
+        room.Images.OrderBy(x => x.SortOrder).Select(ToImageDto).ToList());
+
+    private static AmenityPresetDto ToPresetDto(AmenityPreset preset) => new(
+        preset.Id,
+        preset.Name,
+        preset.Items.Where(x => x.Amenity.IsActive).Select(x => x.Amenity.Name).OrderBy(x => x).ToList());
+
+    private static RoomImageDto ToImageDto(RoomImage image)
+    {
+        var (largeWidth, largeHeight) = GetLargeDimensions(image.Width, image.Height);
+        return new RoomImageDto(image.Id, image.LargePath, image.CardPath, image.ThumbnailPath, image.AltText, image.IsCover,
+            image.SortOrder, image.Width, image.Height, largeWidth, largeHeight, image.OriginalBytes, image.FocalX, image.FocalY);
+    }
+
+    private static (int Width, int Height) GetLargeDimensions(int width, int height)
+    {
+        var longest = Math.Max(width, height);
+        if (longest <= 1600 || longest <= 0) return (width, height);
+        var scale = 1600d / longest;
+        return (Math.Max(1, (int)Math.Round(width * scale)), Math.Max(1, (int)Math.Round(height * scale)));
+    }
+
+    private static HtmlSanitizer CreateSanitizer()
+    {
+        var sanitizer = new HtmlSanitizer();
+        sanitizer.AllowedTags.Clear();
+        foreach (var tag in new[] { "p", "br", "strong", "b", "em", "i", "h2", "h3", "ul", "ol", "li", "a", "blockquote", "img", "iframe" })
+            sanitizer.AllowedTags.Add(tag);
+        sanitizer.AllowedAttributes.Clear();
+        foreach (var attribute in new[] { "href", "target", "rel", "src", "alt", "title", "class", "frameborder", "allowfullscreen", "loading", "referrerpolicy" })
+            sanitizer.AllowedAttributes.Add(attribute);
+        sanitizer.AllowedSchemes.Clear();
+        foreach (var scheme in new[] { "http", "https", "mailto" }) sanitizer.AllowedSchemes.Add(scheme);
+        return sanitizer;
+    }
+}

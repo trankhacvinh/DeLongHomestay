@@ -3,6 +3,7 @@ using System;
 using DeLong.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DeLong.Web.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260814040607_RoomContentV2")]
+    partial class RoomContentV2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -70,74 +73,6 @@ namespace DeLong.Web.Data.Migrations
                         .HasDatabaseName("i_x_amenities_property_id_normalized_name");
 
                     b.ToTable("amenities");
-                });
-
-            modelBuilder.Entity("DeLong.Web.Domain.Entities.AmenityPreset", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at_utc");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("NormalizedName")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)")
-                        .HasColumnName("normalized_name");
-
-                    b.Property<Guid>("PropertyId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("property_id");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at_utc");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_amenity_presets");
-
-                    b.HasIndex("PropertyId", "NormalizedName")
-                        .IsUnique()
-                        .HasDatabaseName("i_x_amenity_presets_property_id_normalized_name");
-
-                    b.ToTable("amenity_presets");
-                });
-
-            modelBuilder.Entity("DeLong.Web.Domain.Entities.AmenityPresetItem", b =>
-                {
-                    b.Property<Guid>("AmenityPresetId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("amenity_preset_id");
-
-                    b.Property<Guid>("AmenityId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("amenity_id");
-
-                    b.HasKey("AmenityPresetId", "AmenityId")
-                        .HasName("p_k_amenity_preset_items");
-
-                    b.HasIndex("AmenityId")
-                        .HasDatabaseName("i_x_amenity_preset_items_amenity_id");
-
-                    b.ToTable("amenity_preset_items");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.AuditLog", b =>
@@ -786,18 +721,6 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
 
-                    b.Property<double>("FocalX")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("double precision")
-                        .HasDefaultValue(0.5)
-                        .HasColumnName("focal_x");
-
-                    b.Property<double>("FocalY")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("double precision")
-                        .HasDefaultValue(0.5)
-                        .HasColumnName("focal_y");
-
                     b.Property<int>("Height")
                         .HasColumnType("integer")
                         .HasColumnName("height");
@@ -1274,39 +1197,6 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Property");
                 });
 
-            modelBuilder.Entity("DeLong.Web.Domain.Entities.AmenityPreset", b =>
-                {
-                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
-                        .WithMany()
-                        .HasForeignKey("PropertyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("f_k_amenity_presets_properties_property_id");
-
-                    b.Navigation("Property");
-                });
-
-            modelBuilder.Entity("DeLong.Web.Domain.Entities.AmenityPresetItem", b =>
-                {
-                    b.HasOne("DeLong.Web.Domain.Entities.Amenity", "Amenity")
-                        .WithMany()
-                        .HasForeignKey("AmenityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("f_k_amenity_preset_items_amenities_amenity_id");
-
-                    b.HasOne("DeLong.Web.Domain.Entities.AmenityPreset", "AmenityPreset")
-                        .WithMany("Items")
-                        .HasForeignKey("AmenityPresetId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("f_k_amenity_preset_items_amenity_presets_amenity_preset_id");
-
-                    b.Navigation("Amenity");
-
-                    b.Navigation("AmenityPreset");
-                });
-
             modelBuilder.Entity("DeLong.Web.Domain.Entities.AuditLog", b =>
                 {
                     b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
@@ -1585,11 +1475,6 @@ namespace DeLong.Web.Data.Migrations
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Amenity", b =>
                 {
                     b.Navigation("Rooms");
-                });
-
-            modelBuilder.Entity("DeLong.Web.Domain.Entities.AmenityPreset", b =>
-                {
-                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Booking", b =>

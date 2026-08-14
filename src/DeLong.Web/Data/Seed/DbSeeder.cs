@@ -76,9 +76,11 @@ public static class DbSeeder
         {
             Code = code,
             Name = name,
+            Slug = code.ToLowerInvariant(),
             Capacity = 2,
             SortOrder = sortOrder,
-            IsActive = true
+            IsActive = true,
+            IsPublished = true
         };
 
         var schedule = code switch
