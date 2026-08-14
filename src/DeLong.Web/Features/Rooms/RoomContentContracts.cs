@@ -25,6 +25,7 @@ public sealed record RoomContentDto(
     Guid RoomId,
     string Code,
     string Name,
+    int Capacity,
     string Slug,
     string? ShortDescription,
     string? DescriptionHtml,
@@ -36,6 +37,9 @@ public sealed record RoomContentDto(
 
 public sealed class UpdateRoomContentRequest
 {
+    public string? Code { get; init; }
+    public string? Name { get; init; }
+    public int? Capacity { get; init; }
     public string? Slug { get; init; }
     public string? ShortDescription { get; init; }
     public string? DescriptionHtml { get; init; }
