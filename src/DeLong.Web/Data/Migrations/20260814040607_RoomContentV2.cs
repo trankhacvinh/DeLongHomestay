@@ -38,6 +38,12 @@ namespace DeLong.Web.Data.Migrations
                 maxLength: 180,
                 nullable: true);
 
+            // Preserve the current public catalog after introducing publication state.
+            // Existing room codes are unique per property, so their lower-case form is a safe
+            // deterministic initial slug. New rooms remain unpublished until content is ready.
+            migrationBuilder.Sql("UPDATE rooms SET slug = lower(code), is_published = TRUE WHERE is_active = TRUE;");
+            migrationBuilder.Sql("UPDATE rooms SET slug = lower(code) WHERE slug IS NULL;");
+
             migrationBuilder.CreateTable(
                 name: "amenities",
                 columns: table => new
