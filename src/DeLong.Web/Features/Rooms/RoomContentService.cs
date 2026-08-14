@@ -27,8 +27,8 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
     public async Task<(RoomContentDto? Room, RoomContentError? Error)> UpdateAsync(Guid propertyId, Guid roomId, UpdateRoomContentRequest request, CancellationToken cancellationToken = default)
     {
         var room = await db.Rooms
-            .Include(x => x.Amenities)
-            .Include(x => x.Tags)
+            .Include(x => x.Amenities).ThenInclude(x => x.Amenity)
+            .Include(x => x.Tags).ThenInclude(x => x.RoomTag)
             .Include(x => x.Highlights)
             .SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == roomId, cancellationToken);
         if (room is null) return (null, new("not_found", "Không tìm thấy phòng."));
@@ -55,9 +55,7 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
 
         await SyncAmenitiesAsync(room, amenities.Items, cancellationToken);
         await SyncTagsAsync(room, tags.Items, cancellationToken);
-        room.Highlights.Clear();
-        for (var i = 0; i < highlights.Items.Count; i++)
-            room.Highlights.Add(new RoomHighlight { Text = highlights.Items[i], SortOrder = i });
+        SyncHighlights(room, highlights.Items);
 
         await db.SaveChangesAsync(cancellationToken);
         return (await GetAsync(propertyId, roomId, cancellationToken), null);
@@ -150,34 +148,68 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
 
     private async Task SyncAmenitiesAsync(Room room, IReadOnlyList<string> names, CancellationToken ct)
     {
-        room.Amenities.Clear();
-        foreach (var name in names)
+        var desired = names.ToDictionary(NormalizeName, x => x, StringComparer.Ordinal);
+        var catalog = await db.Amenities
+            .Where(x => x.PropertyId == room.PropertyId && desired.Keys.Contains(x.NormalizedName))
+            .ToListAsync(ct);
+
+        foreach (var pair in desired)
         {
-            var normalized = NormalizeName(name);
-            var amenity = await db.Amenities.SingleOrDefaultAsync(x => x.PropertyId == room.PropertyId && x.NormalizedName == normalized, ct);
-            if (amenity is null)
-            {
-                amenity = new Amenity { PropertyId = room.PropertyId, Name = name, NormalizedName = normalized, IsActive = true };
-                db.Amenities.Add(amenity);
-            }
-            room.Amenities.Add(new RoomAmenity { Room = room, Amenity = amenity });
+            if (catalog.Any(x => x.NormalizedName == pair.Key)) continue;
+            var amenity = new Amenity { PropertyId = room.PropertyId, Name = pair.Value, NormalizedName = pair.Key, IsActive = true };
+            db.Amenities.Add(amenity);
+            catalog.Add(amenity);
         }
+
+        var desiredIds = catalog.Select(x => x.Id).ToHashSet();
+        foreach (var assignment in room.Amenities.Where(x => !desiredIds.Contains(x.AmenityId)).ToList())
+            db.RoomAmenities.Remove(assignment);
+
+        var currentIds = room.Amenities.Select(x => x.AmenityId).ToHashSet();
+        foreach (var amenity in catalog.Where(x => !currentIds.Contains(x.Id)))
+            db.RoomAmenities.Add(new RoomAmenity { RoomId = room.Id, AmenityId = amenity.Id, Room = room, Amenity = amenity });
     }
 
     private async Task SyncTagsAsync(Room room, IReadOnlyList<string> names, CancellationToken ct)
     {
-        room.Tags.Clear();
-        foreach (var name in names)
+        var desired = names.ToDictionary(NormalizeName, x => x, StringComparer.Ordinal);
+        var catalog = await db.RoomTags
+            .Where(x => x.PropertyId == room.PropertyId && desired.Keys.Contains(x.NormalizedName))
+            .ToListAsync(ct);
+
+        foreach (var pair in desired)
         {
-            var normalized = NormalizeName(name);
-            var tag = await db.RoomTags.SingleOrDefaultAsync(x => x.PropertyId == room.PropertyId && x.NormalizedName == normalized, ct);
-            if (tag is null)
-            {
-                tag = new RoomTag { PropertyId = room.PropertyId, Name = name, NormalizedName = normalized, IsActive = true };
-                db.RoomTags.Add(tag);
-            }
-            room.Tags.Add(new RoomTagAssignment { Room = room, RoomTag = tag });
+            if (catalog.Any(x => x.NormalizedName == pair.Key)) continue;
+            var tag = new RoomTag { PropertyId = room.PropertyId, Name = pair.Value, NormalizedName = pair.Key, IsActive = true };
+            db.RoomTags.Add(tag);
+            catalog.Add(tag);
         }
+
+        var desiredIds = catalog.Select(x => x.Id).ToHashSet();
+        foreach (var assignment in room.Tags.Where(x => !desiredIds.Contains(x.RoomTagId)).ToList())
+            db.RoomTagAssignments.Remove(assignment);
+
+        var currentIds = room.Tags.Select(x => x.RoomTagId).ToHashSet();
+        foreach (var tag in catalog.Where(x => !currentIds.Contains(x.Id)))
+            db.RoomTagAssignments.Add(new RoomTagAssignment { RoomId = room.Id, RoomTagId = tag.Id, Room = room, RoomTag = tag });
+    }
+
+    private void SyncHighlights(Room room, IReadOnlyList<string> values)
+    {
+        var existing = room.Highlights.OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc).ToList();
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (i < existing.Count)
+            {
+                existing[i].Text = values[i];
+                existing[i].SortOrder = i;
+            }
+            else
+            {
+                db.RoomHighlights.Add(new RoomHighlight { RoomId = room.Id, Room = room, Text = values[i], SortOrder = i });
+            }
+        }
+        foreach (var highlight in existing.Skip(values.Count)) db.RoomHighlights.Remove(highlight);
     }
 
     public static string CreateSlug(string raw)
