@@ -26,29 +26,38 @@ public sealed class RoomContentTests
         await db.Database.MigrateAsync();
 
         var suffix = Guid.NewGuid().ToString("N")[..8];
-        var property = new Property
+        var property = await db.Properties.SingleOrDefaultAsync(x => x.Code == "DELONG");
+        if (property is null)
         {
-            Code = "DELONG",
-            Name = $"Public Property {suffix}",
-            TimeZoneId = "Asia/Ho_Chi_Minh",
-            IsActive = true
-        };
+            property = new Property
+            {
+                Code = "DELONG",
+                Name = "De Long Test Property",
+                TimeZoneId = "Asia/Ho_Chi_Minh",
+                IsActive = true
+            };
+            db.Properties.Add(property);
+            await db.SaveChangesAsync();
+        }
+
         var room = new Room
         {
-            Property = property,
+            PropertyId = property.Id,
             Code = $"CONTENT-{suffix}",
-            Name = "Phòng Cặp Đôi",
+            Name = $"Phòng Cặp Đôi {suffix}",
             Capacity = 2,
             IsActive = true,
             IsPublished = false
         };
-        db.AddRange(property, room);
+        db.Rooms.Add(room);
         await db.SaveChangesAsync();
 
+        var requestedSlug = $"Phòng Cặp Đôi {suffix}";
+        var expectedSlug = RoomContentService.CreateSlug(requestedSlug);
         var service = new RoomContentService(db, new NoopRoomImageStorage());
         var (updated, error) = await service.UpdateAsync(property.Id, room.Id, new UpdateRoomContentRequest
         {
-            Slug = "Phòng Cặp Đôi",
+            Slug = requestedSlug,
             ShortDescription = "Không gian riêng tư cho hai người.",
             DescriptionHtml = "<h2>Không gian</h2><p>Yên tĩnh <strong>và riêng tư</strong>.</p><script>alert('x')</script>",
             IsPublished = true,
@@ -59,7 +68,7 @@ public sealed class RoomContentTests
 
         Assert.Null(error);
         Assert.NotNull(updated);
-        Assert.Equal("phong-cap-doi", updated!.Slug);
+        Assert.Equal(expectedSlug, updated!.Slug);
         Assert.True(updated.IsPublished);
         Assert.DoesNotContain("<script", updated.DescriptionHtml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("<strong>và riêng tư</strong>", updated.DescriptionHtml);
@@ -69,7 +78,7 @@ public sealed class RoomContentTests
 
         var publicService = new PublicRoomContentService(db);
         var catalog = await publicService.GetCatalogAsync();
-        Assert.Contains(catalog.Rooms, x => x.Id == room.Id && x.Slug == "phong-cap-doi");
+        Assert.Contains(catalog.Rooms, x => x.Id == room.Id && x.Slug == expectedSlug);
 
         var (hidden, hideError) = await service.UpdateAsync(property.Id, room.Id, new UpdateRoomContentRequest
         {
