@@ -3,166 +3,191 @@
 @model DeLong.Web.Pages.Rooms.DetailsModel
 @{
     ViewData["Title"] = Model.Room.Name;
-    var quickRates = Model.Room.Rates.Where(rate => rate.Type != RoomRateType.Nightly).ToList();
+    var timeSlotRates = Model.Room.Rates.Where(rate => rate.Type == RoomRateType.TimeSlot).ToList();
+    var overnightRate = Model.Room.Rates.FirstOrDefault(rate => rate.Type == RoomRateType.Overnight);
     var nightlyRate = Model.Room.Rates.FirstOrDefault(rate => rate.Type == RoomRateType.Nightly);
     var cover = Model.Room.Images.FirstOrDefault(image => image.IsCover) ?? Model.Room.Images.FirstOrDefault();
+    var orderedImages = cover is null
+        ? Model.Room.Images
+        : new[] { cover }.Concat(Model.Room.Images.Where(x => x.Id != cover.Id)).ToList();
 }
 
 @section Head {
     <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@5.4.4/dist/photoswipe.css" />
     <link rel="stylesheet" href="~/css/public-room-content.css" asp-append-version="true" />
 }
 
-<section class="public-room-detail-hero public-rich-room-hero">
-    <div class="public-container public-rich-room-layout">
-        <div class="public-rich-room-media">
-            @if (cover is not null)
-            {
-                <figure class="public-room-cover-hero">
-                    <img src="@cover.LargeUrl" alt="@cover.AltText" width="1600" height="1200" />
-                </figure>
-                @if (Model.Room.Images.Count > 1)
+<main class="public-room-page">
+    <section class="public-room-intro">
+        <div class="public-container">
+            <div class="public-room-intro-row">
+                <div>
+                    <span class="public-eyebrow">@Model.Room.Code</span>
+                    <h1>@Model.Room.Name</h1>
+                    <p>@(string.IsNullOrWhiteSpace(Model.Room.ShortDescription)
+                        ? $"Không gian riêng tư dành cho tối đa {Model.Room.Capacity} người tại De Long Homestay."
+                        : Model.Room.ShortDescription)</p>
+                </div>
+                @if (Model.Room.Tags.Count > 0)
                 {
-                    <div class="public-room-gallery-strip" aria-label="Thư viện ảnh @Model.Room.Name">
-                        @foreach (var image in Model.Room.Images.Take(5))
-                        {
-                            <a href="@image.LargeUrl" target="_blank" rel="noopener" aria-label="Mở ảnh @image.AltText">
-                                <img src="@image.ThumbnailUrl" alt="@image.AltText" width="480" height="360" loading="lazy" />
-                            </a>
-                        }
-                        @if (Model.Room.Images.Count > 5)
-                        {
-                            <span class="public-gallery-more">+@(Model.Room.Images.Count - 5)</span>
-                        }
+                    <div class="public-room-tag-row public-room-intro-tags">
+                        @foreach (var tag in Model.Room.Tags.Take(5)) { <span>@tag</span> }
                     </div>
                 }
-            }
-            else
-            {
-                <div class="public-room-detail-art public-room-art" data-room-code="@Model.Room.Code">
-                    <span class="public-room-poster public-room-poster-detail">
-                        <small>DE LONG STAY · @Model.Room.Code</small>
-                        <strong>@Model.Room.Name</strong>
-                    </span>
-                </div>
-            }
-        </div>
-
-        <div class="public-room-detail-copy public-rich-room-copy">
-            <span class="public-eyebrow">@Model.Room.Code</span>
-            <h1>@Model.Room.Name</h1>
-            @if (!string.IsNullOrWhiteSpace(Model.Room.ShortDescription))
-            {
-                <p>@Model.Room.ShortDescription</p>
-            }
-            else
-            {
-                <p>Một không gian riêng tư dành cho tối đa @Model.Room.Capacity người, có lựa chọn nghỉ ngắn theo khung và lưu trú nhiều ngày khi giá theo đêm được mở.</p>
-            }
-
-            @if (Model.Room.Tags.Count > 0)
-            {
-                <div class="public-room-tag-row public-room-tag-row-detail">
-                    @foreach (var tag in Model.Room.Tags) { <span>@tag</span> }
-                </div>
-            }
-
-            <div class="public-room-detail-facts">
-                <div><small>Sức chứa</small><strong>@Model.Room.Capacity người</strong></div>
-                <div><small>Đặt nhanh</small><strong>@quickRates.Count lựa chọn</strong></div>
-                <div><small>Giá từ</small><strong>@Model.Room.FromPrice.ToString("N0")đ</strong></div>
             </div>
 
-            @if (Model.Room.Highlights.Count > 0)
+            @if (orderedImages.Count > 0)
             {
-                <div class="public-room-highlights">
-                    @foreach (var highlight in Model.Room.Highlights.Take(5))
+                <div id="room-gallery" class="public-room-mosaic pswp-gallery public-room-mosaic-count-@Math.Min(orderedImages.Count, 5)" aria-label="Thư viện ảnh @Model.Room.Name">
+                    @for (var i = 0; i < Math.Min(orderedImages.Count, 5); i++)
                     {
-                        <div><span>✓</span><strong>@highlight</strong></div>
+                        var image = orderedImages[i];
+                        var isPrimary = i == 0;
+                        <a class="public-room-mosaic-item @(isPrimary ? "is-primary" : "")"
+                           href="@image.LargeUrl"
+                           data-pswp-width="@image.LargeWidth"
+                           data-pswp-height="@image.LargeHeight"
+                           data-cropped="true"
+                           target="_blank"
+                           rel="noopener"
+                           aria-label="Xem ảnh: @image.AltText">
+                            <img src="@(isPrimary ? image.LargeUrl : image.CardUrl)"
+                                 alt="@image.AltText"
+                                 width="@(isPrimary ? image.LargeWidth : 900)"
+                                 height="@(isPrimary ? image.LargeHeight : 675)"
+                                 style="object-position:@(image.FocalX * 100)% @(image.FocalY * 100)%"
+                                 loading="@(isPrimary ? "eager" : "lazy")" />
+                            @if (i == Math.Min(orderedImages.Count, 5) - 1 && orderedImages.Count > 1)
+                            {
+                                <span class="public-gallery-count">Xem tất cả @orderedImages.Count ảnh</span>
+                            }
+                        </a>
+                    }
+                    @foreach (var image in orderedImages.Skip(5))
+                    {
+                        <a class="public-room-gallery-hidden"
+                           href="@image.LargeUrl"
+                           data-pswp-width="@image.LargeWidth"
+                           data-pswp-height="@image.LargeHeight"
+                           target="_blank"
+                           rel="noopener"
+                           aria-label="Xem ảnh: @image.AltText"></a>
                     }
                 </div>
             }
-
-            <a class="public-btn public-btn-primary" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code">Kiểm tra phòng trống</a>
-        </div>
-    </div>
-</section>
-
-@if (!string.IsNullOrWhiteSpace(Model.Room.DescriptionHtml) || Model.Room.Amenities.Count > 0)
-{
-    <section class="public-section public-room-story-section">
-        <div class="public-container public-room-story-grid">
-            <article class="public-room-story">
-                <span class="public-eyebrow">Không gian</span>
-                <h2>Về @Model.Room.Name</h2>
-                @if (!string.IsNullOrWhiteSpace(Model.Room.DescriptionHtml))
-                {
-                    <div class="public-room-richtext">@Html.Raw(Model.Room.DescriptionHtml)</div>
-                }
-                else
-                {
-                    <p class="public-room-story-fallback">Nội dung chi tiết đang được cập nhật.</p>
-                }
-            </article>
-            @if (Model.Room.Amenities.Count > 0)
+            else
             {
-                <aside class="public-room-amenities">
-                    <span class="public-eyebrow">Tiện nghi</span>
-                    <h3>Có sẵn trong phòng</h3>
-                    <div class="public-amenity-grid">
-                        @foreach (var amenity in Model.Room.Amenities)
-                        {
-                            <span>@amenity</span>
-                        }
-                    </div>
-                </aside>
+                <div class="public-room-detail-art public-room-art public-room-fallback-art" data-room-code="@Model.Room.Code">
+                    <span class="public-room-poster public-room-poster-detail"><small>DE LONG STAY · @Model.Room.Code</small><strong>@Model.Room.Name</strong></span>
+                </div>
             }
         </div>
     </section>
-}
 
-<section class="public-section public-room-detail-rates">
-    <div class="public-container public-detail-content-grid">
-        <div>
-            @if (nightlyRate is not null)
-            {
-                <span class="public-eyebrow">Lưu trú nhiều ngày</span>
-                <h2>Ở lâu hơn với giá theo đêm riêng</h2>
-                <div class="public-rate-list">
-                    <a class="public-rate-row" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code">
-                        <div>
-                            <strong>@nightlyRate.Name</strong>
-                            <span>Nhận @nightlyRate.StartTime · trả @nightlyRate.EndTime ngày cuối</span>
-                        </div>
-                        <strong>@nightlyRate.Price.ToString("N0")đ/đêm</strong>
-                    </a>
-                </div>
-            }
-
-            <span class="public-eyebrow" style="margin-top:@(nightlyRate is null ? "0" : "28px")">Đặt nhanh</span>
-            <h2>Chọn khoảng thời gian phù hợp</h2>
-            <div class="public-rate-list">
-                @foreach (var rate in quickRates)
+    <section class="public-room-content-section">
+        <div class="public-container public-room-content-layout">
+            <div class="public-room-content-main">
+                @if (Model.Room.Highlights.Count > 0)
                 {
-                    <a class="public-rate-row" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code" asp-route-rate="@rate.Id">
-                        <div>
-                            <strong>@rate.Name</strong>
-                            <span>@rate.StartTime → @rate.EndTime @(rate.Type == RoomRateType.Overnight ? "· qua đêm" : "")</span>
+                    <section class="public-room-content-block public-room-highlight-block">
+                        <span class="public-eyebrow">Điểm nổi bật</span>
+                        <div class="public-room-highlight-grid">
+                            @foreach (var highlight in Model.Room.Highlights.Take(6))
+                            {
+                                <div><span>✓</span><strong>@highlight</strong></div>
+                            }
                         </div>
-                        <strong>@rate.Price.ToString("N0")đ</strong>
-                    </a>
+                    </section>
                 }
+
+                @if (!string.IsNullOrWhiteSpace(Model.Room.DescriptionHtml))
+                {
+                    <section class="public-room-content-block public-room-story">
+                        <span class="public-eyebrow">Không gian</span>
+                        <h2>Về @Model.Room.Name</h2>
+                        <div class="public-room-richtext">@Html.Raw(Model.Room.DescriptionHtml)</div>
+                    </section>
+                }
+
+                @if (Model.Room.Amenities.Count > 0)
+                {
+                    <section class="public-room-content-block">
+                        <span class="public-eyebrow">Tiện nghi</span>
+                        <h2>Có sẵn trong phòng</h2>
+                        <div class="public-amenity-grid public-amenity-grid-wide">
+                            @foreach (var amenity in Model.Room.Amenities)
+                            {
+                                <span><i aria-hidden="true">✓</i>@amenity</span>
+                            }
+                        </div>
+                    </section>
+                }
+
+                <section class="public-room-content-block public-room-rate-block">
+                    <span class="public-eyebrow">Giá & thời gian</span>
+                    <h2>Chọn cách bạn muốn ở</h2>
+                    <div class="public-rate-groups">
+                        @if (timeSlotRates.Count > 0)
+                        {
+                            <div class="public-rate-group">
+                                <div class="public-rate-group-title"><strong>Đặt nhanh</strong><span>Nghỉ theo khung giờ</span></div>
+                                <div class="public-rate-compact-list">
+                                    @foreach (var rate in timeSlotRates)
+                                    {
+                                        <a asp-page="/Booking/Index" asp-route-room="@Model.Room.Code" asp-route-rate="@rate.Id">
+                                            <span><strong>@rate.Name</strong><small>@rate.StartTime → @rate.EndTime</small></span>
+                                            <b>@rate.Price.ToString("N0")đ</b>
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        @if (overnightRate is not null)
+                        {
+                            <div class="public-rate-group">
+                                <div class="public-rate-group-title"><strong>Qua đêm</strong><span>Một đêm ngắn</span></div>
+                                <a class="public-rate-feature" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code" asp-route-rate="@overnightRate.Id">
+                                    <span><strong>@overnightRate.StartTime → @overnightRate.EndTime</strong><small>@overnightRate.Name</small></span>
+                                    <b>@overnightRate.Price.ToString("N0")đ</b>
+                                </a>
+                            </div>
+                        }
+                        @if (nightlyRate is not null)
+                        {
+                            <div class="public-rate-group public-rate-group-nightly">
+                                <div class="public-rate-group-title"><strong>Lưu trú nhiều ngày</strong><span>Giá riêng theo đêm</span></div>
+                                <a class="public-rate-feature" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code">
+                                    <span><strong>Nhận @nightlyRate.StartTime · trả @nightlyRate.EndTime</strong><small>Tính theo số đêm lưu trú</small></span>
+                                    <b>@nightlyRate.Price.ToString("N0")đ/đêm</b>
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </section>
             </div>
+
+            <aside class="public-room-booking-aside">
+                <div class="public-room-booking-card">
+                    <span class="public-eyebrow">@Model.Room.Name</span>
+                    <div class="public-room-booking-price">
+                        <small>Đặt nhanh từ</small>
+                        <strong>@Model.Room.QuickFromPrice.ToString("N0")đ</strong>
+                    </div>
+                    <div class="public-room-booking-facts">
+                        <span><b>@Model.Room.Capacity</b> người</span>
+                        @if (Model.Room.HasBathtub) { <span>Bồn tắm</span> }
+                        @if (Model.Room.OvernightPrice.HasValue) { <span>Qua đêm @Model.Room.OvernightPrice.Value.ToString("N0")đ</span> }
+                        @if (Model.Room.NightlyPrice.HasValue) { <span>Lưu trú @Model.Room.NightlyPrice.Value.ToString("N0")đ/đêm</span> }
+                    </div>
+                    <a class="public-btn public-btn-primary public-room-booking-cta" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code">Kiểm tra phòng trống</a>
+                    <p>Yêu cầu online chưa tự động khóa phòng. De Long sẽ liên hệ xác nhận trước khi giữ phòng chính thức.</p>
+                </div>
+            </aside>
         </div>
-        <aside class="public-detail-note">
-            <span class="public-eyebrow">Lưu ý</span>
-            <h3>Giờ trên website là giờ cấu hình của từng gói.</h3>
-            <p>Với lưu trú nhiều ngày, hệ thống kiểm tra phòng trống liên tục từ giờ nhận ngày đầu đến giờ trả ngày cuối. De Long sẽ liên hệ xác nhận trước khi giữ phòng chính thức.</p>
-            <ul>
-                <li>Yêu cầu online chưa tự động khóa phòng.</li>
-                <li>Giá lưu trú nhiều ngày được tính theo số đêm.</li>
-                <li>Phòng chỉ được giữ sau khi nhân viên xác nhận.</li>
-            </ul>
-        </aside>
-    </div>
-</section>
+    </section>
+</main>
+
+@section Scripts {
+    <script type="module" src="~/js/pages/public-room-gallery.js" asp-append-version="true"></script>
+}
