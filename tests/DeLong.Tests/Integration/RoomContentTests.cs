@@ -59,7 +59,7 @@ public sealed class RoomContentTests
         {
             Slug = requestedSlug,
             ShortDescription = "Không gian riêng tư cho hai người.",
-            DescriptionHtml = "<h2>Không gian</h2><p>Yên tĩnh <strong>và riêng tư</strong>.</p><script>alert('x')</script>",
+            DescriptionHtml = "<h2>Không gian</h2><p>Yên tĩnh <strong>và riêng tư</strong>.</p><img src=\"/uploads/rooms/a/b/large.webp\" alt=\"Phòng\"><iframe class=\"ql-video\" src=\"https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ\"></iframe><iframe src=\"https://evil.example/embed/x\"></iframe><script>alert('x')</script>",
             IsPublished = true,
             Amenities = ["Bồn tắm", "Wifi"],
             Tags = ["Couple", "Lãng mạn"],
@@ -71,10 +71,23 @@ public sealed class RoomContentTests
         Assert.Equal(expectedSlug, updated!.Slug);
         Assert.True(updated.IsPublished);
         Assert.DoesNotContain("<script", updated.DescriptionHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("evil.example", updated.DescriptionHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("youtube-nocookie.com/embed/", updated.DescriptionHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/uploads/rooms/a/b/large.webp", updated.DescriptionHtml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("<strong>và riêng tư</strong>", updated.DescriptionHtml);
         Assert.Equal(2, updated.Amenities.Count);
         Assert.Equal(2, updated.Tags.Count);
         Assert.Equal(2, updated.Highlights.Count);
+
+        var (preset, presetError) = await service.CreateAmenityPresetAsync(property.Id, new CreateAmenityPresetRequest
+        {
+            Name = $"Tiêu chuẩn {suffix}",
+            Amenities = ["Wifi", "Máy lạnh", "Máy chiếu"]
+        });
+        Assert.Null(presetError);
+        Assert.NotNull(preset);
+        Assert.Equal(3, preset!.Amenities.Count);
+        Assert.Contains((await service.GetAmenityPresetsAsync(property.Id)), x => x.Id == preset.Id);
 
         var publicService = new PublicRoomContentService(db);
         var catalog = await publicService.GetCatalogAsync();
@@ -101,6 +114,9 @@ public sealed class RoomContentTests
     {
         public Task<(StoredRoomImage? Image, string? Error)> SaveAsync(Guid roomId, Guid imageId, IFormFile file, CancellationToken cancellationToken = default) =>
             Task.FromResult<(StoredRoomImage?, string?)>((null, "not used"));
+
+        public Task<string?> RegenerateCropsAsync(StoredRoomImage image, double focalX, double focalY, CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>(null);
 
         public Task DeleteAsync(StoredRoomImage image, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
