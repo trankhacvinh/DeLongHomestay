@@ -84,6 +84,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Admin/Bookings", "ViewOperations");
     options.Conventions.AuthorizeFolder("/Admin/Customers", "ViewOperations");
     options.Conventions.AuthorizeFolder("/Admin/Rooms", "ViewRooms");
+    options.Conventions.AuthorizePage("/Admin/Rooms/Content", "ManageRooms");
     options.Conventions.AuthorizeFolder("/Admin/Housekeeping", "ViewHousekeeping");
     options.Conventions.AuthorizeFolder("/Admin/Settings", "ManageRooms");
     options.Conventions.AuthorizeFolder("/Admin/Imports", "ManageImports");
