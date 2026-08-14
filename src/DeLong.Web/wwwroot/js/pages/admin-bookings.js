@@ -6,16 +6,61 @@
     const { createApp } = Vue;
     const timeZone = initial.timeZoneId || 'Asia/Ho_Chi_Minh';
 
+    function parseDateKey(key) {
+        const [year, month, day] = String(key || '').split('-').map(Number);
+        return new Date(Date.UTC(year, month - 1, day));
+    }
+
+    function dayDistance(fromKey, toKey) {
+        if (!fromKey || !toKey) return 0;
+        return Math.round((parseDateKey(toKey) - parseDateKey(fromKey)) / 86400000);
+    }
+
+    function localDateKey(utcValue) {
+        const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone,
+            year: 'numeric', month: '2-digit', day: '2-digit'
+        }).formatToParts(new Date(utcValue));
+        const get = type => parts.find(part => part.type === type)?.value || '';
+        return `${get('year')}-${get('month')}-${get('day')}`;
+    }
+
+    function zonedLocalToIso(dateKey, timeValue) {
+        const [year, month, day] = String(dateKey || '').split('-').map(Number);
+        const [hour, minute] = String(timeValue || '00:00').split(':').map(Number);
+        const desiredWallClock = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+        let candidate = desiredWallClock;
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone,
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+        });
+
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+            const parts = formatter.formatToParts(new Date(candidate));
+            const get = type => Number(parts.find(part => part.type === type)?.value || 0);
+            const actualWallClock = Date.UTC(
+                get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+            const delta = desiredWallClock - actualWallClock;
+            candidate += delta;
+            if (Math.abs(delta) < 1000) break;
+        }
+        return new Date(candidate).toISOString();
+    }
+
     createApp({
         data() {
             return {
                 propertyId: initial.propertyId,
                 bookings: initial.bookings || [],
+                rooms: initial.rooms || [],
                 canManage: window.DeLongBookingsCanManage === true,
                 search: '',
                 statusFilter: '',
                 selectedBooking: null,
                 detail: { open: false },
+                stayEditor: { open: false },
+                stayForm: { roomId: '', checkInDate: '', checkOutDate: '', unitPrice: 0, note: '' },
                 payments: [],
                 loadingPayments: false,
                 paymentEditor: { open: false },
@@ -35,6 +80,30 @@
                     return [booking.code, booking.customerName, booking.customerPhone, booking.roomName, booking.roomCode]
                         .some(value => String(value || '').toLowerCase().includes(q));
                 });
+            },
+            editableStayRooms() {
+                return this.rooms
+                    .filter(room => room.isActive || room.id === this.selectedBooking?.roomId)
+                    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+            },
+            selectedStayRoom() {
+                return this.rooms.find(room => room.id === this.stayForm.roomId) || null;
+            },
+            selectedStayRate() {
+                return this.roomNightlyRate(this.selectedStayRoom);
+            },
+            stayNightCount() {
+                return dayDistance(this.stayForm.checkInDate, this.stayForm.checkOutDate);
+            },
+            stayRoomAmount() {
+                return this.stayNightCount > 0 ? Number(this.stayForm.unitPrice || 0) * this.stayNightCount : 0;
+            },
+            stayTotalAmount() {
+                if (!this.selectedBooking) return this.stayRoomAmount;
+                return Math.max(0,
+                    this.stayRoomAmount +
+                    Number(this.selectedBooking.extraAmount || 0) -
+                    Number(this.selectedBooking.discountAmount || 0));
             }
         },
         methods: {
@@ -77,12 +146,29 @@
                 const problem = error?.problem || {};
                 const marker = `${problem.code || ''} ${problem.type || ''}`.toLowerCase();
                 if (error?.status === 409 || marker.includes('booking_conflict')) {
-                    return 'Phòng này đã có lượt đặt trùng thời gian. Vui lòng kiểm tra lịch hoặc chọn phòng/khung giờ khác.';
+                    return 'Phòng này đã có lượt đặt trùng thời gian. Vui lòng kiểm tra lịch hoặc chọn phòng/thời gian khác.';
+                }
+                if (marker.includes('multiday_edit_requires_v2')) {
+                    return 'Lượt lưu trú nhiều ngày cần được sửa bằng trình chỉnh sửa lưu trú.';
                 }
                 if (error?.status === 429) {
                     return 'Bạn thao tác quá nhanh. Vui lòng chờ một chút rồi thử lại.';
                 }
                 return error?.message || fallback;
+            },
+            roomNightlyRate(room) {
+                if (!room) return null;
+                const nightlyRates = (room.rates || []).filter(rate => Number(rate.type) === 2);
+                if (room.id === this.selectedBooking?.roomId && this.selectedBooking?.roomRateId) {
+                    const snapshotRate = nightlyRates.find(rate => rate.id === this.selectedBooking.roomRateId);
+                    if (snapshotRate) return snapshotRate;
+                }
+                return nightlyRates
+                    .filter(rate => rate.isActive)
+                    .sort((a, b) => a.sortOrder - b.sortOrder)[0] || null;
+            },
+            canEditStay(booking) {
+                return this.canManage && booking && Number(booking.type) === 1 && [0, 1, 2].includes(Number(booking.status));
             },
             async openBooking(booking) {
                 this.selectedBooking = booking;
@@ -92,9 +178,77 @@
             closeDetail() {
                 if (this.saving) return;
                 this.detail.open = false;
+                this.stayEditor.open = false;
                 this.paymentEditor.open = false;
                 this.voidEditor.open = false;
                 this.statusConfirm.open = false;
+            },
+            openStayEditor() {
+                if (!this.canEditStay(this.selectedBooking)) return;
+                this.stayForm = {
+                    roomId: this.selectedBooking.roomId,
+                    checkInDate: localDateKey(this.selectedBooking.checkInUtc),
+                    checkOutDate: localDateKey(this.selectedBooking.checkOutUtc),
+                    unitPrice: Number(this.selectedBooking.unitPrice || 0),
+                    note: this.selectedBooking.note || ''
+                };
+                this.stayEditor.open = true;
+            },
+            closeStayEditor() {
+                if (!this.saving) this.stayEditor.open = false;
+            },
+            stayRoomChanged() {
+                const rate = this.selectedStayRate;
+                if (rate) this.stayForm.unitPrice = Number(rate.price || 0);
+            },
+            validateStay() {
+                if (!this.selectedBooking) return 'Không tìm thấy lượt đặt.';
+                if (!this.stayForm.roomId) return 'Vui lòng chọn phòng.';
+                if (!this.selectedStayRate) return 'Phòng này chưa có giá lưu trú theo đêm.';
+                if (!this.stayForm.checkInDate || !this.stayForm.checkOutDate) return 'Vui lòng chọn ngày nhận và ngày trả.';
+                if (this.stayNightCount < 1) return 'Ngày trả phải sau ngày nhận ít nhất 1 đêm.';
+                if (this.stayNightCount > 30) return 'Mỗi lượt lưu trú online hiện hỗ trợ tối đa 30 đêm.';
+                if (Number(this.stayForm.unitPrice || 0) <= 0) return 'Giá mỗi đêm phải lớn hơn 0.';
+                return null;
+            },
+            async saveStay() {
+                const validation = this.validateStay();
+                if (validation) return this.notify(validation, 'error');
+
+                const booking = this.selectedBooking;
+                const rate = this.selectedStayRate;
+                this.saving = true;
+                try {
+                    const updated = await DeLongApi.put(
+                        `/api/admin/properties/${this.propertyId}/bookings/${booking.id}`,
+                        {
+                            roomId: this.stayForm.roomId,
+                            customerId: booking.customerId,
+                            customerName: booking.customerName,
+                            customerPhone: booking.customerPhone,
+                            type: 1,
+                            roomRateId: rate.id,
+                            rateName: rate.name,
+                            unitPrice: Number(this.stayForm.unitPrice),
+                            nightCount: this.stayNightCount,
+                            checkIn: zonedLocalToIso(this.stayForm.checkInDate, rate.startTime),
+                            checkOut: zonedLocalToIso(this.stayForm.checkOutDate, rate.endTime),
+                            roomAmount: this.stayRoomAmount,
+                            extraAmount: Number(booking.extraAmount || 0),
+                            discountAmount: Number(booking.discountAmount || 0),
+                            source: booking.source || null,
+                            note: this.stayForm.note || null
+                        });
+                    const index = this.bookings.findIndex(item => item.id === updated.id);
+                    if (index >= 0) this.bookings.splice(index, 1, updated);
+                    this.selectedBooking = updated;
+                    this.stayEditor.open = false;
+                    this.notify(`Đã cập nhật lưu trú ${updated.nightCount} đêm cho ${updated.roomName}.`, 'success');
+                } catch (error) {
+                    this.notify(this.friendlyError(error, 'Không thể cập nhật lưu trú.'), 'error');
+                } finally {
+                    this.saving = false;
+                }
             },
             async loadPayments() {
                 if (!this.selectedBooking) return;
