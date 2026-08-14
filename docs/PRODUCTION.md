@@ -2,6 +2,16 @@
 
 Tài liệu này là checklist trung lập với nhà cung cấp hosting. Không bật production trước khi `/health/ready` trả `Healthy` và đã diễn tập restore ít nhất một lần.
 
+## 0. Chạy local
+
+Repo có launch profile mặc định cho Development. Lệnh sau dùng storage local `App_Data` + `wwwroot/uploads` và `/health/ready` phải `Healthy` khi PostgreSQL đang chạy:
+
+```bash
+dotnet run --project src/DeLong.Web
+```
+
+Nếu cố tình chạy `Production` ở local thì readiness sẽ yêu cầu persistent storage giống production thật. Có thể dùng cách đó để diễn tập deployment, nhưng lúc đó phải cấu hình `Storage__DataRoot` và `Storage__MediaPublicRoot` explicit.
+
 ## 1. Cấu hình bắt buộc
 
 Không commit secret vào Git. Production nên cấp cấu hình bằng environment variables / secret store của host.
