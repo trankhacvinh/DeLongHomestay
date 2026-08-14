@@ -8,7 +8,7 @@ public static class HousekeepingEndpoints
     public static IEndpointRouteBuilder MapHousekeepingEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/admin/properties/{propertyId:guid}/housekeeping")
-            .RequireAuthorization("AdminArea")
+            .RequireAuthorization("ViewHousekeeping")
             .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Housekeeping");
 
