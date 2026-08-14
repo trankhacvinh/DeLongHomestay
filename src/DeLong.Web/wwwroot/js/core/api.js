@@ -42,6 +42,7 @@
     global.DeLongApi = {
         get: (url) => request(url),
         post: (url, data) => request(url, { method: 'POST', body: JSON.stringify(data) }),
+        postForm: (url, formData) => request(url, { method: 'POST', body: formData }),
         put: (url, data) => request(url, { method: 'PUT', body: JSON.stringify(data) }),
         patch: (url, data) => request(url, { method: 'PATCH', body: JSON.stringify(data) }),
         delete: (url) => request(url, { method: 'DELETE' })
