@@ -76,7 +76,9 @@
                 <div class="payment-summary-card"><span>Còn lại</span><strong v-bind:class="selectedBooking.balanceAmount > 0 ? 'text-danger' : 'text-success'">{{ money(selectedBooking.balanceAmount) }}</strong></div>
             </div>
             <div class="detail-list booking-detail-list">
+                <div><span>Kiểu đặt</span><strong>{{ selectedBooking.type === 1 ? 'Lưu trú nhiều ngày' : 'Theo khung giờ' }}</strong></div>
                 <div><span>Phòng</span><strong>{{ selectedBooking.roomName }}</strong></div>
+                <div v-if="selectedBooking.type === 1"><span>Giá lưu trú</span><strong>{{ selectedBooking.nightCount }} đêm × {{ money(selectedBooking.unitPrice) }}</strong></div>
                 <div><span>Thời gian</span><strong>{{ dateTimeText(selectedBooking.checkInUtc) }} → {{ dateTimeText(selectedBooking.checkOutUtc) }}</strong></div>
                 <div v-if="selectedBooking.note"><span>Ghi chú</span><strong>{{ selectedBooking.note }}</strong></div>
             </div>
@@ -98,8 +100,43 @@
                 </div>
             </div>
 
-            <div class="modal-actions booking-status-actions" v-if="canManage && nextActions(selectedBooking).length">
+            <div class="modal-actions booking-status-actions" v-if="canManage">
+                <button v-if="canEditStay(selectedBooking)" class="btn btn-light" type="button" v-on:click="openStayEditor">Sửa lưu trú</button>
                 <button v-for="action in nextActions(selectedBooking)" v-bind:key="action.status" type="button" class="btn" v-bind:class="action.className" v-bind:disabled="saving" v-on:click="requestStatus(action)">{{ action.label }}</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop modal-top" v-if="stayEditor.open" v-on:click.self="closeStayEditor">
+        <section class="modal-card booking-editor" role="dialog" aria-modal="true">
+            <div class="modal-head">
+                <div><h2>Sửa lưu trú nhiều ngày</h2><p class="small muted">{{ selectedBooking?.code }} · {{ selectedBooking?.customerName }}</p></div>
+                <button class="icon-btn" type="button" v-on:click="closeStayEditor" aria-label="Đóng">×</button>
+            </div>
+            <div class="modal-intro"><strong>Giờ nhận/trả lấy từ mức giá “Lưu trú theo đêm” của phòng.</strong> Khi đổi phòng, hệ thống tự dùng mức giá theo đêm đang hoạt động của phòng mới. Giá/đêm có thể điều chỉnh cho trường hợp thỏa thuận riêng.</div>
+            <div class="form-grid stay-editor-grid">
+                <div class="field full">
+                    <label>Phòng *</label>
+                    <select v-model="stayForm.roomId" v-on:change="stayRoomChanged">
+                        <option v-for="room in editableStayRooms" v-bind:key="room.id" v-bind:value="room.id" v-bind:disabled="!roomNightlyRate(room)">{{ room.name }}{{ roomNightlyRate(room) ? '' : ' · chưa có giá theo đêm' }}</option>
+                    </select>
+                </div>
+                <div class="field"><label>Ngày nhận *</label><input type="date" v-model="stayForm.checkInDate" /></div>
+                <div class="field"><label>Ngày trả *</label><input type="date" v-model="stayForm.checkOutDate" /></div>
+                <div class="field"><label>Giá mỗi đêm *</label><input type="number" min="1" step="1000" v-model.number="stayForm.unitPrice" /></div>
+                <div class="field"><label>Số đêm</label><input v-bind:value="stayNightCount > 0 ? stayNightCount + ' đêm' : '—'" disabled /></div>
+                <div class="field full"><label>Ghi chú</label><textarea v-model.trim="stayForm.note" maxlength="2000" placeholder="Ghi chú về giờ đến, yêu cầu của khách..."></textarea></div>
+            </div>
+            <div class="notice" v-if="!selectedStayRate">Phòng này chưa có mức giá “Lưu trú theo đêm” phù hợp. Hãy cấu hình giá trước khi chuyển booking sang phòng này.</div>
+            <div class="summary-box stay-editor-summary" v-else>
+                <div class="summary-line"><span>Giờ nhận / trả</span><strong>{{ selectedStayRate.startTime }} → {{ selectedStayRate.endTime }}</strong></div>
+                <div class="summary-line"><span>Tiền phòng</span><strong>{{ money(stayRoomAmount) }}</strong></div>
+                <div class="summary-line"><span>Phụ thu / giảm giá giữ nguyên</span><strong>{{ money(selectedBooking?.extraAmount || 0) }} / -{{ money(selectedBooking?.discountAmount || 0) }}</strong></div>
+                <div class="summary-line total"><span>Tổng mới</span><strong>{{ money(stayTotalAmount) }}</strong></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-light" type="button" v-on:click="closeStayEditor">Quay lại</button>
+                <button class="btn btn-primary" type="button" v-bind:disabled="saving || !selectedStayRate || stayNightCount <= 0" v-on:click="saveStay">{{ saving ? 'Đang lưu...' : 'Lưu thay đổi' }}</button>
             </div>
         </section>
     </div>
