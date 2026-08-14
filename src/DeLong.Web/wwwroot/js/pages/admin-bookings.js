@@ -57,6 +57,7 @@
                 canManage: window.DeLongBookingsCanManage === true,
                 search: '',
                 statusFilter: '',
+                sortMode: 'operations',
                 selectedBooking: null,
                 detail: { open: false },
                 stayEditor: { open: false },
@@ -74,11 +75,25 @@
         computed: {
             filteredBookings() {
                 const q = this.search.toLowerCase();
-                return this.bookings.filter(booking => {
+                const rows = this.bookings.filter(booking => {
                     if (this.statusFilter !== '' && String(booking.status) !== this.statusFilter) return false;
                     if (!q) return true;
                     return [booking.code, booking.customerName, booking.customerPhone, booking.roomName, booking.roomCode]
                         .some(value => String(value || '').toLowerCase().includes(q));
+                });
+
+                const timestamp = value => new Date(value || 0).getTime();
+                const activeStatuses = new Set([0, 1, 2, 3]);
+                return rows.slice().sort((a, b) => {
+                    if (this.sortMode === 'checkin-asc') return timestamp(a.checkInUtc) - timestamp(b.checkInUtc);
+                    if (this.sortMode === 'checkin-desc') return timestamp(b.checkInUtc) - timestamp(a.checkInUtc);
+                    if (this.sortMode === 'created-desc') return timestamp(b.createdAtUtc) - timestamp(a.createdAtUtc);
+
+                    const aActive = activeStatuses.has(Number(a.status));
+                    const bActive = activeStatuses.has(Number(b.status));
+                    if (aActive !== bActive) return aActive ? -1 : 1;
+                    if (aActive) return timestamp(a.checkInUtc) - timestamp(b.checkInUtc);
+                    return timestamp(b.checkInUtc) - timestamp(a.checkInUtc);
                 });
             },
             editableStayRooms() {
