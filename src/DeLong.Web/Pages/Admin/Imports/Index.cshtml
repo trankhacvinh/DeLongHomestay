@@ -1,0 +1,114 @@
+@page "/Admin/Imports"
+@model DeLong.Web.Pages.Admin.Imports.IndexModel
+@{
+    ViewData["Title"] = "Nhập dữ liệu";
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/data-import.css" asp-append-version="true" />
+}
+
+<div id="data-import-page" class="data-import-page" v-cloak>
+    <script id="data-import-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+
+    <div class="page-title-row import-page-head">
+        <div>
+            <div class="page-eyebrow">Chuẩn bị dữ liệu thật</div>
+            <h1>Nhập booking từ Excel</h1>
+            <p>Xem trước và kiểm tra trùng trước khi ghi PostgreSQL. Import chỉ tạo khách hàng + lượt đặt; không suy đoán giao dịch thanh toán.</p>
+        </div>
+        <a class="btn btn-light" v-bind:href="templateUrl">Tải file mẫu</a>
+    </div>
+
+    <section class="import-workflow" aria-label="Quy trình import">
+        <div class="import-step is-active"><span>01</span><div><strong>Chọn file</strong><small>.xlsx hoặc .xlsm</small></div></div>
+        <div class="import-step" v-bind:class="{ 'is-active': preview }"><span>02</span><div><strong>Xem trước</strong><small>Phòng, khách, giờ, trùng</small></div></div>
+        <div class="import-step" v-bind:class="{ 'is-active': imported }"><span>03</span><div><strong>Xác nhận</strong><small>Transaction toàn bộ</small></div></div>
+    </section>
+
+    <section class="panel import-upload-card">
+        <div class="import-upload-copy">
+            <span class="page-eyebrow">File nguồn</span>
+            <h2>Chọn workbook cần nhập</h2>
+            <p>Ưu tiên sheet <strong>“Đặt phòng”</strong> theo mẫu cấu trúc. File lịch màu cũ vẫn được nhận diện nhưng sẽ không tự tạo khách giả khi thiếu tên/SĐT.</p>
+        </div>
+        <label class="import-dropzone" v-bind:class="{ 'has-file': selectedFile }">
+            <input ref="fileInput" type="file" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" v-on:change="selectFile" />
+            <span class="import-file-icon" aria-hidden="true">XLSX</span>
+            <strong>{{ selectedFile ? selectedFile.name : 'Chọn file Excel' }}</strong>
+            <small>{{ selectedFile ? formatBytes(selectedFile.size) : 'Tối đa 10 MB · file không được import cho tới khi bạn xác nhận' }}</small>
+        </label>
+        <div class="import-upload-actions">
+            <button class="btn btn-primary" type="button" v-bind:disabled="!selectedFile || previewing" v-on:click="previewFile">
+                {{ previewing ? 'Đang kiểm tra...' : 'Xem trước dữ liệu' }}
+            </button>
+            <button v-if="selectedFile" class="btn btn-light" type="button" v-on:click="reset">Chọn file khác</button>
+        </div>
+    </section>
+
+    <template v-if="preview">
+        <section class="import-summary-grid">
+            <div class="import-kpi"><span>Tổng dòng</span><strong>{{ preview.totalRows }}</strong></div>
+            <div class="import-kpi is-ready"><span>Sẵn sàng</span><strong>{{ preview.readyRows }}</strong></div>
+            <div class="import-kpi is-duplicate"><span>Trùng bỏ qua</span><strong>{{ preview.duplicateRows }}</strong></div>
+            <div class="import-kpi" v-bind:class="{ 'is-error': preview.errorRows > 0 }"><span>Cần sửa</span><strong>{{ preview.errorRows }}</strong></div>
+        </section>
+
+        <section v-if="preview.messages && preview.messages.length" class="panel import-notice" v-bind:class="{ 'is-warning': preview.format === 'legacy-calendar' }">
+            <div><strong>{{ preview.format === 'legacy-calendar' ? 'File lịch màu cũ' : 'Ghi chú kiểm tra' }}</strong>
+                <p v-for="message in preview.messages" v-bind:key="message">{{ message }}</p>
+            </div>
+            <a v-if="preview.format === 'legacy-calendar'" class="btn btn-light btn-sm" v-bind:href="templateUrl">Tải mẫu có cấu trúc</a>
+        </section>
+
+        <section v-if="preview.rows && preview.rows.length" class="panel import-preview-card">
+            <div class="panel-head import-preview-head">
+                <div><h2>Kết quả xem trước</h2><p>{{ preview.fileName }} · dữ liệu chưa được ghi vào database.</p></div>
+                <div class="import-filter-row">
+                    <button type="button" v-for="filter in filters" v-bind:key="filter.value" v-bind:class="{ active: rowFilter === filter.value }" v-on:click="rowFilter = filter.value">{{ filter.label }}</button>
+                </div>
+            </div>
+            <div class="import-table-wrap">
+                <table class="import-table">
+                    <thead><tr><th>Dòng</th><th>Trạng thái</th><th>Phòng</th><th>Khách hàng</th><th>Nhận / trả</th><th>Tiền phòng</th><th>Nguồn</th><th>Ghi chú kiểm tra</th></tr></thead>
+                    <tbody>
+                        <tr v-for="row in filteredRows" v-bind:key="row.excelRow" v-bind:class="'row-' + row.state">
+                            <td><strong>#{{ row.excelRow }}</strong><small v-if="row.externalId">{{ row.externalId }}</small></td>
+                            <td><span class="import-state" v-bind:class="row.state">{{ stateLabel(row.state) }}</span></td>
+                            <td><strong>{{ row.roomName || row.roomInput }}</strong><small v-if="row.roomName && row.roomInput !== row.roomName">{{ row.roomInput }}</small></td>
+                            <td><strong>{{ row.customerName || '—' }}</strong><small>{{ row.customerPhone || '—' }}</small></td>
+                            <td><strong>{{ formatDateTime(row.checkIn) }}</strong><small>→ {{ formatDateTime(row.checkOut) }}</small></td>
+                            <td><strong>{{ money(row.roomAmount) }}</strong><small v-if="row.extraAmount || row.discountAmount">+{{ money(row.extraAmount) }} / -{{ money(row.discountAmount) }}</small></td>
+                            <td>{{ row.source || 'Excel' }}</td>
+                            <td class="import-message-cell">{{ row.message || '—' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section v-if="preview.format === 'structured-bookings'" class="import-confirm-card" v-bind:class="{ 'has-errors': preview.errorRows > 0 }">
+            <div>
+                <strong v-if="preview.errorRows > 0">Chưa thể import</strong>
+                <strong v-else-if="preview.readyRows > 0">Sẵn sàng ghi dữ liệu</strong>
+                <strong v-else>Không có dòng mới cần import</strong>
+                <p v-if="preview.errorRows > 0">Có {{ preview.errorRows }} dòng lỗi. Sửa file rồi Xem trước lại; hệ thống không import một phần để tránh dữ liệu nửa vời.</p>
+                <p v-else>{{ preview.readyRows }} dòng mới sẽ được import; {{ preview.duplicateRows }} dòng trùng chính xác sẽ tự bỏ qua.</p>
+            </div>
+            <button class="btn btn-primary" type="button" v-bind:disabled="preview.errorRows > 0 || preview.readyRows === 0 || importing" v-on:click="commitImport">
+                {{ importing ? 'Đang import...' : 'Xác nhận import' }}
+            </button>
+        </section>
+    </template>
+
+    <section v-if="imported" class="panel import-success-card">
+        <span class="import-success-mark">✓</span>
+        <div><span class="page-eyebrow">Hoàn tất</span><h2>Đã import {{ imported.importedRows }} lượt đặt</h2><p>{{ imported.skippedDuplicates }} dòng trùng được bỏ qua. Bạn có thể mở Lịch phòng hoặc Đặt phòng để kiểm tra dữ liệu vừa nhập.</p></div>
+        <div class="import-success-actions"><a class="btn btn-primary" v-bind:href="'/Admin/Calendar?propertyId=' + propertyId">Mở Lịch phòng</a><a class="btn btn-light" v-bind:href="'/Admin/Bookings?propertyId=' + propertyId">Mở Đặt phòng</a></div>
+    </section>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type" aria-live="polite">{{ toast.message }}</div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin-data-import.js" asp-append-version="true"></script>
+}
