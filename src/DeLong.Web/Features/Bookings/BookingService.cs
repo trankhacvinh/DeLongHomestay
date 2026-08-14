@@ -28,7 +28,8 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
     {
         var validation = ValidateCreate(request); if (validation is not null) return (null, validation);
         if (!await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id == request.RoomId && x.IsActive, cancellationToken)) return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
-        if (request.RoomRateId.HasValue && !await db.RoomRates.AnyAsync(x => x.Id == request.RoomRateId && x.RoomId == request.RoomId, cancellationToken)) return (null, new("rate_not_found", "Giá phòng không hợp lệ."));
+        var rateError = await ValidateRateReferenceAsync(request.Type, request.RoomId, request.RoomRateId, cancellationToken);
+        if (rateError is not null) return (null, rateError);
 
         var checkInUtc = request.CheckIn.UtcDateTime; var checkOutUtc = request.CheckOut.UtcDateTime;
         if (BookingRules.LocksRoom(request.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken)) return (null, ConflictError());
@@ -63,7 +64,8 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
             return (null, new("multiday_edit_requires_v2", "Lượt lưu trú nhiều ngày phải được sửa bằng trình chỉnh sửa nhiều ngày."));
 
         if (!await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id == request.RoomId && (x.IsActive || x.Id == booking.RoomId), cancellationToken)) return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
-        if (request.RoomRateId.HasValue && !await db.RoomRates.AnyAsync(x => x.Id == request.RoomRateId && x.RoomId == request.RoomId, cancellationToken)) return (null, new("rate_not_found", "Giá phòng không hợp lệ."));
+        var rateError = await ValidateRateReferenceAsync(request.Type, request.RoomId, request.RoomRateId, cancellationToken);
+        if (rateError is not null) return (null, rateError);
 
         var customer = await db.Customers.SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == request.CustomerId && x.IsActive, cancellationToken);
         if (customer is null) return (null, new("customer_invalid", "Không tìm thấy khách hàng."));
@@ -102,6 +104,24 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
 
     public Task<bool> HasConflictAsync(Guid propertyId, Guid roomId, DateTime checkInUtc, DateTime checkOutUtc, Guid? excludeBookingId = null, CancellationToken cancellationToken = default) =>
         db.Bookings.AnyAsync(x => x.PropertyId == propertyId && x.RoomId == roomId && LockingStatuses.Contains(x.Status) && (!excludeBookingId.HasValue || x.Id != excludeBookingId.Value) && x.CheckInUtc < checkOutUtc && checkInUtc < x.CheckOutUtc, cancellationToken);
+
+    private async Task<BookingOperationError?> ValidateRateReferenceAsync(BookingType type, Guid roomId, Guid? rateId, CancellationToken cancellationToken)
+    {
+        if (!rateId.HasValue) return type == BookingType.MultiDay
+            ? new("rate_not_found", "Lưu trú nhiều ngày phải chọn mức giá theo đêm của phòng.")
+            : null;
+
+        var rateType = await db.RoomRates.AsNoTracking()
+            .Where(x => x.Id == rateId.Value && x.RoomId == roomId)
+            .Select(x => (RoomRateType?)x.Type)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (!rateType.HasValue) return new("rate_not_found", "Giá phòng không hợp lệ.");
+        if (type == BookingType.MultiDay && rateType.Value != RoomRateType.Nightly)
+            return new("rate_type_invalid", "Lưu trú nhiều ngày phải dùng mức giá “Lưu trú theo đêm”.");
+        if (type == BookingType.TimeSlot && rateType.Value == RoomRateType.Nightly)
+            return new("rate_type_invalid", "Đặt theo khung giờ không thể dùng mức giá lưu trú theo đêm.");
+        return null;
+    }
 
     private async Task<BookingOperationError?> SaveWithConflictGuardAsync(CancellationToken cancellationToken)
     {
