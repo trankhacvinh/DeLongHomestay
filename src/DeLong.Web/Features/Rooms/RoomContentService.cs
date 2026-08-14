@@ -182,9 +182,18 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
         if (request.FocalX is < 0 or > 1 || request.FocalY is < 0 or > 1)
             return (null, new("validation", "Điểm lấy nét ảnh không hợp lệ."));
 
+        var focalX = request.FocalX ?? image.FocalX;
+        var focalY = request.FocalY ?? image.FocalY;
+        if (Math.Abs(focalX - image.FocalX) > 0.0001 || Math.Abs(focalY - image.FocalY) > 0.0001)
+        {
+            var stored = new StoredRoomImage(image.OriginalStoragePath, image.LargePath, image.CardPath, image.ThumbnailPath, image.Width, image.Height, image.OriginalBytes, image.ContentType, image.OriginalFileName);
+            var cropError = await imageStorage.RegenerateCropsAsync(stored, focalX, focalY, cancellationToken);
+            if (cropError is not null) return (null, new("image_crop_failed", cropError));
+        }
+
         image.AltText = alt;
-        if (request.FocalX.HasValue) image.FocalX = request.FocalX.Value;
-        if (request.FocalY.HasValue) image.FocalY = request.FocalY.Value;
+        image.FocalX = focalX;
+        image.FocalY = focalY;
         if (request.IsCover)
         {
             foreach (var item in room.Images) item.IsCover = item.Id == imageId;
@@ -262,7 +271,7 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
     private async Task SyncTagsAsync(Room room, IReadOnlyList<string> names, CancellationToken ct)
     {
         var desired = names.ToDictionary(NormalizeName, x => x, StringComparer.Ordinal);
-        var catalog = desired.Count == 0
+        List<RoomTag> catalog = desired.Count == 0
             ? []
             : await db.RoomTags.Where(x => x.PropertyId == room.PropertyId && desired.Keys.Contains(x.NormalizedName)).ToListAsync(ct);
 
@@ -357,7 +366,7 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
         room.Amenities.Where(x => x.Amenity.IsActive).Select(x => x.Amenity.Name).OrderBy(x => x).ToList(),
         room.Tags.Where(x => x.RoomTag.IsActive).Select(x => x.RoomTag.Name).OrderBy(x => x).ToList(),
         room.Highlights.OrderBy(x => x.SortOrder).Select(x => x.Text).ToList(),
-        room.Images.OrderByDescending(x => x.IsCover).ThenBy(x => x.SortOrder).Select(ToImageDto).ToList());
+        room.Images.OrderBy(x => x.SortOrder).Select(ToImageDto).ToList());
 
     private static AmenityPresetDto ToPresetDto(AmenityPreset preset) => new(
         preset.Id,
