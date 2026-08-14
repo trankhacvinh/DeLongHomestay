@@ -1,0 +1,54 @@
+name: Generate Staff Accounts Migration
+
+on:
+  push:
+    branches: [ "agent/staff-accounts" ]
+    paths:
+      - '.github/workflows/migration-staff-accounts.yml'
+      - 'src/DeLong.Web/Identity/ApplicationUser.cs'
+      - 'src/DeLong.Web/Data/AppDbContext.cs'
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    env:
+      ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=delong_dev;Username=postgres;Password=postgres"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/staff-accounts
+      - name: Check migration
+        id: migration
+        shell: bash
+        run: |
+          if compgen -G "src/DeLong.Web/Data/Migrations/*_StaffAccounts.cs" > /dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Setup .NET 10
+        if: steps.migration.outputs.exists == 'false'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Install dotnet-ef
+        if: steps.migration.outputs.exists == 'false'
+        run: dotnet tool install --global dotnet-ef --version 10.0.10
+      - name: Restore
+        if: steps.migration.outputs.exists == 'false'
+        run: dotnet restore DeLongHomestay.sln
+      - name: Generate migration
+        if: steps.migration.outputs.exists == 'false'
+        run: dotnet ef migrations add StaffAccounts --project src/DeLong.Web --startup-project src/DeLong.Web --output-dir Data/Migrations
+      - name: Commit migration
+        if: steps.migration.outputs.exists == 'false'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/DeLong.Web/Data/Migrations
+          git commit -m "db: add staff accounts migration"
+          git push origin HEAD:agent/staff-accounts
