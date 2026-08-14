@@ -5,37 +5,121 @@
     ViewData["Title"] = Model.Room.Name;
     var quickRates = Model.Room.Rates.Where(rate => rate.Type != RoomRateType.Nightly).ToList();
     var nightlyRate = Model.Room.Rates.FirstOrDefault(rate => rate.Type == RoomRateType.Nightly);
+    var cover = Model.Room.Images.FirstOrDefault(image => image.IsCover) ?? Model.Room.Images.FirstOrDefault();
 }
 
 @section Head {
     <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/public-room-content.css" asp-append-version="true" />
 }
 
-<section class="public-room-detail-hero">
-    <div class="public-container public-room-detail-grid">
-        <div class="public-room-detail-art public-room-art" data-room-code="@Model.Room.Code">
-            <span class="public-room-poster public-room-poster-detail">
-                <small>DE LONG STAY · @Model.Room.Code</small>
-                <strong>@Model.Room.Name</strong>
-            </span>
-            <div class="public-room-art-tags">
-                <span>@Model.Room.Capacity người</span>
-                @if (Model.Room.HasBathtub) { <span>Bồn tắm</span> }
-            </div>
+<section class="public-room-detail-hero public-rich-room-hero">
+    <div class="public-container public-rich-room-layout">
+        <div class="public-rich-room-media">
+            @if (cover is not null)
+            {
+                <figure class="public-room-cover-hero">
+                    <img src="@cover.LargeUrl" alt="@cover.AltText" width="1600" height="1200" />
+                </figure>
+                @if (Model.Room.Images.Count > 1)
+                {
+                    <div class="public-room-gallery-strip" aria-label="Thư viện ảnh @Model.Room.Name">
+                        @foreach (var image in Model.Room.Images.Take(5))
+                        {
+                            <a href="@image.LargeUrl" target="_blank" rel="noopener" aria-label="Mở ảnh @image.AltText">
+                                <img src="@image.ThumbnailUrl" alt="@image.AltText" width="480" height="360" loading="lazy" />
+                            </a>
+                        }
+                        @if (Model.Room.Images.Count > 5)
+                        {
+                            <span class="public-gallery-more">+@(Model.Room.Images.Count - 5)</span>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="public-room-detail-art public-room-art" data-room-code="@Model.Room.Code">
+                    <span class="public-room-poster public-room-poster-detail">
+                        <small>DE LONG STAY · @Model.Room.Code</small>
+                        <strong>@Model.Room.Name</strong>
+                    </span>
+                </div>
+            }
         </div>
-        <div class="public-room-detail-copy">
+
+        <div class="public-room-detail-copy public-rich-room-copy">
             <span class="public-eyebrow">@Model.Room.Code</span>
             <h1>@Model.Room.Name</h1>
-            <p>Một không gian riêng tư dành cho tối đa @Model.Room.Capacity người, có lựa chọn nghỉ ngắn theo khung và lưu trú nhiều ngày khi giá theo đêm được mở.</p>
+            @if (!string.IsNullOrWhiteSpace(Model.Room.ShortDescription))
+            {
+                <p>@Model.Room.ShortDescription</p>
+            }
+            else
+            {
+                <p>Một không gian riêng tư dành cho tối đa @Model.Room.Capacity người, có lựa chọn nghỉ ngắn theo khung và lưu trú nhiều ngày khi giá theo đêm được mở.</p>
+            }
+
+            @if (Model.Room.Tags.Count > 0)
+            {
+                <div class="public-room-tag-row public-room-tag-row-detail">
+                    @foreach (var tag in Model.Room.Tags) { <span>@tag</span> }
+                </div>
+            }
+
             <div class="public-room-detail-facts">
                 <div><small>Sức chứa</small><strong>@Model.Room.Capacity người</strong></div>
                 <div><small>Đặt nhanh</small><strong>@quickRates.Count lựa chọn</strong></div>
                 <div><small>Giá từ</small><strong>@Model.Room.FromPrice.ToString("N0")đ</strong></div>
             </div>
+
+            @if (Model.Room.Highlights.Count > 0)
+            {
+                <div class="public-room-highlights">
+                    @foreach (var highlight in Model.Room.Highlights.Take(5))
+                    {
+                        <div><span>✓</span><strong>@highlight</strong></div>
+                    }
+                </div>
+            }
+
             <a class="public-btn public-btn-primary" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code">Kiểm tra phòng trống</a>
         </div>
     </div>
 </section>
+
+@if (!string.IsNullOrWhiteSpace(Model.Room.DescriptionHtml) || Model.Room.Amenities.Count > 0)
+{
+    <section class="public-section public-room-story-section">
+        <div class="public-container public-room-story-grid">
+            <article class="public-room-story">
+                <span class="public-eyebrow">Không gian</span>
+                <h2>Về @Model.Room.Name</h2>
+                @if (!string.IsNullOrWhiteSpace(Model.Room.DescriptionHtml))
+                {
+                    <div class="public-room-richtext">@Html.Raw(Model.Room.DescriptionHtml)</div>
+                }
+                else
+                {
+                    <p class="public-room-story-fallback">Nội dung chi tiết đang được cập nhật.</p>
+                }
+            </article>
+            @if (Model.Room.Amenities.Count > 0)
+            {
+                <aside class="public-room-amenities">
+                    <span class="public-eyebrow">Tiện nghi</span>
+                    <h3>Có sẵn trong phòng</h3>
+                    <div class="public-amenity-grid">
+                        @foreach (var amenity in Model.Room.Amenities)
+                        {
+                            <span>@amenity</span>
+                        }
+                    </div>
+                </aside>
+            }
+        </div>
+    </section>
+}
 
 <section class="public-section public-room-detail-rates">
     <div class="public-container public-detail-content-grid">
