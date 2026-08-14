@@ -1,0 +1,179 @@
+@page "/Admin/Rooms/{roomId:guid}/Content"
+@model DeLong.Web.Pages.Admin.Rooms.ContentModel
+@{
+    ViewData["Title"] = "Nội dung phòng";
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/room-content.css" asp-append-version="true" />
+}
+
+<div id="room-content-page" v-cloak>
+    <script id="room-content-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+
+    <div class="page-title-row room-content-page-head">
+        <div>
+            <div class="page-eyebrow">Nội dung phòng</div>
+            <h1>{{ room.name }}</h1>
+            <p>{{ room.code }} · Quản lý nội dung hiển thị trên website, tiện nghi và thư viện ảnh.</p>
+        </div>
+        <div class="room-content-head-actions">
+            <a class="btn btn-light" v-bind:href="'/Admin/Rooms?propertyId=' + propertyId">Quay lại danh sách</a>
+            <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveContent">{{ saving ? 'Đang lưu...' : 'Lưu nội dung' }}</button>
+        </div>
+    </div>
+
+    <div class="room-content-layout">
+        <main class="room-content-main">
+            <section class="panel room-content-section">
+                <div class="panel-head room-content-section-head">
+                    <div><span class="room-content-step">01</span><div><h2>Thông tin giới thiệu</h2><p>Phần khách nhìn thấy đầu tiên trong trang chi tiết phòng.</p></div></div>
+                </div>
+                <div class="room-content-fields">
+                    <div class="field">
+                        <label for="room-content-slug">Đường dẫn</label>
+                        <div class="slug-input-wrap"><span>/rooms/</span><input id="room-content-slug" v-model.trim="form.slug" maxlength="180" autocomplete="off" /></div>
+                        <small class="field-help">Chỉ nên thay khi cần. Hệ thống sẽ chuẩn hóa thành chữ thường và dấu gạch ngang.</small>
+                    </div>
+                    <div class="field">
+                        <label for="room-content-short">Mô tả ngắn</label>
+                        <textarea id="room-content-short" v-model.trim="form.shortDescription" maxlength="600" rows="3" placeholder="Ví dụ: Không gian tone xanh riêng tư, phù hợp cho cặp đôi cần một buổi nghỉ ngắn và thư giãn."></textarea>
+                        <small class="field-help">{{ (form.shortDescription || '').length }}/600 ký tự</small>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel room-content-section">
+                <div class="panel-head room-content-section-head">
+                    <div><span class="room-content-step">02</span><div><h2>Nội dung chi tiết</h2><p>Rich text được làm sạch phía server trước khi xuất bản.</p></div></div>
+                </div>
+                <div class="rich-editor-wrap">
+                    <div class="rich-editor-toolbar" role="toolbar" aria-label="Định dạng nội dung">
+                        <button type="button" title="Đậm" v-on:click="formatText('bold')"><strong>B</strong></button>
+                        <button type="button" title="Nghiêng" v-on:click="formatText('italic')"><em>I</em></button>
+                        <span class="rich-toolbar-separator"></span>
+                        <button type="button" v-on:click="formatBlock('p')">Đoạn</button>
+                        <button type="button" v-on:click="formatBlock('h2')">H2</button>
+                        <button type="button" v-on:click="formatBlock('h3')">H3</button>
+                        <span class="rich-toolbar-separator"></span>
+                        <button type="button" title="Danh sách chấm" v-on:click="formatText('insertUnorderedList')">• Danh sách</button>
+                        <button type="button" title="Danh sách số" v-on:click="formatText('insertOrderedList')">1. Danh sách</button>
+                        <button type="button" title="Thêm liên kết" v-on:click="createLink">Liên kết</button>
+                    </div>
+                    <div ref="richEditor"
+                         class="rich-editor"
+                         contenteditable="true"
+                         role="textbox"
+                         aria-multiline="true"
+                         data-placeholder="Viết câu chuyện về căn phòng, phong cách không gian, trải nghiệm phù hợp và những điều khách nên biết..."
+                         v-html="form.descriptionHtml"
+                         v-on:input="captureDescription"></div>
+                </div>
+            </section>
+
+            <section class="panel room-content-section">
+                <div class="panel-head room-content-section-head">
+                    <div><span class="room-content-step">03</span><div><h2>Tiện nghi & thẻ</h2><p>Tiện nghi là thông tin thực tế; thẻ dùng để mô tả phong cách và nhu cầu khách.</p></div></div>
+                </div>
+                <div class="room-content-taxonomy-grid">
+                    <div class="taxonomy-editor">
+                        <label>Tiện nghi</label>
+                        <div class="chip-list" v-if="form.amenities.length">
+                            <span class="content-chip" v-for="(item, index) in form.amenities" v-bind:key="'amenity-' + item">{{ item }}<button type="button" v-on:click="removeItem('amenities', index)" v-bind:aria-label="'Xóa ' + item">×</button></span>
+                        </div>
+                        <div class="chip-add-row">
+                            <input v-model.trim="drafts.amenity" maxlength="100" placeholder="Bồn tắm, Wifi, Máy chiếu..." v-on:keyup.enter="addItem('amenities', 'amenity')" />
+                            <button class="btn btn-light btn-sm" type="button" v-on:click="addItem('amenities', 'amenity')">Thêm</button>
+                        </div>
+                    </div>
+                    <div class="taxonomy-editor">
+                        <label>Thẻ phòng</label>
+                        <div class="chip-list" v-if="form.tags.length">
+                            <span class="content-chip content-chip-tag" v-for="(item, index) in form.tags" v-bind:key="'tag-' + item">{{ item }}<button type="button" v-on:click="removeItem('tags', index)" v-bind:aria-label="'Xóa ' + item">×</button></span>
+                        </div>
+                        <div class="chip-add-row">
+                            <input v-model.trim="drafts.tag" maxlength="100" placeholder="Couple, Lãng mạn, Chill..." v-on:keyup.enter="addItem('tags', 'tag')" />
+                            <button class="btn btn-light btn-sm" type="button" v-on:click="addItem('tags', 'tag')">Thêm</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel room-content-section">
+                <div class="panel-head room-content-section-head">
+                    <div><span class="room-content-step">04</span><div><h2>Điểm nổi bật</h2><p>3–5 câu ngắn giúp khách đọc lướt trước khi xem nội dung dài.</p></div></div>
+                </div>
+                <div class="highlight-list">
+                    <div class="highlight-row" v-for="(item, index) in form.highlights" v-bind:key="'highlight-' + index">
+                        <span>{{ String(index + 1).padStart(2, '0') }}</span>
+                        <input v-model.trim="form.highlights[index]" maxlength="180" />
+                        <button class="icon-btn icon-btn-small" type="button" v-on:click="removeItem('highlights', index)" aria-label="Xóa điểm nổi bật">×</button>
+                    </div>
+                    <button v-if="form.highlights.length < 8" class="btn btn-light btn-sm" type="button" v-on:click="form.highlights.push('')">+ Thêm điểm nổi bật</button>
+                </div>
+            </section>
+        </main>
+
+        <aside class="room-content-aside">
+            <section class="panel room-publish-card">
+                <div class="room-publish-status">
+                    <div>
+                        <span class="page-eyebrow">Xuất bản</span>
+                        <strong>{{ form.isPublished ? 'Đang hiển thị trên website' : 'Đang ẩn khỏi website' }}</strong>
+                    </div>
+                    <label class="switch-control">
+                        <input type="checkbox" v-model="form.isPublished" />
+                        <span aria-hidden="true"></span>
+                    </label>
+                </div>
+                <p>Ẩn phòng sẽ loại phòng khỏi danh sách và luồng đặt phòng public, nhưng không ảnh hưởng lịch sử booking.</p>
+                <a v-if="form.isPublished" class="public-text-link" v-bind:href="'/rooms/' + (form.slug || room.code)" target="_blank" rel="noopener">Xem trang public ↗</a>
+            </section>
+
+            <section class="panel room-gallery-card">
+                <div class="panel-head room-gallery-head">
+                    <div><h2>Thư viện ảnh</h2><p>{{ room.images.length }}/20 ảnh</p></div>
+                    <label class="btn btn-primary btn-sm room-upload-button" v-bind:class="{ disabled: uploading || room.images.length >= 20 }">
+                        {{ uploading ? 'Đang xử lý...' : '+ Tải ảnh' }}
+                        <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" multiple v-on:change="uploadImages" v-bind:disabled="uploading || room.images.length >= 20" />
+                    </label>
+                </div>
+                <p class="gallery-help">JPG, PNG hoặc WebP · tối đa 12 MB/ảnh. Hệ thống tự tạo bản large, card và thumbnail WebP.</p>
+
+                <div v-if="room.images.length" class="room-gallery-list">
+                    <article class="room-gallery-item" v-for="(image, index) in room.images" v-bind:key="image.id">
+                        <div class="room-gallery-thumb">
+                            <img v-bind:src="image.thumbnailUrl" v-bind:alt="image.altText || room.name" width="240" height="180" />
+                            <span v-if="image.isCover" class="cover-badge">Ảnh bìa</span>
+                        </div>
+                        <div class="room-gallery-meta">
+                            <div class="room-gallery-info"><strong>Ảnh {{ index + 1 }}</strong><span>{{ image.width }}×{{ image.height }} · {{ fileSize(image.originalBytes) }}</span></div>
+                            <label>Alt text<input v-model.trim="image.altText" maxlength="300" placeholder="Mô tả ảnh cho accessibility/SEO" v-on:change="saveImageMeta(image)" /></label>
+                            <div class="room-gallery-actions">
+                                <button v-if="!image.isCover" class="btn btn-light btn-sm" type="button" v-on:click="setCover(image)">Đặt làm bìa</button>
+                                <button class="btn btn-light btn-sm" type="button" v-bind:disabled="index === 0" v-on:click="moveImage(index, -1)" aria-label="Đưa ảnh lên">↑</button>
+                                <button class="btn btn-light btn-sm" type="button" v-bind:disabled="index === room.images.length - 1" v-on:click="moveImage(index, 1)" aria-label="Đưa ảnh xuống">↓</button>
+                                <button class="btn btn-danger btn-sm" type="button" v-on:click="deleteImage(image)">Xóa</button>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+                <div v-else class="room-gallery-empty">
+                    <span class="room-gallery-empty-icon"><svg><use href="#i-image" /></svg></span>
+                    <strong>Chưa có ảnh thật</strong>
+                    <p>Website vẫn dùng poster màu hiện tại cho tới khi bạn tải ảnh đầu tiên.</p>
+                </div>
+            </section>
+        </aside>
+    </div>
+
+    <div class="room-content-savebar" v-if="dirty">
+        <span>Bạn có thay đổi chưa lưu.</span>
+        <button class="btn btn-primary btn-sm" type="button" v-bind:disabled="saving" v-on:click="saveContent">{{ saving ? 'Đang lưu...' : 'Lưu nội dung' }}</button>
+    </div>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type" aria-live="polite">{{ toast.message }}</div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin-room-content.js" asp-append-version="true"></script>
+}
