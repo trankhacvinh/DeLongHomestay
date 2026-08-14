@@ -6,12 +6,17 @@ public sealed record BookingDto(
     Guid Id,
     Guid PropertyId,
     string Code,
+    BookingType Type,
     Guid RoomId,
     string RoomCode,
     string RoomName,
     Guid CustomerId,
     string CustomerName,
     string CustomerPhone,
+    Guid? RoomRateId,
+    string? RateName,
+    decimal? UnitPrice,
+    int? NightCount,
     DateTime CheckInUtc,
     DateTime CheckOutUtc,
     BookingStatus Status,
@@ -31,6 +36,11 @@ public sealed class CreateBookingRequest
     public Guid? CustomerId { get; init; }
     public string CustomerName { get; init; } = string.Empty;
     public string CustomerPhone { get; init; } = string.Empty;
+    public BookingType Type { get; init; } = BookingType.TimeSlot;
+    public Guid? RoomRateId { get; init; }
+    public string? RateName { get; init; }
+    public decimal? UnitPrice { get; init; }
+    public int? NightCount { get; init; }
     public DateTimeOffset CheckIn { get; init; }
     public DateTimeOffset CheckOut { get; init; }
     public BookingStatus Status { get; init; } = BookingStatus.Held;
@@ -47,6 +57,11 @@ public sealed class UpdateBookingRequest
     public Guid CustomerId { get; init; }
     public string CustomerName { get; init; } = string.Empty;
     public string CustomerPhone { get; init; } = string.Empty;
+    public BookingType Type { get; init; } = BookingType.TimeSlot;
+    public Guid? RoomRateId { get; init; }
+    public string? RateName { get; init; }
+    public decimal? UnitPrice { get; init; }
+    public int? NightCount { get; init; }
     public DateTimeOffset CheckIn { get; init; }
     public DateTimeOffset CheckOut { get; init; }
     public decimal RoomAmount { get; init; }

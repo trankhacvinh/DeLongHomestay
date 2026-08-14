@@ -91,6 +91,7 @@ builder.Services.AddScoped<PropertyAccessFilter>();
 builder.Services.AddScoped<CurrentPropertyService>();
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<RoomService>();
+builder.Services.AddScoped<RoomRateService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<PaymentService>();
@@ -119,6 +120,7 @@ app.UseAntiforgery();
 
 app.MapRazorPages();
 app.MapRoomEndpoints();
+app.MapRoomRateEndpoints();
 app.MapCustomerEndpoints();
 app.MapBookingEndpoints();
 app.MapPaymentEndpoints();

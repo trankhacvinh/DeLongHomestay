@@ -1,0 +1,80 @@
+.public-booking-mode {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+    margin-bottom:18px;
+    padding:8px;
+    border:1px solid var(--public-line,#dce5e1);
+    border-radius:16px;
+    background:#f7faf8;
+}
+.public-booking-mode button {
+    min-height:58px;
+    padding:10px 14px;
+    border:1px solid transparent;
+    border-radius:12px;
+    background:transparent;
+    color:#52615e;
+    text-align:left;
+    display:grid;
+    gap:3px;
+    cursor:pointer;
+}
+.public-booking-mode button strong { color:#183431; font-size:14px; }
+.public-booking-mode button small { font-size:10px; line-height:1.4; }
+.public-booking-mode button.active {
+    border-color:#9fc3ba;
+    background:#fff;
+    box-shadow:0 5px 16px rgba(22,66,62,.06);
+}
+.public-stay-dates {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px;
+}
+.public-booking-room.disabled {
+    opacity:.55;
+    cursor:not-allowed;
+}
+.public-nightly-summary {
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:12px;
+    align-items:center;
+    padding:16px;
+    border:1px solid #cfe0da;
+    border-radius:14px;
+    background:#f3f8f6;
+}
+.public-nightly-summary strong { color:#155b59; }
+.public-nightly-summary-copy { display:grid; gap:4px; }
+.public-nightly-summary-copy small { color:#71807d; }
+.public-nightly-price { text-align:right; }
+.public-nightly-price strong { display:block; font-size:18px; }
+.public-nightly-price small { color:#71807d; }
+.public-stay-empty {
+    padding:18px;
+    border:1px dashed #cbd9d5;
+    border-radius:14px;
+    color:#687774;
+    background:#fafcfb;
+    line-height:1.55;
+}
+.public-stay-empty strong { display:block; margin-bottom:4px; color:#243b38; }
+.public-summary-night-count {
+    display:inline-flex;
+    margin-top:8px;
+    padding:5px 9px;
+    border-radius:999px;
+    background:#e9f4f0;
+    color:#1d6b61;
+    font-size:10px;
+    font-weight:800;
+}
+
+@media (max-width:640px) {
+    .public-booking-mode { grid-template-columns:1fr; }
+    .public-stay-dates { grid-template-columns:1fr; }
+    .public-nightly-summary { grid-template-columns:1fr; }
+    .public-nightly-price { text-align:left; }
+}

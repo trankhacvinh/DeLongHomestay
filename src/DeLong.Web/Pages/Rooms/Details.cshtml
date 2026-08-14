@@ -1,7 +1,10 @@
 @page "/rooms/{code}"
+@using DeLong.Web.Domain.Enums
 @model DeLong.Web.Pages.Rooms.DetailsModel
 @{
     ViewData["Title"] = Model.Room.Name;
+    var quickRates = Model.Room.Rates.Where(rate => rate.Type != RoomRateType.Nightly).ToList();
+    var nightlyRate = Model.Room.Rates.FirstOrDefault(rate => rate.Type == RoomRateType.Nightly);
 }
 
 @section Head {
@@ -23,10 +26,10 @@
         <div class="public-room-detail-copy">
             <span class="public-eyebrow">@Model.Room.Code</span>
             <h1>@Model.Room.Name</h1>
-            <p>Một không gian riêng tư dành cho tối đa @Model.Room.Capacity người, với nhiều khung giờ linh hoạt để bạn chọn theo kế hoạch trong ngày.</p>
+            <p>Một không gian riêng tư dành cho tối đa @Model.Room.Capacity người, có lựa chọn nghỉ ngắn theo khung và lưu trú nhiều ngày khi giá theo đêm được mở.</p>
             <div class="public-room-detail-facts">
                 <div><small>Sức chứa</small><strong>@Model.Room.Capacity người</strong></div>
-                <div><small>Khung giá</small><strong>@Model.Room.Rates.Count lựa chọn</strong></div>
+                <div><small>Đặt nhanh</small><strong>@quickRates.Count lựa chọn</strong></div>
                 <div><small>Giá từ</small><strong>@Model.Room.FromPrice.ToString("N0")đ</strong></div>
             </div>
             <a class="public-btn public-btn-primary" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code">Kiểm tra phòng trống</a>
@@ -37,15 +40,30 @@
 <section class="public-section public-room-detail-rates">
     <div class="public-container public-detail-content-grid">
         <div>
-            <span class="public-eyebrow">Khung giờ</span>
+            @if (nightlyRate is not null)
+            {
+                <span class="public-eyebrow">Lưu trú nhiều ngày</span>
+                <h2>Ở lâu hơn với giá theo đêm riêng</h2>
+                <div class="public-rate-list">
+                    <a class="public-rate-row" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code">
+                        <div>
+                            <strong>@nightlyRate.Name</strong>
+                            <span>Nhận @nightlyRate.StartTime · trả @nightlyRate.EndTime ngày cuối</span>
+                        </div>
+                        <strong>@nightlyRate.Price.ToString("N0")đ/đêm</strong>
+                    </a>
+                </div>
+            }
+
+            <span class="public-eyebrow" style="margin-top:@(nightlyRate is null ? "0" : "28px")">Đặt nhanh</span>
             <h2>Chọn khoảng thời gian phù hợp</h2>
             <div class="public-rate-list">
-                @foreach (var rate in Model.Room.Rates)
+                @foreach (var rate in quickRates)
                 {
                     <a class="public-rate-row" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code" asp-route-rate="@rate.Id">
                         <div>
                             <strong>@rate.Name</strong>
-                            <span>@rate.StartTime → @rate.EndTime @(rate.IsOvernight ? "· qua đêm" : "")</span>
+                            <span>@rate.StartTime → @rate.EndTime @(rate.Type == RoomRateType.Overnight ? "· qua đêm" : "")</span>
                         </div>
                         <strong>@rate.Price.ToString("N0")đ</strong>
                     </a>
@@ -54,11 +72,11 @@
         </div>
         <aside class="public-detail-note">
             <span class="public-eyebrow">Lưu ý</span>
-            <h3>Giờ trên website là khung đặt nhanh.</h3>
-            <p>Nếu cần nhận/trả khác một chút, hãy ghi chú khi gửi yêu cầu. Nhân viên De Long sẽ liên hệ xác nhận trước khi giữ phòng chính thức.</p>
+            <h3>Giờ trên website là giờ cấu hình của từng gói.</h3>
+            <p>Với lưu trú nhiều ngày, hệ thống kiểm tra phòng trống liên tục từ giờ nhận ngày đầu đến giờ trả ngày cuối. De Long sẽ liên hệ xác nhận trước khi giữ phòng chính thức.</p>
             <ul>
                 <li>Yêu cầu online chưa tự động khóa phòng.</li>
-                <li>Giá cuối cùng được xác nhận trước khi đặt cọc.</li>
+                <li>Giá lưu trú nhiều ngày được tính theo số đêm.</li>
                 <li>Phòng chỉ được giữ sau khi nhân viên xác nhận.</li>
             </ul>
         </aside>

@@ -7,6 +7,7 @@ public sealed record RoomRateDto(
     string Name,
     string StartTime,
     string EndTime,
+    RoomRateType Type,
     bool IsOvernight,
     decimal Price,
     bool IsActive,

@@ -1,4 +1,5 @@
 using DeLong.Web.Domain.Entities;
+using DeLong.Web.Domain.Enums;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -132,6 +133,7 @@ public static class DbSeeder
             SortOrder = sortOrder,
             StartTime = start,
             EndTime = end,
+            Type = overnight ? RoomRateType.Overnight : RoomRateType.TimeSlot,
             Price = price,
             IsOvernight = overnight,
             IsActive = true

@@ -13,10 +13,20 @@ public sealed class Booking : EntityBase
     public Guid CustomerId { get; set; }
     public Customer Customer { get; set; } = null!;
 
+    public Guid? RoomRateId { get; set; }
+    public RoomRate? RoomRate { get; set; }
+
     public string Code { get; set; } = string.Empty;
+    public BookingType Type { get; set; } = BookingType.TimeSlot;
     public DateTime CheckInUtc { get; set; }
     public DateTime CheckOutUtc { get; set; }
     public BookingStatus Status { get; set; } = BookingStatus.Held;
+
+    // Pricing snapshot. Rate changes after booking creation must not rewrite history.
+    public string? RateName { get; set; }
+    public decimal? UnitPrice { get; set; }
+    public int? NightCount { get; set; }
+
     public decimal RoomAmount { get; set; }
     public decimal ExtraAmount { get; set; }
     public decimal DiscountAmount { get; set; }

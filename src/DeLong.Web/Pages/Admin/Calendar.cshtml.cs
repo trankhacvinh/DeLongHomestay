@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DeLong.Web.Common.Security;
+using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Rooms;
 using Microsoft.AspNetCore.Mvc;
@@ -33,12 +34,25 @@ public sealed class CalendarModel(
         var offset = timeZone.GetUtcOffset(startLocal);
         var offsetText = $"{(offset < TimeSpan.Zero ? "-" : "+")}{Math.Abs(offset.Hours):00}:{Math.Abs(offset.Minutes):00}";
 
-        var rooms = await roomService.GetAllAsync(PropertyId, cancellationToken);
-        var bookings = await bookingService.GetAllAsync(
-            PropertyId,
-            new DateTimeOffset(startUtc, TimeSpan.Zero),
-            new DateTimeOffset(endUtc, TimeSpan.Zero),
-            cancellationToken);
+        // Nightly rates belong to the dedicated multi-day editor. The quick calendar editor
+        // continues to expose only TimeSlot / Overnight presets so it cannot misinterpret a
+        // nightly check-in/check-out pair as a same-day preset.
+        var rooms = (await roomService.GetAllAsync(PropertyId, cancellationToken))
+            .Select(room => room with
+            {
+                Rates = room.Rates.Where(rate => rate.Type != RoomRateType.Nightly).ToList()
+            })
+            .ToList();
+
+        var bookings = (await bookingService.GetAllAsync(
+                PropertyId,
+                new DateTimeOffset(startUtc, TimeSpan.Zero),
+                new DateTimeOffset(endUtc, TimeSpan.Zero),
+                cancellationToken))
+            // The calendar is an operations/occupancy view. Finished rows stay available in the
+            // Booking ledger, but no longer occupy visual space after completion/cancellation/no-show.
+            .Where(booking => booking.Status is BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn)
+            .ToList();
 
         PageDataJson = JsonSerializer.Serialize(
             new

@@ -5,11 +5,36 @@
     const initial = JSON.parse(document.getElementById('public-booking-data')?.textContent || '{}');
     const { createApp } = Vue;
 
+    function parseIsoDate(value) {
+        if (!value) return null;
+        const [year, month, day] = value.split('-').map(Number);
+        if (!year || !month || !day) return null;
+        return new Date(year, month - 1, day);
+    }
+
+    function isoDate(value) {
+        return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+    }
+
+    function addDays(value, amount) {
+        const date = parseIsoDate(value);
+        if (!date) return value;
+        date.setDate(date.getDate() + amount);
+        return isoDate(date);
+    }
+
     createApp({
         data() {
+            const today = initial.today || initial.date;
+            const arrival = initial.date || today;
             return {
-                date: initial.date,
+                bookingType: 0,
+                today,
+                date: arrival,
+                checkInDate: arrival,
+                checkOutDate: addDays(arrival, 1),
                 rooms: initial.rooms || [],
+                stayRooms: [],
                 selectedRoomId: initial.initialRoomId || null,
                 selectedRateId: initial.initialRateId || null,
                 loading: false,
@@ -24,47 +49,93 @@
             };
         },
         computed: {
+            roomList() {
+                return this.bookingType === 0 ? this.rooms : this.stayRooms;
+            },
             selectedRoom() {
-                return this.rooms.find(x => x.id === this.selectedRoomId) || null;
+                return this.roomList.find(x => x.id === this.selectedRoomId) || null;
             },
             selectedRate() {
-                return this.selectedRoom?.rates?.find(x => x.id === this.selectedRateId) || null;
+                if (!this.selectedRoom) return null;
+                if (this.bookingType === 1) return this.selectedRoom.nightlyRate || null;
+                return this.timeSlotRates(this.selectedRoom).find(x => x.id === this.selectedRateId) || null;
+            },
+            stayNights() {
+                if (this.selectedRoom?.nights) return Number(this.selectedRoom.nights);
+                const arrival = parseIsoDate(this.checkInDate);
+                const departure = parseIsoDate(this.checkOutDate);
+                if (!arrival || !departure) return 0;
+                return Math.max(0, Math.round((departure - arrival) / 86400000));
+            },
+            minimumCheckOut() {
+                return addDays(this.checkInDate || this.today, 1);
             },
             canSubmit() {
-                return !!this.selectedRoom && !!this.selectedRate && this.selectedRate.available &&
+                const roomReady = !!this.selectedRoom && (this.bookingType === 0 ? !!this.selectedRate?.available : this.selectedRoom.available === true);
+                return roomReady && !!this.selectedRate &&
                     this.form.customerName.trim().length >= 2 && this.form.customerPhone.trim().length >= 8;
             },
             dateText() {
-                if (!this.date) return '';
-                const [year, month, day] = this.date.split('-').map(Number);
-                return new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
-                    .format(new Date(year, month - 1, day));
+                return this.stayDateText(this.date);
             }
         },
         async mounted() {
             await this.loadAvailability();
             if (!this.selectedRoomId && this.rooms.length) {
                 const first = this.rooms.find(x => this.availableCount(x) > 0) || this.rooms[0];
-                this.chooseRoom(first);
+                if (first) this.chooseRoom(first);
             } else if (this.selectedRoom && !this.selectedRateId) {
-                this.selectedRateId = this.selectedRoom.rates.find(x => x.available)?.id || null;
+                this.selectedRateId = this.timeSlotRates(this.selectedRoom).find(x => x.available)?.id || null;
             }
         },
         methods: {
             money(value) {
                 return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
             },
+            stayDateText(value) {
+                const date = parseIsoDate(value);
+                if (!date) return '';
+                return new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+            },
+            timeSlotRates(room) {
+                return (room?.rates || []).filter(x => Number(x.type) !== 2);
+            },
             availableCount(room) {
-                return (room?.rates || []).filter(x => x.available).length;
+                return this.timeSlotRates(room).filter(x => x.available).length;
+            },
+            roomSelectable(room) {
+                return this.bookingType === 0 ? this.availableCount(room) > 0 : room?.available === true;
+            },
+            async switchMode(type) {
+                if (this.bookingType === type) return;
+                this.bookingType = type;
+                this.selectedRoomId = null;
+                this.selectedRateId = null;
+                this.errorMessage = '';
+                if (type === 1) {
+                    if (!this.checkInDate) this.checkInDate = this.date || this.today;
+                    if (!this.checkOutDate || this.checkOutDate <= this.checkInDate) this.checkOutDate = addDays(this.checkInDate, 1);
+                    await this.loadStayAvailability();
+                } else {
+                    await this.loadAvailability();
+                    const first = this.rooms.find(x => this.availableCount(x) > 0) || null;
+                    if (first) this.chooseRoom(first);
+                }
             },
             chooseRoom(room) {
+                if (!this.roomSelectable(room)) return;
                 this.selectedRoomId = room.id;
-                const currentStillValid = room.rates.some(x => x.id === this.selectedRateId && x.available);
-                if (!currentStillValid) this.selectedRateId = room.rates.find(x => x.available)?.id || null;
+                if (this.bookingType === 1) {
+                    this.selectedRateId = room.nightlyRate?.id || null;
+                } else {
+                    const rates = this.timeSlotRates(room);
+                    const currentStillValid = rates.some(x => x.id === this.selectedRateId && x.available);
+                    if (!currentStillValid) this.selectedRateId = rates.find(x => x.available)?.id || null;
+                }
                 this.errorMessage = '';
             },
             async loadAvailability() {
-                if (!this.date) return;
+                if (!this.date || this.bookingType !== 0) return;
                 this.loading = true;
                 this.errorMessage = '';
                 try {
@@ -72,15 +143,53 @@
                     this.rooms = data.rooms || [];
                     if (this.selectedRoomId) {
                         const room = this.rooms.find(x => x.id === this.selectedRoomId);
-                        if (!room) {
+                        if (!room || this.availableCount(room) === 0) {
                             this.selectedRoomId = null;
                             this.selectedRateId = null;
-                        } else if (!room.rates.some(x => x.id === this.selectedRateId && x.available)) {
-                            this.selectedRateId = room.rates.find(x => x.available)?.id || null;
+                        } else if (!this.timeSlotRates(room).some(x => x.id === this.selectedRateId && x.available)) {
+                            this.selectedRateId = this.timeSlotRates(room).find(x => x.available)?.id || null;
                         }
                     }
                 } catch (error) {
                     this.errorMessage = error.message || 'Không thể kiểm tra phòng trống.';
+                } finally {
+                    this.loading = false;
+                }
+            },
+            async stayDatesChanged() {
+                if (!this.checkInDate) return;
+                if (!this.checkOutDate || this.checkOutDate <= this.checkInDate) this.checkOutDate = addDays(this.checkInDate, 1);
+                await this.loadStayAvailability();
+            },
+            async loadStayAvailability() {
+                if (this.bookingType !== 1 || !this.checkInDate || !this.checkOutDate) return;
+                if (this.checkOutDate <= this.checkInDate) {
+                    this.errorMessage = 'Ngày trả phòng phải sau ngày nhận phòng.';
+                    return;
+                }
+                this.loading = true;
+                this.errorMessage = '';
+                try {
+                    const data = await DeLongApi.get(`/api/public/stay-availability?checkIn=${encodeURIComponent(this.checkInDate)}&checkOut=${encodeURIComponent(this.checkOutDate)}`);
+                    this.stayRooms = data.rooms || [];
+                    if (this.selectedRoomId) {
+                        const room = this.stayRooms.find(x => x.id === this.selectedRoomId && x.available);
+                        if (!room) {
+                            this.selectedRoomId = null;
+                            this.selectedRateId = null;
+                        } else {
+                            this.selectedRateId = room.nightlyRate?.id || null;
+                        }
+                    }
+                    if (!this.selectedRoomId) {
+                        const first = this.stayRooms.find(x => x.available);
+                        if (first) this.chooseRoom(first);
+                    }
+                } catch (error) {
+                    this.stayRooms = [];
+                    this.selectedRoomId = null;
+                    this.selectedRateId = null;
+                    this.errorMessage = error.message || 'Không thể kiểm tra phòng trống cho khoảng lưu trú.';
                 } finally {
                     this.loading = false;
                 }
@@ -90,20 +199,27 @@
                 this.submitting = true;
                 this.errorMessage = '';
                 try {
-                    const result = await DeLongApi.post('/api/public/booking-requests', {
+                    const payload = {
+                        type: this.bookingType,
                         roomId: this.selectedRoomId,
-                        rateId: this.selectedRateId,
-                        stayDate: this.date,
+                        rateId: this.selectedRate.id,
+                        stayDate: this.bookingType === 0 ? this.date : '',
+                        checkInDate: this.bookingType === 1 ? this.checkInDate : '',
+                        checkOutDate: this.bookingType === 1 ? this.checkOutDate : '',
                         customerName: this.form.customerName,
                         customerPhone: this.form.customerPhone,
                         note: this.form.note,
                         website: this.form.website
-                    });
+                    };
+                    const result = await DeLongApi.post('/api/public/booking-requests', payload);
                     const query = new URLSearchParams({ code: result.code, room: result.roomName, amount: String(result.totalAmount) });
                     window.location.assign(`/booking/success?${query.toString()}`);
                 } catch (error) {
                     this.errorMessage = error.message || 'Không thể gửi yêu cầu lúc này.';
-                    if (error.status === 409) await this.loadAvailability();
+                    if (error.status === 409) {
+                        if (this.bookingType === 1) await this.loadStayAvailability();
+                        else await this.loadAvailability();
+                    }
                 } finally {
                     this.submitting = false;
                 }

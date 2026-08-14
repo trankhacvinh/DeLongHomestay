@@ -22,6 +22,10 @@
         return dateKey(date);
     }
 
+    function dayDistance(fromKey, toKey) {
+        return Math.round((parseDateKey(toKey) - parseDateKey(fromKey)) / 86400000);
+    }
+
     function toInputValue(dayKey, time) {
         return `${dayKey}T${time}`;
     }
@@ -77,7 +81,7 @@
                 return this.rooms.find(x => x.id === this.form.roomId) || null;
             },
             selectedRoomRates() {
-                return (this.selectedRoom?.rates || []).filter(x => x.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+                return (this.selectedRoom?.rates || []).filter(x => x.isActive && Number(x.type) !== 2).sort((a, b) => a.sortOrder - b.sortOrder);
             },
             totalAmount() {
                 return Math.max(0, Number(this.form.roomAmount || 0) + Number(this.form.extraAmount || 0) - Number(this.form.discountAmount || 0));
@@ -104,11 +108,21 @@
             dateTimeText(utcValue) {
                 return this.formatInProperty(utcValue, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
             },
+            shortDateText(utcValue) {
+                return this.formatInProperty(utcValue, { day: '2-digit', month: '2-digit' });
+            },
+            localDateKey(utcValue) {
+                return utcToLocalInput(utcValue).slice(0, 10);
+            },
             timeRange(booking) {
                 return `${this.timeText(booking.checkInUtc)} → ${this.timeText(booking.checkOutUtc)}`;
             },
+            multiDayLabel(booking) {
+                const nights = Number(booking.nightCount || 0);
+                return `${nights || '?'} đêm · ${this.shortDateText(booking.checkInUtc)} → ${this.shortDateText(booking.checkOutUtc)}`;
+            },
             statusText(status) {
-                return ({ 0: 'Yêu cầu', 1: 'Giữ phòng', 2: 'Đã xác nhận', 3: 'Đang ở', 4: 'Hoàn tất', 5: 'Đã hủy', 6: 'No-show' })[status] || `#${status}`;
+                return ({ 0: 'Yêu cầu', 1: 'Giữ phòng', 2: 'Đã xác nhận', 3: 'Đang ở', 4: 'Hoàn tất', 5: 'Đã hủy', 6: 'Không đến' })[status] || `#${status}`;
             },
             bookingClass(status) {
                 if (status === 1) return 'booking-held';
@@ -116,13 +130,35 @@
                 if (status === 5 || status === 6) return 'booking-cancelled';
                 return 'booking-requested';
             },
-            bookingsFor(roomId, dayKey) {
+            activeBookingRows(roomId) {
+                return this.bookings.filter(x => x.roomId === roomId && [0, 1, 2, 3].includes(Number(x.status)));
+            },
+            lockingBookingRows(roomId) {
+                return this.bookings.filter(x => x.roomId === roomId && [1, 2, 3].includes(Number(x.status)));
+            },
+            cellHasBooking(roomId, dayKey) {
                 const start = new Date(`${dayKey}T00:00:00${utcOffset}`);
                 const end = new Date(`${addDays(dayKey, 1)}T00:00:00${utcOffset}`);
-                return this.bookings
-                    .filter(x => x.roomId === roomId && x.status !== 5 && x.status !== 6)
-                    .filter(x => new Date(x.checkInUtc) < end && start < new Date(x.checkOutUtc))
+                return this.lockingBookingRows(roomId).some(x => new Date(x.checkInUtc) < end && start < new Date(x.checkOutUtc));
+            },
+            bookingsToRender(roomId, dayKey) {
+                return this.activeBookingRows(roomId)
+                    .filter(booking => {
+                        const checkInKey = this.localDateKey(booking.checkInUtc);
+                        if (Number(booking.type) !== 1 || Number(booking.status) === 0) return checkInKey === dayKey;
+                        const visibleStart = checkInKey < this.startDate ? this.startDate : checkInKey;
+                        const lastVisible = this.days[this.days.length - 1].key;
+                        const checkOutKey = this.localDateKey(booking.checkOutUtc);
+                        return dayKey === visibleStart && visibleStart <= lastVisible && checkOutKey >= this.startDate;
+                    })
                     .sort((a, b) => new Date(a.checkInUtc) - new Date(b.checkInUtc));
+            },
+            bookingSpan(booking, dayKey) {
+                if (Number(booking.type) !== 1 || Number(booking.status) === 0) return 1;
+                const lastVisible = this.days[this.days.length - 1].key;
+                const checkoutKey = this.localDateKey(booking.checkOutUtc);
+                const endKey = checkoutKey > lastVisible ? lastVisible : checkoutKey;
+                return Math.max(1, Math.min(7, dayDistance(dayKey, endKey) + 1));
             },
             moveRange(amount) {
                 const target = addDays(this.startDate, amount);
@@ -140,7 +176,7 @@
                 this.editor = { open: true, mode: 'create' };
                 this.selectedBooking = null;
 
-                const firstRate = (selectedRoom?.rates || []).filter(x => x.isActive).sort((a, b) => a.sortOrder - b.sortOrder)[0];
+                const firstRate = (selectedRoom?.rates || []).filter(x => x.isActive && Number(x.type) !== 2).sort((a, b) => a.sortOrder - b.sortOrder)[0];
                 if (firstRate) {
                     this.form.rateId = firstRate.id;
                     this.$nextTick(() => this.applyRate());
@@ -184,7 +220,7 @@
                 const rate = this.selectedRoomRates.find(x => x.id === this.form.rateId);
                 if (!rate) return;
                 this.form.checkInLocal = toInputValue(this.selectedDayKey, rate.startTime);
-                const checkoutDay = rate.isOvernight ? addDays(this.selectedDayKey, 1) : this.selectedDayKey;
+                const checkoutDay = Number(rate.type) === 1 || rate.isOvernight ? addDays(this.selectedDayKey, 1) : this.selectedDayKey;
                 this.form.checkOutLocal = toInputValue(checkoutDay, rate.endTime);
                 this.form.roomAmount = Number(rate.price || 0);
             },
@@ -196,7 +232,7 @@
                 if (!this.saving) this.editor.open = false;
             },
             canEditBooking(booking) {
-                return this.canManage && booking && ![4, 5, 6].includes(booking.status);
+                return this.canManage && booking && Number(booking.type) !== 1 && ![4, 5, 6].includes(booking.status);
             },
             validateForm() {
                 if (!this.form.roomId) return 'Vui lòng chọn phòng.';
@@ -211,10 +247,16 @@
                 if (validation) return this.notify(validation, 'error');
                 this.saving = true;
                 try {
+                    const selectedRate = this.selectedRoomRates.find(x => x.id === this.form.rateId) || null;
                     const common = {
                         roomId: this.form.roomId,
                         customerName: this.form.customerName,
                         customerPhone: this.form.customerPhone,
+                        type: 0,
+                        roomRateId: selectedRate?.id || null,
+                        rateName: selectedRate?.name || null,
+                        unitPrice: selectedRate ? Number(selectedRate.price || 0) : null,
+                        nightCount: null,
                         checkIn: `${this.form.checkInLocal}${utcOffset}`,
                         checkOut: `${this.form.checkOutLocal}${utcOffset}`,
                         roomAmount: Number(this.form.roomAmount || 0),
@@ -242,29 +284,37 @@
                     }
                     this.editor.open = false;
                 } catch (error) {
-                    this.notify(error.message || 'Không thể lưu booking.', 'error');
+                    this.notify(error.message || 'Không thể lưu lượt đặt.', 'error');
                 } finally {
                     this.saving = false;
                 }
             },
             nextActions(booking) {
                 if (!booking) return [];
-                const actions = [];
-                if (booking.status === 0) {
-                    actions.push({ status: 1, label: 'Giữ phòng', className: 'btn-light' });
-                    actions.push({ status: 2, label: 'Xác nhận', className: 'btn-primary' });
-                    actions.push({ status: 5, label: 'Hủy', className: 'btn-danger' });
-                } else if (booking.status === 1) {
-                    actions.push({ status: 2, label: 'Xác nhận', className: 'btn-primary' });
-                    actions.push({ status: 5, label: 'Hủy', className: 'btn-danger' });
-                } else if (booking.status === 2) {
-                    actions.push({ status: 3, label: 'Check-in', className: 'btn-primary' });
-                    actions.push({ status: 6, label: 'No-show', className: 'btn-light' });
-                    actions.push({ status: 5, label: 'Hủy', className: 'btn-danger' });
-                } else if (booking.status === 3) {
-                    actions.push({ status: 4, label: 'Check-out / Hoàn tất', className: 'btn-primary' });
-                }
-                return actions;
+                if (booking.status === 0) return [
+                    { status: 1, label: 'Giữ phòng', className: 'btn-light' },
+                    { status: 2, label: 'Xác nhận', className: 'btn-primary' },
+                    { status: 5, label: 'Hủy', className: 'btn-danger' }
+                ];
+                if (booking.status === 1) return [
+                    { status: 2, label: 'Xác nhận', className: 'btn-primary' },
+                    { status: 5, label: 'Hủy', className: 'btn-danger' }
+                ];
+                if (booking.status === 2) return [
+                    { status: 3, label: 'Nhận phòng', className: 'btn-primary' },
+                    { status: 6, label: 'Không đến', className: 'btn-light' },
+                    { status: 5, label: 'Hủy', className: 'btn-danger' }
+                ];
+                if (booking.status === 3) return [
+                    { status: 4, label: 'Trả phòng / Hoàn tất', className: 'btn-primary' }
+                ];
+                if (booking.status === 5) return [
+                    { status: 0, label: 'Khôi phục yêu cầu', className: 'btn-light' }
+                ];
+                if (booking.status === 6) return [
+                    { status: 2, label: 'Khôi phục đặt phòng', className: 'btn-light' }
+                ];
+                return [];
             },
             async changeStatus(status) {
                 if (!this.selectedBooking) return;
@@ -276,7 +326,7 @@
                     this.selectedBooking = updated;
                     this.notify(`Đã chuyển sang ${this.statusText(updated.status)}.`, 'success');
                 } catch (error) {
-                    this.notify(error.message || 'Không thể đổi trạng thái booking.', 'error');
+                    this.notify(error.message || 'Không thể đổi trạng thái lượt đặt.', 'error');
                 } finally {
                     this.saving = false;
                 }

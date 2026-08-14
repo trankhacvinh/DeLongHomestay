@@ -33,6 +33,7 @@ public sealed class IndexModel(PublicBookingService publicBookingService) : Page
         {
             propertyName = catalog.PropertyName,
             timeZoneId = catalog.TimeZoneId,
+            today = today.ToString("yyyy-MM-dd"),
             date = selectedDate.ToString("yyyy-MM-dd"),
             rooms = catalog.Rooms,
             initialRoomId = selectedRoom?.Id,

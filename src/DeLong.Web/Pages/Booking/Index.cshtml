@@ -6,6 +6,7 @@
 
 @section Head {
     <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/booking-v2.css" asp-append-version="true" />
 }
 
 <div id="public-booking-page" class="public-booking-page" v-cloak>
@@ -15,8 +16,8 @@
         <div class="public-container public-page-hero-inner">
             <div>
                 <span class="public-eyebrow">Đặt phòng online</span>
-                <h1>Chọn ngày, phòng và khung giờ</h1>
-                <p>Website chỉ nhận yêu cầu. De Long sẽ liên hệ xác nhận trước khi giữ phòng và nhận cọc.</p>
+                <h1>Chọn cách ở phù hợp với bạn</h1>
+                <p>Đặt nhanh theo khung giờ hoặc chọn ngày nhận/trả nếu bạn muốn ở nhiều ngày. De Long sẽ liên hệ xác nhận trước khi giữ phòng và nhận cọc.</p>
             </div>
             <a class="public-text-link" asp-page="/Rooms/Index">Xem mô tả phòng →</a>
         </div>
@@ -25,9 +26,9 @@
     <section class="public-booking-journey-wrap">
         <div class="public-container">
             <div class="public-booking-journey" aria-label="Quy trình đặt phòng">
-                <span class="active"><b>01</b>Chọn ngày</span>
+                <span class="active"><b>01</b>{{ bookingType === 0 ? 'Chọn ngày' : 'Ngày nhận / trả' }}</span>
                 <span><b>02</b>Chọn phòng</span>
-                <span><b>03</b>Chọn giờ</span>
+                <span><b>03</b>{{ bookingType === 0 ? 'Chọn giờ' : 'Xem giá lưu trú' }}</span>
                 <span><b>04</b>Gửi yêu cầu</span>
             </div>
         </div>
@@ -36,33 +37,101 @@
     <section class="public-section public-booking-section">
         <div class="public-container public-booking-grid">
             <div class="public-booking-main">
-                <div class="public-step-card">
-                    <div class="public-step-head"><span>01</span><div><h2>Chọn ngày</h2><p>Phòng trống được kiểm tra theo từng khung giờ.</p></div></div>
-                    <label class="public-date-field public-date-field-block">
-                        <span>Ngày sử dụng</span>
-                        <input type="date" v-model="date" v-on:change="loadAvailability" required />
-                    </label>
+                <div class="public-booking-mode" aria-label="Kiểu đặt phòng">
+                    <button type="button" v-bind:class="{ active: bookingType === 0 }" v-on:click="switchMode(0)">
+                        <strong>Theo khung giờ</strong>
+                        <small>Phù hợp nghỉ ngắn, combo hoặc qua đêm theo khung có sẵn.</small>
+                    </button>
+                    <button type="button" v-bind:class="{ active: bookingType === 1 }" v-on:click="switchMode(1)">
+                        <strong>Ở nhiều ngày</strong>
+                        <small>Chọn ngày nhận và ngày trả; giá được tính riêng theo từng đêm.</small>
+                    </button>
                 </div>
 
                 <div class="public-step-card">
-                    <div class="public-step-head"><span>02</span><div><h2>Chọn phòng</h2><p>Nhấn một phòng để xem các khung còn trống.</p></div></div>
-                    <div class="public-booking-room-list">
-                        <button v-for="room in rooms" v-bind:key="room.id" type="button" class="public-booking-room" v-bind:class="{ active: selectedRoomId === room.id }" v-on:click="chooseRoom(room)">
+                    <div class="public-step-head">
+                        <span>01</span>
+                        <div>
+                            <h2>{{ bookingType === 0 ? 'Chọn ngày' : 'Chọn ngày nhận và ngày trả' }}</h2>
+                            <p>{{ bookingType === 0 ? 'Phòng trống được kiểm tra theo từng khung giờ.' : 'Hệ thống kiểm tra phòng trống trên toàn bộ khoảng lưu trú.' }}</p>
+                        </div>
+                    </div>
+                    <label v-if="bookingType === 0" class="public-date-field public-date-field-block">
+                        <span>Ngày sử dụng</span>
+                        <input type="date" v-model="date" v-bind:min="today" v-on:change="loadAvailability" required />
+                    </label>
+                    <div v-else class="public-stay-dates">
+                        <label class="public-date-field public-date-field-block">
+                            <span>Ngày nhận phòng</span>
+                            <input type="date" v-model="checkInDate" v-bind:min="today" v-on:change="stayDatesChanged" required />
+                        </label>
+                        <label class="public-date-field public-date-field-block">
+                            <span>Ngày trả phòng</span>
+                            <input type="date" v-model="checkOutDate" v-bind:min="minimumCheckOut" v-on:change="loadStayAvailability" required />
+                        </label>
+                    </div>
+                </div>
+
+                <div class="public-step-card">
+                    <div class="public-step-head">
+                        <span>02</span>
+                        <div>
+                            <h2>Chọn phòng</h2>
+                            <p>{{ bookingType === 0 ? 'Nhấn một phòng để xem các khung còn trống.' : 'Chỉ các phòng đã cấu hình giá theo đêm mới xuất hiện ở đây.' }}</p>
+                        </div>
+                    </div>
+                    <div class="public-booking-room-list" v-if="roomList.length">
+                        <button v-for="room in roomList" v-bind:key="room.id" type="button" class="public-booking-room"
+                                v-bind:class="{ active: selectedRoomId === room.id, disabled: !roomSelectable(room) }"
+                                v-bind:disabled="!roomSelectable(room)" v-on:click="chooseRoom(room)">
                             <span class="public-mini-room-art" v-bind:data-room-code="room.code">{{ room.code.split('-').slice(-1)[0] }}</span>
-                            <span class="public-booking-room-copy"><strong>{{ room.name }}</strong><small>{{ room.capacity }} người · từ {{ money(room.fromPrice) }}</small></span>
-                            <span class="public-booking-room-state" v-if="availableCount(room) > 0">{{ availableCount(room) }} khung trống</span>
-                            <span class="public-booking-room-state sold" v-else>Hết khung</span>
+                            <span class="public-booking-room-copy">
+                                <strong>{{ room.name }}</strong>
+                                <small v-if="bookingType === 0">{{ room.capacity }} người · từ {{ money(room.fromPrice) }}</small>
+                                <small v-else>{{ room.capacity }} người · {{ money(room.nightlyRate.price) }}/đêm</small>
+                            </span>
+                            <template v-if="bookingType === 0">
+                                <span class="public-booking-room-state" v-if="availableCount(room) > 0">{{ availableCount(room) }} khung trống</span>
+                                <span class="public-booking-room-state sold" v-else>Hết khung</span>
+                            </template>
+                            <template v-else>
+                                <span class="public-booking-room-state" v-if="room.available">Còn phòng</span>
+                                <span class="public-booking-room-state sold" v-else>Đã có khách</span>
+                            </template>
                         </button>
+                    </div>
+                    <div v-else-if="bookingType === 1 && !loading" class="public-stay-empty">
+                        <strong>Chưa mở đặt nhiều ngày online</strong>
+                        Hiện chưa có phòng nào được cấu hình giá lưu trú theo đêm. Bạn có thể chọn “Theo khung giờ” hoặc liên hệ De Long để được tư vấn.
                     </div>
                 </div>
 
                 <div class="public-step-card" v-if="selectedRoom">
-                    <div class="public-step-head"><span>03</span><div><h2>Chọn khung giờ</h2><p>Giá hiển thị là giá của khung đặt nhanh.</p></div></div>
-                    <div class="public-rate-choice-grid">
-                        <button v-for="rate in selectedRoom.rates" v-bind:key="rate.id" type="button" class="public-rate-choice" v-bind:class="{ active: selectedRateId === rate.id, disabled: !rate.available }" v-bind:disabled="!rate.available" v-on:click="selectedRateId = rate.id">
-                            <span><strong>{{ rate.name }}</strong><small>{{ rate.startTime }} → {{ rate.endTime }} <template v-if="rate.isOvernight">· qua đêm</template></small></span>
+                    <div class="public-step-head">
+                        <span>03</span>
+                        <div>
+                            <h2>{{ bookingType === 0 ? 'Chọn khung giờ' : 'Giá và giờ lưu trú' }}</h2>
+                            <p>{{ bookingType === 0 ? 'Giá hiển thị là giá của khung đặt nhanh.' : 'Giá/đêm và giờ nhận/trả được cấu hình riêng cho phòng này.' }}</p>
+                        </div>
+                    </div>
+                    <div v-if="bookingType === 0" class="public-rate-choice-grid">
+                        <button v-for="rate in timeSlotRates(selectedRoom)" v-bind:key="rate.id" type="button" class="public-rate-choice"
+                                v-bind:class="{ active: selectedRateId === rate.id, disabled: !rate.available }" v-bind:disabled="!rate.available"
+                                v-on:click="selectedRateId = rate.id">
+                            <span><strong>{{ rate.name }}</strong><small>{{ rate.startTime }} → {{ rate.endTime }} <template v-if="rate.type === 1">· qua đêm</template></small></span>
                             <strong>{{ money(rate.price) }}</strong>
                         </button>
+                    </div>
+                    <div v-else class="public-nightly-summary">
+                        <div class="public-nightly-summary-copy">
+                            <strong>{{ selectedRate.name }}</strong>
+                            <small>Nhận phòng {{ selectedRate.startTime }} · Trả phòng {{ selectedRate.endTime }} ngày cuối</small>
+                            <span class="public-summary-night-count">{{ stayNights }} đêm</span>
+                        </div>
+                        <div class="public-nightly-price">
+                            <strong>{{ money(selectedRoom.totalAmount) }}</strong>
+                            <small>{{ stayNights }} × {{ money(selectedRate.price) }}</small>
+                        </div>
                     </div>
                 </div>
 
@@ -74,7 +143,7 @@
                         <label class="public-form-full"><span>Ghi chú</span><textarea v-model.trim="form.note" maxlength="1000" placeholder="Ví dụ: muốn nhận phòng trễ hơn 30 phút..."></textarea></label>
                         <label class="public-honeypot" aria-hidden="true"><span>Website</span><input v-model="form.website" tabindex="-1" autocomplete="off" /></label>
                     </div>
-                    <div class="public-booking-notice">Yêu cầu này <strong>chưa tự động giữ phòng</strong>. De Long sẽ liên hệ xác nhận trước khi booking chuyển sang trạng thái giữ/xác nhận.</div>
+                    <div class="public-booking-notice">Yêu cầu này <strong>chưa tự động giữ phòng</strong>. De Long sẽ liên hệ xác nhận trước khi lượt đặt chuyển sang trạng thái giữ/xác nhận.</div>
                     <button class="public-btn public-btn-primary public-submit-booking" type="button" v-bind:disabled="submitting || !canSubmit" v-on:click="submitRequest">{{ submitting ? 'Đang gửi...' : 'Gửi yêu cầu đặt phòng' }}</button>
                     <p class="public-form-error" v-if="errorMessage">{{ errorMessage }}</p>
                 </div>
@@ -88,11 +157,18 @@
                 <div class="public-summary-content">
                     <span class="public-eyebrow">Yêu cầu của bạn</span>
                     <h3>{{ selectedRoom.name }}</h3>
-                    <dl>
+                    <dl v-if="bookingType === 0">
                         <div><dt>Ngày</dt><dd>{{ dateText }}</dd></div>
                         <div><dt>Khung giờ</dt><dd>{{ selectedRate.startTime }} → {{ selectedRate.endTime }}</dd></div>
                         <div><dt>Gói</dt><dd>{{ selectedRate.name }}</dd></div>
                         <div class="total"><dt>Tạm tính</dt><dd>{{ money(selectedRate.price) }}</dd></div>
+                    </dl>
+                    <dl v-else>
+                        <div><dt>Nhận phòng</dt><dd>{{ stayDateText(checkInDate) }} · {{ selectedRate.startTime }}</dd></div>
+                        <div><dt>Trả phòng</dt><dd>{{ stayDateText(checkOutDate) }} · {{ selectedRate.endTime }}</dd></div>
+                        <div><dt>Thời gian</dt><dd>{{ stayNights }} đêm</dd></div>
+                        <div><dt>Giá mỗi đêm</dt><dd>{{ money(selectedRate.price) }}</dd></div>
+                        <div class="total"><dt>Tạm tính</dt><dd>{{ money(selectedRoom.totalAmount) }}</dd></div>
                     </dl>
                     <p>Giờ thực tế có thể được nhân viên điều chỉnh khi xác nhận theo ghi chú của bạn.</p>
                 </div>
