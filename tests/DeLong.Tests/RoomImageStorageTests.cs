@@ -1,3 +1,4 @@
+using DeLong.Web.Common.Operations;
 using DeLong.Web.Features.Rooms;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -14,11 +15,15 @@ public sealed class RoomImageStorageTests
     {
         var root = Path.Combine(Path.GetTempPath(), "delong-room-image-tests", Guid.NewGuid().ToString("N"));
         var webRoot = Path.Combine(root, "wwwroot");
+        var dataRoot = Path.Combine(root, "persistent-data");
+        var mediaRoot = Path.Combine(root, "persistent-media", "rooms");
         Directory.CreateDirectory(webRoot);
         try
         {
             var environment = new FakeWebHostEnvironment(root, webRoot);
-            var storage = new LocalRoomImageStorage(environment);
+            var paths = new StoragePaths(dataRoot, mediaRoot, new PathString("/uploads/rooms"), true, true, true);
+            paths.EnsureDirectories();
+            var storage = new LocalRoomImageStorage(paths, environment);
 
             byte[] jpeg;
             using (var bitmap = new SKBitmap(1200, 800))
@@ -45,16 +50,19 @@ public sealed class RoomImageStorageTests
             Assert.NotNull(stored);
             Assert.Equal(1200, stored!.Width);
             Assert.Equal(800, stored.Height);
-            Assert.StartsWith("App_Data/room-images/", stored.OriginalStoragePath);
+            Assert.StartsWith("storage://room-images/", stored.OriginalStoragePath);
+            Assert.StartsWith("/uploads/rooms/", stored.LargeUrl);
 
-            var original = Path.Combine(root, stored.OriginalStoragePath.Replace('/', Path.DirectorySeparatorChar));
-            var large = ToLocalWebPath(webRoot, stored.LargeUrl);
-            var card = ToLocalWebPath(webRoot, stored.CardUrl);
-            var thumb = ToLocalWebPath(webRoot, stored.ThumbnailUrl);
+            var imageFolder = Path.Combine(roomId.ToString("N"), imageId.ToString("N"));
+            var original = Path.Combine(dataRoot, "room-images", imageFolder, "original.jpg");
+            var large = Path.Combine(mediaRoot, imageFolder, "large.webp");
+            var card = Path.Combine(mediaRoot, imageFolder, "card.webp");
+            var thumb = Path.Combine(mediaRoot, imageFolder, "thumb.webp");
             Assert.True(File.Exists(original));
             Assert.True(File.Exists(large));
             Assert.True(File.Exists(card));
             Assert.True(File.Exists(thumb));
+            Assert.False(File.Exists(Path.Combine(webRoot, "uploads", "rooms", imageFolder, "large.webp")));
 
             AssertVariantDimensions(large, 1200, 800);
             AssertVariantDimensions(card, 900, 675);
@@ -78,9 +86,6 @@ public sealed class RoomImageStorageTests
         Assert.Equal(width, bitmap.Width);
         Assert.Equal(height, bitmap.Height);
     }
-
-    private static string ToLocalWebPath(string webRoot, string url) =>
-        Path.Combine(webRoot, url.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
 
     private sealed class FakeWebHostEnvironment(string contentRootPath, string webRootPath) : IWebHostEnvironment
     {
