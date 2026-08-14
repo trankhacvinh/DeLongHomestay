@@ -101,11 +101,20 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
             .SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == roomId, cancellationToken);
         if (room is null) return (null, new("not_found", "Không tìm thấy phòng."));
 
+        var code = string.IsNullOrWhiteSpace(request.Code) ? room.Code : request.Code.Trim().ToUpperInvariant();
+        var name = string.IsNullOrWhiteSpace(request.Name) ? room.Name : request.Name.Trim();
+        var capacity = request.Capacity ?? room.Capacity;
+        if (code.Length > 50) return (null, new("validation", "Mã phòng tối đa 50 ký tự."));
+        if (name.Length > 200) return (null, new("validation", "Tên phòng tối đa 200 ký tự."));
+        if (capacity is < 1 or > 50) return (null, new("validation", "Sức chứa phải từ 1 đến 50 người."));
+        if (await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id != roomId && x.Code == code, cancellationToken))
+            return (null, new("code_exists", "Mã phòng đã tồn tại trong cơ sở này."));
+
         var shortDescription = Clean(request.ShortDescription);
         if (shortDescription?.Length > 600) return (null, new("validation", "Mô tả ngắn tối đa 600 ký tự."));
 
-        var slug = CreateSlug(string.IsNullOrWhiteSpace(request.Slug) ? room.Name : request.Slug!);
-        if (string.IsNullOrWhiteSpace(slug)) slug = room.Code.ToLowerInvariant();
+        var slug = CreateSlug(string.IsNullOrWhiteSpace(request.Slug) ? name : request.Slug!);
+        if (string.IsNullOrWhiteSpace(slug)) slug = code.ToLowerInvariant();
         if (await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id != roomId && x.Slug == slug, cancellationToken))
             return (null, new("slug_exists", "Đường dẫn phòng này đã được dùng. Vui lòng chọn slug khác."));
 
@@ -116,6 +125,9 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
         if (tags.Error is not null) return (null, new("validation", tags.Error));
         if (highlights.Error is not null) return (null, new("validation", highlights.Error));
 
+        room.Code = code;
+        room.Name = name;
+        room.Capacity = capacity;
         room.Slug = slug;
         room.ShortDescription = shortDescription;
         room.DescriptionHtml = string.IsNullOrWhiteSpace(request.DescriptionHtml) ? null : SanitizeDescription(request.DescriptionHtml);
@@ -362,7 +374,7 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static RoomContentDto ToDto(Room room) => new(
-        room.Id, room.Code, room.Name, room.Slug ?? CreateSlug(room.Name), room.ShortDescription, room.DescriptionHtml, room.IsPublished,
+        room.Id, room.Code, room.Name, room.Capacity, room.Slug ?? CreateSlug(room.Name), room.ShortDescription, room.DescriptionHtml, room.IsPublished,
         room.Amenities.Where(x => x.Amenity.IsActive).Select(x => x.Amenity.Name).OrderBy(x => x).ToList(),
         room.Tags.Where(x => x.RoomTag.IsActive).Select(x => x.RoomTag.Name).OrderBy(x => x).ToList(),
         room.Highlights.OrderBy(x => x.SortOrder).Select(x => x.Text).ToList(),
