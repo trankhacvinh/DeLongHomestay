@@ -14,8 +14,8 @@
     <div class="page-title-row room-content-page-head">
         <div>
             <div class="page-eyebrow">Nội dung phòng</div>
-            <h1>{{ room.name }}</h1>
-            <p>{{ room.code }} · Quản lý nội dung hiển thị trên website, tiện nghi và thư viện ảnh.</p>
+            <h1>{{ form.name || room.name }}</h1>
+            <p>{{ form.code || room.code }} · Quản lý thông tin phòng, nội dung website, tiện nghi và thư viện ảnh.</p>
         </div>
         <div class="room-content-head-actions">
             <a class="btn btn-light" v-bind:href="'/Admin/Rooms?propertyId=' + propertyId">Quay lại danh sách</a>
@@ -27,9 +27,24 @@
         <main class="room-content-main">
             <section class="panel room-content-section">
                 <div class="panel-head room-content-section-head">
-                    <div><span class="room-content-step">01</span><div><h2>Thông tin giới thiệu</h2><p>Phần khách nhìn thấy đầu tiên trong trang chi tiết phòng.</p></div></div>
+                    <div><span class="room-content-step">01</span><div><h2>Thông tin phòng & giới thiệu</h2><p>Thông tin vận hành cơ bản và phần khách nhìn thấy đầu tiên trên website.</p></div></div>
                 </div>
                 <div class="room-content-fields">
+                    <div class="room-identity-grid">
+                        <div class="field room-name-field">
+                            <label for="room-content-name">Tên phòng</label>
+                            <input id="room-content-name" v-model.trim="form.name" maxlength="200" autocomplete="off" placeholder="Ví dụ: Coco Blue #1" />
+                        </div>
+                        <div class="field">
+                            <label for="room-content-code">Mã phòng</label>
+                            <input id="room-content-code" v-model.trim="form.code" maxlength="50" autocomplete="off" placeholder="COCO-01" />
+                        </div>
+                        <div class="field">
+                            <label for="room-content-capacity">Sức chứa</label>
+                            <div class="capacity-input-wrap"><input id="room-content-capacity" v-model.number="form.capacity" type="number" min="1" max="50" inputmode="numeric" /><span>người</span></div>
+                        </div>
+                    </div>
+                    <small class="field-help room-identity-help">Mã phòng phải duy nhất trong cơ sở. Thay đổi tên hoặc mã không làm thay đổi lịch sử booking; đường dẫn public được quản lý riêng bên dưới.</small>
                     <div class="field">
                         <label for="room-content-slug">Đường dẫn</label>
                         <div class="slug-input-wrap"><span>/rooms/</span><input id="room-content-slug" v-model.trim="form.slug" maxlength="180" autocomplete="off" /></div>
@@ -43,15 +58,19 @@
                 </div>
             </section>
 
-            <section class="panel room-content-section">
-                <div class="panel-head room-content-section-head">
+            <section class="panel room-content-section room-editor-section" v-bind:class="{ 'is-editor-expanded': editorExpanded }">
+                <div class="panel-head room-content-section-head room-editor-head">
                     <div><span class="room-content-step">02</span><div><h2>Nội dung chi tiết</h2><p>Editor đầy đủ cho heading, danh sách, liên kết, ảnh từ gallery và video YouTube.</p></div></div>
+                    <button class="btn btn-light btn-sm editor-expand-button" type="button" v-on:click="toggleEditorExpanded" v-bind:aria-pressed="editorExpanded" v-bind:title="editorExpanded ? 'Thu gọn vùng soạn thảo' : 'Mở rộng vùng soạn thảo'">
+                        {{ editorExpanded ? 'Thu gọn' : 'Mở rộng editor' }}
+                    </button>
                 </div>
                 <div class="quill-editor-shell">
                     <div ref="quillEditor" class="room-quill-editor"></div>
                     <div class="editor-footnote">
                         <span>Ảnh được chèn từ thư viện của phòng, không nhúng base64.</span>
                         <span>Video chỉ nhận YouTube và được kiểm tra lại phía server.</span>
+                        <span v-if="editorExpanded">Nhấn Esc để thu gọn.</span>
                     </div>
                 </div>
             </section>
@@ -144,10 +163,10 @@
                         <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" multiple v-on:change="uploadImages" v-bind:disabled="uploading || room.images.length >= 20" />
                     </label>
                 </div>
-                <p class="gallery-help">JPG, PNG hoặc WebP · tối đa 12 MB/ảnh. Bản gốc được giữ riêng; website dùng WebP tối ưu.</p>
+                <p class="gallery-help">JPG, PNG hoặc WebP · tối đa 12 MB/ảnh. Bản gốc được giữ riêng; website dùng WebP tối ưu. Ảnh bìa có viền vàng để nhận biết nhanh.</p>
 
                 <div v-if="room.images.length" ref="galleryGrid" class="room-gallery-grid">
-                    <article class="room-gallery-tile" v-for="(image, index) in room.images" v-bind:key="image.id" v-bind:data-image-id="image.id">
+                    <article class="room-gallery-tile" v-for="(image, index) in room.images" v-bind:key="image.id" v-bind:data-image-id="image.id" v-bind:class="{ 'is-cover': image.isCover }">
                         <div class="room-gallery-thumb" v-bind:style="focalStyle(image)">
                             <img v-bind:src="image.thumbnailUrl" v-bind:alt="image.altText || room.name" width="240" height="180" />
                             <span class="gallery-drag-handle" title="Kéo để sắp xếp" aria-hidden="true">⋮⋮</span>
