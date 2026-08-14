@@ -31,9 +31,10 @@
             <span>{{ activeRooms.length }} phòng đang hoạt động · múi giờ {{ timeZoneId }}</span>
         </div>
         <div class="calendar-legend" aria-label="Chú thích trạng thái đặt phòng">
-            <span class="legend-item"><i class="legend-dot held"></i>Giữ phòng</span>
-            <span class="legend-item"><i class="legend-dot confirmed"></i>Đã xác nhận / đang ở</span>
             <span class="legend-item"><i class="legend-dot requested"></i>Yêu cầu</span>
+            <span class="legend-item"><i class="legend-dot held"></i>Giữ phòng</span>
+            <span class="legend-item"><i class="legend-dot confirmed"></i>Đã xác nhận</span>
+            <span class="legend-item"><i class="legend-dot checkedin"></i>Đang ở</span>
         </div>
     </div>
 
@@ -72,12 +73,31 @@
                                 v-bind:key="booking.id"
                                 type="button"
                                 class="booking-chip"
-                                v-bind:class="[bookingClass(booking.status), { 'booking-multiday': booking.type === 1 }]"
+                                v-bind:class="[
+                                    bookingClass(booking.status),
+                                    {
+                                        'booking-multiday': booking.type === 1,
+                                        'booking-checkedin': booking.status === 3,
+                                        'booking-continues-before': booking.type === 1 && localDateKey(booking.checkInUtc) < startDate,
+                                        'booking-continues-after': booking.type === 1 && localDateKey(booking.checkOutUtc) > days[days.length - 1].key
+                                    }
+                                ]"
                                 v-bind:style="booking.type === 1 ? { '--booking-span': bookingSpan(booking, day.key) } : null"
                                 v-on:click.stop="openBooking(booking)">
-                            <span class="booking-time">{{ booking.type === 1 ? multiDayLabel(booking) : timeRange(booking) }}</span>
-                            <strong>{{ booking.customerName }}</strong>
-                            <span class="booking-meta"><span>{{ money(booking.totalAmount) }}</span><span>{{ statusText(booking.status) }}</span></span>
+                            <template v-if="booking.type === 1">
+                                <strong class="booking-customer">{{ booking.customerName }}</strong>
+                                <span class="booking-time">
+                                    {{ booking.nightCount || '?' }} đêm ·
+                                    {{ localDateKey(booking.checkInUtc) < startDate ? 'tiếp' : shortDateText(booking.checkInUtc) }}
+                                    →
+                                    {{ localDateKey(booking.checkOutUtc) > days[days.length - 1].key ? 'tiếp' : shortDateText(booking.checkOutUtc) }}
+                                </span>
+                            </template>
+                            <template v-else>
+                                <span class="booking-time">{{ timeRange(booking) }}</span>
+                                <strong class="booking-customer">{{ booking.customerName }}</strong>
+                            </template>
+                            <span class="booking-meta"><span>{{ money(booking.totalAmount) }}</span><span class="booking-status-label">{{ statusText(booking.status) }}</span></span>
                         </button>
                         <span v-if="!cellHasBooking(room.id, day.key)" class="empty-cell-action"><svg><use href="#i-plus" /></svg>Đặt phòng</span>
                     </td>
