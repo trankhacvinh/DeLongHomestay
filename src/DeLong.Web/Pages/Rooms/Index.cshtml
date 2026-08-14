@@ -1,5 +1,4 @@
 @page "/rooms"
-@using DeLong.Web.Domain.Enums
 @model DeLong.Web.Pages.Rooms.IndexModel
 @{
     ViewData["Title"] = "Phòng";
@@ -10,81 +9,70 @@
     <link rel="stylesheet" href="~/css/public-room-content.css" asp-append-version="true" />
 }
 
-<section class="public-page-hero public-rooms-hero">
+<section class="public-page-hero public-rooms-hero public-rooms-hero-v2">
     <div class="public-container public-page-hero-inner">
         <div>
             <span class="public-eyebrow">@Model.Catalog.Rooms.Count không gian</span>
-            <h1>Chọn căn phòng dành cho bạn</h1>
-            <p>Mỗi phòng mang một sắc thái riêng, có lựa chọn nghỉ ngắn và lưu trú nhiều ngày theo mức giá được cấu hình.</p>
+            <h1>Mỗi phòng, một nhịp nghỉ riêng.</h1>
+            <p>Chọn theo phong cách, tiện nghi và cách lưu trú phù hợp. Giá đặt nhanh và giá theo đêm được tách rõ để dễ so sánh.</p>
         </div>
         <a class="public-btn public-btn-primary" asp-page="/Booking/Index">Kiểm tra phòng trống</a>
     </div>
 </section>
 
-<section class="public-section public-room-catalog-section">
+<section class="public-section public-room-catalog-section public-room-catalog-v2">
     <div class="public-container">
-        <div class="public-room-grid public-room-grid-catalog">
+        <div class="public-room-grid public-room-grid-catalog-v2">
             @foreach (var room in Model.Catalog.Rooms)
             {
-                var quickRates = room.Rates.Where(rate => rate.Type != RoomRateType.Nightly).ToList();
-                var nightlyRate = room.Rates.FirstOrDefault(rate => rate.Type == RoomRateType.Nightly);
-                <article class="public-room-card public-room-card-large public-room-card-content">
-                    <a class="public-room-art" asp-page="/Rooms/Details" asp-route-code="@room.Slug" data-room-code="@room.Code" aria-label="Xem chi tiết @room.Name">
+                <article class="public-room-card-v2">
+                    <a class="public-room-card-v2-media" asp-page="/Rooms/Details" asp-route-code="@room.Slug" aria-label="Xem chi tiết @room.Name">
                         @if (!string.IsNullOrWhiteSpace(room.CoverCardUrl))
                         {
-                            <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" width="900" height="675" loading="lazy" />
-                            <span class="public-room-image-scrim"></span>
-                            <span class="public-room-image-title"><small>DE LONG · @room.Code</small><strong>@room.Name</strong></span>
+                            <img src="@room.CoverCardUrl" alt="@room.Name" width="900" height="675" loading="lazy" />
                         }
                         else
                         {
-                            <span class="public-room-poster public-room-poster-large">
+                            <span class="public-room-poster public-room-poster-v2" data-room-code="@room.Code">
                                 <small>DE LONG · @room.Code</small>
                                 <strong>@room.Name</strong>
                             </span>
                         }
-                        <div class="public-room-art-tags">
+                        <span class="public-room-code-badge">@room.Code</span>
+                        <div class="public-room-media-badges">
                             <span>@room.Capacity người</span>
                             @if (room.HasBathtub) { <span>Bồn tắm</span> }
                         </div>
                     </a>
-                    <div class="public-room-body public-room-body-stack">
-                        <div class="public-room-title-row">
-                            <div>
-                                <h2><a asp-page="/Rooms/Details" asp-route-code="@room.Slug">@room.Name</a></h2>
-                                @if (!string.IsNullOrWhiteSpace(room.ShortDescription))
-                                {
-                                    <p class="public-room-short-copy">@room.ShortDescription</p>
-                                }
-                                else
-                                {
-                                    <p>@room.Code · @quickRates.Count lựa chọn nhanh@(nightlyRate is not null ? " · có giá theo đêm" : "")</p>
-                                }
-                            </div>
-                            <div class="public-room-price public-room-price-prominent"><small>Từ</small><strong>@room.FromPrice.ToString("N0")đ</strong></div>
+                    <div class="public-room-card-v2-body">
+                        <div class="public-room-card-v2-heading">
+                            <h2><a asp-page="/Rooms/Details" asp-route-code="@room.Slug">@room.Name</a></h2>
+                            <p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? "Không gian riêng tư với nhiều lựa chọn thời gian." : room.ShortDescription)</p>
                         </div>
-                        @if (room.Tags.Count > 0)
+
+                        @if (room.Tags.Count > 0 || room.Amenities.Count > 0)
                         {
-                            <div class="public-room-tag-row">
-                                @foreach (var tag in room.Tags.Take(4)) { <span>@tag</span> }
+                            <div class="public-room-compact-features">
+                                @foreach (var tag in room.Tags.Take(2)) { <span>@tag</span> }
+                                @foreach (var amenity in room.Amenities.Take(Math.Max(0, 3 - Math.Min(2, room.Tags.Count)))) { <span>@amenity</span> }
                             </div>
                         }
-                        <div class="public-rate-preview">
-                            @foreach (var rate in quickRates.Take(3))
+
+                        <div class="public-room-price-grid">
+                            <div><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div>
+                            @if (room.NightlyPrice.HasValue)
                             {
-                                <span><strong>@rate.StartTime–@rate.EndTime</strong>@rate.Price.ToString("N0")đ</span>
+                                <div><small>Lưu trú</small><strong>@room.NightlyPrice.Value.ToString("N0")đ<em>/đêm</em></strong></div>
+                            }
+                            else if (room.OvernightPrice.HasValue)
+                            {
+                                <div><small>Qua đêm</small><strong>@room.OvernightPrice.Value.ToString("N0")đ</strong></div>
                             }
                         </div>
-                        <div class="public-room-footer">
-                            @if (nightlyRate is not null)
-                            {
-                                <span class="public-room-note">Lưu trú: @nightlyRate.Price.ToString("N0")đ/đêm · nhận @nightlyRate.StartTime · trả @nightlyRate.EndTime.</span>
-                            }
-                            else
-                            {
-                                <span class="public-room-note">Khung qua đêm và giờ thực tế xem trong chi tiết.</span>
-                            }
-                            <a class="public-text-link" asp-page="/Rooms/Details" asp-route-code="@room.Slug">Xem chi tiết →</a>
+
+                        <div class="public-room-card-v2-footer">
+                            <span>@(room.OvernightPrice.HasValue ? $"Qua đêm {room.OvernightPrice.Value:N0}đ" : "Giờ lưu trú xem trong chi tiết")</span>
+                            <a class="public-text-link" asp-page="/Rooms/Details" asp-route-code="@room.Slug">Xem phòng →</a>
                         </div>
                     </div>
                 </article>
