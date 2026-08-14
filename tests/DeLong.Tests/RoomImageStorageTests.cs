@@ -10,7 +10,7 @@ namespace DeLong.Tests;
 public sealed class RoomImageStorageTests
 {
     [Fact]
-    public async Task Upload_creates_original_and_optimized_webp_variants()
+    public async Task Upload_creates_original_and_optimized_webp_variants_and_can_regenerate_focal_crops()
     {
         var root = Path.Combine(Path.GetTempPath(), "delong-room-image-tests", Guid.NewGuid().ToString("N"));
         var webRoot = Path.Combine(root, "wwwroot");
@@ -56,23 +56,27 @@ public sealed class RoomImageStorageTests
             Assert.True(File.Exists(card));
             Assert.True(File.Exists(thumb));
 
-            using var largeBitmap = SKBitmap.Decode(large);
-            using var cardBitmap = SKBitmap.Decode(card);
-            using var thumbBitmap = SKBitmap.Decode(thumb);
-            Assert.NotNull(largeBitmap);
-            Assert.NotNull(cardBitmap);
-            Assert.NotNull(thumbBitmap);
-            Assert.Equal(1200, largeBitmap.Width);
-            Assert.Equal(800, largeBitmap.Height);
-            Assert.Equal(900, cardBitmap.Width);
-            Assert.Equal(675, cardBitmap.Height);
-            Assert.Equal(480, thumbBitmap.Width);
-            Assert.Equal(360, thumbBitmap.Height);
+            AssertVariantDimensions(large, 1200, 800);
+            AssertVariantDimensions(card, 900, 675);
+            AssertVariantDimensions(thumb, 480, 360);
+
+            var cropError = await storage.RegenerateCropsAsync(stored, 0.12, 0.88);
+            Assert.Null(cropError);
+            AssertVariantDimensions(card, 900, 675);
+            AssertVariantDimensions(thumb, 480, 360);
         }
         finally
         {
             if (Directory.Exists(root)) Directory.Delete(root, true);
         }
+    }
+
+    private static void AssertVariantDimensions(string path, int width, int height)
+    {
+        using var bitmap = SKBitmap.Decode(path);
+        Assert.NotNull(bitmap);
+        Assert.Equal(width, bitmap.Width);
+        Assert.Equal(height, bitmap.Height);
     }
 
     private static string ToLocalWebPath(string webRoot, string url) =>
