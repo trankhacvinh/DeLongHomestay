@@ -41,6 +41,24 @@ public static class ImportEndpoints
         })
         .AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        group.MapPost("/bookings/convert-calendar", async (
+            Guid propertyId,
+            HttpRequest request,
+            LegacyCalendarConversionService service,
+            CancellationToken cancellationToken) =>
+        {
+            var file = await ReadFileAsync(request, cancellationToken);
+            if (file is null) return Problem("file_empty", "Vui lòng chọn file lịch Excel.", 400);
+            var (result, error) = await service.ConvertAsync(file, cancellationToken);
+            if (error is not null) return Problem(error.Code, error.Message, 400);
+            return Results.File(
+                result!.FileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                result.FileName,
+                enableRangeProcessing: false);
+        })
+        .AddEndpointFilter<ApiAntiforgeryFilter>();
+
         group.MapGet("/bookings/template", (
             Guid propertyId,
             ExcelBookingImportService service) =>
