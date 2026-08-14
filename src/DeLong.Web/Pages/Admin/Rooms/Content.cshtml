@@ -4,6 +4,7 @@
     ViewData["Title"] = "Nội dung phòng";
 }
 @section Head {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
     <link rel="stylesheet" href="~/css/room-content.css" asp-append-version="true" />
 }
 
@@ -44,44 +45,50 @@
 
             <section class="panel room-content-section">
                 <div class="panel-head room-content-section-head">
-                    <div><span class="room-content-step">02</span><div><h2>Nội dung chi tiết</h2><p>Rich text được làm sạch phía server trước khi xuất bản.</p></div></div>
+                    <div><span class="room-content-step">02</span><div><h2>Nội dung chi tiết</h2><p>Editor đầy đủ cho heading, danh sách, liên kết, ảnh từ gallery và video YouTube.</p></div></div>
                 </div>
-                <div class="rich-editor-wrap">
-                    <div class="rich-editor-toolbar" role="toolbar" aria-label="Định dạng nội dung">
-                        <button type="button" title="Đậm" v-on:click="formatText('bold')"><strong>B</strong></button>
-                        <button type="button" title="Nghiêng" v-on:click="formatText('italic')"><em>I</em></button>
-                        <span class="rich-toolbar-separator"></span>
-                        <button type="button" v-on:click="formatBlock('p')">Đoạn</button>
-                        <button type="button" v-on:click="formatBlock('h2')">H2</button>
-                        <button type="button" v-on:click="formatBlock('h3')">H3</button>
-                        <span class="rich-toolbar-separator"></span>
-                        <button type="button" title="Danh sách chấm" v-on:click="formatText('insertUnorderedList')">• Danh sách</button>
-                        <button type="button" title="Danh sách số" v-on:click="formatText('insertOrderedList')">1. Danh sách</button>
-                        <button type="button" title="Thêm liên kết" v-on:click="createLink">Liên kết</button>
+                <div class="quill-editor-shell">
+                    <div ref="quillEditor" class="room-quill-editor"></div>
+                    <div class="editor-footnote">
+                        <span>Ảnh được chèn từ thư viện của phòng, không nhúng base64.</span>
+                        <span>Video chỉ nhận YouTube và được kiểm tra lại phía server.</span>
                     </div>
-                    <div ref="richEditor"
-                         class="rich-editor"
-                         contenteditable="true"
-                         role="textbox"
-                         aria-multiline="true"
-                         data-placeholder="Viết câu chuyện về căn phòng, phong cách không gian, trải nghiệm phù hợp và những điều khách nên biết..."
-                         v-html="form.descriptionHtml"
-                         v-on:input="captureDescription"></div>
                 </div>
             </section>
 
             <section class="panel room-content-section">
                 <div class="panel-head room-content-section-head">
-                    <div><span class="room-content-step">03</span><div><h2>Tiện nghi & thẻ</h2><p>Tiện nghi là thông tin thực tế; thẻ dùng để mô tả phong cách và nhu cầu khách.</p></div></div>
+                    <div><span class="room-content-step">03</span><div><h2>Tiện nghi & thẻ</h2><p>Dùng bộ tiện nghi cho phần lặp lại, sau đó bổ sung riêng cho từng phòng.</p></div></div>
                 </div>
+
+                <div class="amenity-preset-zone">
+                    <div class="amenity-preset-head">
+                        <div><strong>Bộ tiện nghi</strong><span>Áp dụng một bộ sẽ thêm các tiện nghi còn thiếu vào phòng, không tạo liên kết sống.</span></div>
+                        <button class="btn btn-light btn-sm" type="button" v-bind:disabled="!form.amenities.length" v-on:click="saveAmenityPreset">Lưu lựa chọn hiện tại thành bộ</button>
+                    </div>
+                    <div v-if="amenityPresets.length" class="amenity-preset-list">
+                        <article class="amenity-preset" v-for="preset in amenityPresets" v-bind:key="preset.id">
+                            <div><strong>{{ preset.name }}</strong><span>{{ preset.amenities.length }} tiện nghi · {{ preset.amenities.slice(0, 4).join(', ') }}<template v-if="preset.amenities.length > 4">…</template></span></div>
+                            <div class="amenity-preset-actions">
+                                <button class="btn btn-light btn-sm" type="button" v-on:click="applyAmenityPreset(preset)">Áp dụng</button>
+                                <button class="icon-btn icon-btn-small" type="button" v-on:click="deleteAmenityPreset(preset)" v-bind:aria-label="'Xóa bộ ' + preset.name">×</button>
+                            </div>
+                        </article>
+                    </div>
+                    <p v-else class="amenity-preset-empty">Chưa có bộ dùng lại. Chọn tiện nghi cho phòng này rồi bấm “Lưu lựa chọn hiện tại thành bộ”.</p>
+                </div>
+
                 <div class="room-content-taxonomy-grid">
                     <div class="taxonomy-editor">
-                        <label>Tiện nghi</label>
+                        <label>Tiện nghi của phòng</label>
                         <div class="chip-list" v-if="form.amenities.length">
                             <span class="content-chip" v-for="(item, index) in form.amenities" v-bind:key="'amenity-' + item">{{ item }}<button type="button" v-on:click="removeItem('amenities', index)" v-bind:aria-label="'Xóa ' + item">×</button></span>
                         </div>
+                        <div class="amenity-suggestions" v-if="availableAmenitySuggestions.length">
+                            <button type="button" v-for="item in availableAmenitySuggestions.slice(0, 8)" v-bind:key="item" v-on:click="addAmenity(item)">+ {{ item }}</button>
+                        </div>
                         <div class="chip-add-row">
-                            <input v-model.trim="drafts.amenity" maxlength="100" placeholder="Bồn tắm, Wifi, Máy chiếu..." v-on:keyup.enter="addItem('amenities', 'amenity')" />
+                            <input v-model.trim="drafts.amenity" maxlength="100" placeholder="Thêm tiện nghi khác..." v-on:keyup.enter="addItem('amenities', 'amenity')" />
                             <button class="btn btn-light btn-sm" type="button" v-on:click="addItem('amenities', 'amenity')">Thêm</button>
                         </div>
                     </div>
@@ -126,44 +133,82 @@
                     </label>
                 </div>
                 <p>Ẩn phòng sẽ loại phòng khỏi danh sách và luồng đặt phòng public, nhưng không ảnh hưởng lịch sử booking.</p>
-                <a v-if="form.isPublished" class="public-text-link" v-bind:href="'/rooms/' + (form.slug || room.code)" target="_blank" rel="noopener">Xem trang public ↗</a>
+                <a v-if="room.isPublished" class="public-text-link" v-bind:href="'/rooms/' + room.slug" target="_blank" rel="noopener">Xem trang public ↗</a>
             </section>
 
             <section class="panel room-gallery-card">
                 <div class="panel-head room-gallery-head">
-                    <div><h2>Thư viện ảnh</h2><p>{{ room.images.length }}/20 ảnh</p></div>
+                    <div><h2>Thư viện ảnh</h2><p>{{ room.images.length }}/20 ảnh · kéo để sắp xếp</p></div>
                     <label class="btn btn-primary btn-sm room-upload-button" v-bind:class="{ disabled: uploading || room.images.length >= 20 }">
                         {{ uploading ? 'Đang xử lý...' : '+ Tải ảnh' }}
                         <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" multiple v-on:change="uploadImages" v-bind:disabled="uploading || room.images.length >= 20" />
                     </label>
                 </div>
-                <p class="gallery-help">JPG, PNG hoặc WebP · tối đa 12 MB/ảnh. Hệ thống tự tạo bản large, card và thumbnail WebP.</p>
+                <p class="gallery-help">JPG, PNG hoặc WebP · tối đa 12 MB/ảnh. Bản gốc được giữ riêng; website dùng WebP tối ưu.</p>
 
-                <div v-if="room.images.length" class="room-gallery-list">
-                    <article class="room-gallery-item" v-for="(image, index) in room.images" v-bind:key="image.id">
-                        <div class="room-gallery-thumb">
+                <div v-if="room.images.length" ref="galleryGrid" class="room-gallery-grid">
+                    <article class="room-gallery-tile" v-for="(image, index) in room.images" v-bind:key="image.id" v-bind:data-image-id="image.id">
+                        <div class="room-gallery-thumb" v-bind:style="focalStyle(image)">
                             <img v-bind:src="image.thumbnailUrl" v-bind:alt="image.altText || room.name" width="240" height="180" />
+                            <span class="gallery-drag-handle" title="Kéo để sắp xếp" aria-hidden="true">⋮⋮</span>
                             <span v-if="image.isCover" class="cover-badge">Ảnh bìa</span>
                         </div>
-                        <div class="room-gallery-meta">
-                            <div class="room-gallery-info"><strong>Ảnh {{ index + 1 }}</strong><span>{{ image.width }}×{{ image.height }} · {{ fileSize(image.originalBytes) }}</span></div>
-                            <label>Alt text<input v-model.trim="image.altText" maxlength="300" placeholder="Mô tả ảnh cho accessibility/SEO" v-on:change="saveImageMeta(image)" /></label>
+                        <div class="room-gallery-tile-body">
+                            <div class="room-gallery-info"><strong>Ảnh {{ index + 1 }}</strong><span>{{ image.width }}×{{ image.height }}</span></div>
+                            <input v-model.trim="image.altText" maxlength="300" placeholder="Alt text cho ảnh" v-on:change="saveImageMeta(image)" />
                             <div class="room-gallery-actions">
-                                <button v-if="!image.isCover" class="btn btn-light btn-sm" type="button" v-on:click="setCover(image)">Đặt làm bìa</button>
-                                <button class="btn btn-light btn-sm" type="button" v-bind:disabled="index === 0" v-on:click="moveImage(index, -1)" aria-label="Đưa ảnh lên">↑</button>
-                                <button class="btn btn-light btn-sm" type="button" v-bind:disabled="index === room.images.length - 1" v-on:click="moveImage(index, 1)" aria-label="Đưa ảnh xuống">↓</button>
+                                <button v-if="!image.isCover" class="btn btn-light btn-sm" type="button" v-on:click="setCover(image)">Làm bìa</button>
+                                <button class="btn btn-light btn-sm" type="button" v-on:click="openFocalEditor(image)">Điểm ảnh</button>
                                 <button class="btn btn-danger btn-sm" type="button" v-on:click="deleteImage(image)">Xóa</button>
                             </div>
                         </div>
                     </article>
                 </div>
                 <div v-else class="room-gallery-empty">
-                    <span class="room-gallery-empty-icon"><svg><use href="#i-image" /></svg></span>
                     <strong>Chưa có ảnh thật</strong>
                     <p>Website vẫn dùng poster màu hiện tại cho tới khi bạn tải ảnh đầu tiên.</p>
                 </div>
             </section>
         </aside>
+    </div>
+
+    <div class="modal-backdrop" v-if="mediaPicker.open" v-on:click.self="closeMediaPicker">
+        <section class="modal-card media-picker-modal" role="dialog" aria-modal="true" aria-labelledby="media-picker-title">
+            <div class="modal-head">
+                <div><h2 id="media-picker-title">Chèn ảnh vào nội dung</h2><p class="muted small">Chọn ảnh đã có trong gallery. Ảnh sẽ dùng bản large tối ưu, không chèn base64.</p></div>
+                <button class="icon-btn" type="button" v-on:click="closeMediaPicker" aria-label="Đóng">×</button>
+            </div>
+            <div class="media-picker-grid" v-if="room.images.length">
+                <button type="button" v-for="image in room.images" v-bind:key="image.id" v-on:click="insertGalleryImage(image)">
+                    <img v-bind:src="image.thumbnailUrl" v-bind:alt="image.altText || room.name" />
+                    <span>{{ image.altText || room.name }}</span>
+                </button>
+            </div>
+            <div class="room-gallery-empty" v-else><strong>Chưa có ảnh</strong><p>Tải ảnh ở Thư viện ảnh trước rồi chèn vào nội dung.</p></div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop" v-if="focalEditor.open" v-on:click.self="closeFocalEditor">
+        <section class="modal-card focal-modal" role="dialog" aria-modal="true" aria-labelledby="focal-title">
+            <div class="modal-head">
+                <div><h2 id="focal-title">Chọn điểm quan trọng của ảnh</h2><p class="muted small">Bấm vào chủ thể cần giữ khi ảnh được crop thành card hoặc thumbnail.</p></div>
+                <button class="icon-btn" type="button" v-on:click="closeFocalEditor" aria-label="Đóng">×</button>
+            </div>
+            <div class="focal-editor-body" v-if="focalEditor.image">
+                <div class="focal-source">
+                    <button type="button" class="focal-image-button" v-on:click="setFocalFromClick">
+                        <img v-bind:src="focalEditor.image.largeUrl" v-bind:alt="focalEditor.image.altText || room.name" />
+                        <span class="focal-marker" v-bind:style="focalMarkerStyle"></span>
+                    </button>
+                </div>
+                <div class="focal-preview-panel">
+                    <span class="page-eyebrow">Xem trước card 4:3</span>
+                    <div class="focal-preview"><img v-bind:src="focalEditor.image.cardUrl" alt="" v-bind:style="focalDraftImageStyle" /></div>
+                    <p>Điểm chọn: {{ Math.round(focalEditor.x * 100) }}% ngang · {{ Math.round(focalEditor.y * 100) }}% dọc</p>
+                </div>
+            </div>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closeFocalEditor">Hủy</button><button class="btn btn-primary" type="button" v-on:click="saveFocalPoint">Lưu điểm ảnh</button></div>
+        </section>
     </div>
 
     <div class="room-content-savebar" v-if="dirty">
@@ -175,5 +220,7 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script>
     <script src="~/js/pages/admin-room-content.js" asp-append-version="true"></script>
 }
