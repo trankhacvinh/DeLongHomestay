@@ -19,6 +19,8 @@ public sealed class AppDbContext
     public DbSet<RoomImage> RoomImages => Set<RoomImage>();
     public DbSet<Amenity> Amenities => Set<Amenity>();
     public DbSet<RoomAmenity> RoomAmenities => Set<RoomAmenity>();
+    public DbSet<AmenityPreset> AmenityPresets => Set<AmenityPreset>();
+    public DbSet<AmenityPresetItem> AmenityPresetItems => Set<AmenityPresetItem>();
     public DbSet<RoomTag> RoomTags => Set<RoomTag>();
     public DbSet<RoomTagAssignment> RoomTagAssignments => Set<RoomTagAssignment>();
     public DbSet<RoomHighlight> RoomHighlights => Set<RoomHighlight>();
