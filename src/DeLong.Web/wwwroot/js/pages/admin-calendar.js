@@ -42,6 +42,7 @@
 
     createApp({
         data() {
+            const finePointer = window.matchMedia ? window.matchMedia('(pointer: fine)').matches : true;
             return {
                 propertyId: initial.propertyId,
                 startDate: initial.startDate,
@@ -49,6 +50,9 @@
                 rooms: initial.rooms || [],
                 bookings: initial.bookings || [],
                 canManage: window.DeLongCalendarCanManage === true,
+                dragEnabled: window.DeLongCalendarCanManage === true && finePointer && window.innerWidth > 820,
+                drag: { bookingId: null, overKey: '' },
+                moveConfirm: { open: false, booking: null, room: null, day: null },
                 saving: false,
                 editor: { open: false, mode: 'create' },
                 selectedBooking: null,
@@ -111,6 +115,12 @@
             shortDateText(utcValue) {
                 return this.formatInProperty(utcValue, { day: '2-digit', month: '2-digit' });
             },
+            dateKeyText(value) {
+                if (!value) return '—';
+                return new Intl.DateTimeFormat('vi-VN', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'short', timeZone: 'UTC'
+                }).format(parseDateKey(value));
+            },
             localDateKey(utcValue) {
                 return utcToLocalInput(utcValue).slice(0, 10);
             },
@@ -159,6 +169,92 @@
                 const checkoutKey = this.localDateKey(booking.checkOutUtc);
                 const endKey = checkoutKey > lastVisible ? lastVisible : checkoutKey;
                 return Math.max(1, Math.min(7, dayDistance(dayKey, endKey) + 1));
+            },
+            canDragBooking(booking) {
+                return this.dragEnabled && booking && [0, 1, 2].includes(Number(booking.status));
+            },
+            dragKey(roomId, dayKey) {
+                return `${roomId}:${dayKey}`;
+            },
+            startBookingDrag(booking, event) {
+                if (!this.canDragBooking(booking)) {
+                    event.preventDefault();
+                    return;
+                }
+                this.drag.bookingId = booking.id;
+                this.drag.overKey = '';
+                if (event.dataTransfer) {
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', booking.id);
+                }
+                const element = event.currentTarget;
+                requestAnimationFrame(() => element?.classList.add('is-dragging'));
+            },
+            endBookingDrag(event) {
+                event.currentTarget?.classList.remove('is-dragging');
+                this.drag.bookingId = null;
+                this.drag.overKey = '';
+            },
+            dragOverCell(room, day, event) {
+                if (!this.dragEnabled || !this.drag.bookingId) return;
+                event.preventDefault();
+                if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+                this.drag.overKey = this.dragKey(room.id, day.key);
+            },
+            dragLeaveCell(room, day, event) {
+                if (event.currentTarget?.contains(event.relatedTarget)) return;
+                const key = this.dragKey(room.id, day.key);
+                if (this.drag.overKey === key) this.drag.overKey = '';
+            },
+            dropBooking(room, day, event) {
+                if (!this.dragEnabled) return;
+                event.preventDefault();
+                const bookingId = this.drag.bookingId || event.dataTransfer?.getData('text/plain');
+                const booking = this.bookings.find(x => x.id === bookingId);
+                this.drag.overKey = '';
+                if (!booking || !this.canDragBooking(booking)) return;
+
+                const sameRoom = booking.roomId === room.id;
+                const sameDate = this.localDateKey(booking.checkInUtc) === day.key;
+                if (sameRoom && sameDate) {
+                    this.notify('Lượt đặt đang ở đúng vị trí này.', 'success');
+                    return;
+                }
+
+                this.moveConfirm = { open: true, booking, room, day };
+            },
+            closeMoveConfirm() {
+                if (this.saving) return;
+                this.moveConfirm = { open: false, booking: null, room: null, day: null };
+            },
+            async confirmBookingMove() {
+                const booking = this.moveConfirm.booking;
+                const room = this.moveConfirm.room;
+                const day = this.moveConfirm.day;
+                if (!booking || !room || !day) return;
+
+                this.saving = true;
+                try {
+                    const updated = await DeLongApi.post(
+                        `/api/admin/properties/${this.propertyId}/bookings/${booking.id}/move`,
+                        { roomId: room.id, targetDate: day.key });
+                    const index = this.bookings.findIndex(x => x.id === updated.id);
+                    if (index >= 0) this.bookings.splice(index, 1, updated);
+                    if (this.selectedBooking?.id === updated.id) this.selectedBooking = updated;
+                    this.moveConfirm = { open: false, booking: null, room: null, day: null };
+                    this.notify(`Đã chuyển ${updated.code} sang ${updated.roomName} · ${this.dateKeyText(this.localDateKey(updated.checkInUtc))}.`, 'success');
+                } catch (error) {
+                    const marker = `${error?.problem?.code || ''} ${error?.problem?.type || ''}`.toLowerCase();
+                    if (error?.status === 409 || marker.includes('booking_conflict')) {
+                        this.notify('Không thể chuyển: phòng đích đã có lượt đặt trùng thời gian.', 'error');
+                    } else if (marker.includes('target_room_no_nightly_rate')) {
+                        this.notify('Phòng đích chưa có giá “Lưu trú theo đêm”. Hãy cấu hình giá trước khi chuyển.', 'error');
+                    } else {
+                        this.notify(error?.message || 'Không thể chuyển lượt đặt.', 'error');
+                    }
+                } finally {
+                    this.saving = false;
+                }
             },
             moveRange(amount) {
                 const target = addDays(this.startDate, amount);
@@ -333,7 +429,7 @@
             },
             notify(message, type) {
                 if (this.toast.timer) clearTimeout(this.toast.timer);
-                const timer = setTimeout(() => { this.toast.show = false; }, 3500);
+                const timer = setTimeout(() => { this.toast.show = false; }, type === 'error' ? 5200 : 3500);
                 this.toast = { show: true, message, type, timer };
             }
         },

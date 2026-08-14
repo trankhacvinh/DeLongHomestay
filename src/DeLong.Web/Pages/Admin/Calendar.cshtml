@@ -5,6 +5,7 @@
 }
 @section Head {
     <link rel="stylesheet" href="~/css/calendar-v2-polish.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/calendar-drag-drop.css" asp-append-version="true" />
 }
 <div id="calendar-page" v-cloak>
     <script id="calendar-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
@@ -34,6 +35,7 @@
             <span>{{ activeRooms.length }} phòng đang hoạt động · múi giờ {{ timeZoneId }}</span>
         </div>
         <div class="calendar-legend" aria-label="Chú thích trạng thái đặt phòng">
+            <span class="calendar-drag-help" v-if="dragEnabled">Kéo thẻ để đổi ngày / phòng</span>
             <span class="legend-item"><i class="legend-dot requested"></i>Yêu cầu</span>
             <span class="legend-item"><i class="legend-dot held"></i>Giữ phòng</span>
             <span class="legend-item"><i class="legend-dot confirmed"></i>Đã xác nhận</span>
@@ -70,15 +72,24 @@
                     <td v-for="day in days"
                         v-bind:key="room.id + '-' + day.key"
                         class="day-cell"
-                        v-bind:class="{ 'calendar-today': day.key === today }"
-                        v-on:click="openCreate(room, day)">
+                        v-bind:class="{
+                            'calendar-today': day.key === today,
+                            'calendar-drop-target': drag.overKey === dragKey(room.id, day.key)
+                        }"
+                        v-on:click="openCreate(room, day)"
+                        v-on:dragover="dragOverCell(room, day, $event)"
+                        v-on:dragleave="dragLeaveCell(room, day, $event)"
+                        v-on:drop.stop.prevent="dropBooking(room, day, $event)">
                         <button v-for="booking in bookingsToRender(room.id, day.key)"
                                 v-bind:key="booking.id"
                                 type="button"
                                 class="booking-chip"
+                                v-bind:draggable="canDragBooking(booking)"
+                                v-bind:title="canDragBooking(booking) ? 'Kéo để đổi ngày hoặc phòng' : null"
                                 v-bind:class="[
                                     bookingClass(booking.status),
                                     {
+                                        'booking-draggable': canDragBooking(booking),
                                         'booking-multiday': booking.type === 1 && booking.status !== 0,
                                         'booking-requested-stay': booking.type === 1 && booking.status === 0,
                                         'booking-checkedin': booking.status === 3,
@@ -87,7 +98,9 @@
                                     }
                                 ]"
                                 v-bind:style="booking.type === 1 && booking.status !== 0 ? { '--booking-span': bookingSpan(booking, day.key) } : null"
-                                v-on:click.stop="openBooking(booking)">
+                                v-on:click.stop="openBooking(booking)"
+                                v-on:dragstart.stop="startBookingDrag(booking, $event)"
+                                v-on:dragend="endBookingDrag($event)">
                             <template v-if="booking.type === 1">
                                 <strong class="booking-customer">{{ booking.customerName }}</strong>
                                 <span class="booking-time" v-if="booking.status === 0">Yêu cầu {{ booking.nightCount || '?' }} đêm · {{ shortDateText(booking.checkInUtc) }} → {{ shortDateText(booking.checkOutUtc) }}</span>
@@ -103,12 +116,53 @@
                                 <strong class="booking-customer">{{ booking.customerName }}</strong>
                             </template>
                             <span class="booking-meta"><span>{{ money(booking.totalAmount) }}</span><span class="booking-status-label">{{ statusText(booking.status) }}</span></span>
+                            <span class="booking-drag-handle" v-if="canDragBooking(booking)" aria-hidden="true"></span>
                         </button>
                         <span v-if="!cellHasBooking(room.id, day.key)" class="empty-cell-action"><svg><use href="#i-plus" /></svg>Đặt phòng</span>
                     </td>
                 </tr>
             </tbody>
         </table>
+    </div>
+
+    <div class="modal-backdrop modal-top" v-if="moveConfirm.open" v-on:click.self="closeMoveConfirm">
+        <section class="modal-card modal-small calendar-move-card" role="dialog" aria-modal="true" aria-labelledby="calendar-move-title">
+            <div class="modal-head">
+                <div>
+                    <div class="calendar-move-kicker">Điều phối lịch phòng</div>
+                    <h2 id="calendar-move-title">Chuyển lượt đặt?</h2>
+                    <p class="small muted">{{ moveConfirm.booking?.code }} · {{ moveConfirm.booking?.customerName }}</p>
+                </div>
+                <button class="icon-btn" type="button" v-on:click="closeMoveConfirm" aria-label="Đóng">×</button>
+            </div>
+            <div class="calendar-move-body" v-if="moveConfirm.booking && moveConfirm.room && moveConfirm.day">
+                <div class="calendar-move-route">
+                    <div class="calendar-move-stop">
+                        <span>Từ</span>
+                        <strong>{{ moveConfirm.booking.roomName }}</strong>
+                        <small>{{ dateKeyText(localDateKey(moveConfirm.booking.checkInUtc)) }} · {{ timeText(moveConfirm.booking.checkInUtc) }}</small>
+                    </div>
+                    <svg class="calendar-move-arrow" aria-hidden="true"><use href="#i-chevron-right" /></svg>
+                    <div class="calendar-move-stop target">
+                        <span>Đến</span>
+                        <strong>{{ moveConfirm.room.name }}</strong>
+                        <small>{{ dateKeyText(moveConfirm.day.key) }}</small>
+                    </div>
+                </div>
+                <div class="calendar-move-note" v-if="moveConfirm.booking.type === 1 && moveConfirm.booking.roomId !== moveConfirm.room.id">
+                    <strong>{{ moveConfirm.booking.nightCount }} đêm và giá đã thỏa thuận được giữ nguyên.</strong>
+                    Giờ nhận/trả sẽ theo mức “Lưu trú theo đêm” của phòng mới.
+                </div>
+                <div class="calendar-move-note" v-else>
+                    <strong>Giờ, giá và công nợ hiện tại được giữ nguyên.</strong>
+                    Hệ thống chỉ đổi ngày/phòng và sẽ kiểm tra trùng trước khi lưu.
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="closeMoveConfirm">Hủy</button>
+                <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="confirmBookingMove">{{ saving ? 'Đang kiểm tra...' : 'Xác nhận chuyển' }}</button>
+            </div>
+        </section>
     </div>
 
     <div class="modal-backdrop" v-if="editor.open" v-on:click.self="closeEditor">
