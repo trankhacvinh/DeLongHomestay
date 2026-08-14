@@ -14,6 +14,7 @@ using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Reports;
 using DeLong.Web.Features.Rooms;
+using DeLong.Web.Features.Staff;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
@@ -41,7 +42,13 @@ builder.Services
         options.Lockout.MaxFailedAccessAttempts = 5;
     })
     .AddEntityFrameworkStores<AppDbContext>()
+    .AddClaimsPrincipalFactory<ApplicationClaimsPrincipalFactory>()
     .AddDefaultTokenProviders();
+
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+{
+    options.ValidationInterval = TimeSpan.FromMinutes(1);
+});
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -56,6 +63,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminArea", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping", "Viewer"));
+    options.AddPolicy("ManageStaff", policy => policy.RequireRole("Admin"));
     options.AddPolicy("ManageRooms", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageBookings", policy => policy.RequireRole("Admin", "Manager", "Staff"));
     options.AddPolicy("ManagePayments", policy => policy.RequireRole("Admin", "Manager", "Staff"));
@@ -68,6 +76,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Admin", "AdminArea");
+    options.Conventions.AuthorizeFolder("/Admin/Staff", "ManageStaff");
     options.Conventions.AllowAnonymousToPage("/Account/Login");
 });
 builder.Services.AddProblemDetails();
@@ -106,6 +115,7 @@ builder.Services.AddScoped<HousekeepingService>();
 builder.Services.AddScoped<ExpenseService>();
 builder.Services.AddScoped<FinanceService>();
 builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<StaffAccountService>();
 builder.Services.AddScoped<PublicBookingService>();
 builder.Services.AddScoped<PublicRoomContentService>();
 builder.Services.AddScoped<PublicRequestInboxService>();
@@ -122,6 +132,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
+app.UseMiddleware<ForcePasswordChangeMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.UseAntiforgery();
@@ -137,6 +148,7 @@ app.MapPaymentEndpoints();
 app.MapHousekeepingEndpoints();
 app.MapExpenseEndpoints();
 app.MapAuditEndpoints();
+app.MapStaffAccountEndpoints();
 app.MapPublicBookingEndpoints();
 
 if (app.Configuration.GetValue<bool>("Database:AutoMigrate") || app.Configuration.GetValue<bool>("Database:SeedOnStartup"))
