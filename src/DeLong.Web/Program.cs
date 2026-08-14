@@ -100,6 +100,7 @@ builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<BookingMoveService>();
 builder.Services.AddScoped<ExcelBookingImportService>();
+builder.Services.AddScoped<LegacyCalendarConversionService>();
 builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<HousekeepingService>();
 builder.Services.AddScoped<ExpenseService>();
