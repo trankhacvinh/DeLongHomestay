@@ -61,6 +61,22 @@ public static class BookingEndpoints
         .RequireAuthorization("ManageBookings")
         .AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        group.MapPost("/{bookingId:guid}/move", async (
+            Guid propertyId,
+            Guid bookingId,
+            MoveBookingRequest request,
+            ClaimsPrincipal user,
+            BookingMoveService service,
+            CancellationToken cancellationToken) =>
+        {
+            var (booking, error) = await service.MoveAsync(
+                propertyId, bookingId, request, GetUserId(user), cancellationToken);
+            if (error is not null) return ToProblem(error);
+            return Results.Ok(booking);
+        })
+        .RequireAuthorization("ManageBookings")
+        .AddEndpointFilter<ApiAntiforgeryFilter>();
+
         group.MapPost("/{bookingId:guid}/status", async (
             Guid propertyId,
             Guid bookingId,
@@ -94,12 +110,13 @@ public static class BookingEndpoints
             "booking_conflict" => 409,
             "invalid_transition" => 409,
             "booking_locked" => 409,
+            "booking_move_not_allowed" => 409,
             _ => 400
         };
 
         return Results.Problem(
             type: $"https://delong.local/problems/{error.Code}",
-            title: error.Code == "booking_conflict" ? "Phòng đã được đặt" : "Không thể xử lý booking",
+            title: error.Code == "booking_conflict" ? "Phòng đã được đặt" : "Không thể xử lý lượt đặt",
             detail: error.Message,
             statusCode: status,
             extensions: new Dictionary<string, object?> { ["code"] = error.Code });

@@ -94,6 +94,7 @@ builder.Services.AddScoped<RoomService>();
 builder.Services.AddScoped<RoomRateService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<BookingService>();
+builder.Services.AddScoped<BookingMoveService>();
 builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<HousekeepingService>();
 builder.Services.AddScoped<ExpenseService>();
