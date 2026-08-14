@@ -12,3 +12,5 @@ appsettings.Local.json
 *.db
 TestResults/
 coverage/
+src/DeLong.Web/App_Data/room-images/
+src/DeLong.Web/wwwroot/uploads/rooms/
