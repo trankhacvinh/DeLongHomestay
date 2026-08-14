@@ -302,6 +302,7 @@
 
         if (!selectedImage) return;
         if (event.target.closest('.room-image-context-toolbar')) return;
+        if (event.target.closest('.ql-toolbar')) return;
         if (event.target === selectedImage) return;
         if (event.target.closest('.media-picker-modal')) return;
         if (event.target.closest('.ql-editor img')) return;
