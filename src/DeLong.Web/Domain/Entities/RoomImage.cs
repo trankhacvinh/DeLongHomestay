@@ -17,4 +17,6 @@ public sealed class RoomImage : EntityBase
     public string? AltText { get; set; }
     public bool IsCover { get; set; }
     public int SortOrder { get; set; }
+    public double FocalX { get; set; } = 0.5;
+    public double FocalY { get; set; } = 0.5;
 }
