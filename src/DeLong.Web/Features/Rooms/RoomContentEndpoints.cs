@@ -23,6 +23,21 @@ public static class RoomContentEndpoints
             return error is null ? Results.Ok(room) : ToProblem(error);
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        group.MapGet("/amenity-presets", async (Guid propertyId, RoomContentService service, CancellationToken ct) =>
+            Results.Ok(await service.GetAmenityPresetsAsync(propertyId, ct)));
+
+        group.MapPost("/amenity-presets", async (Guid propertyId, CreateAmenityPresetRequest request, RoomContentService service, CancellationToken ct) =>
+        {
+            var (preset, error) = await service.CreateAmenityPresetAsync(propertyId, request, ct);
+            return error is null ? Results.Created($"/api/admin/properties/{propertyId}/rooms/amenity-presets/{preset!.Id}", preset) : ToProblem(error);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        group.MapDelete("/amenity-presets/{presetId:guid}", async (Guid propertyId, Guid presetId, RoomContentService service, CancellationToken ct) =>
+        {
+            var error = await service.DeleteAmenityPresetAsync(propertyId, presetId, ct);
+            return error is null ? Results.NoContent() : ToProblem(error);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
         group.MapPost("/images", async (Guid propertyId, Guid roomId, HttpRequest request, RoomContentService service, CancellationToken ct) =>
         {
             if (!request.HasFormContentType) return Results.Problem(title: "Ảnh không hợp lệ", detail: "Yêu cầu phải dùng multipart/form-data.", statusCode: 400);
@@ -56,7 +71,7 @@ public static class RoomContentEndpoints
 
     private static IResult ToProblem(RoomContentError error)
     {
-        var status = error.Code == "not_found" ? 404 : error.Code == "slug_exists" ? 409 : 400;
+        var status = error.Code == "not_found" ? 404 : error.Code is "slug_exists" or "preset_exists" ? 409 : 400;
         return Results.Problem(title: "Không thể cập nhật nội dung phòng", detail: error.Message, statusCode: status, extensions: new Dictionary<string, object?> { ["code"] = error.Code });
     }
 }
