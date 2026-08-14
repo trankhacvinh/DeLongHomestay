@@ -14,6 +14,7 @@
                 imported: null,
                 previewing: false,
                 importing: false,
+                converting: false,
                 rowFilter: 'all',
                 filters: [
                     { value: 'all', label: 'Tất cả' },
@@ -63,7 +64,7 @@
                         this.createFormData());
                     this.rowFilter = this.preview.errorRows > 0 ? 'error' : 'all';
                     if (this.preview.format === 'legacy-calendar') {
-                        this.notify('Đã nhận diện lịch màu cũ; cần chuyển sang mẫu có tên khách và SĐT để import an toàn.', 'error');
+                        this.notify('Đã nhận diện lịch màu cũ. Có thể chuyển các ô đã đặt thành mẫu Excel để bổ sung khách hàng.', 'success');
                     } else if (this.preview.totalRows === 0) {
                         this.notify('File đúng cấu trúc nhưng chưa có dòng booking.', 'error');
                     } else if (this.preview.errorRows > 0) {
@@ -76,6 +77,44 @@
                     this.notify(error.message || 'Không thể đọc file Excel.', 'error');
                 } finally {
                     this.previewing = false;
+                }
+            },
+            async convertLegacyCalendar() {
+                if (!this.selectedFile || this.converting) return;
+                this.converting = true;
+                try {
+                    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+                    const response = await fetch(
+                        `/api/admin/properties/${this.propertyId}/imports/bookings/convert-calendar`,
+                        {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: token ? { 'X-CSRF-TOKEN': token } : {},
+                            body: this.createFormData()
+                        });
+                    if (!response.ok) {
+                        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                        const payload = contentType.includes('json') ? await response.json() : await response.text();
+                        throw new Error(payload?.detail || payload?.title || payload || `HTTP ${response.status}`);
+                    }
+                    const blob = await response.blob();
+                    const disposition = response.headers.get('content-disposition') || '';
+                    const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+                    const plain = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+                    const fileName = encoded ? decodeURIComponent(encoded) : (plain || 'DeLong-calendar-converted.xlsx');
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(url);
+                    this.notify('Đã tạo file nháp. Điền các ô tên khách và SĐT màu vàng rồi tải file đó lên để Xem trước.', 'success');
+                } catch (error) {
+                    this.notify(error.message || 'Không thể chuyển lịch màu.', 'error');
+                } finally {
+                    this.converting = false;
                 }
             },
             async commitImport() {
