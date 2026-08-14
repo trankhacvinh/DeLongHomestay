@@ -54,9 +54,14 @@ public sealed class RoomContentTests
 
         var requestedSlug = $"Phòng Cặp Đôi {suffix}";
         var expectedSlug = RoomContentService.CreateSlug(requestedSlug);
+        var editedCode = $"EDIT-{suffix}".ToUpperInvariant();
+        var editedName = $"Phòng Nội Dung {suffix}";
         var service = new RoomContentService(db, new NoopRoomImageStorage());
         var (updated, error) = await service.UpdateAsync(property.Id, room.Id, new UpdateRoomContentRequest
         {
+            Code = editedCode,
+            Name = editedName,
+            Capacity = 3,
             Slug = requestedSlug,
             ShortDescription = "Không gian riêng tư cho hai người.",
             DescriptionHtml = "<h2>Không gian</h2><p>Yên tĩnh <strong>và riêng tư</strong>.</p><img src=\"/uploads/rooms/a/b/large.webp\" alt=\"Phòng\"><iframe class=\"ql-video\" src=\"https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ\"></iframe><iframe src=\"https://evil.example/embed/x\"></iframe><script>alert('x')</script>",
@@ -68,7 +73,10 @@ public sealed class RoomContentTests
 
         Assert.Null(error);
         Assert.NotNull(updated);
-        Assert.Equal(expectedSlug, updated!.Slug);
+        Assert.Equal(editedCode, updated!.Code);
+        Assert.Equal(editedName, updated.Name);
+        Assert.Equal(3, updated.Capacity);
+        Assert.Equal(expectedSlug, updated.Slug);
         Assert.True(updated.IsPublished);
         Assert.DoesNotContain("<script", updated.DescriptionHtml, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("evil.example", updated.DescriptionHtml, StringComparison.OrdinalIgnoreCase);
@@ -91,7 +99,7 @@ public sealed class RoomContentTests
 
         var publicService = new PublicRoomContentService(db);
         var catalog = await publicService.GetCatalogAsync();
-        Assert.Contains(catalog.Rooms, x => x.Id == room.Id && x.Slug == expectedSlug);
+        Assert.Contains(catalog.Rooms, x => x.Id == room.Id && x.Slug == expectedSlug && x.Name == editedName && x.Capacity == 3);
 
         var (hidden, hideError) = await service.UpdateAsync(property.Id, room.Id, new UpdateRoomContentRequest
         {
@@ -105,6 +113,9 @@ public sealed class RoomContentTests
         });
         Assert.Null(hideError);
         Assert.False(hidden!.IsPublished);
+        Assert.Equal(editedCode, hidden.Code);
+        Assert.Equal(editedName, hidden.Name);
+        Assert.Equal(3, hidden.Capacity);
 
         var hiddenCatalog = await publicService.GetCatalogAsync();
         Assert.DoesNotContain(hiddenCatalog.Rooms, x => x.Id == room.Id);
