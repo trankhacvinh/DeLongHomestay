@@ -17,7 +17,13 @@ public sealed record PublicRoomImageDto(
     string ThumbnailUrl,
     string AltText,
     bool IsCover,
-    int SortOrder);
+    int SortOrder,
+    int Width,
+    int Height,
+    int LargeWidth,
+    int LargeHeight,
+    double FocalX,
+    double FocalY);
 
 public sealed record PublicRoomCardDto(
     Guid Id,
@@ -27,9 +33,14 @@ public sealed record PublicRoomCardDto(
     int Capacity,
     string? ShortDescription,
     string? CoverCardUrl,
+    double CoverFocalX,
+    double CoverFocalY,
     bool HasBathtub,
-    decimal FromPrice,
+    decimal QuickFromPrice,
+    decimal? OvernightPrice,
+    decimal? NightlyPrice,
     IReadOnlyList<string> Tags,
+    IReadOnlyList<string> Amenities,
     IReadOnlyList<PublicRoomRateDto> Rates);
 
 public sealed record PublicRoomDetailDto(
@@ -41,7 +52,9 @@ public sealed record PublicRoomDetailDto(
     string? ShortDescription,
     string? DescriptionHtml,
     bool HasBathtub,
-    decimal FromPrice,
+    decimal QuickFromPrice,
+    decimal? OvernightPrice,
+    decimal? NightlyPrice,
     IReadOnlyList<string> Amenities,
     IReadOnlyList<string> Tags,
     IReadOnlyList<string> Highlights,
