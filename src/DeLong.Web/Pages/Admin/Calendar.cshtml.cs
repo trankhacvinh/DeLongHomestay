@@ -44,11 +44,15 @@ public sealed class CalendarModel(
             })
             .ToList();
 
-        var bookings = await bookingService.GetAllAsync(
-            PropertyId,
-            new DateTimeOffset(startUtc, TimeSpan.Zero),
-            new DateTimeOffset(endUtc, TimeSpan.Zero),
-            cancellationToken);
+        var bookings = (await bookingService.GetAllAsync(
+                PropertyId,
+                new DateTimeOffset(startUtc, TimeSpan.Zero),
+                new DateTimeOffset(endUtc, TimeSpan.Zero),
+                cancellationToken))
+            // The calendar is an operations/occupancy view. Finished rows stay available in the
+            // Booking ledger, but no longer occupy visual space after completion/cancellation/no-show.
+            .Where(booking => booking.Status is BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn)
+            .ToList();
 
         PageDataJson = JsonSerializer.Serialize(
             new
