@@ -44,6 +44,8 @@
 - [x] Multi-property resolver + selector UI.
 - [x] Booking audit timeline.
 - [x] PostgreSQL constraint/integration tests.
+- [x] Booking V2 multi-day + giá theo đêm + Calendar multi-day.
+- [x] Calendar drag/drop desktop có confirm + conflict guard.
 
 ## Phase 4 — Payments + Operations
 
@@ -58,7 +60,7 @@
 - [x] Dashboard vận hành.
 - [x] UI/UX redesign desktop + mobile admin.
 
-## Phase 5 — Public booking (đang thực hiện)
+## Phase 5 — Public booking
 
 - [x] Public boutique landing page.
 - [x] Public room catalog.
@@ -70,18 +72,21 @@
 - [x] Antiforgery + honeypot + rate limit 5 request/IP/10 phút.
 - [x] Success page.
 - [x] Dashboard Admin inbox cho yêu cầu website mới.
-- [ ] Visual UAT public desktop/mobile.
-- [ ] End-to-end UAT: public request → admin xử lý → Held/Confirmed → payment.
-- [ ] Ảnh thật/gallery cho 6 phòng.
+- [x] Public multi-day booking.
+- [x] Room Content V2: gallery, cover/focal, optimized images, rich editor, amenities/tags/highlights.
+- [x] Visual UAT public desktop/mobile vòng chính.
+- [ ] End-to-end UAT cuối: public request → admin xử lý → Held/Confirmed → payment → checkout.
 - [ ] Notification ngoài hệ thống (email/Zalo/SMS) — chỉ làm khi cần.
 
-## Phase 6 — Migration & go-live
+## Phase 6 — Migration & go-live (đang thực hiện)
 
-- [ ] Import dữ liệu Excel cần thiết.
+- [x] Import booking/khách Excel theo preview → validate → transaction.
+- [x] Converter lịch màu cũ → mẫu booking cần bổ sung tên/SĐT.
 - [ ] UAT tổng thể với dữ liệu gần thực tế.
 - [ ] Backup/restore rehearsal.
 - [ ] Production deployment.
-- [ ] Logging/monitoring.
+- [ ] Logging/monitoring + health checks.
+- [ ] Persistent media + Data Protection keys trên production storage.
 - [ ] Tài khoản/role nhân viên thật.
 - [ ] Hướng dẫn nhân viên.
 - [ ] Go-live.
