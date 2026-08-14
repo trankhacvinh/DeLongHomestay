@@ -10,6 +10,7 @@ using DeLong.Web.Features.Finance;
 using DeLong.Web.Features.Housekeeping;
 using DeLong.Web.Features.Payments;
 using DeLong.Web.Features.PublicBooking;
+using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Reports;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Identity;
@@ -103,6 +104,7 @@ builder.Services.AddScoped<ExpenseService>();
 builder.Services.AddScoped<FinanceService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<PublicBookingService>();
+builder.Services.AddScoped<PublicRoomContentService>();
 builder.Services.AddScoped<PublicRequestInboxService>();
 
 var app = builder.Build();
