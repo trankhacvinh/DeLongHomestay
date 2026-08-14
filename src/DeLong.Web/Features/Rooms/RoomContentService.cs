@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using DeLong.Web.Data;
@@ -11,7 +12,14 @@ namespace DeLong.Web.Features.Rooms;
 public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageStorage)
 {
     private static readonly Regex SlugInvalid = new("[^a-z0-9]+", RegexOptions.Compiled);
+    private static readonly Regex IframeRegex = new("<iframe\\b[^>]*>.*?</iframe>", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+    private static readonly Regex ImageRegex = new("<img\\b[^>]*>", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+    private static readonly Regex SrcRegex = new("\\bsrc\\s*=\\s*([\"'])(?<src>.*?)\\1", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
     private static readonly HtmlSanitizer Sanitizer = CreateSanitizer();
+    private static readonly HashSet<string> AllowedYouTubeHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "youtube.com", "www.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com"
+    };
 
     public async Task<RoomContentDto?> GetAsync(Guid propertyId, Guid roomId, CancellationToken cancellationToken = default)
     {
@@ -22,6 +30,66 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
             .Include(x => x.Highlights)
             .SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == roomId, cancellationToken);
         return room is null ? null : ToDto(room);
+    }
+
+    public async Task<IReadOnlyList<string>> GetAmenityCatalogAsync(Guid propertyId, CancellationToken cancellationToken = default) =>
+        await db.Amenities.AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.IsActive)
+            .OrderBy(x => x.Name)
+            .Select(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<AmenityPresetDto>> GetAmenityPresetsAsync(Guid propertyId, CancellationToken cancellationToken = default)
+    {
+        var presets = await db.AmenityPresets.AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.IsActive)
+            .Include(x => x.Items).ThenInclude(x => x.Amenity)
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+        return presets.Select(ToPresetDto).ToList();
+    }
+
+    public async Task<(AmenityPresetDto? Preset, RoomContentError? Error)> CreateAmenityPresetAsync(
+        Guid propertyId,
+        CreateAmenityPresetRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var name = Clean(request.Name);
+        if (name is null || name.Length > 120)
+            return (null, new("validation", "Tên bộ tiện nghi phải từ 1 đến 120 ký tự."));
+
+        var amenities = NormalizeItems(request.Amenities, 30, 100);
+        if (amenities.Error is not null) return (null, new("validation", amenities.Error));
+        if (amenities.Items.Count == 0) return (null, new("validation", "Bộ tiện nghi cần ít nhất một tiện nghi."));
+
+        var normalized = NormalizeName(name);
+        if (await db.AmenityPresets.AnyAsync(x => x.PropertyId == propertyId && x.NormalizedName == normalized && x.IsActive, cancellationToken))
+            return (null, new("preset_exists", "Tên bộ tiện nghi này đã tồn tại."));
+
+        var catalog = await EnsureAmenitiesAsync(propertyId, amenities.Items, cancellationToken);
+        var preset = new AmenityPreset
+        {
+            PropertyId = propertyId,
+            Name = name,
+            NormalizedName = normalized,
+            IsActive = true,
+            SortOrder = await db.AmenityPresets.CountAsync(x => x.PropertyId == propertyId, cancellationToken)
+        };
+        foreach (var amenity in catalog)
+            preset.Items.Add(new AmenityPresetItem { AmenityPreset = preset, Amenity = amenity });
+
+        db.AmenityPresets.Add(preset);
+        await db.SaveChangesAsync(cancellationToken);
+        return (ToPresetDto(preset), null);
+    }
+
+    public async Task<RoomContentError?> DeleteAmenityPresetAsync(Guid propertyId, Guid presetId, CancellationToken cancellationToken = default)
+    {
+        var preset = await db.AmenityPresets.SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == presetId, cancellationToken);
+        if (preset is null) return new("not_found", "Không tìm thấy bộ tiện nghi.");
+        preset.IsActive = false;
+        await db.SaveChangesAsync(cancellationToken);
+        return null;
     }
 
     public async Task<(RoomContentDto? Room, RoomContentError? Error)> UpdateAsync(Guid propertyId, Guid roomId, UpdateRoomContentRequest request, CancellationToken cancellationToken = default)
@@ -41,7 +109,7 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
         if (await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id != roomId && x.Slug == slug, cancellationToken))
             return (null, new("slug_exists", "Đường dẫn phòng này đã được dùng. Vui lòng chọn slug khác."));
 
-        var amenities = NormalizeItems(request.Amenities, 20, 100);
+        var amenities = NormalizeItems(request.Amenities, 30, 100);
         var tags = NormalizeItems(request.Tags, 20, 100);
         var highlights = NormalizeItems(request.Highlights, 8, 180);
         if (amenities.Error is not null) return (null, new("validation", amenities.Error));
@@ -50,7 +118,7 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
 
         room.Slug = slug;
         room.ShortDescription = shortDescription;
-        room.DescriptionHtml = string.IsNullOrWhiteSpace(request.DescriptionHtml) ? null : Sanitizer.Sanitize(request.DescriptionHtml);
+        room.DescriptionHtml = string.IsNullOrWhiteSpace(request.DescriptionHtml) ? null : SanitizeDescription(request.DescriptionHtml);
         room.IsPublished = request.IsPublished;
 
         await SyncAmenitiesAsync(room, amenities.Items, cancellationToken);
@@ -85,10 +153,20 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
             Width = stored.Width,
             Height = stored.Height,
             IsCover = room.Images.Count == 0,
-            SortOrder = room.Images.Count == 0 ? 0 : room.Images.Max(x => x.SortOrder) + 1
+            SortOrder = room.Images.Count == 0 ? 0 : room.Images.Max(x => x.SortOrder) + 1,
+            FocalX = 0.5,
+            FocalY = 0.5
         };
         db.RoomImages.Add(image);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            await imageStorage.DeleteAsync(stored, cancellationToken);
+            throw;
+        }
         return (ToImageDto(image), null);
     }
 
@@ -101,7 +179,12 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
 
         var alt = Clean(request.AltText);
         if (alt?.Length > 300) return (null, new("validation", "Alt text tối đa 300 ký tự."));
+        if (request.FocalX is < 0 or > 1 || request.FocalY is < 0 or > 1)
+            return (null, new("validation", "Điểm lấy nét ảnh không hợp lệ."));
+
         image.AltText = alt;
+        if (request.FocalX.HasValue) image.FocalX = request.FocalX.Value;
+        if (request.FocalY.HasValue) image.FocalY = request.FocalY.Value;
         if (request.IsCover)
         {
             foreach (var item in room.Images) item.IsCover = item.Id == imageId;
@@ -148,19 +231,7 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
 
     private async Task SyncAmenitiesAsync(Room room, IReadOnlyList<string> names, CancellationToken ct)
     {
-        var desired = names.ToDictionary(NormalizeName, x => x, StringComparer.Ordinal);
-        var catalog = await db.Amenities
-            .Where(x => x.PropertyId == room.PropertyId && desired.Keys.Contains(x.NormalizedName))
-            .ToListAsync(ct);
-
-        foreach (var pair in desired)
-        {
-            if (catalog.Any(x => x.NormalizedName == pair.Key)) continue;
-            var amenity = new Amenity { PropertyId = room.PropertyId, Name = pair.Value, NormalizedName = pair.Key, IsActive = true };
-            db.Amenities.Add(amenity);
-            catalog.Add(amenity);
-        }
-
+        var catalog = await EnsureAmenitiesAsync(room.PropertyId, names, ct);
         var desiredIds = catalog.Select(x => x.Id).ToHashSet();
         foreach (var assignment in room.Amenities.Where(x => !desiredIds.Contains(x.AmenityId)).ToList())
             db.RoomAmenities.Remove(assignment);
@@ -170,12 +241,30 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
             db.RoomAmenities.Add(new RoomAmenity { RoomId = room.Id, AmenityId = amenity.Id, Room = room, Amenity = amenity });
     }
 
+    private async Task<List<Amenity>> EnsureAmenitiesAsync(Guid propertyId, IReadOnlyList<string> names, CancellationToken ct)
+    {
+        if (names.Count == 0) return [];
+        var desired = names.ToDictionary(NormalizeName, x => x, StringComparer.Ordinal);
+        var catalog = await db.Amenities
+            .Where(x => x.PropertyId == propertyId && desired.Keys.Contains(x.NormalizedName))
+            .ToListAsync(ct);
+
+        foreach (var pair in desired)
+        {
+            if (catalog.Any(x => x.NormalizedName == pair.Key)) continue;
+            var amenity = new Amenity { PropertyId = propertyId, Name = pair.Value, NormalizedName = pair.Key, IsActive = true };
+            db.Amenities.Add(amenity);
+            catalog.Add(amenity);
+        }
+        return catalog;
+    }
+
     private async Task SyncTagsAsync(Room room, IReadOnlyList<string> names, CancellationToken ct)
     {
         var desired = names.ToDictionary(NormalizeName, x => x, StringComparer.Ordinal);
-        var catalog = await db.RoomTags
-            .Where(x => x.PropertyId == room.PropertyId && desired.Keys.Contains(x.NormalizedName))
-            .ToListAsync(ct);
+        var catalog = desired.Count == 0
+            ? []
+            : await db.RoomTags.Where(x => x.PropertyId == room.PropertyId && desired.Keys.Contains(x.NormalizedName)).ToListAsync(ct);
 
         foreach (var pair in desired)
         {
@@ -225,6 +314,33 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
         return slug.Length <= 180 ? slug : slug[..180].TrimEnd('-');
     }
 
+    internal static string SanitizeDescription(string rawHtml)
+    {
+        var sanitized = Sanitizer.Sanitize(rawHtml);
+        sanitized = IframeRegex.Replace(sanitized, match => IsAllowedYouTubeEmbed(match.Value) ? match.Value : string.Empty);
+        sanitized = ImageRegex.Replace(sanitized, match => IsAllowedRoomImage(match.Value) ? match.Value : string.Empty);
+        return sanitized.Trim();
+    }
+
+    private static bool IsAllowedYouTubeEmbed(string iframeHtml)
+    {
+        var src = GetSrc(iframeHtml);
+        if (src is null || !Uri.TryCreate(src, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return false;
+        return AllowedYouTubeHosts.Contains(uri.Host) && uri.AbsolutePath.StartsWith("/embed/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAllowedRoomImage(string imageHtml)
+    {
+        var src = GetSrc(imageHtml);
+        return src is not null && src.StartsWith("/uploads/rooms/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? GetSrc(string html)
+    {
+        var match = SrcRegex.Match(html);
+        return match.Success ? WebUtility.HtmlDecode(match.Groups["src"].Value) : null;
+    }
+
     private static (IReadOnlyList<string> Items, string? Error) NormalizeItems(IReadOnlyList<string>? input, int maxItems, int maxLength)
     {
         var items = (input ?? []).Select(x => x?.Trim() ?? string.Empty).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -243,15 +359,35 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
         room.Highlights.OrderBy(x => x.SortOrder).Select(x => x.Text).ToList(),
         room.Images.OrderByDescending(x => x.IsCover).ThenBy(x => x.SortOrder).Select(ToImageDto).ToList());
 
-    private static RoomImageDto ToImageDto(RoomImage image) => new(image.Id, image.LargePath, image.CardPath, image.ThumbnailPath, image.AltText, image.IsCover, image.SortOrder, image.Width, image.Height, image.OriginalBytes);
+    private static AmenityPresetDto ToPresetDto(AmenityPreset preset) => new(
+        preset.Id,
+        preset.Name,
+        preset.Items.Where(x => x.Amenity.IsActive).Select(x => x.Amenity.Name).OrderBy(x => x).ToList());
+
+    private static RoomImageDto ToImageDto(RoomImage image)
+    {
+        var (largeWidth, largeHeight) = GetLargeDimensions(image.Width, image.Height);
+        return new RoomImageDto(image.Id, image.LargePath, image.CardPath, image.ThumbnailPath, image.AltText, image.IsCover,
+            image.SortOrder, image.Width, image.Height, largeWidth, largeHeight, image.OriginalBytes, image.FocalX, image.FocalY);
+    }
+
+    private static (int Width, int Height) GetLargeDimensions(int width, int height)
+    {
+        var longest = Math.Max(width, height);
+        if (longest <= 1600 || longest <= 0) return (width, height);
+        var scale = 1600d / longest;
+        return (Math.Max(1, (int)Math.Round(width * scale)), Math.Max(1, (int)Math.Round(height * scale)));
+    }
 
     private static HtmlSanitizer CreateSanitizer()
     {
         var sanitizer = new HtmlSanitizer();
         sanitizer.AllowedTags.Clear();
-        foreach (var tag in new[] { "p", "br", "strong", "b", "em", "i", "h2", "h3", "ul", "ol", "li", "a", "blockquote" }) sanitizer.AllowedTags.Add(tag);
+        foreach (var tag in new[] { "p", "br", "strong", "b", "em", "i", "h2", "h3", "ul", "ol", "li", "a", "blockquote", "img", "iframe" })
+            sanitizer.AllowedTags.Add(tag);
         sanitizer.AllowedAttributes.Clear();
-        foreach (var attribute in new[] { "href", "target", "rel" }) sanitizer.AllowedAttributes.Add(attribute);
+        foreach (var attribute in new[] { "href", "target", "rel", "src", "alt", "title", "class", "frameborder", "allowfullscreen", "loading", "referrerpolicy" })
+            sanitizer.AllowedAttributes.Add(attribute);
         sanitizer.AllowedSchemes.Clear();
         foreach (var scheme in new[] { "http", "https", "mailto" }) sanitizer.AllowedSchemes.Add(scheme);
         return sanitizer;
