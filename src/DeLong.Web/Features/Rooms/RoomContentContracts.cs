@@ -10,7 +10,16 @@ public sealed record RoomImageDto(
     int SortOrder,
     int Width,
     int Height,
-    long OriginalBytes);
+    int LargeWidth,
+    int LargeHeight,
+    long OriginalBytes,
+    double FocalX,
+    double FocalY);
+
+public sealed record AmenityPresetDto(
+    Guid Id,
+    string Name,
+    IReadOnlyList<string> Amenities);
 
 public sealed record RoomContentDto(
     Guid RoomId,
@@ -36,6 +45,18 @@ public sealed class UpdateRoomContentRequest
     public IReadOnlyList<string> Highlights { get; init; } = [];
 }
 
-public sealed record UpdateRoomImageRequest(string? AltText, bool IsCover);
+public sealed record UpdateRoomImageRequest(
+    string? AltText,
+    bool IsCover,
+    double? FocalX = null,
+    double? FocalY = null);
+
 public sealed record ReorderRoomImagesRequest(IReadOnlyList<Guid> ImageIds);
+
+public sealed class CreateAmenityPresetRequest
+{
+    public string Name { get; init; } = string.Empty;
+    public IReadOnlyList<string> Amenities { get; init; } = [];
+}
+
 public sealed record RoomContentError(string Code, string Message);
