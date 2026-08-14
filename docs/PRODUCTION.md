@@ -10,20 +10,23 @@ Repo có launch profile mặc định cho Development. Lệnh sau dùng storage 
 dotnet run --project src/DeLong.Web
 ```
 
-Nếu cố tình chạy `Production` ở local thì readiness sẽ yêu cầu persistent storage giống production thật. Có thể dùng cách đó để diễn tập deployment, nhưng lúc đó phải cấu hình `Storage__DataRoot` và `Storage__MediaPublicRoot` explicit.
+Nếu cố tình chạy `Production` ở local thì readiness sẽ yêu cầu storage production giống production thật. Có thể dùng cách đó để diễn tập deployment.
 
 ## 1. Cấu hình bắt buộc
 
-Không commit secret vào Git. Production nên cấp cấu hình bằng environment variables / secret store của host.
+Không commit secret vào Git. Production nên cấp secret bằng environment variables / secret store của host.
 
 ```text
 ASPNETCORE_ENVIRONMENT=Production
 ConnectionStrings__DefaultConnection=Host=...;Port=5432;Database=...;Username=...;Password=...;SSL Mode=Require
 AllowedHosts=your-domain.example
 
-# Persistent volume — KHÔNG dùng filesystem tạm của release
+# DataRoot chứa ảnh gốc + Data Protection keys, phải tồn tại qua redeploy.
 Storage__DataRoot=/srv/delong/data
-Storage__MediaPublicRoot=/srv/delong/media/rooms
+
+# Ảnh public mặc định vẫn nằm trong wwwroot/uploads/rooms như khi development.
+# appsettings.Production.json đã cấu hình giá trị này; chỉ override khi cần.
+Storage__MediaPublicRoot=wwwroot/uploads/rooms
 Storage__MediaRequestPath=/uploads/rooms
 Storage__RequirePersistent=true
 
@@ -34,14 +37,16 @@ Database__AutoMigrate=false
 Database__SeedOnStartup=false
 ```
 
-`Storage__DataRoot` chứa ảnh gốc và ASP.NET Data Protection keys. `Storage__MediaPublicRoot` chứa WebP large/card/thumbnail được public ở `Storage__MediaRequestPath`. Hai thư mục phải nằm trên persistent volume và phải được user chạy app ghi được.
+`Storage__DataRoot` chứa ảnh gốc và ASP.NET Data Protection keys. `Storage__MediaPublicRoot` chứa WebP large/card/thumbnail được public ở `/uploads/rooms/...`.
+
+De Long giữ media public ở `wwwroot/uploads/rooms` cho dễ quản lý. Khi deploy, cần bảo đảm đúng thư mục này **không bị xóa khi release mới được triển khai**: hoặc host giữ working directory, hoặc mount/persist riêng chính thư mục `wwwroot/uploads`. Backup script vẫn phải sao lưu nó.
 
 ## 2. Health checks
 
 - `GET /health/live`: process ASP.NET đang chạy.
 - `GET /health/ready`: kiểm tra PostgreSQL và khả năng ghi storage.
 
-Trong Production, `Storage:RequirePersistent=true`; readiness sẽ `Unhealthy` nếu chưa cấu hình explicit `DataRoot` hoặc `MediaPublicRoot`.
+Trong Production, `Storage:RequirePersistent=true`. `Storage:DataRoot` phải được cấu hình explicit. `Storage:MediaPublicRoot` đã explicit trong `appsettings.Production.json` là `wwwroot/uploads/rooms`; readiness kiểm tra thư mục đó ghi được nhưng không thể tự chứng minh host có giữ filesystem sau redeploy, nên phần persistence vẫn phải được xác nhận trong UAT deployment.
 
 Load balancer/monitor nên dùng `/health/ready` để quyết định instance có nhận traffic hay không.
 
@@ -66,7 +71,7 @@ Trước migration phải backup database. Nếu migration lớn/rủi ro, tạo
 Backup cần gồm **hai phần**:
 
 1. PostgreSQL — booking, khách, payment, room content, audit...
-2. Runtime files — `Storage__DataRoot` + `Storage__MediaPublicRoot`.
+2. Runtime files — `Storage__DataRoot` + `wwwroot/uploads/rooms`.
 
 Repo có script `scripts/backup-production.sh` và `scripts/backup-production.ps1`. Script dùng `DATABASE_URL` dạng PostgreSQL URI cho `pg_dump` và tạo checksum SHA-256.
 
@@ -93,14 +98,14 @@ Ghi lại ngày restore, tên backup và kết quả trong nhật ký vận hàn
 
 ## 7. Media hiện có khi chuyển từ local lên production
 
-Các ảnh đã upload local không nằm trong Git. Trước lần deploy đầu tiên cần copy:
+Các ảnh đã upload local không nằm trong Git. Nếu production dùng cùng cấu trúc `wwwroot/uploads`, copy:
 
 ```text
 src/DeLong.Web/App_Data/room-images/  -> Storage__DataRoot/room-images/
-src/DeLong.Web/wwwroot/uploads/rooms/ -> Storage__MediaPublicRoot/
+src/DeLong.Web/wwwroot/uploads/rooms/ -> <production content root>/wwwroot/uploads/rooms/
 ```
 
-Database URL ảnh vẫn là `/uploads/rooms/...`, nên không cần rewrite record nếu giữ `Storage__MediaRequestPath=/uploads/rooms`.
+Database URL ảnh vẫn là `/uploads/rooms/...`, nên không cần rewrite record.
 
 ## 8. Reverse proxy / HTTPS
 
@@ -114,7 +119,7 @@ Chỉ go-live khi đủ:
 - Production config không chứa secret trong repo.
 - `/health/live` và `/health/ready` xanh.
 - PostgreSQL backup + restore rehearsal PASS.
-- Runtime media đã nằm trên persistent storage.
+- `Storage__DataRoot` và `wwwroot/uploads/rooms` sống sót qua một lần redeploy staging.
 - Tài khoản nhân viên thật và role đúng.
 - Public booking end-to-end PASS.
 - Nhân viên thực hiện được booking → giữ/xác nhận → thanh toán → nhận phòng → trả phòng → dọn phòng.
