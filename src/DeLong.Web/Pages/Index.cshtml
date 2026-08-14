@@ -3,7 +3,7 @@
 @{
     ViewData["Title"] = "De Long Homestay";
     var roomCount = Model.Catalog.Rooms.Count;
-    var fromPrice = Model.Catalog.Rooms.Where(x => x.FromPrice > 0).Select(x => x.FromPrice).DefaultIfEmpty(0).Min();
+    var fromPrice = Model.Catalog.Rooms.Where(x => x.QuickFromPrice > 0).Select(x => x.QuickFromPrice).DefaultIfEmpty(0).Min();
 }
 
 @section Head {
@@ -28,7 +28,7 @@
         </div>
         <div class="public-hero-art" aria-label="De Long Homestay">
             <div class="hero-art-card hero-art-main"><span>DE LONG</span><strong>STAY SLOW</strong><small>Private rooms · flexible stay</small></div>
-            <div class="hero-art-card hero-art-float"><small>@roomCount phòng</small><strong>@(fromPrice > 0 ? $"Từ {fromPrice:N0}đ" : "Giá rõ ràng")</strong></div>
+            <div class="hero-art-card hero-art-float"><small>@roomCount phòng</small><strong>@(fromPrice > 0 ? $"Đặt nhanh từ {fromPrice:N0}đ" : "Giá rõ ràng")</strong></div>
         </div>
     </div>
 </section>
@@ -87,7 +87,7 @@
                             <h3><a asp-page="/Rooms/Details" asp-route-code="@room.Slug">@room.Name</a></h3>
                             <p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người · nhiều lựa chọn thời gian" : room.ShortDescription)</p>
                         </div>
-                        <div class="public-room-price"><small>Từ</small><strong>@room.FromPrice.ToString("N0")đ</strong></div>
+                        <div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div>
                     </div>
                 </article>
             }
