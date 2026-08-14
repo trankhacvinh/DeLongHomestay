@@ -29,7 +29,7 @@
         <div class="import-upload-copy">
             <span class="page-eyebrow">File nguồn</span>
             <h2>Chọn workbook cần nhập</h2>
-            <p>Ưu tiên sheet <strong>“Đặt phòng”</strong> theo mẫu cấu trúc. File lịch màu cũ vẫn được nhận diện nhưng sẽ không tự tạo khách giả khi thiếu tên/SĐT.</p>
+            <p>Ưu tiên sheet <strong>“Đặt phòng”</strong> theo mẫu cấu trúc. File lịch màu cũ vẫn được nhận diện và có thể chuyển thành danh sách nháp để bạn bổ sung tên khách/SĐT trước khi import.</p>
         </div>
         <label class="import-dropzone" v-bind:class="{ 'has-file': selectedFile }">
             <input ref="fileInput" type="file" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" v-on:change="selectFile" />
@@ -57,7 +57,10 @@
             <div><strong>{{ preview.format === 'legacy-calendar' ? 'File lịch màu cũ' : 'Ghi chú kiểm tra' }}</strong>
                 <p v-for="message in preview.messages" v-bind:key="message">{{ message }}</p>
             </div>
-            <a v-if="preview.format === 'legacy-calendar'" class="btn btn-light btn-sm" v-bind:href="templateUrl">Tải mẫu có cấu trúc</a>
+            <div v-if="preview.format === 'legacy-calendar'" class="import-legacy-actions">
+                <button class="btn btn-primary btn-sm" type="button" v-bind:disabled="converting" v-on:click="convertLegacyCalendar">{{ converting ? 'Đang chuyển...' : 'Chuyển thành mẫu để điền khách' }}</button>
+                <a class="btn btn-light btn-sm" v-bind:href="templateUrl">Tải mẫu trống</a>
+            </div>
         </section>
 
         <section v-if="preview.rows && preview.rows.length" class="panel import-preview-card">
