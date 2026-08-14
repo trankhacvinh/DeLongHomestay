@@ -17,7 +17,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var property = await db.Properties.AsNoTracking().Where(x => x.Code == PublicPropertyCode && x.IsActive).Select(x => new { x.Id, x.Name, x.TimeZoneId }).SingleOrDefaultAsync(cancellationToken);
         if (property is null) return null;
         HashSet<(Guid RoomId, Guid RateId)> unavailable = availabilityDate.HasValue ? await GetUnavailableRateKeysAsync(property.Id, property.TimeZoneId, availabilityDate.Value, cancellationToken) : [];
-        var rooms = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == property.Id && x.IsActive).OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
+        var rooms = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == property.Id && x.IsActive && x.IsPublished).OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
             .Select(x => new { x.Id, x.Code, x.Name, x.Capacity, Rates = x.Rates.Where(r => r.IsActive).OrderBy(r => r.SortOrder).Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Type, r.IsOvernight, r.Price }).ToList() }).ToListAsync(cancellationToken);
         var roomDtos = rooms.Select(room =>
         {
@@ -37,7 +37,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         if (property is null) return (null, new("property_not_found", "Cơ sở hiện không khả dụng."));
         var validation = ValidateStayDates(checkInDate, checkOutDate, property.TimeZoneId); if (validation is not null) return (null, validation);
         var nights = checkOutDate.DayNumber - checkInDate.DayNumber; var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
-        var rates = await db.RoomRates.AsNoTracking().Where(r => r.Room.PropertyId == property.Id && r.Room.IsActive && r.IsActive && r.Type == RoomRateType.Nightly && r.Price > 0)
+        var rates = await db.RoomRates.AsNoTracking().Where(r => r.Room.PropertyId == property.Id && r.Room.IsActive && r.Room.IsPublished && r.IsActive && r.Type == RoomRateType.Nightly && r.Price > 0)
             .OrderBy(r => r.Room.SortOrder).ThenBy(r => r.SortOrder).Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Price, RoomId = r.Room.Id, RoomCode = r.Room.Code, RoomName = r.Room.Name, r.Room.Capacity }).ToListAsync(cancellationToken);
         var roomRates = rates.GroupBy(r => r.RoomId).Select(g => g.First()).ToList();
         var results = new List<PublicStayRoomDto>();
@@ -62,7 +62,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         if (!DateOnly.TryParseExact(request.StayDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var stayDate)) return (null, new("validation", "Ngày đặt phòng không hợp lệ."));
         var context = await GetRequestContextAsync(request.CustomerName, request.CustomerPhone, ct); if (context.Error is not null) return (null, context.Error);
         if (ValidateDateWindow(stayDate, context.TodayLocal) is { } dateError) return (null, dateError);
-        var rate = await db.RoomRates.AsNoTracking().Where(x => x.Id == request.RateId && x.RoomId == request.RoomId && x.IsActive && x.Type != RoomRateType.Nightly && x.Room.IsActive && x.Room.PropertyId == context.PropertyId)
+        var rate = await db.RoomRates.AsNoTracking().Where(x => x.Id == request.RateId && x.RoomId == request.RoomId && x.IsActive && x.Type != RoomRateType.Nightly && x.Room.IsActive && x.Room.IsPublished && x.Room.PropertyId == context.PropertyId)
             .Select(x => new { x.Id, x.Name, x.StartTime, x.EndTime, x.Type, x.Price, RoomId = x.Room.Id, RoomName = x.Room.Name }).SingleOrDefaultAsync(ct);
         if (rate is null) return (null, new("rate_not_found", "Khung giờ hoặc phòng không còn khả dụng."));
         var (checkInUtc, checkOutUtc) = ToUtcTimeSlotRange(stayDate, rate.StartTime, rate.EndTime, rate.Type == RoomRateType.Overnight, context.TimeZone);
@@ -76,7 +76,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         if (!DateOnly.TryParseExact(request.CheckInDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var checkInDate) || !DateOnly.TryParseExact(request.CheckOutDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var checkOutDate)) return (null, new("validation", "Ngày nhận hoặc ngày trả không hợp lệ."));
         var context = await GetRequestContextAsync(request.CustomerName, request.CustomerPhone, ct); if (context.Error is not null) return (null, context.Error);
         var dateError = ValidateStayDates(checkInDate, checkOutDate, context.TimeZone.Id); if (dateError is not null) return (null, dateError);
-        var rate = await db.RoomRates.AsNoTracking().Where(x => x.Id == request.RateId && x.RoomId == request.RoomId && x.IsActive && x.Type == RoomRateType.Nightly && x.Price > 0 && x.Room.IsActive && x.Room.PropertyId == context.PropertyId)
+        var rate = await db.RoomRates.AsNoTracking().Where(x => x.Id == request.RateId && x.RoomId == request.RoomId && x.IsActive && x.Type == RoomRateType.Nightly && x.Price > 0 && x.Room.IsActive && x.Room.IsPublished && x.Room.PropertyId == context.PropertyId)
             .Select(x => new { x.Id, x.Name, x.StartTime, x.EndTime, x.Price, RoomId = x.Room.Id, RoomName = x.Room.Name }).SingleOrDefaultAsync(ct);
         if (rate is null) return (null, new("rate_not_found", "Phòng chưa có giá lưu trú theo đêm hoặc giá đã ngừng áp dụng."));
         var nights = checkOutDate.DayNumber - checkInDate.DayNumber;
@@ -113,7 +113,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId); var windowStartLocal = DateTime.SpecifyKind(date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified); var windowEndLocal = windowStartLocal.AddDays(2);
         var windowStartUtc = TimeZoneInfo.ConvertTimeToUtc(windowStartLocal, timeZone); var windowEndUtc = TimeZoneInfo.ConvertTimeToUtc(windowEndLocal, timeZone);
         var locked = await db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && LockingStatuses.Contains(x.Status) && x.CheckInUtc < windowEndUtc && windowStartUtc < x.CheckOutUtc).Select(x => new { x.RoomId, x.CheckInUtc, x.CheckOutUtc }).ToListAsync(ct);
-        var rates = await db.RoomRates.AsNoTracking().Where(x => x.Room.PropertyId == propertyId && x.Room.IsActive && x.IsActive && x.Type != RoomRateType.Nightly).Select(x => new { x.Id, x.RoomId, x.StartTime, x.EndTime, x.Type }).ToListAsync(ct);
+        var rates = await db.RoomRates.AsNoTracking().Where(x => x.Room.PropertyId == propertyId && x.Room.IsActive && x.Room.IsPublished && x.IsActive && x.Type != RoomRateType.Nightly).Select(x => new { x.Id, x.RoomId, x.StartTime, x.EndTime, x.Type }).ToListAsync(ct);
         HashSet<(Guid RoomId, Guid RateId)> unavailable = [];
         foreach (var rate in rates) { var range = ToUtcTimeSlotRange(date, rate.StartTime, rate.EndTime, rate.Type == RoomRateType.Overnight, timeZone); if (locked.Any(x => x.RoomId == rate.RoomId && x.CheckInUtc < range.CheckOutUtc && range.CheckInUtc < x.CheckOutUtc)) unavailable.Add((rate.RoomId, rate.Id)); }
         return unavailable;
@@ -129,6 +129,6 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var inLocal = DateTime.SpecifyKind(arrival.ToDateTime(checkIn), DateTimeKind.Unspecified); var outLocal = DateTime.SpecifyKind(departure.ToDateTime(checkOut), DateTimeKind.Unspecified);
         return (TimeZoneInfo.ConvertTimeToUtc(inLocal, tz), TimeZoneInfo.ConvertTimeToUtc(outLocal, tz));
     }
-    private static bool HasBathtub(string code) => code is "COCO-01" or "MOON-04" or "AMBER-05";
+    private static bool HasBathtub(string code) => code is "COCO-01" or "MOON-04" or "AMBER-05" or "ROMAN-06";
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
