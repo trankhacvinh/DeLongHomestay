@@ -1,0 +1,98 @@
+using DeLong.Web.Data;
+using DeLong.Web.Domain.Entities;
+using DeLong.Web.Features.PublicRooms;
+using DeLong.Web.Features.Rooms;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Xunit;
+
+namespace DeLong.Tests.Integration;
+
+[Collection("PostgreSQL integration")]
+public sealed class RoomContentTests
+{
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Room_content_is_sanitized_and_publication_controls_public_catalog()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(connectionString)
+            .Options;
+
+        await using var db = new AppDbContext(options);
+        await db.Database.MigrateAsync();
+
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var property = new Property
+        {
+            Code = "DELONG",
+            Name = $"Public Property {suffix}",
+            TimeZoneId = "Asia/Ho_Chi_Minh",
+            IsActive = true
+        };
+        var room = new Room
+        {
+            Property = property,
+            Code = $"CONTENT-{suffix}",
+            Name = "Phòng Cặp Đôi",
+            Capacity = 2,
+            IsActive = true,
+            IsPublished = false
+        };
+        db.AddRange(property, room);
+        await db.SaveChangesAsync();
+
+        var service = new RoomContentService(db, new NoopRoomImageStorage());
+        var (updated, error) = await service.UpdateAsync(property.Id, room.Id, new UpdateRoomContentRequest
+        {
+            Slug = "Phòng Cặp Đôi",
+            ShortDescription = "Không gian riêng tư cho hai người.",
+            DescriptionHtml = "<h2>Không gian</h2><p>Yên tĩnh <strong>và riêng tư</strong>.</p><script>alert('x')</script>",
+            IsPublished = true,
+            Amenities = ["Bồn tắm", "Wifi"],
+            Tags = ["Couple", "Lãng mạn"],
+            Highlights = ["Bồn tắm riêng", "Phù hợp cặp đôi"]
+        });
+
+        Assert.Null(error);
+        Assert.NotNull(updated);
+        Assert.Equal("phong-cap-doi", updated!.Slug);
+        Assert.True(updated.IsPublished);
+        Assert.DoesNotContain("<script", updated.DescriptionHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("<strong>và riêng tư</strong>", updated.DescriptionHtml);
+        Assert.Equal(2, updated.Amenities.Count);
+        Assert.Equal(2, updated.Tags.Count);
+        Assert.Equal(2, updated.Highlights.Count);
+
+        var publicService = new PublicRoomContentService(db);
+        var catalog = await publicService.GetCatalogAsync();
+        Assert.Contains(catalog.Rooms, x => x.Id == room.Id && x.Slug == "phong-cap-doi");
+
+        var (hidden, hideError) = await service.UpdateAsync(property.Id, room.Id, new UpdateRoomContentRequest
+        {
+            Slug = updated.Slug,
+            ShortDescription = updated.ShortDescription,
+            DescriptionHtml = updated.DescriptionHtml,
+            IsPublished = false,
+            Amenities = updated.Amenities,
+            Tags = updated.Tags,
+            Highlights = updated.Highlights
+        });
+        Assert.Null(hideError);
+        Assert.False(hidden!.IsPublished);
+
+        var hiddenCatalog = await publicService.GetCatalogAsync();
+        Assert.DoesNotContain(hiddenCatalog.Rooms, x => x.Id == room.Id);
+    }
+
+    private sealed class NoopRoomImageStorage : IRoomImageStorage
+    {
+        public Task<(StoredRoomImage? Image, string? Error)> SaveAsync(Guid roomId, Guid imageId, IFormFile file, CancellationToken cancellationToken = default) =>
+            Task.FromResult<(StoredRoomImage?, string?)>((null, "not used"));
+
+        public Task DeleteAsync(StoredRoomImage image, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+}
