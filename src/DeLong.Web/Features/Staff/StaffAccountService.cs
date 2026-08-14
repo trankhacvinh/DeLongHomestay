@@ -240,10 +240,13 @@ public sealed class StaffAccountService(
         var updateResult = await userManager.UpdateAsync(user);
         if (!updateResult.Succeeded) return (null, IdentityErrors(updateResult));
 
-        var allowedCurrentRoles = currentRoles.Where(role => StaffRoles.IsAllowed(role)).ToArray();
-        if (allowedCurrentRoles.Length > 0 && !allowedCurrentRoles.Contains(newRole, StringComparer.OrdinalIgnoreCase))
+        var operationalRolesToRemove = currentRoles
+            .Where(role => StaffRoles.IsAllowed(role) && !string.Equals(role, newRole, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (operationalRolesToRemove.Length > 0)
         {
-            var removeRoleResult = await userManager.RemoveFromRolesAsync(user, allowedCurrentRoles);
+            var removeRoleResult = await userManager.RemoveFromRolesAsync(user, operationalRolesToRemove);
             if (!removeRoleResult.Succeeded) return (null, IdentityErrors(removeRoleResult));
         }
         if (!await userManager.IsInRoleAsync(user, newRole))
