@@ -63,7 +63,11 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminArea", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping", "Viewer"));
+    options.AddPolicy("ViewOperations", policy => policy.RequireRole("Admin", "Manager", "Staff", "Viewer"));
+    options.AddPolicy("ViewRooms", policy => policy.RequireRole("Admin", "Manager", "Staff", "Viewer"));
+    options.AddPolicy("ViewHousekeeping", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping", "Viewer"));
     options.AddPolicy("ManageStaff", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("ManageImports", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageRooms", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageBookings", policy => policy.RequireRole("Admin", "Manager", "Staff"));
     options.AddPolicy("ManagePayments", policy => policy.RequireRole("Admin", "Manager", "Staff"));
@@ -76,6 +80,15 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Admin", "AdminArea");
+    options.Conventions.AuthorizePage("/Admin/Calendar", "ViewOperations");
+    options.Conventions.AuthorizeFolder("/Admin/Bookings", "ViewOperations");
+    options.Conventions.AuthorizeFolder("/Admin/Customers", "ViewOperations");
+    options.Conventions.AuthorizeFolder("/Admin/Rooms", "ViewRooms");
+    options.Conventions.AuthorizeFolder("/Admin/Housekeeping", "ViewHousekeeping");
+    options.Conventions.AuthorizeFolder("/Admin/Settings", "ManageRooms");
+    options.Conventions.AuthorizeFolder("/Admin/Imports", "ManageImports");
+    options.Conventions.AuthorizeFolder("/Admin/Finance", "ViewFinance");
+    options.Conventions.AuthorizeFolder("/Admin/Reports", "ViewReports");
     options.Conventions.AuthorizeFolder("/Admin/Staff", "ManageStaff");
     options.Conventions.AllowAnonymousToPage("/Account/Login");
 });
