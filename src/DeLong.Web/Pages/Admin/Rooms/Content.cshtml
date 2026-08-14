@@ -6,6 +6,7 @@
 @section Head {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
     <link rel="stylesheet" href="~/css/room-content.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/room-editor-images.css" asp-append-version="true" />
 }
 
 <div id="room-content-page" v-cloak>
@@ -69,6 +70,7 @@
                     <div ref="quillEditor" class="room-quill-editor"></div>
                     <div class="editor-footnote">
                         <span>Ảnh được chèn từ thư viện của phòng, không nhúng base64.</span>
+                        <span>Bấm vào ảnh trong bài để chỉnh kích thước, căn lề, alt text hoặc thay ảnh.</span>
                         <span>Video chỉ nhận YouTube và được kiểm tra lại phía server.</span>
                         <span v-if="editorExpanded">Nhấn Esc để thu gọn.</span>
                     </div>
@@ -241,5 +243,6 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script>
+    <script src="~/js/pages/admin-room-editor-images.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-room-content.js" asp-append-version="true"></script>
 }
