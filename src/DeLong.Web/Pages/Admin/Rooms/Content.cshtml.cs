@@ -24,6 +24,9 @@ public sealed class ContentModel(
         var content = await contentService.GetAsync(currentProperty.Id, roomId, cancellationToken);
         if (content is null) return NotFound();
 
+        var amenityCatalog = await contentService.GetAmenityCatalogAsync(currentProperty.Id, cancellationToken);
+        var amenityPresets = await contentService.GetAmenityPresetsAsync(currentProperty.Id, cancellationToken);
+
         PropertyId = currentProperty.Id;
         RoomId = roomId;
         PageDataJson = JsonSerializer.Serialize(
@@ -31,7 +34,9 @@ public sealed class ContentModel(
             {
                 propertyId = PropertyId,
                 propertyName = currentProperty.Name,
-                room = content
+                room = content,
+                amenityCatalog,
+                amenityPresets
             },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return Page();
