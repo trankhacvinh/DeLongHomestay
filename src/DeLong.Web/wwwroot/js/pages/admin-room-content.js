@@ -11,6 +11,9 @@
         data() {
             const room = initial.room || {};
             const form = {
+                code: room.code || '',
+                name: room.name || '',
+                capacity: Number(room.capacity || 2),
                 slug: room.slug || '',
                 shortDescription: room.shortDescription || '',
                 descriptionHtml: room.descriptionHtml || '',
@@ -29,6 +32,7 @@
                 drafts: { amenity: '', tag: '' },
                 saving: false,
                 uploading: false,
+                editorExpanded: false,
                 mediaPicker: { open: false },
                 focalEditor: { open: false, image: null, x: 0.5, y: 0.5 },
                 toast: { show: false, message: '', type: 'success', timer: null }
@@ -81,6 +85,19 @@
                     const html = quill.root.innerHTML;
                     this.form.descriptionHtml = html === '<p><br></p>' ? '' : html;
                 });
+            },
+            toggleEditorExpanded() {
+                this.editorExpanded = !this.editorExpanded;
+                document.body.classList.toggle('room-editor-expanded', this.editorExpanded);
+                this.$nextTick(() => quill?.focus());
+            },
+            closeExpandedEditor() {
+                if (!this.editorExpanded) return;
+                this.editorExpanded = false;
+                document.body.classList.remove('room-editor-expanded');
+            },
+            handleEditorKeydown(event) {
+                if (event.key === 'Escape' && this.editorExpanded) this.closeExpandedEditor();
             },
             openMediaPicker() {
                 this.mediaPicker.open = true;
@@ -191,17 +208,30 @@
             },
             async saveContent() {
                 if (this.saving) return;
+                const code = String(this.form.code || '').trim().toUpperCase();
+                const name = String(this.form.name || '').trim();
+                const capacity = Number(this.form.capacity);
+                if (!code) return this.notify('Mã phòng là bắt buộc.', 'error');
+                if (!name) return this.notify('Tên phòng là bắt buộc.', 'error');
+                if (!Number.isInteger(capacity) || capacity < 1 || capacity > 50) return this.notify('Sức chứa phải từ 1 đến 50 người.', 'error');
+
                 const highlights = this.normalizeList(this.form.highlights);
                 if (highlights.length > 8) return this.notify('Tối đa 8 điểm nổi bật.', 'error');
                 if (quill) {
                     const html = quill.root.innerHTML;
                     this.form.descriptionHtml = html === '<p><br></p>' ? '' : html;
                 }
+                this.form.code = code;
+                this.form.name = name;
+                this.form.capacity = capacity;
                 this.saving = true;
                 try {
                     const updated = await DeLongApi.put(
                         `/api/admin/properties/${this.propertyId}/rooms/${this.room.roomId}/content`,
                         {
+                            code,
+                            name,
+                            capacity,
                             slug: this.form.slug || null,
                             shortDescription: this.form.shortDescription || null,
                             descriptionHtml: this.form.descriptionHtml || null,
@@ -211,7 +241,7 @@
                             highlights
                         });
                     this.applyContent(updated);
-                    this.notify('Đã lưu nội dung phòng.', 'success');
+                    this.notify('Đã lưu thông tin và nội dung phòng.', 'success');
                 } catch (error) {
                     this.notify(error.message || 'Không thể lưu nội dung phòng.', 'error');
                 } finally {
@@ -222,6 +252,9 @@
                 const existingImages = this.room.images || [];
                 this.room = { ...this.room, ...updated, images: [...(updated.images || existingImages)] };
                 this.form = {
+                    code: updated.code || '',
+                    name: updated.name || '',
+                    capacity: Number(updated.capacity || 2),
                     slug: updated.slug || '',
                     shortDescription: updated.shortDescription || '',
                     descriptionHtml: updated.descriptionHtml || '',
@@ -385,6 +418,7 @@
                 this.initQuill();
                 this.initGallerySortable();
             });
+            document.addEventListener('keydown', this.handleEditorKeydown);
             window.addEventListener('beforeunload', event => {
                 if (!this.dirty) return;
                 event.preventDefault();
@@ -392,6 +426,8 @@
             });
         },
         beforeUnmount() {
+            document.removeEventListener('keydown', this.handleEditorKeydown);
+            document.body.classList.remove('room-editor-expanded');
             if (gallerySortable) gallerySortable.destroy();
             gallerySortable = null;
             quill = null;
