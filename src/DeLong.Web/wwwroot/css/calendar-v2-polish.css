@@ -1,0 +1,22 @@
+.booking-requested-stay {
+    width:100%!important;
+    min-width:0!important;
+    border-style:dashed;
+    box-shadow:none!important;
+}
+
+.booking-requested-stay::before,
+.booking-requested-stay::after {
+    display:none!important;
+}
+
+.booking-requested-stay .booking-time {
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.booking-requested-stay .booking-status-label {
+    background:#e7eef0;
+    color:#60777e;
+}
