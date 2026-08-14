@@ -16,6 +16,7 @@ public sealed record StoredRoomImage(
 public interface IRoomImageStorage
 {
     Task<(StoredRoomImage? Image, string? Error)> SaveAsync(Guid roomId, Guid imageId, IFormFile file, CancellationToken cancellationToken = default);
+    Task<string?> RegenerateCropsAsync(StoredRoomImage image, double focalX, double focalY, CancellationToken cancellationToken = default);
     Task DeleteAsync(StoredRoomImage image, CancellationToken cancellationToken = default);
 }
 
@@ -39,13 +40,9 @@ public sealed class LocalRoomImageStorage(IWebHostEnvironment environment) : IRo
         await file.CopyToAsync(memory, cancellationToken);
         var bytes = memory.ToArray();
 
-        using var data = SKData.CreateCopy(bytes);
-        using var codec = SKCodec.Create(data);
-        if (codec is null) return (null, "File tải lên không phải ảnh hợp lệ.");
-        using var decoded = SKBitmap.Decode(codec);
-        if (decoded is null || decoded.Width <= 0 || decoded.Height <= 0) return (null, "File tải lên không phải ảnh hợp lệ.");
-
-        using var source = NormalizeOrientation(decoded, codec.EncodedOrigin);
+        var decodedResult = DecodeNormalized(bytes);
+        if (decodedResult.Bitmap is null) return (null, decodedResult.Error);
+        using var source = decodedResult.Bitmap;
         var width = source.Width;
         var height = source.Height;
 
@@ -60,8 +57,8 @@ public sealed class LocalRoomImageStorage(IWebHostEnvironment environment) : IRo
         await File.WriteAllBytesAsync(originalPath, bytes, cancellationToken);
 
         SaveWebp(ResizeMax(source, 1600), Path.Combine(publicRoot, "large.webp"), 82);
-        SaveWebp(ResizeCrop(source, 900, 675), Path.Combine(publicRoot, "card.webp"), 82);
-        SaveWebp(ResizeCrop(source, 480, 360), Path.Combine(publicRoot, "thumb.webp"), 80);
+        SaveWebp(ResizeCrop(source, 900, 675, 0.5, 0.5), Path.Combine(publicRoot, "card.webp"), 82);
+        SaveWebp(ResizeCrop(source, 480, 360, 0.5, 0.5), Path.Combine(publicRoot, "thumb.webp"), 80);
 
         var urlRoot = $"/uploads/rooms/{roomId:N}/{imageId:N}";
         return (new StoredRoomImage(
@@ -74,6 +71,28 @@ public sealed class LocalRoomImageStorage(IWebHostEnvironment environment) : IRo
             file.Length,
             file.ContentType,
             Path.GetFileName(file.FileName)), null);
+    }
+
+    public async Task<string?> RegenerateCropsAsync(StoredRoomImage image, double focalX, double focalY, CancellationToken cancellationToken = default)
+    {
+        if (focalX is < 0 or > 1 || focalY is < 0 or > 1) return "Điểm lấy nét ảnh không hợp lệ.";
+        var originalPath = Path.Combine(environment.ContentRootPath, image.OriginalStoragePath.Replace('/', Path.DirectorySeparatorChar));
+        if (!File.Exists(originalPath)) return "Không tìm thấy ảnh gốc để tạo lại thumbnail.";
+
+        var bytes = await File.ReadAllBytesAsync(originalPath, cancellationToken);
+        var decodedResult = DecodeNormalized(bytes);
+        if (decodedResult.Bitmap is null) return decodedResult.Error;
+        using var source = decodedResult.Bitmap;
+
+        var webRoot = environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot");
+        var largePath = Path.Combine(webRoot, image.LargeUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+        var publicRoot = Path.GetDirectoryName(largePath);
+        if (string.IsNullOrWhiteSpace(publicRoot)) return "Không xác định được thư mục ảnh tối ưu.";
+        Directory.CreateDirectory(publicRoot);
+
+        SaveWebp(ResizeCrop(source, 900, 675, focalX, focalY), Path.Combine(publicRoot, "card.webp"), 82);
+        SaveWebp(ResizeCrop(source, 480, 360, focalX, focalY), Path.Combine(publicRoot, "thumb.webp"), 80);
+        return null;
     }
 
     public Task DeleteAsync(StoredRoomImage image, CancellationToken cancellationToken = default)
@@ -89,16 +108,27 @@ public sealed class LocalRoomImageStorage(IWebHostEnvironment environment) : IRo
         return Task.CompletedTask;
     }
 
+    private static (SKBitmap? Bitmap, string? Error) DecodeNormalized(byte[] bytes)
+    {
+        using var data = SKData.CreateCopy(bytes);
+        using var codec = SKCodec.Create(data);
+        if (codec is null) return (null, "File tải lên không phải ảnh hợp lệ.");
+        using var decoded = SKBitmap.Decode(codec);
+        if (decoded is null || decoded.Width <= 0 || decoded.Height <= 0) return (null, "File tải lên không phải ảnh hợp lệ.");
+        return (NormalizeOrientation(decoded, codec.EncodedOrigin), null);
+    }
+
     private static SKBitmap ResizeMax(SKBitmap source, int maxSize)
     {
         if (source.Width <= maxSize && source.Height <= maxSize) return source.Copy();
         var scale = Math.Min((float)maxSize / source.Width, (float)maxSize / source.Height);
-        return DrawScaled(source, Math.Max(1, (int)Math.Round(source.Width * scale)), Math.Max(1, (int)Math.Round(source.Height * scale)), false);
+        return DrawScaled(source, Math.Max(1, (int)Math.Round(source.Width * scale)), Math.Max(1, (int)Math.Round(source.Height * scale)), false, 0.5, 0.5);
     }
 
-    private static SKBitmap ResizeCrop(SKBitmap source, int width, int height) => DrawScaled(source, width, height, true);
+    private static SKBitmap ResizeCrop(SKBitmap source, int width, int height, double focalX, double focalY) =>
+        DrawScaled(source, width, height, true, focalX, focalY);
 
-    private static SKBitmap DrawScaled(SKBitmap source, int width, int height, bool crop)
+    private static SKBitmap DrawScaled(SKBitmap source, int width, int height, bool crop, double focalX, double focalY)
     {
         var target = new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul));
         using var canvas = new SKCanvas(target);
@@ -108,7 +138,13 @@ public sealed class LocalRoomImageStorage(IWebHostEnvironment environment) : IRo
             : Math.Min((float)width / source.Width, (float)height / source.Height);
         var drawWidth = source.Width * scale;
         var drawHeight = source.Height * scale;
-        var destination = SKRect.Create((width - drawWidth) / 2f, (height - drawHeight) / 2f, drawWidth, drawHeight);
+        var left = crop
+            ? Math.Clamp((float)(width / 2d - focalX * drawWidth), width - drawWidth, 0f)
+            : (width - drawWidth) / 2f;
+        var top = crop
+            ? Math.Clamp((float)(height / 2d - focalY * drawHeight), height - drawHeight, 0f)
+            : (height - drawHeight) / 2f;
+        var destination = SKRect.Create(left, top, drawWidth, drawHeight);
         canvas.DrawBitmap(source, destination, Sampling, null);
         canvas.Flush();
         return target;
