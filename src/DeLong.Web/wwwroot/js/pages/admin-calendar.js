@@ -131,18 +131,21 @@
                 return 'booking-requested';
             },
             activeBookingRows(roomId) {
-                return this.bookings.filter(x => x.roomId === roomId && x.status !== 5 && x.status !== 6);
+                return this.bookings.filter(x => x.roomId === roomId && [0, 1, 2, 3].includes(Number(x.status)));
+            },
+            lockingBookingRows(roomId) {
+                return this.bookings.filter(x => x.roomId === roomId && [1, 2, 3].includes(Number(x.status)));
             },
             cellHasBooking(roomId, dayKey) {
                 const start = new Date(`${dayKey}T00:00:00${utcOffset}`);
                 const end = new Date(`${addDays(dayKey, 1)}T00:00:00${utcOffset}`);
-                return this.activeBookingRows(roomId).some(x => new Date(x.checkInUtc) < end && start < new Date(x.checkOutUtc));
+                return this.lockingBookingRows(roomId).some(x => new Date(x.checkInUtc) < end && start < new Date(x.checkOutUtc));
             },
             bookingsToRender(roomId, dayKey) {
                 return this.activeBookingRows(roomId)
                     .filter(booking => {
                         const checkInKey = this.localDateKey(booking.checkInUtc);
-                        if (Number(booking.type) !== 1) return checkInKey === dayKey;
+                        if (Number(booking.type) !== 1 || Number(booking.status) === 0) return checkInKey === dayKey;
                         const visibleStart = checkInKey < this.startDate ? this.startDate : checkInKey;
                         const lastVisible = this.days[this.days.length - 1].key;
                         const checkOutKey = this.localDateKey(booking.checkOutUtc);
@@ -151,7 +154,7 @@
                     .sort((a, b) => new Date(a.checkInUtc) - new Date(b.checkInUtc));
             },
             bookingSpan(booking, dayKey) {
-                if (Number(booking.type) !== 1) return 1;
+                if (Number(booking.type) !== 1 || Number(booking.status) === 0) return 1;
                 const lastVisible = this.days[this.days.length - 1].key;
                 const checkoutKey = this.localDateKey(booking.checkOutUtc);
                 const endKey = checkoutKey > lastVisible ? lastVisible : checkoutKey;
