@@ -14,12 +14,14 @@ public sealed class DetailsModel(
     AppDbContext db) : PageModel
 {
     public PublicRoomDetailDto Room { get; private set; } = null!;
+    public string PropertyName { get; private set; } = string.Empty;
     public string? SiteSlug { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(string code, string? siteSlug, CancellationToken cancellationToken)
     {
         var property = await publicPropertyResolver.ResolveAsync(siteSlug, cancellationToken);
         if (property is null) return NotFound();
+        PropertyName = property.Name;
         SiteSlug = string.IsNullOrWhiteSpace(siteSlug) ? null : property.SiteSlug;
 
         var requested = code.Trim();
