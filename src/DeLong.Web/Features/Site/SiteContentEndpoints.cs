@@ -1,4 +1,6 @@
 using DeLong.Web.Common.Security;
+using DeLong.Web.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.Site;
 
@@ -24,6 +26,20 @@ public static class SiteContentEndpoints
         {
             var (settings, error) = await service.SaveSettingsAsync(propertyId, request, http.User.IsInRole("Admin"), ct);
             return error is null ? Results.Ok(settings) : ToProblem(error);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        admin.MapPost("/assets/{kind}", async (
+            Guid propertyId,
+            string kind,
+            IFormFile file,
+            AppDbContext db,
+            ISiteAssetStorage storage,
+            CancellationToken ct) =>
+        {
+            var code = await db.Properties.AsNoTracking().Where(x => x.Id == propertyId).Select(x => x.Code).SingleOrDefaultAsync(ct);
+            if (string.IsNullOrWhiteSpace(code)) return Results.NotFound();
+            var (asset, error) = await storage.SaveAsync(code, kind, file, ct);
+            return error is null ? Results.Ok(asset) : Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = [error] });
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
         admin.MapPost("/sections", async (
