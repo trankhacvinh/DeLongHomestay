@@ -1,0 +1,37 @@
+name: Generate Property Editorial Migration
+
+on:
+  push:
+    branches: [ "agent/property-editorial-migration" ]
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    env:
+      ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=delong_dev;Username=postgres;Password=postgres"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/property-gallery-blog
+          fetch-depth: 0
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version 10.0.10
+      - name: Restore
+        run: dotnet restore DeLongHomestay.sln
+      - name: Generate migration
+        run: dotnet ef migrations add PropertyEditorialContent --project src/DeLong.Web --startup-project src/DeLong.Web --output-dir Data/Migrations
+      - name: Commit migration
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/DeLong.Web/Data/Migrations
+          git commit -m "db: add property editorial content migration"
+          git push origin HEAD:feat/property-gallery-blog
