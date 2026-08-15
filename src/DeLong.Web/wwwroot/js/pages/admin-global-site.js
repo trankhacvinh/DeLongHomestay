@@ -18,7 +18,7 @@
         if (type === 'BranchGrid') return { eyebrow: 'CƠ SỞ', title: 'Chọn nơi bạn muốn ghé', propertyIds: [] };
         if (type === 'RoomGrid') return { eyebrow: 'PHÒNG', title: 'Một vài lựa chọn đang mở', mode: 'all', limit: 6, propertyQuotas: {}, roomIds: [] };
         if (type === 'AvailabilitySearch') return { title: 'Chọn cơ sở và ngày bạn muốn ghé' };
-        if (type === 'FeatureGrid') return { eyebrow: '', title: '', body: '', items: [] };
+        if (type === 'FeatureGrid') return { eyebrow: '', title: '', body: '', items: [], imageUrl: '' };
         if (type === 'Cta') return { title: '', body: '', buttonText: 'Xem phòng', buttonUrl: '/rooms' };
         return { html: '<p>Nội dung mới</p>' };
     }
@@ -31,6 +31,7 @@
                 if (type === 'Hero') return ['split', 'centered', 'image-full', 'booking-overlay', 'editorial'];
                 if (type === 'BranchGrid') return ['grid-3', 'grid-2', 'editorial'];
                 if (type === 'RoomGrid') return ['grid-3', 'grid-2', 'featured-first', 'editorial-cards', 'horizontal-scroll'];
+                if (type === 'AvailabilitySearch') return ['booking-bar', 'card', 'minimal'];
                 if (type === 'FeatureGrid') return ['split', 'stacked', 'icon-grid', 'dark-band', 'editorial'];
                 if (type === 'RichText') return ['narrow', 'wide', 'editorial'];
                 if (type === 'Cta') return ['card', 'full-width', 'dark', 'offer'];
@@ -48,8 +49,8 @@
                 try {
                     const asset = await DeLongApi.postForm('/api/admin/site/global/assets/section', form);
                     this.form.content.imageUrl = asset.url;
-                    this.notify('Đã tải ảnh Hero. Lưu khối để áp dụng.');
-                } catch (err) { this.notify(err.message || 'Không thể tải ảnh Hero.', 'error'); }
+                    this.notify('Đã tải ảnh. Lưu khối để áp dụng.');
+                } catch (err) { this.notify(err.message || 'Không thể tải ảnh.', 'error'); }
                 finally { this.uploading = false; }
             },
             openCreate() { const type = 'Hero'; this.form = { type, name: '', variant: this.variantsFor(type)[0], isVisible: true, content: defaultContent(type), itemsText: '' }; this.editor = { open: true, mode: 'create', id: null }; },
