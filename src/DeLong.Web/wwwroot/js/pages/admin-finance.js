@@ -4,7 +4,7 @@
 
     const initial = JSON.parse(document.getElementById('finance-page-data').textContent || '{}');
     const { createApp } = Vue;
-    const timeZone = initial.timeZoneId || 'Asia/Ho_Chi_Minh';
+    const defaultTimeZone = initial.timeZoneId || 'Asia/Ho_Chi_Minh';
 
     function shiftMonth(value, delta) {
         const [year, month] = value.split('-').map(Number);
@@ -16,6 +16,10 @@
         data() {
             return {
                 propertyId: initial.propertyId,
+                scope: initial.scope || initial.propertyId,
+                scopeName: initial.scopeName || initial.propertyName || '',
+                properties: initial.properties || [],
+                canMutateScope: initial.canMutateScope === true,
                 month: initial.month,
                 payments: initial.payments || [],
                 expenses: initial.expenses || [],
@@ -43,7 +47,14 @@
             money(value) {
                 return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
             },
-            dateTimeText(value) {
+            propertyFor(propertyId) {
+                return this.properties.find(x => x.id === propertyId) || null;
+            },
+            propertyLabel(propertyId) {
+                return this.propertyFor(propertyId)?.name || '';
+            },
+            dateTimeText(value, propertyId) {
+                const timeZone = this.propertyFor(propertyId)?.timeZoneId || defaultTimeZone;
                 return new Intl.DateTimeFormat('vi-VN', {
                     timeZone,
                     day: '2-digit', month: '2-digit',
@@ -53,17 +64,24 @@
             paymentMethodText(method) {
                 return ({ 0: 'Tiền mặt', 1: 'Chuyển khoản', 2: 'Thẻ', 3: 'Khác' })[method] || 'Khác';
             },
+            navigate(month, scope) {
+                const query = new URLSearchParams({ propertyId: this.propertyId, month, scope });
+                window.location.assign(`/Admin/Finance?${query.toString()}`);
+            },
             moveMonth(delta) {
-                const month = shiftMonth(this.month, delta);
-                window.location.assign(`/Admin/Finance?propertyId=${this.propertyId}&month=${month}`);
+                this.navigate(shiftMonth(this.month, delta), this.scope);
+            },
+            changeScope() {
+                this.navigate(this.month, this.scope);
             },
             openExpense() {
-                if (!this.canManage) return;
+                if (!this.canManage || !this.canMutateScope) return;
                 this.expenseForm = { category: 'Dọn phòng', description: '', amount: 0, method: 1, vendor: '', reference: '', note: '' };
                 this.expenseEditor.open = true;
             },
             closeExpense() { if (!this.saving) this.expenseEditor.open = false; },
             async saveExpense() {
+                if (!this.canMutateScope) return this.notify('Hãy chuyển cơ sở làm việc trên thanh trên trước khi ghi chi phí.', 'error');
                 if (!this.expenseForm.description.trim()) return this.notify('Vui lòng nhập nội dung chi phí.', 'error');
                 if (Number(this.expenseForm.amount || 0) <= 0) return this.notify('Số tiền phải lớn hơn 0.', 'error');
                 this.saving = true;
@@ -90,10 +108,12 @@
                 }
             },
             openVoid(expense) {
+                if (!this.canMutateScope) return;
                 this.voidEditor = { open: true, expense, reason: '' };
             },
             closeVoid() { if (!this.saving) this.voidEditor.open = false; },
             async confirmVoid() {
+                if (!this.canMutateScope) return;
                 if (!this.voidEditor.expense) return;
                 if (!this.voidEditor.reason.trim()) return this.notify('Vui lòng nhập lý do void.', 'error');
                 this.saving = true;
