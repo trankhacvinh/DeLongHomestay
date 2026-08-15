@@ -4,6 +4,7 @@ using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Features.Site;
 using DeLong.Web.Pages.Rooms;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -63,7 +64,7 @@ public sealed class RoomSlugTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task Public_detail_resolves_legacy_published_room_without_persisted_slug()
+    public async Task Legacy_root_detail_redirects_to_property_scope_and_scoped_detail_resolves_missing_slug()
     {
         var connectionString = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
@@ -92,11 +93,20 @@ public sealed class RoomSlugTests
         await db.SaveChangesAsync();
 
         var requestedSlug = RoomContentService.CreateSlug(legacyRoom.Name);
-        var page = new DetailsModel(new PublicRoomContentService(db), new PublicPropertyResolver(db), db);
-        var result = await page.OnGetAsync(requestedSlug, null, CancellationToken.None);
+        var resolver = new PublicPropertyResolver(db);
+        var propertyContext = await resolver.ResolveByIdAsync(property.Id);
+        Assert.NotNull(propertyContext);
 
-        Assert.IsType<PageResult>(result);
-        Assert.Equal(legacyRoom.Id, page.Room.Id);
+        var page = new DetailsModel(new PublicRoomContentService(db), resolver, db);
+        var legacyResult = await page.OnGetAsync(requestedSlug, null, CancellationToken.None);
+        var redirect = Assert.IsType<RedirectResult>(legacyResult);
+        Assert.True(redirect.Permanent);
+        Assert.Equal(PublicUrlBuilder.Room(propertyContext!.SiteSlug, requestedSlug), redirect.Url);
+
+        var scopedPage = new DetailsModel(new PublicRoomContentService(db), resolver, db);
+        var scopedResult = await scopedPage.OnGetAsync(requestedSlug, propertyContext.SiteSlug, CancellationToken.None);
+        Assert.IsType<PageResult>(scopedResult);
+        Assert.Equal(legacyRoom.Id, scopedPage.Room.Id);
     }
 
     private static async Task<Property> EnsurePublicPropertyAsync(AppDbContext db)
