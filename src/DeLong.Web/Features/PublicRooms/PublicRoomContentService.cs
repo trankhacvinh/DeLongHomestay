@@ -1,17 +1,27 @@
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Enums;
+using DeLong.Web.Features.Site;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicRooms;
 
 public sealed class PublicRoomContentService(AppDbContext db)
 {
-    private const string PublicPropertyCode = "DELONG";
-
     public async Task<PublicRoomCatalogDto> GetCatalogAsync(CancellationToken cancellationToken = default)
     {
+        var propertyId = await db.Properties.AsNoTracking()
+            .Where(x => x.Code == PublicPropertyResolver.LegacyPropertyCode && x.IsActive)
+            .Select(x => (Guid?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+        return propertyId.HasValue
+            ? await GetCatalogAsync(propertyId.Value, cancellationToken)
+            : new PublicRoomCatalogDto([]);
+    }
+
+    public async Task<PublicRoomCatalogDto> GetCatalogAsync(Guid propertyId, CancellationToken cancellationToken = default)
+    {
         var rooms = await db.Rooms.AsNoTracking()
-            .Where(x => x.Property.Code == PublicPropertyCode && x.Property.IsActive && x.IsActive && x.IsPublished)
+            .Where(x => x.PropertyId == propertyId && x.Property.IsActive && x.IsActive && x.IsPublished)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
             .Select(x => new
             {
@@ -59,11 +69,22 @@ public sealed class PublicRoomContentService(AppDbContext db)
 
     public async Task<PublicRoomDetailDto?> GetRoomAsync(string slugOrCode, CancellationToken cancellationToken = default)
     {
+        var propertyId = await db.Properties.AsNoTracking()
+            .Where(x => x.Code == PublicPropertyResolver.LegacyPropertyCode && x.IsActive)
+            .Select(x => (Guid?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+        return propertyId.HasValue
+            ? await GetRoomAsync(propertyId.Value, slugOrCode, cancellationToken)
+            : null;
+    }
+
+    public async Task<PublicRoomDetailDto?> GetRoomAsync(Guid propertyId, string slugOrCode, CancellationToken cancellationToken = default)
+    {
         var normalized = slugOrCode.Trim();
         if (string.IsNullOrWhiteSpace(normalized)) return null;
 
         var room = await db.Rooms.AsNoTracking()
-            .Where(x => x.Property.Code == PublicPropertyCode && x.Property.IsActive && x.IsActive && x.IsPublished &&
+            .Where(x => x.PropertyId == propertyId && x.Property.IsActive && x.IsActive && x.IsPublished &&
                         (x.Slug == normalized.ToLower() || x.Code == normalized.ToUpper()))
             .Select(x => new
             {
