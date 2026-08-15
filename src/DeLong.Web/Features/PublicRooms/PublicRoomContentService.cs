@@ -21,7 +21,8 @@ public sealed class PublicRoomContentService(AppDbContext db)
                 x.SiteSlug,
                 SiteName = db.Set<PropertySiteSettings>().Where(s => s.PropertyId == x.Id).Select(s => s.SiteName).FirstOrDefault(),
                 Tagline = db.Set<PropertySiteSettings>().Where(s => s.PropertyId == x.Id).Select(s => s.Tagline).FirstOrDefault(),
-                Address = db.Set<PropertySiteSettings>().Where(s => s.PropertyId == x.Id).Select(s => s.Address).FirstOrDefault()
+                Address = db.Set<PropertySiteSettings>().Where(s => s.PropertyId == x.Id).Select(s => s.Address).FirstOrDefault(),
+                CoverImageUrl = db.Set<PropertySiteSettings>().Where(s => s.PropertyId == x.Id).Select(s => s.CoverImageUrl).FirstOrDefault()
             })
             .ToListAsync(cancellationToken);
 
@@ -39,7 +40,7 @@ public sealed class PublicRoomContentService(AppDbContext db)
                 property.Tagline ?? string.Empty,
                 property.Address ?? string.Empty,
                 catalog.Rooms.Count,
-                catalog.Rooms.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))));
+                string.IsNullOrWhiteSpace(property.CoverImageUrl) ? null : property.CoverImageUrl));
             globalRooms.AddRange(catalog.Rooms.Select(room => new PublicGlobalRoomCardDto(
                 property.Id,
                 property.Name,
