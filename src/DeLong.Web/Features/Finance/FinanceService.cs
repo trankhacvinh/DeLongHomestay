@@ -7,6 +7,7 @@ namespace DeLong.Web.Features.Finance;
 
 public sealed record FinancePaymentDto(
     Guid Id,
+    Guid PropertyId,
     Guid BookingId,
     string BookingCode,
     string CustomerName,
@@ -44,6 +45,7 @@ public sealed class FinanceService(AppDbContext db)
             .OrderByDescending(x => x.OccurredAtUtc)
             .Select(x => new FinancePaymentDto(
                 x.Id,
+                x.PropertyId,
                 x.BookingId,
                 x.Booking.Code,
                 x.Booking.Customer.Name,
