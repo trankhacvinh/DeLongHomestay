@@ -16,7 +16,7 @@
             <h1>Mỗi phòng, một nhịp nghỉ riêng.</h1>
             <p>Chọn theo phong cách, tiện nghi và cách lưu trú phù hợp. Giá đặt nhanh và giá theo đêm được tách rõ để dễ so sánh.</p>
         </div>
-        <a class="public-btn public-btn-primary" asp-page="/Booking/Index">Kiểm tra phòng trống</a>
+        <a class="public-btn public-btn-primary" asp-page="/Booking/Index" asp-route-siteSlug="@Model.SiteSlug">Kiểm tra phòng trống</a>
     </div>
 </section>
 
@@ -26,7 +26,7 @@
             @foreach (var room in Model.Catalog.Rooms)
             {
                 <article class="public-room-card-v2">
-                    <a class="public-room-card-v2-media" asp-page="/Rooms/Details" asp-route-code="@room.Slug" aria-label="Xem chi tiết @room.Name">
+                    <a class="public-room-card-v2-media" asp-page="/Rooms/Details" asp-route-siteSlug="@Model.SiteSlug" asp-route-code="@room.Slug" aria-label="Xem chi tiết @room.Name">
                         @if (!string.IsNullOrWhiteSpace(room.CoverCardUrl))
                         {
                             <img src="@room.CoverCardUrl" alt="@room.Name" width="900" height="675" loading="lazy" />
@@ -34,7 +34,7 @@
                         else
                         {
                             <span class="public-room-poster public-room-poster-v2" data-room-code="@room.Code">
-                                <small>DE LONG · @room.Code</small>
+                                <small>@room.Code</small>
                                 <strong>@room.Name</strong>
                             </span>
                         }
@@ -46,7 +46,7 @@
                     </a>
                     <div class="public-room-card-v2-body">
                         <div class="public-room-card-v2-heading">
-                            <h2><a asp-page="/Rooms/Details" asp-route-code="@room.Slug">@room.Name</a></h2>
+                            <h2><a asp-page="/Rooms/Details" asp-route-siteSlug="@Model.SiteSlug" asp-route-code="@room.Slug">@room.Name</a></h2>
                             <p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? "Không gian riêng tư với nhiều lựa chọn thời gian." : room.ShortDescription)</p>
                         </div>
 
@@ -72,7 +72,7 @@
 
                         <div class="public-room-card-v2-footer">
                             <span>@(room.OvernightPrice.HasValue ? $"Qua đêm {room.OvernightPrice.Value:N0}đ" : "Giờ lưu trú xem trong chi tiết")</span>
-                            <a class="public-text-link" asp-page="/Rooms/Details" asp-route-code="@room.Slug">Xem phòng →</a>
+                            <a class="public-text-link" asp-page="/Rooms/Details" asp-route-siteSlug="@Model.SiteSlug" asp-route-code="@room.Slug">Xem phòng →</a>
                         </div>
                     </div>
                 </article>
