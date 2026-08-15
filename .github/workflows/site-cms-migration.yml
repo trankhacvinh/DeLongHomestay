@@ -30,6 +30,8 @@ jobs:
       - name: Restore
         run: dotnet restore DeLongHomestay.sln
       - name: Generate migration
+        env:
+          ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=design_time;Username=design;Password=design
         run: dotnet ef migrations add SiteCmsAndBookingLookup --project src/DeLong.Web --startup-project src/DeLong.Web
       - name: Commit migration and layout fix
         shell: bash
