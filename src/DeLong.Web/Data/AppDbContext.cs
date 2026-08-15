@@ -32,6 +32,7 @@ public sealed class AppDbContext
     public DbSet<UserPropertyAccess> UserPropertyAccesses => Set<UserPropertyAccess>();
     public DbSet<PropertyGalleryItem> PropertyGalleryItems => Set<PropertyGalleryItem>();
     public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
+    public DbSet<GlobalEditorialShowcase> GlobalEditorialShowcases => Set<GlobalEditorialShowcase>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -160,6 +161,18 @@ public sealed class AppDbContext
             entity.Property(x => x.CoverImageUrl).HasMaxLength(1000);
             entity.Property(x => x.BodyHtml).HasColumnType("text").IsRequired();
             entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GlobalEditorialShowcase>(entity =>
+        {
+            entity.Property(x => x.GalleryMode).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.GalleryPropertyIdsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.GalleryItemIdsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.GalleryTitle).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.BlogMode).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.BlogPropertyIdsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.BlogPostIdsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.BlogTitle).HasMaxLength(240).IsRequired();
         });
 
         modelBuilder.Entity<ApplicationUser>(entity => entity.Property(x => x.DisplayName).HasMaxLength(200));
