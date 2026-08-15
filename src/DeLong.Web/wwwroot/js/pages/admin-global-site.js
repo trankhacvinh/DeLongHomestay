@@ -27,7 +27,15 @@
         mounted() { nextTick(() => this.mountSortable()); },
         methods: {
             sectionTypeLabel(type) { return this.sectionTypes.find(x => x.value === type)?.label || type; },
-            variantsFor(type) { if (type === 'Hero') return ['split', 'centered']; if (type === 'BranchGrid' || type === 'RoomGrid') return ['grid-3', 'grid-2', 'featured-first']; if (type === 'FeatureGrid') return ['split', 'stacked']; if (type === 'RichText') return ['narrow', 'wide']; if (type === 'Cta') return ['card', 'full-width']; return ['card', 'minimal']; },
+            variantsFor(type) {
+                if (type === 'Hero') return ['split', 'centered', 'image-full', 'booking-overlay', 'editorial'];
+                if (type === 'BranchGrid') return ['grid-3', 'grid-2', 'editorial'];
+                if (type === 'RoomGrid') return ['grid-3', 'grid-2', 'featured-first', 'editorial-cards', 'horizontal-scroll'];
+                if (type === 'FeatureGrid') return ['split', 'stacked', 'icon-grid', 'dark-band', 'editorial'];
+                if (type === 'RichText') return ['narrow', 'wide', 'editorial'];
+                if (type === 'Cta') return ['card', 'full-width', 'dark', 'offer'];
+                return ['card', 'minimal'];
+            },
             includes(list, id) { return Array.isArray(list) && list.some(x => String(x) === String(id)); },
             toggleArray(key, id) { const list = Array.isArray(this.form.content[key]) ? [...this.form.content[key]] : []; const i = list.findIndex(x => String(x) === String(id)); if (i >= 0) list.splice(i, 1); else list.push(id); this.form.content[key] = list; },
             normalizeContent(type, content) { const base = Object.assign(defaultContent(type), content || {}); if (type === 'BranchGrid' && !Array.isArray(base.propertyIds)) base.propertyIds = []; if (type === 'RoomGrid') { if (!Array.isArray(base.roomIds)) base.roomIds = []; if (!base.propertyQuotas || typeof base.propertyQuotas !== 'object' || Array.isArray(base.propertyQuotas)) base.propertyQuotas = {}; } return base; },
