@@ -84,19 +84,34 @@ public static class SiteContentEndpoints
             return error is null ? Results.NoContent() : ToProblem(error);
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
-        app.MapGet("/site/custom.css", async (SiteContentService service, CancellationToken ct) =>
-        {
-            var site = await service.GetPublicAsync(ct);
-            return Results.Text(site?.Settings.CustomCss ?? string.Empty, "text/css; charset=utf-8");
-        }).AllowAnonymous();
-
-        app.MapGet("/site/custom.js", async (SiteContentService service, CancellationToken ct) =>
-        {
-            var site = await service.GetPublicAsync(ct);
-            return Results.Text(site?.Settings.CustomJs ?? string.Empty, "text/javascript; charset=utf-8");
-        }).AllowAnonymous();
+        MapCustomCss(app, "/site/custom.css", scoped: false);
+        MapCustomCss(app, "/h/{siteSlug}/site/custom.css", scoped: true);
+        MapCustomJs(app, "/site/custom.js", scoped: false);
+        MapCustomJs(app, "/h/{siteSlug}/site/custom.js", scoped: true);
 
         return app;
+    }
+
+    private static void MapCustomCss(IEndpointRouteBuilder app, string pattern, bool scoped)
+    {
+        app.MapGet(pattern, async (string? siteSlug, SiteContentService service, CancellationToken ct) =>
+        {
+            var site = await service.GetPublicAsync(scoped ? siteSlug : null, ct);
+            return site is null
+                ? Results.NotFound()
+                : Results.Text(site.Settings.CustomCss, "text/css; charset=utf-8");
+        }).AllowAnonymous();
+    }
+
+    private static void MapCustomJs(IEndpointRouteBuilder app, string pattern, bool scoped)
+    {
+        app.MapGet(pattern, async (string? siteSlug, SiteContentService service, CancellationToken ct) =>
+        {
+            var site = await service.GetPublicAsync(scoped ? siteSlug : null, ct);
+            return site is null
+                ? Results.NotFound()
+                : Results.Text(site.Settings.CustomJs, "text/javascript; charset=utf-8");
+        }).AllowAnonymous();
     }
 
     private static IResult ToProblem(SiteContentError error)
