@@ -56,6 +56,7 @@ builder.Services
     .PersistKeysToFileSystem(new DirectoryInfo(storagePaths.DataProtectionRoot));
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
     .AddCheck<StorageHealthCheck>("storage", tags: ["ready"]);
@@ -227,6 +228,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseMiddleware<ForcePasswordChangeMiddleware>();
 app.UseAuthorization();
+app.UseMiddleware<WorkingPropertyMiddleware>();
 app.UseRateLimiter();
 app.UseAntiforgery();
 
