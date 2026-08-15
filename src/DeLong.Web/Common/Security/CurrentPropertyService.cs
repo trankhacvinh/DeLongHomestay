@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using DeLong.Web.Data;
+using DeLong.Web.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Common.Security;
@@ -72,7 +73,7 @@ public sealed class CurrentPropertyService(
             .ToListAsync(cancellationToken);
     }
 
-    private static IQueryable<CurrentPropertyDto> ToDtoQuery(IQueryable<Domain.Entities.UserPropertyAccess> query) =>
+    private static IQueryable<CurrentPropertyDto> ToDtoQuery(IQueryable<UserPropertyAccess> query) =>
         query.Select(x => new CurrentPropertyDto(
             x.PropertyId,
             x.Property.Code,
