@@ -41,6 +41,17 @@
                 toast: { show: false, type: 'success', message: '' }
             };
         },
+        mounted() {
+            const actions = document.querySelector('.site-head-actions');
+            if (actions && !actions.querySelector('[data-editorial-link]')) {
+                const link = document.createElement('a');
+                link.className = 'btn btn-light';
+                link.dataset.editorialLink = 'true';
+                link.href = `/Admin/Site/Editorial?propertyId=${encodeURIComponent(this.propertyId)}`;
+                link.textContent = 'Gallery / Blog';
+                actions.prepend(link);
+            }
+        },
         watch: {
             tab(value) { if (value === 'home') nextTick(() => this.mountSortable()); }
         },
