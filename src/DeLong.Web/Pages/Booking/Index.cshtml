@@ -84,7 +84,10 @@
                         <button v-for="room in roomList" v-bind:key="room.id" type="button" class="public-booking-room"
                                 v-bind:class="{ active: selectedRoomId === room.id, disabled: !roomSelectable(room) }"
                                 v-bind:disabled="!roomSelectable(room)" v-on:click="chooseRoom(room)">
-                            <span class="public-mini-room-art" v-bind:data-room-code="room.code">{{ room.code.split('-').slice(-1)[0] }}</span>
+                            <span class="public-mini-room-art public-mini-room-photo" v-if="roomImage(room)">
+                                <img v-bind:src="roomImage(room).thumbnailUrl" v-bind:alt="roomImage(room).altText || room.name" loading="lazy" />
+                            </span>
+                            <span v-else class="public-mini-room-art" v-bind:data-room-code="room.code">{{ room.code.split('-').slice(-1)[0] }}</span>
                             <span class="public-booking-room-copy">
                                 <strong>{{ room.name }}</strong>
                                 <small v-if="bookingType === 0">{{ room.capacity }} người · từ {{ money(room.fromPrice) }}</small>
@@ -150,7 +153,10 @@
             </div>
 
             <aside class="public-booking-summary" v-if="selectedRoom && selectedRate">
-                <div class="public-summary-room-art" v-bind:data-room-code="selectedRoom.code">
+                <div class="public-summary-room-art public-summary-room-photo" v-if="roomImage(selectedRoom)">
+                    <img v-bind:src="roomImage(selectedRoom).cardUrl" v-bind:alt="roomImage(selectedRoom).altText || selectedRoom.name" />
+                </div>
+                <div v-else class="public-summary-room-art" v-bind:data-room-code="selectedRoom.code">
                     <small>DE LONG STAY</small>
                     <strong>{{ selectedRoom.name }}</strong>
                 </div>
