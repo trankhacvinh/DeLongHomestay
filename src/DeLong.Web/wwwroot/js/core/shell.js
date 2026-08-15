@@ -26,6 +26,15 @@
         userChip.insertAdjacentElement('afterend', passwordLink);
     }
 
+    const propertySwitcher = document.querySelector('[data-property-switcher]');
+    propertySwitcher?.addEventListener('change', () => {
+        const url = new URL(window.location.href);
+        url.searchParams.set('propertyId', propertySwitcher.value);
+        window.location.assign(`${url.pathname}${url.search}${url.hash}`);
+    });
+
+    window.addEventListener('delong:properties-changed', () => window.location.reload());
+
     window.matchMedia('(min-width: 981px)').addEventListener('change', event => {
         if (event.matches) setOpen(false);
     });

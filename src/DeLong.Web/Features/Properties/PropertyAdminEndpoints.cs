@@ -7,8 +7,7 @@ public static class PropertyAdminEndpoints
     public static IEndpointRouteBuilder MapPropertyAdminEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/admin/properties-admin")
-            .RequireAuthorization("ManageProperties")
-            .AddEndpointFilter<ApiAntiforgeryFilter>();
+            .RequireAuthorization("ManageProperties");
 
         group.MapGet("/", async (PropertyAdminService service, CancellationToken ct) =>
             Results.Ok(await service.ListAsync(ct)));
@@ -23,7 +22,8 @@ public static class PropertyAdminEndpoints
             return error is null
                 ? Results.Ok(property)
                 : ToProblem(error);
-        });
+        })
+        .AddEndpointFilter<ApiAntiforgeryFilter>();
 
         group.MapPut("/{propertyId:guid}", async (
             Guid propertyId,
@@ -35,7 +35,8 @@ public static class PropertyAdminEndpoints
             return error is null
                 ? Results.Ok(property)
                 : ToProblem(error);
-        });
+        })
+        .AddEndpointFilter<ApiAntiforgeryFilter>();
 
         return app;
     }

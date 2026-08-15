@@ -9,6 +9,7 @@
         data() {
             return {
                 propertyId: initial.propertyId,
+                propertyName: initial.propertyName || '',
                 rooms: initial.rooms || [],
                 search: '',
                 showInactive: false,

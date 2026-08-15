@@ -10,7 +10,7 @@
         <div>
             <div class="page-eyebrow">Quản lý phòng</div>
             <h1>Phòng</h1>
-            <p>Quản lý danh mục phòng, sức chứa, nội dung website và trạng thái hoạt động. Ngừng phòng không xóa lịch sử booking.</p>
+            <p>Đang quản lý phòng của <strong>{{ propertyName }}</strong>. Quản lý danh mục phòng, sức chứa, nội dung website và trạng thái hoạt động. Ngừng phòng không xóa lịch sử booking.</p>
         </div>
         @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
         {

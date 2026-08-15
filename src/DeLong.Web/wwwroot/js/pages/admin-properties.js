@@ -7,7 +7,7 @@
     createApp({
         data() {
             return {
-                properties: [], loading: true, saving: false, error: '',
+                properties: [], loading: true, loadError: '', saving: false, error: '',
                 editor: { open: false, mode: 'create', id: null },
                 form: emptyForm(), toast: { show: false, type: 'success', message: '' }
             };
@@ -16,9 +16,16 @@
         methods: {
             async load() {
                 this.loading = true;
-                try { this.properties = await DeLongApi.get('/api/admin/properties-admin'); }
-                catch (error) { this.notify(error.message || 'Không thể tải danh sách cơ sở.', 'error'); }
-                finally { this.loading = false; }
+                this.loadError = '';
+                try {
+                    this.properties = await DeLongApi.get('/api/admin/properties-admin');
+                } catch (error) {
+                    this.properties = [];
+                    this.loadError = error.message || 'Không thể tải danh sách cơ sở.';
+                    this.notify(this.loadError, 'error');
+                } finally {
+                    this.loading = false;
+                }
             },
             openCreate() { this.form = emptyForm(); this.error = ''; this.editor = { open: true, mode: 'create', id: null }; },
             openEdit(property) {
@@ -33,9 +40,15 @@
                 try {
                     if (this.editor.mode === 'create') await DeLongApi.post('/api/admin/properties-admin', this.form);
                     else await DeLongApi.put(`/api/admin/properties-admin/${this.editor.id}`, this.form);
-                    await this.load(); this.editor.open = false; this.notify('Đã lưu cơ sở.');
-                } catch (error) { this.error = error.message || 'Không thể lưu cơ sở.'; }
-                finally { this.saving = false; }
+                    await this.load();
+                    this.editor.open = false;
+                    window.dispatchEvent(new CustomEvent('delong:properties-changed'));
+                    this.notify('Đã lưu cơ sở.');
+                } catch (error) {
+                    this.error = error.message || 'Không thể lưu cơ sở.';
+                } finally {
+                    this.saving = false;
+                }
             },
             notify(message, type = 'success') {
                 this.toast = { show: true, message, type };

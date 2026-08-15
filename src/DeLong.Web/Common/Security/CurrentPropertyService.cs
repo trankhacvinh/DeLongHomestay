@@ -26,7 +26,8 @@ public sealed class CurrentPropertyService(AppDbContext db)
         }
 
         return await query
-            .OrderBy(x => x.Property.Name)
+            .OrderBy(x => x.Property.CreatedAtUtc)
+            .ThenBy(x => x.Property.Name)
             .Select(x => new CurrentPropertyDto(
                 x.PropertyId,
                 x.Property.Code,
@@ -45,7 +46,8 @@ public sealed class CurrentPropertyService(AppDbContext db)
         return await db.UserPropertyAccesses
             .AsNoTracking()
             .Where(x => x.UserId == userId && x.Property.IsActive)
-            .OrderBy(x => x.Property.Name)
+            .OrderBy(x => x.Property.CreatedAtUtc)
+            .ThenBy(x => x.Property.Name)
             .Select(x => new CurrentPropertyDto(
                 x.PropertyId,
                 x.Property.Code,

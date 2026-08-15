@@ -34,7 +34,18 @@
             </div>
         </article>
     </section>
-    <section class="panel empty-state" v-else-if="!loading"><strong>Chưa có cơ sở</strong>Tạo cơ sở đầu tiên để bắt đầu cấu hình phòng và phân quyền.</section>
+
+    <section class="panel property-load-error" v-else-if="!loading && loadError" role="alert">
+        <div class="property-load-error-copy">
+            <strong>Không thể tải danh sách cơ sở</strong>
+            <span>{{ loadError }}</span>
+        </div>
+        <button class="btn btn-light" type="button" v-on:click="load">Thử lại</button>
+    </section>
+
+    <section class="panel empty-state" v-else-if="!loading">
+        <strong>Chưa có cơ sở</strong>Tạo cơ sở đầu tiên để bắt đầu cấu hình phòng và phân quyền.
+    </section>
 
     <div class="modal-backdrop" v-if="editor.open" v-on:click.self="closeEditor">
         <section class="modal-card property-editor" role="dialog" aria-modal="true" aria-labelledby="property-editor-title">
@@ -44,10 +55,25 @@
             </div>
             <div class="site-modal-body">
                 <div class="form-grid">
-                    <div class="field"><label>Mã cơ sở *</label><input v-model.trim="form.code" maxlength="50" placeholder="DELONG" /><small>Chữ, số, dấu gạch ngang hoặc gạch dưới.</small></div>
-                    <div class="field"><label>Tên cơ sở *</label><input v-model.trim="form.name" maxlength="200" placeholder="De Long Homestay" /></div>
-                    <div class="field form-full"><label>Múi giờ *</label><input v-model.trim="form.timeZoneId" maxlength="100" placeholder="Asia/Ho_Chi_Minh" /><small>Ví dụ: Asia/Ho_Chi_Minh.</small></div>
-                    <label class="site-toggle form-full"><input type="checkbox" v-model="form.isActive" /><span><strong>Cơ sở đang hoạt động</strong><small>Cơ sở đã ngừng sẽ không xuất hiện trong bộ chọn cơ sở và không nhận dữ liệu mới.</small></span></label>
+                    <div class="field">
+                        <label for="property-code">Mã cơ sở *</label>
+                        <input id="property-code" v-model.trim="form.code" maxlength="50" placeholder="DELONG" autocomplete="off" />
+                        <small>Chữ, số, dấu gạch ngang hoặc gạch dưới.</small>
+                    </div>
+                    <div class="field">
+                        <label for="property-name">Tên cơ sở *</label>
+                        <input id="property-name" v-model.trim="form.name" maxlength="200" placeholder="De Long Homestay" autocomplete="off" />
+                        <small>Tên hiển thị trong khu vực quản trị.</small>
+                    </div>
+                    <div class="field form-full">
+                        <label for="property-time-zone">Múi giờ *</label>
+                        <input id="property-time-zone" v-model.trim="form.timeZoneId" maxlength="100" placeholder="Asia/Ho_Chi_Minh" autocomplete="off" />
+                        <small>Ví dụ: Asia/Ho_Chi_Minh.</small>
+                    </div>
+                    <label class="site-toggle property-active-toggle form-full">
+                        <input type="checkbox" v-model="form.isActive" />
+                        <span><strong>Cơ sở đang hoạt động</strong><small>Cơ sở đã ngừng sẽ không xuất hiện trong bộ chọn cơ sở và không nhận dữ liệu mới.</small></span>
+                    </label>
                 </div>
                 <p class="form-error" v-if="error">{{ error }}</p>
             </div>

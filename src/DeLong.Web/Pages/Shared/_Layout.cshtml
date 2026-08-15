@@ -1,5 +1,6 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @inject DeLong.Web.Features.Site.SiteContentService SiteContentService
+@inject DeLong.Web.Common.Security.CurrentPropertyService CurrentPropertyService
 @{
     var csrf = Antiforgery.GetAndStoreTokens(Context).RequestToken;
     var isAdmin = Context.Request.Path.StartsWithSegments("/Admin");
@@ -8,8 +9,16 @@
     var publicSiteName = string.IsNullOrWhiteSpace(publicSettings?.SiteName) ? "De Long Homestay" : publicSettings.SiteName;
     var publicTagline = string.IsNullOrWhiteSpace(publicSettings?.Tagline) ? "Long Thành · Đồng Nai" : publicSettings.Tagline;
     var path = Context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
-    string? propertyId = Context.Request.Query["propertyId"].ToString();
-    if (string.IsNullOrWhiteSpace(propertyId)) propertyId = null;
+    var requestedPropertyValue = Context.Request.Query["propertyId"].ToString();
+    Guid? requestedPropertyId = Guid.TryParse(requestedPropertyValue, out var parsedPropertyId) ? parsedPropertyId : null;
+    IReadOnlyList<DeLong.Web.Common.Security.CurrentPropertyDto> accessibleProperties = [];
+    DeLong.Web.Common.Security.CurrentPropertyDto? currentProperty = null;
+    if (isAdmin && User.Identity?.IsAuthenticated == true)
+    {
+        accessibleProperties = await CurrentPropertyService.GetAccessibleAsync(User, Context.RequestAborted);
+        currentProperty = await CurrentPropertyService.ResolveAsync(User, requestedPropertyId, Context.RequestAborted);
+    }
+    string? propertyId = currentProperty?.Id.ToString();
 
     var canViewOperations = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") || User.IsInRole("Viewer");
     var canViewRooms = canViewOperations;
@@ -82,6 +91,7 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/operational-polish.css" asp-append-version="true" />
+    @if (isAdmin) { <link rel="stylesheet" href="~/css/admin-shell-fixes.css" asp-append-version="true" /> }
     @await RenderSectionAsync("Head", required: false)
     <link rel="stylesheet" href="~/css/mobile-final.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/public.css" asp-append-version="true" />
@@ -93,7 +103,7 @@
     <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></symbol>
     <symbol id="i-booking" viewBox="0 0 24 24"><path d="M5 5h14v15H5zM8 2v5M16 2v5M8 11h8M8 15h5"/></symbol>
-    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM17 11a3 3 0 1 0 0-6M17 14c2.2 0 4 1.8 4 4v2"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 20v-2a4 4 0 0 0-4-4H7a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM17 11a3 3 0 1 0 0-6M17 14c2.2 0 4 1.8 4 4v2"/></symbol>
     <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m12 3 1.1 3.2L16 7.5l-2.9 1.3L12 12l-1.1-3.2L8 7.5l2.9-1.3L12 3ZM5 12l.8 2.2L8 15l-2.2.8L5 18l-.8-2.2L2 15l2.2-.8L5 12ZM18 13l1 2.8L22 17l-3 1.2L18 21l-1-2.8L14 17l3-1.2 1-2.8Z"/></symbol>
     <symbol id="i-bed" viewBox="0 0 24 24"><path d="M3 12v7M21 12v7M3 17h18M5 12V7h6a3 3 0 0 1 3 3v2M14 10h4a3 3 0 0 1 3 3v4"/></symbol>
     <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M4 6h14a2 2 0 0 1 2 2v11H4a2 2 0 0 1-2-2V6a3 3 0 0 1 3-3h12M16 11h6v5h-6a2 2 0 0 1 0-5Z"/></symbol>
@@ -147,11 +157,11 @@
                         }
                         @if (canManageProperties)
                         {
-                            <a class="@NavClass("/Admin/Properties")" asp-page="/Admin/Properties/Index"><svg><use href="#i-bed" /></svg><span>Cơ sở</span></a>
+                            <a class="@NavClass("/Admin/Properties")" asp-page="/Admin/Properties/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-bed" /></svg><span>Cơ sở</span></a>
                         }
                         @if (canManageStaff)
                         {
-                            <a class="@NavClass("/Admin/Staff")" asp-page="/Admin/Staff/Index"><svg><use href="#i-users" /></svg><span>Nhân viên</span></a>
+                            <a class="@NavClass("/Admin/Staff")" asp-page="/Admin/Staff/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-users" /></svg><span>Nhân viên</span></a>
                         }
                     </div>
                 }
@@ -169,7 +179,30 @@
         <main class="admin-main">
             <header class="admin-topbar">
                 <button class="mobile-menu btn-icon" type="button" data-sidebar-toggle aria-label="Mở menu" aria-expanded="false"><svg><use href="#i-menu" /></svg></button>
-                <div class="topbar-context"><span class="topbar-property">De Long Homestay</span><span class="topbar-page">@ViewData["Title"]</span></div>
+                <div class="topbar-context">
+                    @if (accessibleProperties.Count > 1 && currentProperty is not null)
+                    {
+                        <select class="property-context-select" data-property-switcher aria-label="Cơ sở hiện tại" title="Chọn cơ sở đang làm việc">
+                            @foreach (var property in accessibleProperties)
+                            {
+                                if (property.Id == currentProperty.Id)
+                                {
+                                    <option value="@property.Id" selected>@property.Name · @property.Code</option>
+                                }
+                                else
+                                {
+                                    <option value="@property.Id">@property.Name · @property.Code</option>
+                                }
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        var contextName = currentProperty?.Name ?? (accessibleProperties.Count > 0 ? "Không xác định cơ sở" : "Chưa có cơ sở");
+                        <span class="topbar-property@(currentProperty is null ? " is-empty" : string.Empty)">@contextName</span>
+                    }
+                    <span class="topbar-page">@ViewData["Title"]</span>
+                </div>
                 <span class="spacer"></span>
                 <div class="user-chip"><span class="user-avatar">@userInitial</span><span class="user-copy"><strong>@displayName</strong><small>@roleLabel</small></span></div>
                 <form method="post" asp-page="/Account/Logout"><button class="btn-icon logout-btn" type="submit" title="Đăng xuất" aria-label="Đăng xuất"><svg><use href="#i-logout" /></svg></button></form>
