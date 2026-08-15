@@ -243,7 +243,16 @@ public static class DbSeeder
         {
             Code = code,
             Name = name,
-            Slug = code.ToLowerInvariant(),
+            Slug = code switch
+            {
+                "COCO-01" => "coco-blue-1",
+                "ABAUS-02" => "abaus-2",
+                "HONGKONG-03" => "hongkong-3",
+                "MOON-04" => "moon-stone-4",
+                "AMBER-05" => "amber-stay-5",
+                "ROMAN-06" => "la-roman-6",
+                _ => code.ToLowerInvariant()
+            },
             Capacity = 2,
             SortOrder = sortOrder,
             IsActive = true,
