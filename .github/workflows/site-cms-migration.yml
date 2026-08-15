@@ -1,0 +1,37 @@
+name: Generate Site CMS Migration
+
+on:
+  push:
+    branches: [agent/site-cms-and-lookup]
+    paths:
+      - '.github/workflows/site-cms-migration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/site-cms-and-lookup
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version 10.*
+      - name: Restore
+        run: dotnet restore DeLongHomestay.sln
+      - name: Generate migration
+        run: dotnet ef migrations add SiteCmsAndBookingLookup --project src/DeLong.Web --startup-project src/DeLong.Web
+      - name: Commit migration
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/DeLong.Web/Data/Migrations/
+          git commit -m "feat: add site CMS migration"
+          git push origin HEAD:agent/site-cms-and-lookup
