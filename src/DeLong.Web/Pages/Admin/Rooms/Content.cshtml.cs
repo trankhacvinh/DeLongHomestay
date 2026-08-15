@@ -1,6 +1,7 @@
 using System.Text.Json;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Features.Rooms;
+using DeLong.Web.Features.Site;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -26,6 +27,7 @@ public sealed class ContentModel(
 
         var amenityCatalog = await contentService.GetAmenityCatalogAsync(currentProperty.Id, cancellationToken);
         var amenityPresets = await contentService.GetAmenityPresetsAsync(currentProperty.Id, cancellationToken);
+        var siteSlug = PublicPropertyResolver.ToSiteSlug(currentProperty.Code);
 
         PropertyId = currentProperty.Id;
         RoomId = roomId;
@@ -34,6 +36,8 @@ public sealed class ContentModel(
             {
                 propertyId = PropertyId,
                 propertyName = currentProperty.Name,
+                siteSlug,
+                publicBasePath = $"/h/{Uri.EscapeDataString(siteSlug)}",
                 room = content,
                 amenityCatalog,
                 amenityPresets
