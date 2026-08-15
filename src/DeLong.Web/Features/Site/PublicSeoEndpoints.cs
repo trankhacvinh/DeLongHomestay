@@ -17,9 +17,9 @@ public static class PublicSeoEndpoints
 
     private static void MapRobots(IEndpointRouteBuilder app, string pattern, bool scoped)
     {
-        app.MapGet(pattern, async (HttpContext http, string? siteSlug, SiteContentService service, CancellationToken ct) =>
+        app.MapGet(pattern, async (HttpContext http, SiteContentService service, CancellationToken ct) =>
         {
-            var effectiveSlug = scoped ? siteSlug : null;
+            var effectiveSlug = scoped ? http.Request.RouteValues["siteSlug"]?.ToString() : null;
             var site = await service.GetPublicAsync(effectiveSlug, ct);
             if (site is null) return Results.NotFound();
 
@@ -35,9 +35,9 @@ public static class PublicSeoEndpoints
 
     private static void MapSitemap(IEndpointRouteBuilder app, string pattern, bool scoped)
     {
-        app.MapGet(pattern, async (HttpContext http, string? siteSlug, AppDbContext db, PublicPropertyResolver resolver, SiteContentService service, CancellationToken ct) =>
+        app.MapGet(pattern, async (HttpContext http, AppDbContext db, PublicPropertyResolver resolver, SiteContentService service, CancellationToken ct) =>
         {
-            var effectiveSlug = scoped ? siteSlug : null;
+            var effectiveSlug = scoped ? http.Request.RouteValues["siteSlug"]?.ToString() : null;
             var property = await resolver.ResolveAsync(effectiveSlug, ct);
             var site = await service.GetPublicAsync(effectiveSlug, ct);
             if (property is null || site is null) return Results.NotFound();
