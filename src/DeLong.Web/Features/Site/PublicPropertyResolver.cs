@@ -22,23 +22,25 @@ public sealed class PublicPropertyResolver(AppDbContext db)
     {
         var properties = await db.Properties.AsNoTracking()
             .Where(x => x.IsActive)
-            .Select(x => new { x.Id, x.Code, x.Name, x.TimeZoneId })
+            .Select(x => new { x.Id, x.Code, x.Name, x.TimeZoneId, x.SiteSlug })
             .ToListAsync(cancellationToken);
 
         if (string.IsNullOrWhiteSpace(siteSlug))
         {
             var legacy = properties.SingleOrDefault(x => x.Code == LegacyPropertyCode);
-            return legacy is null ? null : ToContext(legacy.Id, legacy.Code, legacy.Name, legacy.TimeZoneId);
+            return legacy is null
+                ? null
+                : ToContext(legacy.Id, legacy.Code, legacy.Name, legacy.TimeZoneId, legacy.SiteSlug);
         }
 
         var normalized = NormalizeSiteSlug(siteSlug);
         var matches = properties
-            .Where(x => string.Equals(ToSiteSlug(x.Code), normalized, StringComparison.OrdinalIgnoreCase))
+            .Where(x => string.Equals(EffectiveSiteSlug(x.SiteSlug, x.Code), normalized, StringComparison.OrdinalIgnoreCase))
             .Take(2)
             .ToList();
 
         return matches.Count == 1
-            ? ToContext(matches[0].Id, matches[0].Code, matches[0].Name, matches[0].TimeZoneId)
+            ? ToContext(matches[0].Id, matches[0].Code, matches[0].Name, matches[0].TimeZoneId, matches[0].SiteSlug)
             : null;
     }
 
@@ -48,10 +50,12 @@ public sealed class PublicPropertyResolver(AppDbContext db)
     {
         var property = await db.Properties.AsNoTracking()
             .Where(x => x.Id == propertyId && x.IsActive)
-            .Select(x => new { x.Id, x.Code, x.Name, x.TimeZoneId })
+            .Select(x => new { x.Id, x.Code, x.Name, x.TimeZoneId, x.SiteSlug })
             .SingleOrDefaultAsync(cancellationToken);
 
-        return property is null ? null : ToContext(property.Id, property.Code, property.Name, property.TimeZoneId);
+        return property is null
+            ? null
+            : ToContext(property.Id, property.Code, property.Name, property.TimeZoneId, property.SiteSlug);
     }
 
     public static string ToSiteSlug(string code)
@@ -61,6 +65,11 @@ public sealed class PublicPropertyResolver(AppDbContext db)
             ? "de-long"
             : normalized;
     }
+
+    public static string EffectiveSiteSlug(string? storedSiteSlug, string code) =>
+        string.IsNullOrWhiteSpace(storedSiteSlug)
+            ? ToSiteSlug(code)
+            : NormalizeSiteSlug(storedSiteSlug);
 
     public static string NormalizeSiteSlug(string value)
     {
@@ -75,6 +84,11 @@ public sealed class PublicPropertyResolver(AppDbContext db)
             ? string.Empty
             : $"/h/{Uri.EscapeDataString(NormalizeSiteSlug(siteSlug))}";
 
-    private static PublicPropertyContext ToContext(Guid id, string code, string name, string timeZoneId) =>
-        new(id, code, name, timeZoneId, ToSiteSlug(code));
+    private static PublicPropertyContext ToContext(
+        Guid id,
+        string code,
+        string name,
+        string timeZoneId,
+        string? storedSiteSlug) =>
+        new(id, code, name, timeZoneId, EffectiveSiteSlug(storedSiteSlug, code));
 }
