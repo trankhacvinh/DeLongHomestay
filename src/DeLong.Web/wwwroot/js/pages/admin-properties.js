@@ -2,7 +2,7 @@
     const root = document.getElementById('properties-admin');
     if (!root || !window.Vue) return;
     const { createApp } = Vue;
-    const emptyForm = () => ({ code: '', name: '', timeZoneId: 'Asia/Ho_Chi_Minh', isActive: true });
+    const emptyForm = () => ({ code: '', name: '', siteSlug: '', timeZoneId: 'Asia/Ho_Chi_Minh', isActive: true });
 
     createApp({
         data() {
@@ -14,14 +14,20 @@
         },
         async mounted() { await this.load(); },
         methods: {
-            publicPath(code) {
-                const normalized = String(code || '')
+            normalizeSlug(value) {
+                return String(value || '')
                     .trim()
                     .toLowerCase()
                     .replace(/_/g, '-')
                     .replace(/[^a-z0-9]+/g, '-')
                     .replace(/^-+|-+$/g, '');
-                const slug = normalized === 'delong' ? 'de-long' : normalized;
+            },
+            suggestedSlug(code) {
+                const slug = this.normalizeSlug(code);
+                return slug === 'delong' ? 'de-long' : slug;
+            },
+            publicPath(siteSlug, code) {
+                const slug = this.normalizeSlug(siteSlug) || this.suggestedSlug(code);
                 return slug ? `/h/${slug}` : '/h/...';
             },
             async load() {
@@ -39,13 +45,15 @@
             },
             openCreate() { this.form = emptyForm(); this.error = ''; this.editor = { open: true, mode: 'create', id: null }; },
             openEdit(property) {
-                this.form = { code: property.code, name: property.name, timeZoneId: property.timeZoneId, isActive: property.isActive };
+                this.form = { code: property.code, name: property.name, siteSlug: property.siteSlug || '', timeZoneId: property.timeZoneId, isActive: property.isActive };
                 this.error = ''; this.editor = { open: true, mode: 'edit', id: property.id };
             },
             closeEditor() { if (!this.saving) this.editor.open = false; },
             async save() {
                 if (this.saving) return;
                 if (!this.form.code.trim() || !this.form.name.trim()) { this.error = 'Mã và tên cơ sở là bắt buộc.'; return; }
+                if (!this.form.siteSlug.trim()) this.form.siteSlug = this.suggestedSlug(this.form.code);
+                if (this.form.siteSlug.trim().length < 2) { this.error = 'Đường dẫn website phải có ít nhất 2 ký tự.'; return; }
                 this.saving = true; this.error = '';
                 try {
                     if (this.editor.mode === 'create') await DeLongApi.post('/api/admin/properties-admin', this.form);
