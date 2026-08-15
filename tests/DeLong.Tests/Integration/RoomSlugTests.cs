@@ -79,7 +79,7 @@ public sealed class RoomSlugTests
         var legacyRoom = new Room
         {
             PropertyId = property.Id,
-            Code = $"LEGACY-{suffix}",
+            Code = $"LEGACY-{suffix}".ToUpperInvariant(),
             Name = $"Nana Legacy {suffix}",
             Slug = null,
             Capacity = 2,
