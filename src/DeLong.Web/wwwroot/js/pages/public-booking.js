@@ -28,6 +28,8 @@
             const today = initial.today || initial.date;
             const arrival = initial.date || today;
             return {
+                siteSlug: initial.siteSlug || '',
+                scopePrefix: initial.scopePrefix || '',
                 bookingType: 0,
                 today,
                 date: arrival,
@@ -90,6 +92,12 @@
             }
         },
         methods: {
+            apiUrl(path, params = {}) {
+                const query = new URLSearchParams(params);
+                if (this.siteSlug) query.set('siteSlug', this.siteSlug);
+                const suffix = query.toString();
+                return suffix ? `${path}?${suffix}` : path;
+            },
             money(value) {
                 return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
             },
@@ -103,7 +111,7 @@
             },
             async loadRoomMedia() {
                 try {
-                    const items = await DeLongApi.get('/api/public/room-media');
+                    const items = await DeLongApi.get(this.apiUrl('/api/public/room-media'));
                     this.roomMedia = Object.fromEntries((items || []).map(item => [item.roomId, item]));
                 } catch {
                     this.roomMedia = {};
@@ -151,7 +159,7 @@
                 this.loading = true;
                 this.errorMessage = '';
                 try {
-                    const data = await DeLongApi.get(`/api/public/availability?date=${encodeURIComponent(this.date)}`);
+                    const data = await DeLongApi.get(this.apiUrl('/api/public/availability', { date: this.date }));
                     this.rooms = data.rooms || [];
                     if (this.selectedRoomId) {
                         const room = this.rooms.find(x => x.id === this.selectedRoomId);
@@ -182,7 +190,7 @@
                 this.loading = true;
                 this.errorMessage = '';
                 try {
-                    const data = await DeLongApi.get(`/api/public/stay-availability?checkIn=${encodeURIComponent(this.checkInDate)}&checkOut=${encodeURIComponent(this.checkOutDate)}`);
+                    const data = await DeLongApi.get(this.apiUrl('/api/public/stay-availability', { checkIn: this.checkInDate, checkOut: this.checkOutDate }));
                     this.stayRooms = data.rooms || [];
                     if (this.selectedRoomId) {
                         const room = this.stayRooms.find(x => x.id === this.selectedRoomId && x.available);
@@ -223,9 +231,9 @@
                         note: this.form.note,
                         website: this.form.website
                     };
-                    const result = await DeLongApi.post('/api/public/booking-requests', payload);
+                    const result = await DeLongApi.post(this.apiUrl('/api/public/booking-requests'), payload);
                     const query = new URLSearchParams({ code: result.code, room: result.roomName, amount: String(result.totalAmount) });
-                    window.location.assign(`/booking/success?${query.toString()}`);
+                    window.location.assign(`${this.scopePrefix}/booking/success?${query.toString()}`);
                 } catch (error) {
                     this.errorMessage = error.message || 'Không thể gửi yêu cầu lúc này.';
                     if (error.status === 409) {
