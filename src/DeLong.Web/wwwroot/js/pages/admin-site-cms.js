@@ -17,7 +17,7 @@
         if (type === 'Hero') return { eyebrow: '', title: '', body: '', primaryText: 'Đặt phòng', primaryUrl: '/booking', secondaryText: 'Xem phòng', secondaryUrl: '/rooms', imageUrl: '' };
         if (type === 'AvailabilitySearch') return { title: 'Chọn ngày bạn muốn ghé' };
         if (type === 'RoomGrid') return { eyebrow: 'KHÔNG GIAN', title: 'Chọn căn phòng hợp với nhịp của bạn', limit: 6 };
-        if (type === 'FeatureGrid') return { eyebrow: '', title: '', body: '', items: [] };
+        if (type === 'FeatureGrid') return { eyebrow: '', title: '', body: '', items: [], imageUrl: '' };
         if (type === 'Cta') return { title: '', body: '', buttonText: 'Đặt phòng', buttonUrl: '/booking' };
         return { html: '<p>Nội dung mới</p>' };
     }
@@ -49,6 +49,7 @@
             variantsFor(type) {
                 if (type === 'Hero') return ['split', 'centered', 'image-first', 'image-full', 'booking-overlay', 'editorial'];
                 if (type === 'RoomGrid') return ['grid-3', 'grid-2', 'featured-first', 'editorial-cards', 'horizontal-scroll'];
+                if (type === 'AvailabilitySearch') return ['booking-bar', 'card', 'minimal'];
                 if (type === 'FeatureGrid') return ['split', 'stacked', 'icon-grid', 'dark-band', 'editorial'];
                 if (type === 'RichText') return ['narrow', 'wide', 'editorial'];
                 if (type === 'Cta') return ['card', 'full-width', 'dark', 'offer'];
