@@ -83,6 +83,113 @@
         }
     }
 
+    if (body.classList.contains('public-body')) {
+        if (!document.querySelector('link[data-public-actions]')) {
+            const stylesheet = document.createElement('link');
+            stylesheet.rel = 'stylesheet';
+            stylesheet.href = '/css/public-actions.css?v=20260815-1';
+            stylesheet.dataset.publicActions = 'true';
+            document.head.appendChild(stylesheet);
+        }
+
+        // Use one clear public CTA label. Availability forms keep their more specific
+        // “Xem phòng trống” wording, while links that start the booking journey say “Đặt phòng”.
+        document.querySelectorAll('a.public-btn[href*="/booking"]').forEach(link => {
+            if (/kiểm tra phòng/i.test((link.textContent || '').trim())) {
+                link.textContent = 'Đặt phòng';
+                link.setAttribute('aria-label', 'Đặt phòng');
+            }
+        });
+
+        const getBookingTarget = card => {
+            const detailLink = card.querySelector('a[href*="/rooms/"]');
+            if (!detailLink) return null;
+            let url;
+            try {
+                url = new URL(detailLink.getAttribute('href') || '', window.location.origin);
+            } catch {
+                return null;
+            }
+            const match = url.pathname.match(/^\/h\/([^/]+)\/rooms\/([^/]+)\/?$/i);
+            if (!match) return null;
+
+            const siteSlug = decodeURIComponent(match[1]);
+            const roomSlug = decodeURIComponent(match[2]);
+            const badgeCode = card.querySelector('.public-room-code-badge')?.textContent?.trim();
+            const posterMeta = card.querySelector('.public-room-poster small')?.textContent?.trim() || '';
+            const posterCode = posterMeta.includes('·') ? posterMeta.split('·').pop().trim() : '';
+            const roomKey = badgeCode || posterCode || roomSlug;
+            return `/h/${encodeURIComponent(siteSlug)}/booking?room=${encodeURIComponent(roomKey)}`;
+        };
+
+        document.querySelectorAll('.public-room-card, .public-room-card-v2').forEach(card => {
+            if (card.querySelector('.public-room-book-now')) return;
+            const target = getBookingTarget(card);
+            if (!target) return;
+
+            const button = document.createElement('a');
+            button.className = 'public-room-book-now';
+            button.href = target;
+            button.textContent = 'Đặt ngay';
+            button.setAttribute('aria-label', 'Đặt ngay phòng này');
+
+            const footer = card.querySelector('.public-room-card-v2-footer');
+            const bodyTarget = card.querySelector('.public-room-body');
+            if (footer) footer.appendChild(button);
+            else if (bodyTarget) bodyTarget.appendChild(button);
+        });
+
+        // On a scoped booking page, let guests switch property without backing out to the
+        // intermediate selection screen. The current date is preserved; room selection resets
+        // because room ids/codes belong to a specific property.
+        const bookingRoot = document.getElementById('public-booking-page');
+        const bookingData = document.getElementById('public-booking-data');
+        if (bookingRoot && bookingData && !document.querySelector('.public-booking-property-bar')) {
+            try {
+                const data = JSON.parse(bookingData.textContent || '{}');
+                const properties = Array.isArray(data.properties) ? data.properties : [];
+                if (properties.length > 1) {
+                    const bar = document.createElement('section');
+                    bar.className = 'public-booking-property-bar';
+                    const inner = document.createElement('div');
+                    inner.className = 'public-container public-booking-property-switch';
+
+                    const copy = document.createElement('div');
+                    copy.className = 'public-booking-property-copy';
+                    copy.innerHTML = '<span>CƠ SỞ</span><strong>Chọn nơi bạn muốn đặt</strong><small>Đổi cơ sở để xem đúng danh sách phòng và lịch trống.</small>';
+
+                    const label = document.createElement('label');
+                    label.className = 'public-booking-property-field';
+                    const labelText = document.createElement('span');
+                    labelText.textContent = 'Cơ sở';
+                    const select = document.createElement('select');
+                    select.setAttribute('aria-label', 'Chọn cơ sở đặt phòng');
+                    properties.forEach(property => {
+                        const option = document.createElement('option');
+                        option.value = property.siteSlug;
+                        option.textContent = `${property.siteName} · ${property.roomCount} phòng`;
+                        option.selected = property.siteSlug === data.siteSlug;
+                        select.appendChild(option);
+                    });
+                    label.append(labelText, select);
+                    inner.append(copy, label);
+                    bar.appendChild(inner);
+                    bookingRoot.insertAdjacentElement('beforebegin', bar);
+
+                    select.addEventListener('change', () => {
+                        const currentDate = bookingRoot.querySelector('input[type="date"]')?.value || data.date || '';
+                        const query = new URLSearchParams();
+                        if (currentDate) query.set('date', currentDate);
+                        const suffix = query.toString();
+                        window.location.assign(`/h/${encodeURIComponent(select.value)}/booking${suffix ? `?${suffix}` : ''}`);
+                    });
+                }
+            } catch {
+                // Booking can still be used normally if optional property-switcher data is malformed.
+            }
+        }
+    }
+
     window.addEventListener('delong:properties-changed', () => window.location.reload());
 
     window.matchMedia('(min-width: 981px)').addEventListener('change', event => {
