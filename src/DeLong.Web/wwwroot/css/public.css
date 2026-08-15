@@ -232,3 +232,5 @@
 @media (prefers-reduced-motion:reduce) {
     .public-btn,.public-room-card,.public-rate-row,.public-booking-room { transition:none; }
 }
+
+.public-site-brand-logo{width:46px;height:46px;display:block;object-fit:contain;border-radius:12px}.public-site-brand:has(.public-site-brand-logo) .brand-mark{display:none}
