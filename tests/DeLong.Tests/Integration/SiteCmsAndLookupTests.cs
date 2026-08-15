@@ -189,7 +189,7 @@ public sealed class SiteCmsAndLookupTests
             BookingId = booking.Id,
             Type = PaymentType.Receipt,
             Amount = 150_000m,
-            PaidAtUtc = DateTime.UtcNow,
+            OccurredAtUtc = DateTime.UtcNow,
             Method = PaymentMethod.Cash
         };
         var refund = new Payment
@@ -199,7 +199,7 @@ public sealed class SiteCmsAndLookupTests
             BookingId = booking.Id,
             Type = PaymentType.Refund,
             Amount = 30_000m,
-            PaidAtUtc = DateTime.UtcNow,
+            OccurredAtUtc = DateTime.UtcNow,
             Method = PaymentMethod.Cash
         };
         var voidedReceipt = new Payment
@@ -209,7 +209,7 @@ public sealed class SiteCmsAndLookupTests
             BookingId = booking.Id,
             Type = PaymentType.Receipt,
             Amount = 999_000m,
-            PaidAtUtc = DateTime.UtcNow,
+            OccurredAtUtc = DateTime.UtcNow,
             Method = PaymentMethod.Cash,
             IsVoided = true,
             VoidedAtUtc = DateTime.UtcNow,
