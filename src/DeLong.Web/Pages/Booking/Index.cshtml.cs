@@ -19,6 +19,9 @@ public sealed class IndexModel(
 
     public async Task<IActionResult> OnGetAsync(string? siteSlug, string? site, string? date, string? room, Guid? rate, CancellationToken cancellationToken)
     {
+        var globalCatalog = await publicRoomContentService.GetGlobalCatalogAsync(cancellationToken);
+        Properties = globalCatalog.Properties;
+
         if (string.IsNullOrWhiteSpace(siteSlug))
         {
             if (!string.IsNullOrWhiteSpace(site))
@@ -29,12 +32,10 @@ public sealed class IndexModel(
                     : Redirect(PublicUrlBuilder.Booking(selectedProperty.SiteSlug, date, room, rate));
             }
 
-            var globalCatalog = await publicRoomContentService.GetGlobalCatalogAsync(cancellationToken);
-            if (globalCatalog.Properties.Count == 0) return NotFound();
-            if (globalCatalog.Properties.Count == 1)
-                return Redirect(PublicUrlBuilder.Booking(globalCatalog.Properties[0].SiteSlug, date, room, rate));
+            if (Properties.Count == 0) return NotFound();
+            if (Properties.Count == 1)
+                return Redirect(PublicUrlBuilder.Booking(Properties[0].SiteSlug, date, room, rate));
             RequiresPropertySelection = true;
-            Properties = globalCatalog.Properties;
             return Page();
         }
 
@@ -48,6 +49,15 @@ public sealed class IndexModel(
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
         var selectedDate = DateOnly.TryParse(date, out var parsedDate) && parsedDate >= today ? parsedDate : today;
         var selectedRoom = catalog.Rooms.FirstOrDefault(x => string.Equals(x.Code, room, StringComparison.OrdinalIgnoreCase));
+        if (selectedRoom is null && !string.IsNullOrWhiteSpace(room))
+        {
+            // Room cards can link with either the internal room code or the public room slug.
+            // Resolving both keeps the public CTA independent from how the card itself is rendered.
+            var roomContent = await publicRoomContentService.GetRoomAsync(property.Id, room, cancellationToken);
+            if (roomContent is not null)
+                selectedRoom = catalog.Rooms.FirstOrDefault(x => x.Id == roomContent.Id);
+        }
+
         PublicRateDto? selectedRate = null;
         if (rate.HasValue)
         {
@@ -69,7 +79,14 @@ public sealed class IndexModel(
             date = selectedDate.ToString("yyyy-MM-dd"),
             rooms = catalog.Rooms,
             initialRoomId = selectedRoom?.Id,
-            initialRateId = selectedRate?.Id
+            initialRateId = selectedRate?.Id,
+            properties = Properties.Select(x => new
+            {
+                x.Id,
+                x.SiteName,
+                x.SiteSlug,
+                x.RoomCount
+            })
         }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return Page();
     }
