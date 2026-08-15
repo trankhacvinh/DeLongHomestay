@@ -1,4 +1,5 @@
 using DeLong.Web.Data;
+using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Site;
@@ -59,7 +60,7 @@ public sealed class PublicBookingLookupService(AppDbContext db)
             .SingleOrDefaultAsync(ct);
         if (booking is null) return null;
 
-        var site = await db.Set<Domain.Entities.PropertySiteSettings>().AsNoTracking()
+        var site = await db.Set<PropertySiteSettings>().AsNoTracking()
             .Where(x => x.Property.Code == SiteContentService.PublicPropertyCode)
             .Select(x => new { x.Phone, x.Address, x.SiteName })
             .SingleOrDefaultAsync(ct);
