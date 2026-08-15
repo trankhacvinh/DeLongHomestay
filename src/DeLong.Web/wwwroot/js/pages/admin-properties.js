@@ -14,6 +14,16 @@
         },
         async mounted() { await this.load(); },
         methods: {
+            publicPath(code) {
+                const normalized = String(code || '')
+                    .trim()
+                    .toLowerCase()
+                    .replace(/_/g, '-')
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/^-+|-+$/g, '');
+                const slug = normalized === 'delong' ? 'de-long' : normalized;
+                return slug ? `/h/${slug}` : '/h/...';
+            },
             async load() {
                 this.loading = true;
                 this.loadError = '';
