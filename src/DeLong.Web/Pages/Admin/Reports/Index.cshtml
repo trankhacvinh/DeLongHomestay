@@ -10,14 +10,20 @@
         <div>
             <div class="page-eyebrow">Phân tích kinh doanh</div>
             <h1>Báo cáo</h1>
-            <p>Đọc riêng giá trị booking, tiền thực thu và dòng tiền để tránh nhầm doanh thu với tiền đã nhận.</p>
+            <p>Đọc riêng giá trị booking, tiền thực thu và dòng tiền theo từng cơ sở hoặc toàn bộ cơ sở được phân quyền.</p>
         </div>
-        <div class="toolbar report-toolbar" aria-label="Điều hướng tháng">
+        <div class="toolbar report-toolbar" aria-label="Bộ lọc báo cáo">
+            <select class="property-scope-select" v-model="scope" v-on:change="changeScope" aria-label="Phạm vi cơ sở">
+                <option v-if="properties.length > 1" value="all">Tất cả cơ sở</option>
+                <option v-for="property in properties" v-bind:key="property.id" v-bind:value="property.id">{{ property.name }}</option>
+            </select>
             <button class="btn-icon" type="button" v-on:click="moveMonth(-1)" aria-label="Tháng trước"><svg><use href="#i-chevron-left" /></svg></button>
             <div class="month-selector"><svg><use href="#i-calendar" /></svg><strong>{{ monthLabel }}</strong></div>
             <button class="btn-icon" type="button" v-on:click="moveMonth(1)" aria-label="Tháng sau"><svg><use href="#i-chevron-right" /></svg></button>
         </div>
     </div>
+
+    <div class="report-scope-caption">Phạm vi đang xem: <strong>{{ scopeName }}</strong></div>
 
     <section class="report-overview" aria-label="Chỉ số tháng">
         <article class="report-stat">
@@ -103,6 +109,7 @@
 </div>
 @section Head {
     <link rel="stylesheet" href="~/css/finance-reports.css" asp-append-version="true" />
+    <style>.property-scope-select{min-height:40px;width:auto;max-width:230px}.report-scope-caption{margin-top:-10px;color:var(--muted);font-size:.88rem}.report-scope-caption strong{color:var(--text)}</style>
 }
 @section Scripts {
     <script src="~/js/pages/admin-reports.js" asp-append-version="true"></script>
