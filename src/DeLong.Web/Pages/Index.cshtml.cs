@@ -1,4 +1,3 @@
-
 using System.Text.Json.Nodes;
 using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.PublicRooms;
@@ -32,7 +31,7 @@ public sealed class IndexModel(
             IsGlobalHome = true;
             GlobalCatalog = await publicRoomContentService.GetGlobalCatalogAsync(cancellationToken);
             var globalSections = await siteContentService.GetGlobalPublicSectionsAsync(cancellationToken);
-            Sections = ToViewModels(globalSections);
+            Sections = NormalizeGlobalSections(ToViewModels(globalSections), GlobalCatalog.Properties.Count);
             var timeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
             var localNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
             DefaultDate = DateOnly.FromDateTime(localNow).ToString("yyyy-MM-dd");
@@ -92,6 +91,30 @@ public sealed class IndexModel(
         }
 
         return GlobalCatalog.Rooms.Take(limit).ToList();
+    }
+
+    private static IReadOnlyList<PublicHomeSectionVm> NormalizeGlobalSections(
+        IReadOnlyList<PublicHomeSectionVm> sections,
+        int activePropertyCount)
+    {
+        if (activePropertyCount > 1) return sections;
+
+        var normalized = new List<PublicHomeSectionVm>();
+        foreach (var section in sections)
+        {
+            if (string.Equals(section.Type, "BranchGrid", StringComparison.OrdinalIgnoreCase)) continue;
+
+            if (string.Equals(section.Type, "Hero", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(section.Content["secondaryUrl"]?.ToString(), "/#co-so", StringComparison.OrdinalIgnoreCase))
+            {
+                section.Content["secondaryText"] = string.Empty;
+                section.Content["secondaryUrl"] = string.Empty;
+            }
+
+            normalized.Add(section);
+        }
+
+        return normalized;
     }
 
     private static IReadOnlyList<PublicHomeSectionVm> ToViewModels(IEnumerable<HomeSectionDto> sections) =>
