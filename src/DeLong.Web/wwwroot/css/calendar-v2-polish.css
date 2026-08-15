@@ -20,3 +20,14 @@
     background:#e7eef0;
     color:#60777e;
 }
+
+/* A requested booking is still a real interactive item. The old empty-cell hover CTA
+   was based only on locking statuses, so it could appear on top of a request and steal
+   the visual target. Any rendered booking owns the cell; only truly empty cells show
+   the create affordance. */
+.day-cell:has(.booking-chip) .empty-cell-action {
+    display:none!important;
+}
+.day-cell:has(.booking-chip) .booking-chip {
+    z-index:2;
+}
