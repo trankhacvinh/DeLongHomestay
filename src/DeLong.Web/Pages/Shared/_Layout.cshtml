@@ -104,6 +104,7 @@
     @await RenderSectionAsync("Head", required: false)
     <link rel="stylesheet" href="~/css/mobile-final.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/public.css" asp-append-version="true" />
+    @if (!isAdmin) { <link rel="stylesheet" href="~/css/hospitality-shell.css" asp-append-version="true" /> }
     @if (!isAdmin && !isGlobalPublic) { <link rel="stylesheet" href="@(publicScopePrefix + "/site/custom.css")" /> }
 </head>
 <body class="@(isAdmin ? "admin-body" : "public-body")">
@@ -252,6 +253,46 @@ else
         </div>
     </header>
     <main class="public-main" id="main-content" tabindex="-1">@RenderBody()</main>
+    <footer class="public-hospitality-footer">
+        <div class="public-container public-hospitality-footer-grid">
+            <div class="public-footer-brand">
+                <a class="public-site-brand public-footer-brand-link" href="@(isGlobalPublic ? "/" : DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(publicSiteSlug!))">
+                    @if (!string.IsNullOrWhiteSpace(publicSettings?.LogoUrl)) { <img class="public-site-brand-logo" src="@publicSettings.LogoUrl" alt="@publicSiteName" /> }
+                    else { <span class="brand-mark">DL</span> }
+                    <span><strong>@publicSiteName</strong><small>@publicTagline</small></span>
+                </a>
+                <p>Một nơi để nghỉ chậm lại, chọn phòng rõ ràng và gửi yêu cầu đặt chỗ trực tiếp.</p>
+                <a class="public-footer-book" href="@bookingUrl">Đặt phòng →</a>
+            </div>
+            <div class="public-footer-column">
+                <strong>Khám phá</strong>
+                <a href="/">Trang chủ</a>
+                <a href="/rooms">Phòng</a>
+                <a href="@bookingUrl">Đặt phòng</a>
+                <a href="@lookupUrl">Tra cứu</a>
+            </div>
+            @if (showPublicBranches)
+            {
+                <div class="public-footer-column">
+                    <strong>Cơ sở</strong>
+                    @foreach (var property in publicProperties)
+                    {
+                        <a href="@DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(property.SiteSlug)">@property.Name</a>
+                    }
+                </div>
+            }
+            @if (!isGlobalPublic && publicSettings is not null && (!string.IsNullOrWhiteSpace(publicSettings.Phone) || !string.IsNullOrWhiteSpace(publicSettings.Email) || !string.IsNullOrWhiteSpace(publicSettings.Address)))
+            {
+                <div class="public-footer-column public-footer-contact">
+                    <strong>Liên hệ</strong>
+                    @if (!string.IsNullOrWhiteSpace(publicSettings.Address)) { <span>@publicSettings.Address</span> }
+                    @if (!string.IsNullOrWhiteSpace(publicSettings.Phone)) { <a href="tel:@publicSettings.Phone">@publicSettings.Phone</a> }
+                    @if (!string.IsNullOrWhiteSpace(publicSettings.Email)) { <a href="mailto:@publicSettings.Email">@publicSettings.Email</a> }
+                </div>
+            }
+        </div>
+        <div class="public-container public-footer-bottom"><span>© @DateTime.UtcNow.Year De Long Homestay</span><span>Đặt phòng trực tiếp · Giá rõ ràng · Xác nhận bởi nhân viên</span></div>
+    </footer>
 }
 <div id="global-toast-root" class="toast-root" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/vue@3.5.40/dist/vue.global.prod.js"></script>
