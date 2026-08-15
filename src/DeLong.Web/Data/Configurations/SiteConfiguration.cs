@@ -18,6 +18,7 @@ public sealed class PropertySiteSettingsConfiguration : IEntityTypeConfiguration
         entity.Property(x => x.FacebookUrl).HasMaxLength(1000);
         entity.Property(x => x.ZaloUrl).HasMaxLength(1000);
         entity.Property(x => x.GoogleMapsUrl).HasMaxLength(1000);
+        entity.Property(x => x.CoverImageUrl).HasMaxLength(1000);
         entity.Property(x => x.LogoUrl).HasMaxLength(1000);
         entity.Property(x => x.FaviconUrl).HasMaxLength(1000);
         entity.Property(x => x.OgImageUrl).HasMaxLength(1000);
