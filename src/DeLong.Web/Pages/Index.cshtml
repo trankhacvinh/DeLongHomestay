@@ -2,11 +2,18 @@
 @using System.Text.Json.Nodes
 @model DeLong.Web.Pages.IndexModel
 @{
-    ViewData["Title"] = string.IsNullOrWhiteSpace(Model.SiteSettings?.MetaTitle) ? "De Long Homestay" : Model.SiteSettings.MetaTitle;
+    var siteName = string.IsNullOrWhiteSpace(Model.SiteSettings?.SiteName) ? "De Long Homestay" : Model.SiteSettings.SiteName;
+    ViewData["Title"] = string.IsNullOrWhiteSpace(Model.SiteSettings?.MetaTitle) ? siteName : Model.SiteSettings.MetaTitle;
     ViewData["MetaDescription"] = Model.SiteSettings?.MetaDescription;
     var roomCount = Model.Catalog.Rooms.Count;
     var fromPrice = Model.Catalog.Rooms.Where(x => x.QuickFromPrice > 0).Select(x => x.QuickFromPrice).DefaultIfEmpty(0).Min();
     string Text(JsonObject content, string key, string fallback = "") => content[key]?.GetValue<string>() ?? fallback;
+    string ScopedUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(Model.SiteSlug) || !url.StartsWith('/')) return url;
+        if (url.StartsWith("/h/", StringComparison.OrdinalIgnoreCase)) return url;
+        return $"{Model.ScopePrefix}{url}";
+    }
 }
 
 @section Head {
@@ -23,13 +30,13 @@
         {
             case "Hero":
             {
-                var eyebrow = Text(block.Content, "eyebrow", "Long Thành · Đồng Nai");
+                var eyebrow = Text(block.Content, "eyebrow", siteName);
                 var title = Text(block.Content, "title", "Một khoảng nghỉ riêng tư, vừa đủ để chậm lại.");
                 var body = Text(block.Content, "body", $"{roomCount} không gian nghỉ cho những buổi hẹn ngắn hoặc vài ngày riêng tư.");
                 var primaryText = Text(block.Content, "primaryText", "Kiểm tra phòng trống");
-                var primaryUrl = Text(block.Content, "primaryUrl", "/booking");
+                var primaryUrl = ScopedUrl(Text(block.Content, "primaryUrl", "/booking"));
                 var secondaryText = Text(block.Content, "secondaryText", $"Xem {roomCount} phòng");
-                var secondaryUrl = Text(block.Content, "secondaryUrl", "/rooms");
+                var secondaryUrl = ScopedUrl(Text(block.Content, "secondaryUrl", "/rooms"));
                 var imageUrl = Text(block.Content, "imageUrl");
                 <section class="public-hero public-cms-hero variant-@(block.Variant)">
                     <div class="public-container public-hero-grid">
@@ -55,8 +62,8 @@
                         }
                         else
                         {
-                            <div class="public-hero-art" aria-label="De Long Homestay">
-                                <div class="hero-art-card hero-art-main"><span>DE LONG</span><strong>STAY SLOW</strong><small>Private rooms · flexible stay</small></div>
+                            <div class="public-hero-art" aria-label="@siteName">
+                                <div class="hero-art-card hero-art-main"><span>@siteName</span><strong>STAY SLOW</strong><small>Private rooms · flexible stay</small></div>
                                 <div class="hero-art-card hero-art-float"><small>@roomCount phòng</small><strong>@(fromPrice > 0 ? $"Đặt nhanh từ {fromPrice:N0}đ" : "Giá rõ ràng")</strong></div>
                             </div>
                         }
@@ -69,7 +76,7 @@
                 var title = Text(block.Content, "title", "Chọn ngày bạn muốn ghé");
                 <section class="public-check-section">
                     <div class="public-container">
-                        <form class="public-check-card" method="get" asp-page="/Booking/Index">
+                        <form class="public-check-card" method="get" asp-page="/Booking/Index" asp-route-siteSlug="@Model.SiteSlug">
                             <div><span class="public-eyebrow">Kiểm tra nhanh</span><h2>@title</h2></div>
                             <label class="public-date-field"><span>Ngày sử dụng</span><input type="date" name="date" value="@Model.DefaultDate" required /></label>
                             <button class="public-btn public-btn-primary" type="submit">Xem phòng trống</button>
@@ -85,25 +92,25 @@
                 var limit = block.Content["limit"]?.GetValue<int>() ?? 6;
                 <section class="public-section public-home-rooms public-cms-room-grid variant-@(block.Variant)">
                     <div class="public-container">
-                        <div class="public-section-head"><div><span class="public-eyebrow">@eyebrow</span><h2>@title</h2></div><a class="public-text-link" asp-page="/Rooms/Index">Xem tất cả phòng →</a></div>
+                        <div class="public-section-head"><div><span class="public-eyebrow">@eyebrow</span><h2>@title</h2></div><a class="public-text-link" asp-page="/Rooms/Index" asp-route-siteSlug="@Model.SiteSlug">Xem tất cả phòng →</a></div>
                         <div class="public-room-grid">
                             @foreach (var room in Model.Catalog.Rooms.Take(Math.Clamp(limit, 1, 12)))
                             {
                                 <article class="public-room-card public-room-card-content">
-                                    <a class="public-room-art" asp-page="/Rooms/Details" asp-route-code="@room.Slug" data-room-code="@room.Code" aria-label="Xem @room.Name">
+                                    <a class="public-room-art" asp-page="/Rooms/Details" asp-route-siteSlug="@Model.SiteSlug" asp-route-code="@room.Slug" data-room-code="@room.Code" aria-label="Xem @room.Name">
                                         @if (!string.IsNullOrWhiteSpace(room.CoverCardUrl))
                                         {
                                             <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" width="900" height="675" loading="lazy" />
                                             <span class="public-room-image-scrim"></span>
-                                            <span class="public-room-image-title"><small>DE LONG · @room.Code</small><strong>@room.Name</strong></span>
+                                            <span class="public-room-image-title"><small>@siteName · @room.Code</small><strong>@room.Name</strong></span>
                                         }
                                         else
                                         {
-                                            <span class="public-room-poster"><small>DE LONG STAY · @room.Code</small><strong>@room.Name</strong></span>
+                                            <span class="public-room-poster"><small>@siteName · @room.Code</small><strong>@room.Name</strong></span>
                                         }
                                         @if (room.HasBathtub) { <span class="public-room-feature">Bồn tắm</span> }
                                     </a>
-                                    <div class="public-room-body"><div><h3><a asp-page="/Rooms/Details" asp-route-code="@room.Slug">@room.Name</a></h3><p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người · nhiều lựa chọn thời gian" : room.ShortDescription)</p></div><div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div></div>
+                                    <div class="public-room-body"><div><h3><a asp-page="/Rooms/Details" asp-route-siteSlug="@Model.SiteSlug" asp-route-code="@room.Slug">@room.Name</a></h3><p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người · nhiều lựa chọn thời gian" : room.ShortDescription)</p></div><div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div></div>
                                 </article>
                             }
                         </div>
@@ -113,7 +120,7 @@
             }
             case "FeatureGrid":
             {
-                var eyebrow = Text(block.Content, "eyebrow", "De Long Homestay");
+                var eyebrow = Text(block.Content, "eyebrow", siteName);
                 var title = Text(block.Content, "title");
                 var body = Text(block.Content, "body");
                 var items = block.Content["items"] as JsonArray;
@@ -148,8 +155,8 @@
                 var title = Text(block.Content, "title");
                 var body = Text(block.Content, "body");
                 var buttonText = Text(block.Content, "buttonText", "Kiểm tra phòng trống");
-                var buttonUrl = Text(block.Content, "buttonUrl", "/booking");
-                <section class="public-section public-cms-cta variant-@(block.Variant)"><div class="public-container"><div class="public-cms-cta-card"><div><span class="public-eyebrow">De Long Homestay</span><h2>@title</h2><p>@body</p></div><a class="public-btn public-btn-primary" href="@buttonUrl">@buttonText</a></div></div></section>
+                var buttonUrl = ScopedUrl(Text(block.Content, "buttonUrl", "/booking"));
+                <section class="public-section public-cms-cta variant-@(block.Variant)"><div class="public-container"><div class="public-cms-cta-card"><div><span class="public-eyebrow">@siteName</span><h2>@title</h2><p>@body</p></div><a class="public-btn public-btn-primary" href="@buttonUrl">@buttonText</a></div></div></section>
                 break;
             }
         }
@@ -160,36 +167,39 @@ else
     <section class="public-hero">
         <div class="public-container public-hero-grid">
             <div class="public-hero-copy">
-                <span class="public-eyebrow">Long Thành · Đồng Nai</span>
+                <span class="public-eyebrow">@siteName</span>
                 <h1>Một khoảng nghỉ riêng tư, vừa đủ để chậm lại.</h1>
-                <p>@roomCount không gian nghỉ cho những buổi hẹn ngắn, một đêm thư giãn hoặc vài ngày riêng tư tại Long Thành.</p>
-                <div class="public-hero-actions"><a class="public-btn public-btn-primary" asp-page="/Booking/Index">Kiểm tra phòng trống</a><a class="public-btn public-btn-ghost" asp-page="/Rooms/Index">Xem @roomCount phòng</a></div>
-                <div class="public-contact-line"><span>Hẻm 39 Nguyễn Đình Chiểu, Long Thành</span><span>0352 291 921</span></div>
+                <p>@roomCount không gian nghỉ cho những buổi hẹn ngắn, một đêm thư giãn hoặc vài ngày riêng tư.</p>
+                <div class="public-hero-actions"><a class="public-btn public-btn-primary" asp-page="/Booking/Index" asp-route-siteSlug="@Model.SiteSlug">Kiểm tra phòng trống</a><a class="public-btn public-btn-ghost" asp-page="/Rooms/Index" asp-route-siteSlug="@Model.SiteSlug">Xem @roomCount phòng</a></div>
+                @if (!string.IsNullOrWhiteSpace(Model.SiteSettings?.Address) || !string.IsNullOrWhiteSpace(Model.SiteSettings?.Phone))
+                {
+                    <div class="public-contact-line"><span>@Model.SiteSettings?.Address</span><span>@Model.SiteSettings?.Phone</span></div>
+                }
             </div>
-            <div class="public-hero-art" aria-label="De Long Homestay"><div class="hero-art-card hero-art-main"><span>DE LONG</span><strong>STAY SLOW</strong><small>Private rooms · flexible stay</small></div><div class="hero-art-card hero-art-float"><small>@roomCount phòng</small><strong>@(fromPrice > 0 ? $"Đặt nhanh từ {fromPrice:N0}đ" : "Giá rõ ràng")</strong></div></div>
+            <div class="public-hero-art" aria-label="@siteName"><div class="hero-art-card hero-art-main"><span>@siteName</span><strong>STAY SLOW</strong><small>Private rooms · flexible stay</small></div><div class="hero-art-card hero-art-float"><small>@roomCount phòng</small><strong>@(fromPrice > 0 ? $"Đặt nhanh từ {fromPrice:N0}đ" : "Giá rõ ràng")</strong></div></div>
         </div>
     </section>
-    <section class="public-check-section"><div class="public-container"><form class="public-check-card" method="get" asp-page="/Booking/Index"><div><span class="public-eyebrow">Kiểm tra nhanh</span><h2>Chọn ngày bạn muốn ghé</h2></div><label class="public-date-field"><span>Ngày sử dụng</span><input type="date" name="date" value="@Model.DefaultDate" required /></label><button class="public-btn public-btn-primary" type="submit">Xem phòng trống</button></form></div></section>
+    <section class="public-check-section"><div class="public-container"><form class="public-check-card" method="get" asp-page="/Booking/Index" asp-route-siteSlug="@Model.SiteSlug"><div><span class="public-eyebrow">Kiểm tra nhanh</span><h2>Chọn ngày bạn muốn ghé</h2></div><label class="public-date-field"><span>Ngày sử dụng</span><input type="date" name="date" value="@Model.DefaultDate" required /></label><button class="public-btn public-btn-primary" type="submit">Xem phòng trống</button></form></div></section>
     <section class="public-section public-home-rooms">
         <div class="public-container">
-            <div class="public-section-head"><div><span class="public-eyebrow">Không gian</span><h2>Chọn căn phòng hợp với nhịp của bạn</h2></div><a class="public-text-link" asp-page="/Rooms/Index">Xem tất cả phòng →</a></div>
+            <div class="public-section-head"><div><span class="public-eyebrow">Không gian</span><h2>Chọn căn phòng hợp với nhịp của bạn</h2></div><a class="public-text-link" asp-page="/Rooms/Index" asp-route-siteSlug="@Model.SiteSlug">Xem tất cả phòng →</a></div>
             <div class="public-room-grid">
                 @foreach (var room in Model.Catalog.Rooms.Take(6))
                 {
                     <article class="public-room-card public-room-card-content">
-                        <a class="public-room-art" asp-page="/Rooms/Details" asp-route-code="@room.Slug" data-room-code="@room.Code" aria-label="Xem @room.Name">
+                        <a class="public-room-art" asp-page="/Rooms/Details" asp-route-siteSlug="@Model.SiteSlug" asp-route-code="@room.Slug" data-room-code="@room.Code" aria-label="Xem @room.Name">
                             @if (!string.IsNullOrWhiteSpace(room.CoverCardUrl))
                             {
-                                <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" width="900" height="675" loading="lazy" /><span class="public-room-image-scrim"></span><span class="public-room-image-title"><small>DE LONG · @room.Code</small><strong>@room.Name</strong></span>
+                                <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" width="900" height="675" loading="lazy" /><span class="public-room-image-scrim"></span><span class="public-room-image-title"><small>@siteName · @room.Code</small><strong>@room.Name</strong></span>
                             }
-                            else { <span class="public-room-poster"><small>DE LONG STAY · @room.Code</small><strong>@room.Name</strong></span> }
+                            else { <span class="public-room-poster"><small>@siteName · @room.Code</small><strong>@room.Name</strong></span> }
                             @if (room.HasBathtub) { <span class="public-room-feature">Bồn tắm</span> }
                         </a>
-                        <div class="public-room-body"><div><h3><a asp-page="/Rooms/Details" asp-route-code="@room.Slug">@room.Name</a></h3><p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người · nhiều lựa chọn thời gian" : room.ShortDescription)</p></div><div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div></div>
+                        <div class="public-room-body"><div><h3><a asp-page="/Rooms/Details" asp-route-siteSlug="@Model.SiteSlug" asp-route-code="@room.Slug">@room.Name</a></h3><p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người · nhiều lựa chọn thời gian" : room.ShortDescription)</p></div><div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div></div>
                     </article>
                 }
             </div>
         </div>
     </section>
-    <section class="public-section public-section-soft"><div class="public-container public-story-grid"><div><span class="public-eyebrow">De Long Homestay</span><h2>Không cần một chuyến đi xa để có một khoảng nghỉ.</h2></div><div class="public-story-copy"><p>Chúng tôi tập trung vào sự riêng tư, giờ nhận phòng linh hoạt và trải nghiệm gọn nhẹ. Bạn chọn phòng và hình thức lưu trú phù hợp; đội ngũ De Long sẽ xác nhận lại trước khi giữ phòng chính thức.</p><div class="public-benefits"><span>Nhận phòng linh hoạt</span><span>Không gian riêng tư</span><span>Giá hiển thị rõ ràng</span><span>Nhân viên xác nhận trực tiếp</span></div></div></div></section>
+    <section class="public-section public-section-soft"><div class="public-container public-story-grid"><div><span class="public-eyebrow">@siteName</span><h2>Không cần một chuyến đi xa để có một khoảng nghỉ.</h2></div><div class="public-story-copy"><p>Chúng tôi tập trung vào sự riêng tư, giờ nhận phòng linh hoạt và trải nghiệm gọn nhẹ. Bạn chọn phòng và hình thức lưu trú phù hợp; đội ngũ sẽ xác nhận lại trước khi giữ phòng chính thức.</p><div class="public-benefits"><span>Nhận phòng linh hoạt</span><span>Không gian riêng tư</span><span>Giá hiển thị rõ ràng</span><span>Nhân viên xác nhận trực tiếp</span></div></div></div></section>
 }
