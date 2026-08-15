@@ -83,8 +83,8 @@ public sealed class PropertyEditorialContentService(AppDbContext db)
     public async Task<BlogPostDto?> GetPublicPostAsync(Guid propertyId, string slug, CancellationToken ct = default)
     {
         var normalized = NormalizeSlug(slug);
-        return await GetBlogQuery(propertyId, includeUnpublished: false)
-            .SingleOrDefaultAsync(x => x.Slug == normalized, ct);
+        var posts = await GetBlogQuery(propertyId, includeUnpublished: false).ToListAsync(ct);
+        return posts.SingleOrDefault(x => x.Slug == normalized);
     }
 
     public async Task<(GalleryItemDto? Item, SiteContentError? Error)> CreateGalleryAsync(
@@ -103,14 +103,15 @@ public sealed class PropertyEditorialContentService(AppDbContext db)
         {
             PropertyId = propertyId,
             ImageUrl = imageUrl,
-            AltText = Limit(Clean(request.AltText) ?? "Không gian homestay", 300),
+            AltText = Limit(Clean(request.AltText) ?? "Không gian homestay", 300)!,
             Caption = Limit(Clean(request.Caption), 500),
             SortOrder = nextOrder,
             IsPublished = request.IsPublished
         };
         db.PropertyGalleryItems.Add(entity);
         await db.SaveChangesAsync(ct);
-        return (await GetGalleryQuery(propertyId, true).SingleAsync(x => x.Id == entity.Id, ct), null);
+        var items = await GetGalleryQuery(propertyId, true).ToListAsync(ct);
+        return (items.Single(x => x.Id == entity.Id), null);
     }
 
     public async Task<(GalleryItemDto? Item, SiteContentError? Error)> UpdateGalleryAsync(
@@ -125,11 +126,12 @@ public sealed class PropertyEditorialContentService(AppDbContext db)
         if (imageUrl is null || imageUrl.Length > 1000)
             return (null, new("validation", "Ảnh gallery không hợp lệ."));
         entity.ImageUrl = imageUrl;
-        entity.AltText = Limit(Clean(request.AltText) ?? "Không gian homestay", 300);
+        entity.AltText = Limit(Clean(request.AltText) ?? "Không gian homestay", 300)!;
         entity.Caption = Limit(Clean(request.Caption), 500);
         entity.IsPublished = request.IsPublished;
         await db.SaveChangesAsync(ct);
-        return (await GetGalleryQuery(propertyId, true).SingleAsync(x => x.Id == itemId, ct), null);
+        var items = await GetGalleryQuery(propertyId, true).ToListAsync(ct);
+        return (items.Single(x => x.Id == itemId), null);
     }
 
     public async Task<SiteContentError?> DeleteGalleryAsync(Guid propertyId, Guid itemId, CancellationToken ct = default)
@@ -175,7 +177,8 @@ public sealed class PropertyEditorialContentService(AppDbContext db)
         };
         db.BlogPosts.Add(entity);
         await db.SaveChangesAsync(ct);
-        return (await GetBlogQuery(propertyId, true).SingleAsync(x => x.Id == entity.Id, ct), null);
+        var posts = await GetBlogQuery(propertyId, true).ToListAsync(ct);
+        return (posts.Single(x => x.Id == entity.Id), null);
     }
 
     public async Task<(BlogPostDto? Post, SiteContentError? Error)> UpdatePostAsync(
@@ -197,7 +200,8 @@ public sealed class PropertyEditorialContentService(AppDbContext db)
         if (!request.IsPublished) entity.PublishedAtUtc = null;
         entity.IsPublished = request.IsPublished;
         await db.SaveChangesAsync(ct);
-        return (await GetBlogQuery(propertyId, true).SingleAsync(x => x.Id == postId, ct), null);
+        var posts = await GetBlogQuery(propertyId, true).ToListAsync(ct);
+        return (posts.Single(x => x.Id == postId), null);
     }
 
     public async Task<SiteContentError?> DeletePostAsync(Guid propertyId, Guid postId, CancellationToken ct = default)
