@@ -26,10 +26,12 @@ public sealed class PublicPropertyRoutingTests
 
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var code = $"NANA-{suffix}".ToUpperInvariant();
+        var siteSlug = $"nana-public-{suffix}";
         var property = new Property
         {
             Code = code,
             Name = $"Nana Homestay {suffix}",
+            SiteSlug = siteSlug,
             TimeZoneId = "Asia/Ho_Chi_Minh",
             IsActive = true
         };
@@ -57,11 +59,12 @@ public sealed class PublicPropertyRoutingTests
         await db.SaveChangesAsync();
 
         var resolver = new PublicPropertyResolver(db);
-        var siteSlug = PublicPropertyResolver.ToSiteSlug(code);
         var resolved = await resolver.ResolveAsync(siteSlug);
         Assert.NotNull(resolved);
         Assert.Equal(property.Id, resolved!.Id);
         Assert.Equal(siteSlug, resolved.SiteSlug);
+        Assert.NotEqual(PublicPropertyResolver.ToSiteSlug(code), resolved.SiteSlug);
+        Assert.Null(await resolver.ResolveAsync(PublicPropertyResolver.ToSiteSlug(code)));
 
         var roomService = new PublicRoomContentService(db);
         var catalog = await roomService.GetCatalogAsync(property.Id);
@@ -84,6 +87,7 @@ public sealed class PublicPropertyRoutingTests
     {
         Assert.Equal("de-long", PublicPropertyResolver.ToSiteSlug("DELONG"));
         Assert.Equal("nana-02", PublicPropertyResolver.ToSiteSlug("NANA_02"));
+        Assert.Equal("nana", PublicPropertyResolver.EffectiveSiteSlug("NANA", "NANA_02"));
         Assert.Equal("/h/nana-02", PublicPropertyResolver.ScopePrefix("nana-02"));
     }
 }
