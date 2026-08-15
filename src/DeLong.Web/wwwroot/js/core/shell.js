@@ -160,6 +160,7 @@
                             const button = document.createElement('button');
                             button.type = 'button';
                             button.className = `public-booking-property-choice${property.siteSlug === data.siteSlug ? ' active' : ''}`;
+                            button.dataset.siteSlug = property.siteSlug;
                             button.setAttribute('aria-pressed', property.siteSlug === data.siteSlug ? 'true' : 'false');
                             button.setAttribute('aria-label', `Chọn cơ sở ${property.siteName}`);
 
@@ -193,17 +194,24 @@
 
                             button.append(media, copy, state);
                             choices.appendChild(button);
+                        });
 
-                            if (property.siteSlug !== data.siteSlug) {
-                                button.addEventListener('click', () => {
-                                    const dateInput = bookingRoot.querySelector('input[type="date"]');
-                                    const currentDate = dateInput?.value || data.date || '';
-                                    const query = new URLSearchParams();
-                                    if (currentDate) query.set('date', currentDate);
-                                    const suffix = query.toString();
-                                    window.location.assign(`/h/${encodeURIComponent(property.siteSlug)}/booking${suffix ? `?${suffix}` : ''}`);
-                                });
-                            }
+                        // Vue mounts after shell.js and rebuilds the booking root's children. A
+                        // delegated handler on the stable root survives that mount; listeners on
+                        // the pre-mount buttons do not.
+                        bookingRoot.addEventListener('click', event => {
+                            if (!(event.target instanceof Element)) return;
+                            const button = event.target.closest('.public-booking-property-choice[data-site-slug]');
+                            if (!button || !bookingRoot.contains(button)) return;
+                            const targetSlug = button.dataset.siteSlug;
+                            if (!targetSlug || targetSlug === data.siteSlug) return;
+
+                            const dateInput = bookingRoot.querySelector('input[type="date"]');
+                            const currentDate = dateInput?.value || data.date || '';
+                            const query = new URLSearchParams();
+                            if (currentDate) query.set('date', currentDate);
+                            const suffix = query.toString();
+                            window.location.assign(`/h/${encodeURIComponent(targetSlug)}/booking${suffix ? `?${suffix}` : ''}`);
                         });
 
                         const roomList = step.querySelector('.public-booking-room-list');
