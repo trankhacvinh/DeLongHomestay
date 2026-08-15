@@ -55,6 +55,8 @@ jobs:
         run: dotnet build DeLongHomestay.sln --no-restore
       - name: Generate EF migration
         run: dotnet ef migrations add EditorialGalleryLayouts --project src/DeLong.Web --startup-project src/DeLong.Web --output-dir Data/Migrations --no-build
+      - name: Rebuild migration snapshot
+        run: dotnet build DeLongHomestay.sln --no-restore
       - name: Validate
         run: |
           dotnet test DeLongHomestay.sln --no-build
