@@ -94,9 +94,10 @@ public static class SiteContentEndpoints
 
     private static void MapCustomCss(IEndpointRouteBuilder app, string pattern, bool scoped)
     {
-        app.MapGet(pattern, async (string? siteSlug, SiteContentService service, CancellationToken ct) =>
+        app.MapGet(pattern, async (HttpContext http, SiteContentService service, CancellationToken ct) =>
         {
-            var site = await service.GetPublicAsync(scoped ? siteSlug : null, ct);
+            var siteSlug = scoped ? http.Request.RouteValues["siteSlug"]?.ToString() : null;
+            var site = await service.GetPublicAsync(siteSlug, ct);
             return site is null
                 ? Results.NotFound()
                 : Results.Text(site.Settings.CustomCss, "text/css; charset=utf-8");
@@ -105,9 +106,10 @@ public static class SiteContentEndpoints
 
     private static void MapCustomJs(IEndpointRouteBuilder app, string pattern, bool scoped)
     {
-        app.MapGet(pattern, async (string? siteSlug, SiteContentService service, CancellationToken ct) =>
+        app.MapGet(pattern, async (HttpContext http, SiteContentService service, CancellationToken ct) =>
         {
-            var site = await service.GetPublicAsync(scoped ? siteSlug : null, ct);
+            var siteSlug = scoped ? http.Request.RouteValues["siteSlug"]?.ToString() : null;
+            var site = await service.GetPublicAsync(siteSlug, ct);
             return site is null
                 ? Results.NotFound()
                 : Results.Text(site.Settings.CustomJs, "text/javascript; charset=utf-8");
