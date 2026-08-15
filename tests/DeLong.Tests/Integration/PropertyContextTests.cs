@@ -3,6 +3,7 @@ using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Identity;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -13,7 +14,7 @@ public sealed class PropertyContextTests
 {
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task Current_property_defaults_to_oldest_accessible_property_and_honors_explicit_selection()
+    public async Task Multiple_properties_require_selection_and_remember_valid_working_property()
     {
         var connectionString = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
@@ -39,7 +40,7 @@ public sealed class PropertyContextTests
         {
             Id = Guid.CreateVersion7(),
             Code = $"FIRST-{suffix}",
-            Name = "First property",
+            Name = "Alpha property",
             TimeZoneId = "Asia/Ho_Chi_Minh",
             IsActive = true
         };
@@ -47,35 +48,89 @@ public sealed class PropertyContextTests
         {
             Id = Guid.CreateVersion7(),
             Code = $"SECOND-{suffix}",
-            Name = "A property that sorts earlier by name",
+            Name = "Beta property",
             TimeZoneId = "Asia/Ho_Chi_Minh",
             IsActive = true
         };
 
         db.Users.Add(user);
-        db.Properties.Add(first);
-        db.UserPropertyAccesses.Add(new UserPropertyAccess { UserId = userId, PropertyId = first.Id });
-        await db.SaveChangesAsync();
-
-        await Task.Delay(10);
-        db.Properties.Add(second);
-        db.UserPropertyAccesses.Add(new UserPropertyAccess { UserId = userId, PropertyId = second.Id });
+        db.Properties.AddRange(first, second);
+        db.UserPropertyAccesses.AddRange(
+            new UserPropertyAccess { UserId = userId, PropertyId = first.Id },
+            new UserPropertyAccess { UserId = userId, PropertyId = second.Id });
         await db.SaveChangesAsync();
 
         var principal = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.NameIdentifier, userId.ToString())],
             "integration"));
-        var service = new CurrentPropertyService(db);
+        var http = new DefaultHttpContext { User = principal };
+        var accessor = new HttpContextAccessor { HttpContext = http };
+        var service = new CurrentPropertyService(db, accessor);
 
-        var defaultProperty = await service.ResolveAsync(principal);
-        Assert.NotNull(defaultProperty);
-        Assert.Equal(first.Id, defaultProperty!.Id);
+        // Two accessible properties are ambiguous: never silently select the first one.
+        Assert.Null(await service.ResolveAsync(principal));
 
-        var selectedProperty = await service.ResolveAsync(principal, second.Id);
-        Assert.NotNull(selectedProperty);
-        Assert.Equal(second.Id, selectedProperty!.Id);
+        var selected = await service.ResolveAsync(principal, second.Id);
+        Assert.NotNull(selected);
+        Assert.Equal(second.Id, selected!.Id);
+        Assert.Contains(CurrentPropertyService.WorkingPropertyCookieName, http.Response.Headers.SetCookie.ToString());
 
-        var accessible = await service.GetAccessibleAsync(principal);
+        // Simulate the next request carrying the remembered working-property cookie.
+        var nextHttp = new DefaultHttpContext { User = principal };
+        nextHttp.Request.Headers.Cookie = $"{CurrentPropertyService.WorkingPropertyCookieName}={second.Id}";
+        var rememberedService = new CurrentPropertyService(db, new HttpContextAccessor { HttpContext = nextHttp });
+        var remembered = await rememberedService.ResolveAsync(principal);
+        Assert.NotNull(remembered);
+        Assert.Equal(second.Id, remembered!.Id);
+
+        var accessible = await rememberedService.GetAccessibleAsync(principal);
         Assert.Equal(new[] { first.Id, second.Id }, accessible.Select(x => x.Id));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Single_accessible_property_is_selected_automatically()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString).Options;
+        await using var db = new AppDbContext(options);
+        await db.Database.MigrateAsync();
+
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var userId = Guid.CreateVersion7();
+        var propertyId = Guid.CreateVersion7();
+        db.Users.Add(new ApplicationUser
+        {
+            Id = userId,
+            UserName = $"single-property-{suffix}@example.test",
+            NormalizedUserName = $"SINGLE-PROPERTY-{suffix.ToUpperInvariant()}@EXAMPLE.TEST",
+            Email = $"single-property-{suffix}@example.test",
+            NormalizedEmail = $"SINGLE-PROPERTY-{suffix.ToUpperInvariant()}@EXAMPLE.TEST",
+            DisplayName = "Single Property Test",
+            IsActive = true,
+            SecurityStamp = Guid.NewGuid().ToString("N")
+        });
+        db.Properties.Add(new Property
+        {
+            Id = propertyId,
+            Code = $"ONLY-{suffix}",
+            Name = "Only property",
+            TimeZoneId = "Asia/Ho_Chi_Minh",
+            IsActive = true
+        });
+        db.UserPropertyAccesses.Add(new UserPropertyAccess { UserId = userId, PropertyId = propertyId });
+        await db.SaveChangesAsync();
+
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, userId.ToString())],
+            "integration"));
+        var http = new DefaultHttpContext { User = principal };
+        var service = new CurrentPropertyService(db, new HttpContextAccessor { HttpContext = http });
+
+        var current = await service.ResolveAsync(principal);
+        Assert.NotNull(current);
+        Assert.Equal(propertyId, current!.Id);
     }
 }
