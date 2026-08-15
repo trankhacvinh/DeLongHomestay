@@ -8,7 +8,7 @@ public static class PaymentEndpoints
     public static IEndpointRouteBuilder MapPaymentEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/admin/properties/{propertyId:guid}")
-            .RequireAuthorization("AdminArea")
+            .RequireAuthorization("ViewOperations")
             .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Payments");
 

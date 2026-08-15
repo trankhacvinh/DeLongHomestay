@@ -221,3 +221,171 @@
     .rate-settings-actions>strong { min-width:0; margin-right:auto; text-align:left; }
     .housekeeping-summary { align-self:flex-start; }
 }
+
+
+/* Shared action / account polish */
+.btn {
+    white-space:nowrap;
+    flex-shrink:0;
+}
+.table-actions,
+.modal-actions {
+    flex-wrap:wrap;
+}
+.row-action {
+    min-width:76px;
+    white-space:nowrap;
+}
+
+/* Shared entity toolbar primitives. Page-specific entity CSS may override these. */
+.entity-toolbar {
+    min-height:76px;
+    padding:16px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+    border-bottom:1px solid var(--line);
+    background:#fff;
+}
+.entity-toolbar-main {
+    min-width:0;
+    flex:1 1 auto;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:nowrap;
+}
+.entity-toolbar-main .search-input {
+    width:auto;
+    min-width:280px;
+    max-width:560px;
+    flex:1 1 420px;
+    margin:0;
+}
+.entity-count {
+    flex:0 0 auto;
+    min-width:92px;
+    padding:7px 11px;
+    border-radius:999px;
+    background:var(--surface-soft);
+    color:var(--muted);
+    font-size:11px;
+    font-weight:700;
+    text-align:center;
+    white-space:nowrap;
+}
+.entity-cell {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:0;
+}
+.entity-avatar {
+    width:34px;
+    height:34px;
+    flex:0 0 34px;
+    border-radius:10px;
+    display:grid;
+    place-items:center;
+    background:var(--brand-100);
+    color:var(--brand-800);
+    font-size:11px;
+    font-weight:850;
+    text-transform:uppercase;
+}
+.entity-copy {
+    min-width:0;
+    display:grid;
+    gap:2px;
+}
+.entity-copy strong {
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.entity-copy span {
+    color:var(--muted);
+    font-size:10px;
+    white-space:nowrap;
+}
+
+.topbar-password-link {
+    min-height:38px;
+    padding-left:11px;
+    padding-right:11px;
+}
+.account-security-card {
+    width:min(500px,100%);
+    padding:30px;
+    gap:18px;
+}
+.account-security-heading {
+    display:grid;
+    gap:8px;
+}
+.account-security-heading .eyebrow {
+    width:max-content;
+}
+.account-security-heading h1,
+.account-security-heading p {
+    margin:0;
+}
+.account-security-heading p {
+    line-height:1.65;
+}
+.account-security-card .field {
+    gap:8px;
+}
+.account-security-hint {
+    padding:11px 13px;
+    border:1px solid #d8e8e3;
+    border-radius:11px;
+    background:var(--brand-50);
+    color:var(--text-soft);
+    font-size:11px;
+    line-height:1.55;
+}
+.auth-actions {
+    margin-top:2px;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+@media (max-width:680px) {
+    .entity-toolbar {
+        min-height:0;
+        padding:12px;
+        align-items:stretch;
+        flex-direction:column;
+        gap:10px;
+    }
+    .entity-toolbar-main {
+        width:100%;
+        display:grid;
+        grid-template-columns:1fr;
+        gap:9px;
+    }
+    .entity-toolbar-main .search-input {
+        width:100%;
+        max-width:none;
+        min-width:0;
+        flex:none;
+    }
+    .entity-count { align-self:flex-start; }
+    .topbar-password-link {
+        width:40px;
+        min-height:40px;
+        padding:0;
+    }
+    .topbar-password-link span { display:none; }
+    .account-security-card {
+        padding:22px 18px;
+    }
+    .auth-actions .btn {
+        flex:1 1 auto;
+    }
+}

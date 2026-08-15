@@ -16,6 +16,7 @@ using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Reports;
 using DeLong.Web.Features.Rooms;
+using DeLong.Web.Features.Staff;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -79,7 +80,13 @@ builder.Services
         options.Lockout.MaxFailedAccessAttempts = 5;
     })
     .AddEntityFrameworkStores<AppDbContext>()
+    .AddClaimsPrincipalFactory<ApplicationClaimsPrincipalFactory>()
     .AddDefaultTokenProviders();
+
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+{
+    options.ValidationInterval = TimeSpan.FromMinutes(1);
+});
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -97,6 +104,11 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminArea", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping", "Viewer"));
+    options.AddPolicy("ViewOperations", policy => policy.RequireRole("Admin", "Manager", "Staff", "Viewer"));
+    options.AddPolicy("ViewRooms", policy => policy.RequireRole("Admin", "Manager", "Staff", "Viewer"));
+    options.AddPolicy("ViewHousekeeping", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping", "Viewer"));
+    options.AddPolicy("ManageStaff", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("ManageImports", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageRooms", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageBookings", policy => policy.RequireRole("Admin", "Manager", "Staff"));
     options.AddPolicy("ManagePayments", policy => policy.RequireRole("Admin", "Manager", "Staff"));
@@ -109,6 +121,17 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Admin", "AdminArea");
+    options.Conventions.AuthorizePage("/Admin/Calendar", "ViewOperations");
+    options.Conventions.AuthorizeFolder("/Admin/Bookings", "ViewOperations");
+    options.Conventions.AuthorizeFolder("/Admin/Customers", "ViewOperations");
+    options.Conventions.AuthorizeFolder("/Admin/Rooms", "ViewRooms");
+    options.Conventions.AuthorizePage("/Admin/Rooms/Content", "ManageRooms");
+    options.Conventions.AuthorizeFolder("/Admin/Housekeeping", "ViewHousekeeping");
+    options.Conventions.AuthorizeFolder("/Admin/Settings", "ManageRooms");
+    options.Conventions.AuthorizeFolder("/Admin/Imports", "ManageImports");
+    options.Conventions.AuthorizeFolder("/Admin/Finance", "ViewFinance");
+    options.Conventions.AuthorizeFolder("/Admin/Reports", "ViewReports");
+    options.Conventions.AuthorizeFolder("/Admin/Staff", "ManageStaff");
     options.Conventions.AllowAnonymousToPage("/Account/Login");
 });
 builder.Services.AddProblemDetails();
@@ -147,6 +170,7 @@ builder.Services.AddScoped<HousekeepingService>();
 builder.Services.AddScoped<ExpenseService>();
 builder.Services.AddScoped<FinanceService>();
 builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<StaffAccountService>();
 builder.Services.AddScoped<PublicBookingService>();
 builder.Services.AddScoped<PublicRoomContentService>();
 builder.Services.AddScoped<PublicRequestInboxService>();
@@ -180,6 +204,7 @@ if (!string.Equals(defaultMediaRoot, storagePaths.MediaPublicRoot, StringCompari
 
 app.UseRouting();
 app.UseAuthentication();
+app.UseMiddleware<ForcePasswordChangeMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.UseAntiforgery();
@@ -206,6 +231,7 @@ app.MapPaymentEndpoints();
 app.MapHousekeepingEndpoints();
 app.MapExpenseEndpoints();
 app.MapAuditEndpoints();
+app.MapStaffAccountEndpoints();
 app.MapPublicBookingEndpoints();
 
 if (app.Configuration.GetValue<bool>("Database:AutoMigrate") || app.Configuration.GetValue<bool>("Database:SeedOnStartup"))

@@ -8,7 +8,7 @@ public static class BookingEndpoints
     public static IEndpointRouteBuilder MapBookingEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/admin/properties/{propertyId:guid}/bookings")
-            .RequireAuthorization("AdminArea")
+            .RequireAuthorization("ViewOperations")
             .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Bookings");
 

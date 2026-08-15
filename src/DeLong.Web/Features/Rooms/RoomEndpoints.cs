@@ -7,7 +7,7 @@ public static class RoomEndpoints
     public static IEndpointRouteBuilder MapRoomEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/admin/properties/{propertyId:guid}/rooms")
-            .RequireAuthorization("AdminArea")
+            .RequireAuthorization("ViewRooms")
             .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Rooms");
 
