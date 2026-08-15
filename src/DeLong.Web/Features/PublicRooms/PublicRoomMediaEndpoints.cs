@@ -1,5 +1,6 @@
 using DeLong.Web.Data;
 using DeLong.Web.Features.Site;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicRooms;
@@ -10,10 +11,13 @@ public static class PublicRoomMediaEndpoints
 {
     public static IEndpointRouteBuilder MapPublicRoomMediaEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/public/room-media", async (AppDbContext db, CancellationToken ct) =>
+        app.MapGet("/api/public/room-media", async ([FromQuery] string? siteSlug, AppDbContext db, PublicPropertyResolver resolver, CancellationToken ct) =>
         {
+            var property = await resolver.ResolveAsync(siteSlug, ct);
+            if (property is null) return Results.NotFound();
+
             var rooms = await db.Rooms.AsNoTracking()
-                .Where(x => x.Property.Code == SiteContentService.PublicPropertyCode && x.Property.IsActive && x.IsActive && x.IsPublished)
+                .Where(x => x.PropertyId == property.Id && x.Property.IsActive && x.IsActive && x.IsPublished)
                 .OrderBy(x => x.SortOrder)
                 .Select(x => new
                 {
