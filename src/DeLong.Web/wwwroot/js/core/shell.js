@@ -33,6 +33,39 @@
         window.location.assign(`${url.pathname}${url.search}${url.hash}`);
     });
 
+    // Room content is rendered by Vue, but its legacy template used an unscoped /rooms/{slug}
+    // preview. Rewrite the generated link and visual slug prefix to the property's public site.
+    const roomContentData = document.getElementById('room-content-data');
+    const roomContentRoot = document.getElementById('room-content-page');
+    if (roomContentData && roomContentRoot) {
+        let publicBasePath = '';
+        try {
+            publicBasePath = JSON.parse(roomContentData.textContent || '{}').publicBasePath || '';
+        } catch {
+            publicBasePath = '';
+        }
+
+        if (publicBasePath) {
+            const syncRoomPublicLinks = () => {
+                const preview = roomContentRoot.querySelector('.room-publish-card .public-text-link');
+                if (preview) {
+                    const legacyHref = preview.getAttribute('href') || '';
+                    const slug = legacyHref.startsWith('/rooms/') ? legacyHref.slice('/rooms/'.length) : '';
+                    if (slug) preview.setAttribute('href', `${publicBasePath}/rooms/${slug}`);
+                }
+
+                const slugPrefix = roomContentRoot.querySelector('.slug-input-wrap > span');
+                if (slugPrefix && slugPrefix.textContent !== `${publicBasePath}/rooms/`) {
+                    slugPrefix.textContent = `${publicBasePath}/rooms/`;
+                }
+            };
+
+            syncRoomPublicLinks();
+            const observer = new MutationObserver(syncRoomPublicLinks);
+            observer.observe(roomContentRoot, { childList: true, subtree: true, attributes: true, attributeFilter: ['href'] });
+        }
+    }
+
     window.addEventListener('delong:properties-changed', () => window.location.reload());
 
     window.matchMedia('(min-width: 981px)').addEventListener('change', event => {
