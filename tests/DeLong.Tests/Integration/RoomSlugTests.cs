@@ -2,6 +2,8 @@ using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Rooms;
+using DeLong.Web.Pages.Rooms;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -23,20 +25,7 @@ public sealed class RoomSlugTests
 
         await using var db = new AppDbContext(options);
         await db.Database.MigrateAsync();
-
-        var property = await db.Properties.SingleOrDefaultAsync(x => x.Code == "DELONG");
-        if (property is null)
-        {
-            property = new Property
-            {
-                Code = "DELONG",
-                Name = "De Long Test Property",
-                TimeZoneId = "Asia/Ho_Chi_Minh",
-                IsActive = true
-            };
-            db.Properties.Add(property);
-            await db.SaveChangesAsync();
-        }
+        var property = await EnsurePublicPropertyAsync(db);
 
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var roomService = new RoomService(db);
@@ -69,5 +58,60 @@ public sealed class RoomSlugTests
         var publicRoom = await publicService.GetRoomAsync(firstEntity.Slug!);
         Assert.NotNull(publicRoom);
         Assert.Equal(firstEntity.Id, publicRoom!.Id);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Public_detail_resolves_legacy_published_room_without_persisted_slug()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(connectionString)
+            .Options;
+
+        await using var db = new AppDbContext(options);
+        await db.Database.MigrateAsync();
+        var property = await EnsurePublicPropertyAsync(db);
+
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var legacyRoom = new Room
+        {
+            PropertyId = property.Id,
+            Code = $"LEGACY-{suffix}",
+            Name = $"Nana Legacy {suffix}",
+            Slug = null,
+            Capacity = 2,
+            SortOrder = 950,
+            IsActive = true,
+            IsPublished = true
+        };
+        db.Rooms.Add(legacyRoom);
+        await db.SaveChangesAsync();
+
+        var requestedSlug = RoomContentService.CreateSlug(legacyRoom.Name);
+        var page = new DetailsModel(new PublicRoomContentService(db), db);
+        var result = await page.OnGetAsync(requestedSlug, CancellationToken.None);
+
+        Assert.IsType<PageResult>(result);
+        Assert.Equal(legacyRoom.Id, page.Room.Id);
+    }
+
+    private static async Task<Property> EnsurePublicPropertyAsync(AppDbContext db)
+    {
+        var property = await db.Properties.SingleOrDefaultAsync(x => x.Code == "DELONG");
+        if (property is not null) return property;
+
+        property = new Property
+        {
+            Code = "DELONG",
+            Name = "De Long Test Property",
+            TimeZoneId = "Asia/Ho_Chi_Minh",
+            IsActive = true
+        };
+        db.Properties.Add(property);
+        await db.SaveChangesAsync();
+        return property;
     }
 }
