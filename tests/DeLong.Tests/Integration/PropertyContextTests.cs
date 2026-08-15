@@ -41,8 +41,7 @@ public sealed class PropertyContextTests
             Code = $"FIRST-{suffix}",
             Name = "First property",
             TimeZoneId = "Asia/Ho_Chi_Minh",
-            IsActive = true,
-            CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            IsActive = true
         };
         var second = new Property
         {
@@ -50,15 +49,17 @@ public sealed class PropertyContextTests
             Code = $"SECOND-{suffix}",
             Name = "A property that sorts earlier by name",
             TimeZoneId = "Asia/Ho_Chi_Minh",
-            IsActive = true,
-            CreatedAtUtc = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc)
+            IsActive = true
         };
 
         db.Users.Add(user);
-        db.Properties.AddRange(first, second);
-        db.UserPropertyAccesses.AddRange(
-            new UserPropertyAccess { UserId = userId, PropertyId = first.Id },
-            new UserPropertyAccess { UserId = userId, PropertyId = second.Id });
+        db.Properties.Add(first);
+        db.UserPropertyAccesses.Add(new UserPropertyAccess { UserId = userId, PropertyId = first.Id });
+        await db.SaveChangesAsync();
+
+        await Task.Delay(10);
+        db.Properties.Add(second);
+        db.UserPropertyAccesses.Add(new UserPropertyAccess { UserId = userId, PropertyId = second.Id });
         await db.SaveChangesAsync();
 
         var principal = new ClaimsPrincipal(new ClaimsIdentity(
