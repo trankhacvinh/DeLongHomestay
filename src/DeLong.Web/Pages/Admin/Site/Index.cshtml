@@ -57,7 +57,11 @@
 
         <aside class="site-settings-aside">
             <section class="panel site-media-card">
-                <div class="site-section-title compact"><div><h2>Logo & favicon</h2><p>Ảnh được tối ưu tự động trước khi dùng.</p></div></div>
+                <div class="site-section-title compact"><div><h2>Ảnh cơ sở & thương hiệu</h2><p>Ảnh được tối ưu tự động trước khi dùng.</p></div></div>
+                <div class="site-media-item vertical property-cover-media-item">
+                    <div class="site-media-preview property-cover"><img v-if="settings.coverImageUrl" v-bind:src="settings.coverImageUrl" alt="Ảnh đại diện cơ sở" /><span v-else>Ảnh đại diện cơ sở</span></div>
+                    <div><strong>Ảnh đại diện cơ sở</strong><small>Dùng ở trang chủ chung và khi khách chọn cơ sở trong bước đặt phòng. Khuyến nghị ảnh ngang, tỷ lệ khoảng 8:5.</small><label class="btn btn-light btn-sm file-btn">Tải ảnh cơ sở<input type="file" accept="image/png,image/jpeg,image/webp" v-on:change="uploadAsset('cover', $event)" /></label></div>
+                </div>
                 <div class="site-media-item">
                     <div class="site-media-preview logo"><img v-if="settings.logoUrl" v-bind:src="settings.logoUrl" alt="Logo preview" /><span v-else>LOGO</span></div>
                     <div><strong>Logo</strong><small>PNG, JPG hoặc WebP</small><label class="btn btn-light btn-sm file-btn">Tải logo<input type="file" accept="image/png,image/jpeg,image/webp" v-on:change="uploadAsset('logo', $event)" /></label></div>
