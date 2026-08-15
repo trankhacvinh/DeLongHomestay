@@ -9,6 +9,9 @@
         { value: 'AvailabilitySearch', label: 'Kiểm tra phòng nhanh' },
         { value: 'RoomGrid', label: 'Danh sách phòng' },
         { value: 'FeatureGrid', label: 'Nội dung + điểm nổi bật' },
+        { value: 'Faq', label: 'Câu hỏi thường gặp' },
+        { value: 'Location', label: 'Vị trí & chỉ đường' },
+        { value: 'PolicyGrid', label: 'Quy định lưu trú' },
         { value: 'RichText', label: 'Nội dung tự do' },
         { value: 'Cta', label: 'Kêu gọi hành động' }
     ];
@@ -18,6 +21,9 @@
         if (type === 'AvailabilitySearch') return { title: 'Chọn ngày bạn muốn ghé' };
         if (type === 'RoomGrid') return { eyebrow: 'KHÔNG GIAN', title: 'Chọn căn phòng hợp với nhịp của bạn', limit: 6 };
         if (type === 'FeatureGrid') return { eyebrow: '', title: '', body: '', items: [], imageUrl: '' };
+        if (type === 'Faq') return { eyebrow: 'THÔNG TIN', title: 'Câu hỏi thường gặp', items: [{ question: '', answer: '' }] };
+        if (type === 'Location') return { eyebrow: 'VỊ TRÍ', title: 'Tìm đường đến cơ sở', body: '', address: '', mapUrl: '', embedUrl: '', nearby: [] };
+        if (type === 'PolicyGrid') return { eyebrow: 'LƯU TRÚ', title: 'Quy định lưu trú', items: [{ title: '', body: '' }] };
         if (type === 'Cta') return { title: '', body: '', buttonText: 'Đặt phòng', buttonUrl: '/booking' };
         return { html: '<p>Nội dung mới</p>' };
     }
@@ -35,7 +41,7 @@
                 sections: site.sections || [],
                 sectionTypes,
                 sectionEditor: { open: false, mode: 'create', id: null },
-                sectionForm: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' },
+                sectionForm: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '', nearbyText: '' },
                 saving: false,
                 sortable: null,
                 toast: { show: false, type: 'success', message: '' }
@@ -62,6 +68,9 @@
                 if (type === 'RoomGrid') return ['grid-3', 'grid-2', 'featured-first', 'editorial-cards', 'horizontal-scroll'];
                 if (type === 'AvailabilitySearch') return ['booking-bar', 'card', 'minimal'];
                 if (type === 'FeatureGrid') return ['split', 'stacked', 'icon-grid', 'dark-band', 'editorial'];
+                if (type === 'Faq') return ['accordion', 'two-column'];
+                if (type === 'Location') return ['split', 'card'];
+                if (type === 'PolicyGrid') return ['grid-3', 'list'];
                 if (type === 'RichText') return ['narrow', 'wide', 'editorial'];
                 if (type === 'Cta') return ['card', 'full-width', 'dark', 'offer'];
                 return ['card', 'minimal'];
@@ -122,7 +131,7 @@
             },
             openSectionCreate() {
                 const type = 'Hero';
-                this.sectionForm = { type, name: '', variant: this.variantsFor(type)[0], isVisible: true, content: defaultContent(type), itemsText: '' };
+                this.sectionForm = { type, name: '', variant: this.variantsFor(type)[0], isVisible: true, content: defaultContent(type), itemsText: '', nearbyText: '' };
                 this.sectionEditor = { open: true, mode: 'create', id: null };
             },
             openSectionEdit(section) {
@@ -134,7 +143,8 @@
                     variant: section.variant,
                     isVisible: section.isVisible,
                     content: Object.assign(defaultContent(section.type), content),
-                    itemsText: Array.isArray(content.items) ? content.items.join('\n') : ''
+                    itemsText: section.type === 'FeatureGrid' && Array.isArray(content.items) ? content.items.join('\n') : '',
+                    nearbyText: Array.isArray(content.nearby) ? content.nearby.join('\n') : ''
                 };
                 this.sectionEditor = { open: true, mode: 'edit', id: section.id };
             },
@@ -144,10 +154,16 @@
                 this.sectionForm.content = defaultContent(type);
                 this.sectionForm.variant = this.variantsFor(type)[0];
                 this.sectionForm.itemsText = '';
+                this.sectionForm.nearbyText = '';
             },
+            addFaqItem() { this.sectionForm.content.items.push({ question: '', answer: '' }); },
+            removeFaqItem(index) { if (this.sectionForm.content.items.length > 1) this.sectionForm.content.items.splice(index, 1); },
+            addPolicyItem() { this.sectionForm.content.items.push({ title: '', body: '' }); },
+            removePolicyItem(index) { if (this.sectionForm.content.items.length > 1) this.sectionForm.content.items.splice(index, 1); },
             sectionPayload() {
                 const content = Object.assign({}, this.sectionForm.content);
                 if (this.sectionForm.type === 'FeatureGrid') content.items = this.sectionForm.itemsText.split('\n').map(x => x.trim()).filter(Boolean);
+                if (this.sectionForm.type === 'Location') content.nearby = this.sectionForm.nearbyText.split('\n').map(x => x.trim()).filter(Boolean);
                 return { type: this.sectionForm.type, name: this.sectionForm.name, variant: this.sectionForm.variant, isVisible: this.sectionForm.isVisible, contentJson: JSON.stringify(content) };
             },
             async saveSection() {

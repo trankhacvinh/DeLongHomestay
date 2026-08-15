@@ -5,6 +5,7 @@
 }
 @section Head {
     <link rel="stylesheet" href="~/css/site-cms.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/storytelling-admin.css" asp-append-version="true" />
 }
 
 <div id="site-cms" class="site-admin-page" v-cloak>
@@ -126,6 +127,24 @@
                 <div class="home-content-fields" v-else-if="sectionForm.type === 'RoomGrid'"><div class="field"><label>Eyebrow</label><input v-model="sectionForm.content.eyebrow" /></div><div class="field"><label>Tiêu đề</label><input v-model="sectionForm.content.title" /></div><div class="field"><label>Số phòng tối đa</label><input type="number" min="1" max="12" v-model.number="sectionForm.content.limit" /></div></div>
                 <div class="home-content-fields" v-else-if="sectionForm.type === 'AvailabilitySearch'"><div class="field"><label>Tiêu đề</label><input v-model="sectionForm.content.title" /></div><small>Layout <strong>booking-bar</strong> phù hợp nhất khi khối nằm ngay sau Hero.</small></div>
                 <div class="home-content-fields" v-else-if="sectionForm.type === 'FeatureGrid'"><div class="field"><label>Eyebrow</label><input v-model="sectionForm.content.eyebrow" /></div><div class="field"><label>Tiêu đề</label><textarea v-model="sectionForm.content.title" rows="2"></textarea></div><div class="field"><label>Mô tả</label><textarea v-model="sectionForm.content.body" rows="4"></textarea></div><div class="field"><label>Các mục (mỗi dòng một mục)</label><textarea v-model="sectionForm.itemsText" rows="5"></textarea></div><div class="field"><label>Ảnh kể chuyện</label><div class="asset-input-row"><input v-model="sectionForm.content.imageUrl" placeholder="Để trống = ảnh cover cơ sở" /><label class="btn btn-light btn-sm file-btn">Tải ảnh<input type="file" accept="image/png,image/jpeg,image/webp" v-on:change="uploadSectionImage($event)" /></label></div><small>Layout <strong>split</strong> hoặc <strong>editorial</strong> sẽ đặt ảnh cạnh nội dung.</small></div></div>
+                <div class="home-content-fields" v-else-if="sectionForm.type === 'Faq'">
+                    <div class="field"><label>Eyebrow</label><input v-model="sectionForm.content.eyebrow" /></div><div class="field"><label>Tiêu đề</label><input v-model="sectionForm.content.title" /></div>
+                    <div class="storytelling-repeat-list"><div class="storytelling-repeat-item" v-for="(item, index) in sectionForm.content.items" v-bind:key="index"><div class="field"><label>Câu hỏi {{ index + 1 }}</label><input v-model.trim="item.question" maxlength="300" /></div><div class="field"><label>Trả lời</label><textarea v-model.trim="item.answer" rows="3" maxlength="1600"></textarea></div><button class="btn btn-light btn-sm" type="button" v-on:click="removeFaqItem(index)" v-bind:disabled="sectionForm.content.items.length <= 1">Xóa câu</button></div></div>
+                    <button class="btn btn-light btn-sm storytelling-add" type="button" v-on:click="addFaqItem">+ Thêm câu hỏi</button>
+                </div>
+                <div class="home-content-fields" v-else-if="sectionForm.type === 'Location'">
+                    <div class="form-grid"><div class="field"><label>Eyebrow</label><input v-model="sectionForm.content.eyebrow" /></div><div class="field"><label>Tiêu đề</label><input v-model="sectionForm.content.title" /></div></div>
+                    <div class="field"><label>Mô tả</label><textarea v-model="sectionForm.content.body" rows="3"></textarea></div>
+                    <div class="field"><label>Địa chỉ</label><input v-model="sectionForm.content.address" v-bind:placeholder="settings.address || 'Dùng địa chỉ trong Thông tin & SEO'" /><small>Để trống sẽ dùng địa chỉ của cơ sở.</small></div>
+                    <div class="field"><label>Link Google Maps</label><input v-model="sectionForm.content.mapUrl" v-bind:placeholder="settings.googleMapsUrl || 'https://maps.google.com/…'" /><small>Dùng cho nút Mở Google Maps. Để trống sẽ dùng link trong cấu hình cơ sở.</small></div>
+                    <div class="field"><label>Google Maps embed URL (tùy chọn)</label><input v-model="sectionForm.content.embedUrl" placeholder="https://www.google.com/maps/embed?pb=…" /><small>Dán URL trong thuộc tính <code>src</code> của mã nhúng Google Maps.</small></div>
+                    <div class="field"><label>Điểm gần đây (mỗi dòng một mục)</label><textarea v-model="sectionForm.nearbyText" rows="5" placeholder="Sân bay Long Thành · 15 phút&#10;Trung tâm Long Thành · 8 phút"></textarea></div>
+                </div>
+                <div class="home-content-fields" v-else-if="sectionForm.type === 'PolicyGrid'">
+                    <div class="field"><label>Eyebrow</label><input v-model="sectionForm.content.eyebrow" /></div><div class="field"><label>Tiêu đề</label><input v-model="sectionForm.content.title" /></div>
+                    <div class="storytelling-repeat-list"><div class="storytelling-repeat-item" v-for="(item, index) in sectionForm.content.items" v-bind:key="index"><div class="field"><label>Tiêu đề mục {{ index + 1 }}</label><input v-model.trim="item.title" maxlength="200" placeholder="Nhận phòng / Trả phòng" /></div><div class="field"><label>Nội dung</label><textarea v-model.trim="item.body" rows="3" maxlength="1200"></textarea></div><button class="btn btn-light btn-sm" type="button" v-on:click="removePolicyItem(index)" v-bind:disabled="sectionForm.content.items.length <= 1">Xóa mục</button></div></div>
+                    <button class="btn btn-light btn-sm storytelling-add" type="button" v-on:click="addPolicyItem">+ Thêm quy định</button>
+                </div>
                 <div class="home-content-fields" v-else-if="sectionForm.type === 'RichText'"><div class="field"><label>Nội dung HTML</label><textarea v-model="sectionForm.content.html" rows="12" placeholder="<h2>…</h2>"></textarea><small>Server sẽ sanitize HTML trước khi lưu.</small></div></div>
                 <div class="home-content-fields" v-else-if="sectionForm.type === 'Cta'"><div class="field"><label>Tiêu đề</label><input v-model="sectionForm.content.title" /></div><div class="field"><label>Mô tả</label><textarea v-model="sectionForm.content.body" rows="3"></textarea></div><div class="form-grid"><div class="field"><label>Nút</label><input v-model="sectionForm.content.buttonText" /></div><div class="field"><label>URL</label><input v-model="sectionForm.content.buttonUrl" /></div></div></div>
             </div>
