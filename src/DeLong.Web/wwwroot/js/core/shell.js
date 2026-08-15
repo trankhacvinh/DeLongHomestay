@@ -66,6 +66,23 @@
         }
     }
 
+    // Website CMS has a server-rendered legacy root preview link. Point it at the current
+    // property's canonical scoped route instead of always opening DELONG at '/'.
+    const siteCmsData = document.getElementById('site-cms-data');
+    const siteCmsRoot = document.getElementById('site-cms');
+    if (siteCmsData && siteCmsRoot) {
+        try {
+            const siteData = JSON.parse(siteCmsData.textContent || '{}');
+            const publicBasePath = siteData.publicBasePath || '';
+            if (publicBasePath) {
+                const preview = siteCmsRoot.querySelector('.site-page-head a[href="/"]');
+                if (preview) preview.setAttribute('href', publicBasePath);
+            }
+        } catch {
+            // Keep the original link if page data is malformed; Vue will report its own error.
+        }
+    }
+
     window.addEventListener('delong:properties-changed', () => window.location.reload());
 
     window.matchMedia('(min-width: 981px)').addEventListener('change', event => {
