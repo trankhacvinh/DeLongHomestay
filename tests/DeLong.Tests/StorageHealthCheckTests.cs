@@ -62,6 +62,33 @@ public sealed class StorageHealthCheckTests
         }
     }
 
+    [Fact]
+    public async Task Production_accepts_explicit_app_data_and_wwwroot_uploads()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "delong-storage-health-tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var environment = new FakeWebHostEnvironment(root, Path.Combine(root, "wwwroot"), "Production");
+            var paths = new StoragePaths(
+                Path.Combine(root, "App_Data"),
+                Path.Combine(root, "wwwroot", "uploads", "rooms"),
+                new PathString("/uploads/rooms"),
+                DataRootExplicit: true,
+                MediaPublicRootExplicit: true,
+                RequirePersistent: true);
+
+            var result = await new StorageHealthCheck(paths, environment)
+                .CheckHealthAsync(new HealthCheckContext());
+
+            Assert.Equal(HealthStatus.Healthy, result.Status);
+            Assert.Contains("Storage có thể ghi", result.Description);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
     private sealed class FakeWebHostEnvironment(string contentRootPath, string webRootPath, string environmentName) : IWebHostEnvironment
     {
         public string ApplicationName { get; set; } = "DeLong.Tests";
