@@ -25,12 +25,12 @@ jobs:
         run: |
           python3 <<'PY'
           from pathlib import Path
-          import textwrap
           workflow = Path('.github/workflows/uat-editorial-ux-polish.yml').read_text()
           marker = "          python3 <<'PY'\n"
           start = workflow.index(marker) + len(marker)
           end = workflow.index("\n          PY\n", start)
-          code = textwrap.dedent(workflow[start:end])
+          raw = workflow[start:end]
+          code = "\n".join(line[10:] if line.startswith("          ") else line for line in raw.splitlines())
           exec(compile(code, 'editorial-ux-polish.py', 'exec'))
           PY
       - name: Generate EF migration
