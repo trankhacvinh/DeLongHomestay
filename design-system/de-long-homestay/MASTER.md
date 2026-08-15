@@ -7,7 +7,7 @@
 ---
 
 **Project:** De Long Homestay
-**Generated:** 2026-08-14 04:09:11
+**Generated:** 2026-08-15 03:06:04
 **Category:** Hotel/Hospitality
 
 ---
@@ -28,14 +28,14 @@
 
 ### Typography
 
-- **Heading Font:** Libre Bodoni
-- **Body Font:** Public Sans
-- **Mood:** magazine, editorial, publishing, refined, journalism, print
-- **Google Fonts:** [Libre Bodoni + Public Sans](https://fonts.google.com/share?selection.family=Libre+Bodoni:wght@400;500;600;700|Public+Sans:wght@300;400;500;600;700)
+- **Heading Font:** Playfair Display SC
+- **Body Font:** Karla
+- **Mood:** restaurant, menu, culinary, elegant, foodie, hospitality
+- **Google Fonts:** [Playfair Display SC + Karla](https://fonts.google.com/share?selection.family=Karla:wght@300;400;500;600;700|Playfair+Display+SC:wght@400;700)
 
 **CSS Import:**
 ```css
-@import url('https://fonts.googleapis.com/css2?family=Libre+Bodoni:wght@400;500;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Karla:wght@300;400;500;600;700&family=Playfair+Display+SC:wght@400;700&display=swap');
 ```
 
 ### Spacing Variables
@@ -163,11 +163,11 @@
 
 ### Page Pattern
 
-**Pattern Name:** Video-First Hero
+**Pattern Name:** App Store Style Landing
 
-- **Conversion Strategy:** 86% higher engagement with video. Add captions for accessibility. Compress video for performance.
-- **CTA Placement:** Overlay on video (center/bottom) + Bottom section
-- **Section Order:** 1. Hero with video background, 2. Key features overlay, 3. Benefits section, 4. CTA
+- **Conversion Strategy:** Show real screenshots. Include ratings (4.5+ stars). QR code for mobile. Platform-specific CTAs.
+- **CTA Placement:** Download buttons prominent (App Store + Play Store) throughout
+- **Section Order:** 1. Hero with device mockup, 2. Screenshots carousel, 3. Features with icons, 4. Reviews/ratings, 5. Download CTAs
 
 ---
 
