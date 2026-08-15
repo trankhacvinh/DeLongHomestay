@@ -12,6 +12,7 @@ public sealed class SuccessModel(
     public string Room { get; private set; } = string.Empty;
     public decimal Amount { get; private set; }
     public string Phone { get; private set; } = string.Empty;
+    public string SiteName { get; private set; } = string.Empty;
     public string? SiteSlug { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(string? siteSlug, string? code, string? room, decimal? amount, CancellationToken ct)
@@ -22,7 +23,9 @@ public sealed class SuccessModel(
         Code = code?.Trim() ?? string.Empty;
         Room = room?.Trim() ?? string.Empty;
         Amount = amount ?? 0;
-        Phone = (await siteContentService.GetPublicAsync(SiteSlug, ct))?.Settings.Phone ?? string.Empty;
+        var site = await siteContentService.GetPublicAsync(SiteSlug, ct);
+        SiteName = site?.Settings.SiteName ?? property.Name;
+        Phone = site?.Settings.Phone ?? string.Empty;
         return Page();
     }
 }
