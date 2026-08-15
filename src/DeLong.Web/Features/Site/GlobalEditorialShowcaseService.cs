@@ -49,8 +49,8 @@ public sealed class GlobalEditorialShowcaseService(
 
     public async Task<GlobalEditorialShowcaseDto> GetAsync(CancellationToken ct = default)
     {
-        var entity = await EnsureAsync(ct);
-        return ToDto(entity);
+        var entity = await db.GlobalEditorialShowcases.AsNoTracking().SingleOrDefaultAsync(ct);
+        return entity is null ? DefaultDto() : ToDto(entity);
     }
 
     public async Task<(GlobalEditorialShowcaseDto? Settings, SiteContentError? Error)> SaveAsync(
@@ -123,9 +123,23 @@ public sealed class GlobalEditorialShowcaseService(
         if (entity is not null) return entity;
         entity = new GlobalEditorialShowcase();
         db.GlobalEditorialShowcases.Add(entity);
-        await db.SaveChangesAsync(ct);
         return entity;
     }
+
+    private static GlobalEditorialShowcaseDto DefaultDto() => new(
+        Guid.Empty,
+        true,
+        "all",
+        [],
+        [],
+        8,
+        "Một vài khoảnh khắc tại De Long",
+        true,
+        "all",
+        [],
+        [],
+        3,
+        "Gợi ý cho chuyến nghỉ của bạn");
 
     private static GlobalEditorialShowcaseDto ToDto(GlobalEditorialShowcase entity) => new(
         entity.Id,
