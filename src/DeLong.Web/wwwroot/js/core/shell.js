@@ -87,7 +87,7 @@
         if (!document.querySelector('link[data-public-actions]')) {
             const stylesheet = document.createElement('link');
             stylesheet.rel = 'stylesheet';
-            stylesheet.href = '/css/public-actions.css?v=20260815-1';
+            stylesheet.href = '/css/public-actions.css?v=20260815-2';
             stylesheet.dataset.publicActions = 'true';
             document.head.appendChild(stylesheet);
         }
@@ -139,53 +139,80 @@
             else if (bodyTarget) bodyTarget.appendChild(button);
         });
 
-        // On a scoped booking page, let guests switch property without backing out to the
-        // intermediate selection screen. The current date is preserved; room selection resets
-        // because room ids/codes belong to a specific property.
+        // Property selection belongs to step 02 "Chọn phòng": choosing a branch and choosing
+        // a room are one decision. Use the property's own configured cover image; never borrow
+        // a room photo as a branch image.
         const bookingRoot = document.getElementById('public-booking-page');
         const bookingData = document.getElementById('public-booking-data');
-        if (bookingRoot && bookingData && !document.querySelector('.public-booking-property-bar')) {
+        if (bookingRoot && bookingData && !bookingRoot.querySelector('.public-booking-property-choices')) {
             try {
                 const data = JSON.parse(bookingData.textContent || '{}');
                 const properties = Array.isArray(data.properties) ? data.properties : [];
                 if (properties.length > 1) {
-                    const bar = document.createElement('section');
-                    bar.className = 'public-booking-property-bar';
-                    const inner = document.createElement('div');
-                    inner.className = 'public-container public-booking-property-switch';
+                    const step = [...bookingRoot.querySelectorAll('.public-step-card')]
+                        .find(card => (card.querySelector('.public-step-head h2')?.textContent || '').trim() === 'Chọn phòng');
+                    if (step) {
+                        const choices = document.createElement('div');
+                        choices.className = 'public-booking-property-choices';
+                        choices.setAttribute('aria-label', 'Chọn cơ sở');
 
-                    const copy = document.createElement('div');
-                    copy.className = 'public-booking-property-copy';
-                    copy.innerHTML = '<span>CƠ SỞ</span><strong>Chọn nơi bạn muốn đặt</strong><small>Đổi cơ sở để xem đúng danh sách phòng và lịch trống.</small>';
+                        properties.forEach(property => {
+                            const button = document.createElement('button');
+                            button.type = 'button';
+                            button.className = `public-booking-property-choice${property.siteSlug === data.siteSlug ? ' active' : ''}`;
+                            button.setAttribute('aria-pressed', property.siteSlug === data.siteSlug ? 'true' : 'false');
+                            button.setAttribute('aria-label', `Chọn cơ sở ${property.siteName}`);
 
-                    const label = document.createElement('label');
-                    label.className = 'public-booking-property-field';
-                    const labelText = document.createElement('span');
-                    labelText.textContent = 'Cơ sở';
-                    const select = document.createElement('select');
-                    select.setAttribute('aria-label', 'Chọn cơ sở đặt phòng');
-                    properties.forEach(property => {
-                        const option = document.createElement('option');
-                        option.value = property.siteSlug;
-                        option.textContent = `${property.siteName} · ${property.roomCount} phòng`;
-                        option.selected = property.siteSlug === data.siteSlug;
-                        select.appendChild(option);
-                    });
-                    label.append(labelText, select);
-                    inner.append(copy, label);
-                    bar.appendChild(inner);
-                    bookingRoot.insertAdjacentElement('beforebegin', bar);
+                            const media = document.createElement('span');
+                            media.className = 'public-booking-property-media';
+                            if (property.coverCardUrl) {
+                                const image = document.createElement('img');
+                                image.src = property.coverCardUrl;
+                                image.alt = property.siteName || 'Cơ sở';
+                                image.loading = 'lazy';
+                                media.appendChild(image);
+                            } else {
+                                const fallback = document.createElement('span');
+                                fallback.className = 'public-booking-property-fallback';
+                                fallback.textContent = (property.siteName || 'CS')
+                                    .split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'CS';
+                                media.appendChild(fallback);
+                            }
 
-                    select.addEventListener('change', () => {
-                        const currentDate = bookingRoot.querySelector('input[type="date"]')?.value || data.date || '';
-                        const query = new URLSearchParams();
-                        if (currentDate) query.set('date', currentDate);
-                        const suffix = query.toString();
-                        window.location.assign(`/h/${encodeURIComponent(select.value)}/booking${suffix ? `?${suffix}` : ''}`);
-                    });
+                            const copy = document.createElement('span');
+                            copy.className = 'public-booking-property-choice-copy';
+                            const name = document.createElement('strong');
+                            name.textContent = property.siteName;
+                            const count = document.createElement('small');
+                            count.textContent = `${property.roomCount} phòng`;
+                            copy.append(name, count);
+
+                            const state = document.createElement('span');
+                            state.className = 'public-booking-property-state';
+                            state.textContent = property.siteSlug === data.siteSlug ? 'Đang chọn' : 'Chọn';
+
+                            button.append(media, copy, state);
+                            choices.appendChild(button);
+
+                            if (property.siteSlug !== data.siteSlug) {
+                                button.addEventListener('click', () => {
+                                    const dateInput = bookingRoot.querySelector('input[type="date"]');
+                                    const currentDate = dateInput?.value || data.date || '';
+                                    const query = new URLSearchParams();
+                                    if (currentDate) query.set('date', currentDate);
+                                    const suffix = query.toString();
+                                    window.location.assign(`/h/${encodeURIComponent(property.siteSlug)}/booking${suffix ? `?${suffix}` : ''}`);
+                                });
+                            }
+                        });
+
+                        const roomList = step.querySelector('.public-booking-room-list');
+                        if (roomList) roomList.insertAdjacentElement('beforebegin', choices);
+                        else step.querySelector('.public-step-head')?.insertAdjacentElement('afterend', choices);
+                    }
                 }
             } catch {
-                // Booking can still be used normally if optional property-switcher data is malformed.
+                // Booking remains usable if optional property-card data is malformed.
             }
         }
     }
