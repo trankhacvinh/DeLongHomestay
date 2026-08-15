@@ -23,7 +23,7 @@
         return { html: '<p>Nội dung mới</p>' };
     }
     createApp({
-        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
+        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
         mounted() { nextTick(() => this.mountSortable()); },
         methods: {
             sectionTypeLabel(type) { return this.sectionTypes.find(x => x.value === type)?.label || type; },
@@ -52,6 +52,26 @@
                     this.notify('Đã tải ảnh. Lưu khối để áp dụng.');
                 } catch (err) { this.notify(err.message || 'Không thể tải ảnh.', 'error'); }
                 finally { this.uploading = false; }
+            },
+            async applyHospitalityPreset() {
+                if (this.applyingPreset || this.saving) return;
+                if (!window.confirm('Áp dụng bố cục hospitality cho các khối hiện có? Nội dung chữ và ảnh được giữ nguyên; chỉ layout và thứ tự khối thay đổi.')) return;
+                const variants = { Hero: 'split', AvailabilitySearch: 'booking-bar', FeatureGrid: 'split', RoomGrid: 'editorial-cards', BranchGrid: 'editorial', RichText: 'editorial', Cta: 'offer' };
+                const priority = { Hero: 10, AvailabilitySearch: 20, FeatureGrid: 30, RoomGrid: 40, BranchGrid: 50, RichText: 60, Cta: 70 };
+                this.applyingPreset = true;
+                try {
+                    for (const section of this.sections) {
+                        const variant = variants[section.type] || section.variant;
+                        if (variant === section.variant) continue;
+                        const saved = await DeLongApi.put(`/api/admin/site/global/sections/${section.id}`, { type: section.type, name: section.name, variant, contentJson: section.contentJson || '{}', isVisible: section.isVisible });
+                        Object.assign(section, saved);
+                    }
+                    this.sections.sort((a, b) => (priority[a.type] || 999) - (priority[b.type] || 999) || (a.sortOrder || 0) - (b.sortOrder || 0));
+                    await DeLongApi.put('/api/admin/site/global/sections/reorder', { ids: this.sections.map(x => x.id) });
+                    this.notify('Đã áp dụng bố cục khách sạn.');
+                    nextTick(() => this.mountSortable());
+                } catch (err) { this.notify(err.message || 'Không thể áp dụng bố cục khách sạn.', 'error'); }
+                finally { this.applyingPreset = false; }
             },
             openCreate() { const type = 'Hero'; this.form = { type, name: '', variant: this.variantsFor(type)[0], isVisible: true, content: defaultContent(type), itemsText: '' }; this.editor = { open: true, mode: 'create', id: null }; },
             openEdit(section) { let content = {}; try { content = JSON.parse(section.contentJson || '{}'); } catch (_) {} this.form = { type: section.type, name: section.name, variant: section.variant, isVisible: section.isVisible, content: this.normalizeContent(section.type, content), itemsText: Array.isArray(content.items) ? content.items.join('\n') : '' }; this.editor = { open: true, mode: 'edit', id: section.id }; },
