@@ -33,10 +33,13 @@ public sealed class IndexModel(
             }
 
             if (Properties.Count == 0) return NotFound();
-            if (Properties.Count == 1)
-                return Redirect(PublicUrlBuilder.Booking(Properties[0].SiteSlug, date, room, rate));
-            RequiresPropertySelection = true;
-            return Page();
+
+            // A plain /booking request should start the booking flow immediately. Keep DELONG
+            // as the canonical/default public property when it is active, and only fall back to
+            // the first active public property when the legacy/default property is unavailable.
+            var defaultProperty = await publicPropertyResolver.ResolveAsync(null, cancellationToken);
+            var defaultSlug = defaultProperty?.SiteSlug ?? Properties[0].SiteSlug;
+            return Redirect(PublicUrlBuilder.Booking(defaultSlug, date, room, rate));
         }
 
         var property = await publicPropertyResolver.ResolveAsync(siteSlug, cancellationToken);
