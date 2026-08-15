@@ -32,6 +32,7 @@
     <link rel="stylesheet" href="~/css/public-room-content.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/homepage-cms.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/hospitality-home.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hospitality-editorial.css" asp-append-version="true" />
 }
 
 @if (Model.IsGlobalHome)
@@ -144,6 +145,28 @@
             }
         }
     }
+
+    if (Model.GlobalEditorial is { } editorial)
+    {
+        if (editorial.Gallery.Count > 0)
+        {
+            <section class="public-section public-editorial-gallery"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">GALLERY</span><h2>@editorial.Settings.GalleryTitle</h2></div></div><div class="public-gallery-mosaic">
+                @foreach (var item in editorial.Gallery)
+                {
+                    <figure><a href="@PublicUrlBuilder.PropertyHome(item.PropertySiteSlug)"><img src="@item.ImageUrl" alt="@item.AltText" loading="lazy" /></a><figcaption><strong>@item.PropertyName</strong>@if (!string.IsNullOrWhiteSpace(item.Caption)) { <span>@item.Caption</span> }</figcaption></figure>
+                }
+            </div></div></section>
+        }
+        if (editorial.Posts.Count > 0)
+        {
+            <section class="public-section public-editorial-blog"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">BLOG</span><h2>@editorial.Settings.BlogTitle</h2></div><a class="public-text-link" href="/blog">Xem tất cả bài viết →</a></div><div class="public-blog-grid">
+                @foreach (var post in editorial.Posts)
+                {
+                    <article class="public-blog-card"><a class="public-blog-media" href="/h/@post.PropertySiteSlug/blog/@post.Slug">@if (!string.IsNullOrWhiteSpace(post.CoverImageUrl)) { <img src="@post.CoverImageUrl" alt="@post.Title" loading="lazy" /> } else { <span>@post.PropertyName</span> }</a><div class="public-blog-copy"><small>@post.PropertyName</small><h3><a href="/h/@post.PropertySiteSlug/blog/@post.Slug">@post.Title</a></h3><p>@post.Excerpt</p><a class="public-text-link" href="/h/@post.PropertySiteSlug/blog/@post.Slug">Đọc bài →</a></div></article>
+                }
+            </div></div></section>
+        }
+    }
 }
 else
 {
@@ -193,5 +216,24 @@ else
     else
     {
         <section class="public-hero"><div class="public-container public-hero-grid"><div class="public-hero-copy"><span class="public-eyebrow">@siteName</span><h1>Một khoảng nghỉ riêng tư, vừa đủ để chậm lại.</h1><p>@roomCount không gian nghỉ đang mở.</p><div class="public-hero-actions"><a class="public-btn public-btn-primary" href="@PublicUrlBuilder.Booking(Model.SiteSlug!)">Đặt phòng</a><a class="public-btn public-btn-ghost" href="@PublicUrlBuilder.Rooms(Model.SiteSlug)">Xem phòng</a></div></div></div></section>
+    }
+
+    if (Model.PropertyGallery.Count > 0)
+    {
+        <section class="public-section public-editorial-gallery"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">GALLERY</span><h2>Không gian tại @siteName</h2></div></div><div class="public-gallery-mosaic">
+            @foreach (var item in Model.PropertyGallery.Take(12))
+            {
+                <figure><img src="@item.ImageUrl" alt="@item.AltText" loading="lazy" /><figcaption>@if (!string.IsNullOrWhiteSpace(item.Caption)) { <span>@item.Caption</span> }</figcaption></figure>
+            }
+        </div></div></section>
+    }
+    if (Model.PropertyPosts.Count > 0)
+    {
+        <section class="public-section public-editorial-blog"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">BLOG</span><h2>Câu chuyện & gợi ý từ @siteName</h2></div><a class="public-text-link" href="/h/@Model.SiteSlug/blog">Xem tất cả bài viết →</a></div><div class="public-blog-grid">
+            @foreach (var post in Model.PropertyPosts.Take(3))
+            {
+                <article class="public-blog-card"><a class="public-blog-media" href="/h/@Model.SiteSlug/blog/@post.Slug">@if (!string.IsNullOrWhiteSpace(post.CoverImageUrl)) { <img src="@post.CoverImageUrl" alt="@post.Title" loading="lazy" /> } else { <span>@siteName</span> }</a><div class="public-blog-copy"><small>@siteName</small><h3><a href="/h/@Model.SiteSlug/blog/@post.Slug">@post.Title</a></h3><p>@post.Excerpt</p><a class="public-text-link" href="/h/@Model.SiteSlug/blog/@post.Slug">Đọc bài →</a></div></article>
+            }
+        </div></div></section>
     }
 }
