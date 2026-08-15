@@ -14,11 +14,11 @@
     ];
 
     function defaultContent(type) {
-        if (type === 'Hero') return { eyebrow: '', title: '', body: '', primaryText: 'Kiểm tra phòng trống', primaryUrl: '/booking', secondaryText: 'Xem phòng', secondaryUrl: '/rooms', imageUrl: '' };
+        if (type === 'Hero') return { eyebrow: '', title: '', body: '', primaryText: 'Đặt phòng', primaryUrl: '/booking', secondaryText: 'Xem phòng', secondaryUrl: '/rooms', imageUrl: '' };
         if (type === 'AvailabilitySearch') return { title: 'Chọn ngày bạn muốn ghé' };
         if (type === 'RoomGrid') return { eyebrow: 'KHÔNG GIAN', title: 'Chọn căn phòng hợp với nhịp của bạn', limit: 6 };
-        if (type === 'FeatureGrid') return { eyebrow: '', title: '', body: '', items: [] };
-        if (type === 'Cta') return { title: '', body: '', buttonText: 'Kiểm tra phòng trống', buttonUrl: '/booking' };
+        if (type === 'FeatureGrid') return { eyebrow: '', title: '', body: '', items: [], imageUrl: '' };
+        if (type === 'Cta') return { title: '', body: '', buttonText: 'Đặt phòng', buttonUrl: '/booking' };
         return { html: '<p>Nội dung mới</p>' };
     }
 
@@ -41,17 +41,29 @@
                 toast: { show: false, type: 'success', message: '' }
             };
         },
+        mounted() {
+            const actions = document.querySelector('.site-head-actions');
+            if (actions && !actions.querySelector('[data-editorial-link]')) {
+                const link = document.createElement('a');
+                link.className = 'btn btn-light';
+                link.dataset.editorialLink = 'true';
+                link.href = `/Admin/Site/Editorial?propertyId=${encodeURIComponent(this.propertyId)}`;
+                link.textContent = 'Gallery / Blog';
+                actions.prepend(link);
+            }
+        },
         watch: {
             tab(value) { if (value === 'home') nextTick(() => this.mountSortable()); }
         },
         methods: {
             sectionTypeLabel(type) { return this.sectionTypes.find(x => x.value === type)?.label || type; },
             variantsFor(type) {
-                if (type === 'Hero') return ['split', 'centered', 'image-first'];
-                if (type === 'RoomGrid') return ['grid-3', 'grid-2', 'featured-first'];
-                if (type === 'FeatureGrid') return ['split', 'stacked'];
-                if (type === 'RichText') return ['narrow', 'wide'];
-                if (type === 'Cta') return ['card', 'full-width'];
+                if (type === 'Hero') return ['split', 'centered', 'image-first', 'image-full', 'booking-overlay', 'editorial'];
+                if (type === 'RoomGrid') return ['grid-3', 'grid-2', 'featured-first', 'editorial-cards', 'horizontal-scroll'];
+                if (type === 'AvailabilitySearch') return ['booking-bar', 'card', 'minimal'];
+                if (type === 'FeatureGrid') return ['split', 'stacked', 'icon-grid', 'dark-band', 'editorial'];
+                if (type === 'RichText') return ['narrow', 'wide', 'editorial'];
+                if (type === 'Cta') return ['card', 'full-width', 'dark', 'offer'];
                 return ['card', 'minimal'];
             },
             mountSortable() {

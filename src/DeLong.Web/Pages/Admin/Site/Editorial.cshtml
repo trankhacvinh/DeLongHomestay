@@ -1,0 +1,105 @@
+@page
+@model DeLong.Web.Pages.Admin.Site.EditorialModel
+@{
+    var isBlog = string.Equals(Request.Query["tab"], "blog", StringComparison.OrdinalIgnoreCase);
+    ViewData["Title"] = isBlog ? "Blog" : "Gallery";
+}
+@section Head {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
+    <link rel="stylesheet" href="~/css/site-cms.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/editorial-admin.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/editorial-admin-v2.css" asp-append-version="true" />
+}
+<div id="editorial-admin" class="site-admin-page" v-cloak>
+    <script id="editorial-admin-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+    <div class="page-title-row site-page-head" v-if="!postEditor.open">
+        <div>
+            <div class="page-eyebrow">Website · {{ propertyName }}</div>
+            <h1>{{ tab === 'gallery' ? 'Gallery' : 'Blog' }}</h1>
+            <p v-if="tab==='gallery'">Quản lý ảnh thật của cơ sở và cách bộ ảnh được trình bày ngoài website.</p>
+            <p v-else>Viết, lưu nháp và xuất bản bài viết riêng cho cơ sở.</p>
+        </div>
+        <div class="site-head-actions">
+            <a class="btn btn-light" v-bind:href="`/h/${siteSlug}`" target="_blank" rel="noopener">Xem trang cơ sở ↗</a>
+            <a v-if="isAdmin" class="btn btn-light" v-bind:href="`/Admin/Site/EditorialGlobal?tab=${tab}`">{{ tab === 'gallery' ? 'Cấu hình nguồn ảnh trang chủ' : 'Hiển thị trên trang chủ chung' }}</a>
+        </div>
+    </div>
+
+    <section v-if="loading" class="panel editorial-loading">Đang tải nội dung…</section>
+
+    <section v-else-if="tab==='gallery'" class="editorial-section">
+        <div class="site-home-toolbar panel editorial-toolbar">
+            <div class="editorial-toolbar-copy"><span class="page-eyebrow">Thư viện ảnh</span><h2>Ảnh của cơ sở</h2><p>Tải nhiều ảnh cùng lúc. Hai lựa chọn bên phải điều khiển hai nơi hiển thị độc lập.</p></div>
+            <div class="editorial-toolbar-actions">
+                <div class="editorial-layout-controls">
+                    <label class="editorial-layout-picker"><span>Trang cơ sở</span><select v-model="galleryLayout" v-on:change="saveGalleryLayout"><option value="mosaic">Mosaic</option><option value="grid">Grid</option><option value="slider">Slider</option></select><small>/h/{{ siteSlug }}</small></label>
+                    <label v-if="isAdmin" class="editorial-layout-picker editorial-layout-picker-global"><span>Trang chủ chung</span><select v-model="globalGalleryLayout" v-bind:disabled="!globalSettings || globalSaving" v-on:change="saveGlobalGalleryLayout"><option value="mosaic">Mosaic</option><option value="grid">Grid</option><option value="slider">Slider</option></select><small>/</small></label>
+                </div>
+                <label class="btn btn-primary file-btn">{{ uploading ? 'Đang tải…' : '+ Tải ảnh' }}<input type="file" multiple accept="image/png,image/jpeg,image/webp" v-bind:disabled="uploading" v-on:change="uploadGallery($event)" /></label>
+            </div>
+        </div>
+        <div v-if="gallery.length" class="editorial-gallery-admin">
+            <article class="panel editorial-gallery-card" v-for="item in gallery" v-bind:key="item.id"><img v-bind:src="item.imageUrl" v-bind:alt="item.altText" /><div class="editorial-gallery-copy"><input v-model="item.altText" placeholder="Mô tả ảnh cho SEO" /><input v-model="item.caption" placeholder="Chú thích ảnh" /><label class="site-toggle compact-toggle"><input type="checkbox" v-model="item.isPublished" /><span><strong>Hiển thị</strong></span></label><div class="editorial-card-actions"><button class="btn btn-light btn-sm" type="button" v-on:click="saveGallery(item)">Lưu</button><button class="btn btn-danger-outline btn-sm" type="button" v-on:click="deleteGallery(item)">Xóa</button></div></div></article>
+        </div>
+        <div v-else class="panel editorial-empty"><strong>Chưa có ảnh gallery.</strong><span>Tải ảnh không gian chung, mặt tiền, view, khu vực xung quanh hoặc trải nghiệm tại cơ sở.</span></div>
+    </section>
+
+    <section v-else-if="!postEditor.open" class="editorial-section">
+        <div class="site-home-toolbar panel"><div><span class="page-eyebrow">Bài viết</span><h2>Blog của cơ sở</h2><p>Nội dung hữu ích, câu chuyện không gian, hướng dẫn đi lại hoặc gợi ý trải nghiệm quanh cơ sở.</p></div><button class="btn btn-primary" type="button" v-on:click="openPost()">+ Viết bài</button></div>
+        <div v-if="posts.length" class="editorial-post-list"><article class="panel editorial-post-card" v-for="post in posts" v-bind:key="post.id"><div class="editorial-post-cover"><img v-if="post.coverImageUrl" v-bind:src="post.coverImageUrl" v-bind:alt="post.title" /><span v-else>BLOG</span></div><div><span class="home-section-type">{{ post.isPublished ? 'Đã xuất bản' : 'Bản nháp' }}</span><h3>{{ post.title }}</h3><p>{{ post.excerpt }}</p><small>/h/{{ siteSlug }}/blog/{{ post.slug }}</small></div><div class="editorial-post-actions"><a v-if="post.isPublished" class="btn btn-light btn-sm" v-bind:href="`/h/${siteSlug}/blog/${post.slug}`" target="_blank" rel="noopener">Xem ↗</a><button class="btn btn-light btn-sm" type="button" v-on:click="openPost(post)">Sửa</button></div></article></div>
+        <div v-else class="panel editorial-empty"><strong>Chưa có bài viết.</strong><span>Tạo bài đầu tiên để phần Blog trên trang cơ sở có nội dung.</span></div>
+    </section>
+
+    <section v-else class="editorial-blog-editor-page">
+        <div class="editorial-blog-editor-head">
+            <div class="editorial-blog-editor-heading">
+                <button class="btn btn-light btn-sm" type="button" v-on:click="closePost">← Quay lại Blog</button>
+                <div><span class="page-eyebrow">{{ postEditor.id ? 'Chỉnh sửa bài viết' : 'Bài viết mới' }}</span><h1>{{ postForm.title || (postEditor.id ? 'Sửa bài viết' : 'Viết bài mới') }}</h1><p>Soạn nội dung trực quan như phần chi tiết phòng. HTML vẫn được sanitize khi lưu.</p></div>
+            </div>
+            <div class="editorial-blog-editor-actions"><a v-if="postEditor.id && postForm.isPublished && postForm.slug" class="btn btn-light" v-bind:href="`/h/${siteSlug}/blog/${postForm.slug}`" target="_blank" rel="noopener">Xem bài ↗</a><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="savePost">{{ saving ? 'Đang lưu…' : 'Lưu bài viết' }}</button></div>
+        </div>
+
+        <div class="editorial-blog-editor-layout">
+            <main class="editorial-blog-editor-main">
+                <section class="panel editorial-blog-editor-card">
+                    <div class="editorial-blog-card-head"><span>01</span><div><h2>Thông tin bài viết</h2><p>Tiêu đề, đường dẫn và mô tả ngắn là phần nền tảng của bài viết.</p></div></div>
+                    <div class="editorial-blog-fields">
+                        <div class="field"><label for="blog-post-title">Tiêu đề</label><input id="blog-post-title" v-model.trim="postForm.title" maxlength="240" autocomplete="off" placeholder="Ví dụ: 3 cách chọn phòng phù hợp cho một kỳ nghỉ riêng tư" /><small class="editorial-field-help">{{ (postForm.title || '').length }}/240 ký tự</small></div>
+                        <div class="field"><label for="blog-post-slug">Slug</label><input id="blog-post-slug" v-model.trim="postForm.slug" maxlength="180" autocomplete="off" placeholder="tu-dong-tu-tieu-de" /><small class="editorial-field-help">Đường dẫn public: /h/{{ siteSlug }}/blog/{{ postForm.slug || 'tu-dong-tu-tieu-de' }} · Để trống khi tạo mới để hệ thống sinh từ tiêu đề.</small></div>
+                        <div class="field"><label for="blog-post-excerpt">Mô tả ngắn</label><textarea id="blog-post-excerpt" v-model.trim="postForm.excerpt" rows="3" maxlength="800" placeholder="Tóm tắt ngắn gọn nội dung và lý do khách nên đọc bài này."></textarea><small class="editorial-field-help">{{ (postForm.excerpt || '').length }}/800 ký tự</small></div>
+                    </div>
+                </section>
+
+                <section class="panel editorial-blog-editor-card editorial-blog-content-card">
+                    <div class="editorial-blog-card-head"><span>02</span><div><h2>Nội dung chi tiết</h2><p>Dùng heading, danh sách, liên kết và ảnh trực tiếp — không cần viết HTML.</p></div></div>
+                    <div class="editorial-blog-quill-shell">
+                        <div ref="postQuillEditor" class="editorial-blog-quill-editor"></div>
+                        <input ref="postBodyImageInput" class="editorial-hidden-input" type="file" accept="image/png,image/jpeg,image/webp" v-on:change="uploadPostBodyImage($event)" />
+                        <div class="editorial-editor-footnote"><span>Ảnh chèn vào bài được upload qua pipeline ảnh website.</span><span>Heading H2/H3 giúp bài dễ đọc và có cấu trúc tốt hơn.</span></div>
+                    </div>
+                </section>
+            </main>
+
+            <aside class="editorial-blog-editor-aside">
+                <section class="panel editorial-blog-publish-card">
+                    <div class="editorial-blog-side-head"><span class="page-eyebrow">Xuất bản</span><strong>{{ postForm.isPublished ? 'Đang hiển thị trên website' : 'Đang là bản nháp' }}</strong></div>
+                    <label class="site-toggle editorial-publish-toggle"><input type="checkbox" v-model="postForm.isPublished" /><span><strong>{{ postForm.isPublished ? 'Đã bật xuất bản' : 'Chưa xuất bản' }}</strong><small>Có thể lưu nháp rồi quay lại hoàn thiện sau.</small></span></label>
+                </section>
+
+                <section class="panel editorial-blog-cover-card">
+                    <div class="editorial-blog-side-head"><span class="page-eyebrow">Ảnh cover</span><strong>Ảnh đại diện bài viết</strong></div>
+                    <div class="editorial-cover-preview" v-bind:class="{ empty: !postForm.coverImageUrl }"><img v-if="postForm.coverImageUrl" v-bind:src="postForm.coverImageUrl" v-bind:alt="postForm.title || 'Ảnh cover'" /><span v-else>Chưa có ảnh cover</span></div>
+                    <div class="editorial-cover-actions"><label class="btn btn-light btn-sm file-btn">{{ uploadingCover ? 'Đang tải…' : 'Tải ảnh cover' }}<input type="file" accept="image/png,image/jpeg,image/webp" v-bind:disabled="uploadingCover" v-on:change="uploadPostCover($event)" /></label><button v-if="postForm.coverImageUrl" class="btn btn-light btn-sm" type="button" v-on:click="postForm.coverImageUrl=''">Bỏ ảnh</button></div>
+                </section>
+
+                <button v-if="postEditor.id" class="btn btn-danger-outline editorial-delete-post" type="button" v-bind:disabled="saving" v-on:click="deletePost">Xóa bài viết</button>
+            </aside>
+        </div>
+    </section>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+</div>
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script src="~/js/pages/admin-editorial.js" asp-append-version="true"></script>
+}

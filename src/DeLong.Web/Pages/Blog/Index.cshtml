@@ -1,0 +1,24 @@
+@page "/blog"
+@model DeLong.Web.Pages.Blog.IndexModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hospitality-editorial.css" asp-append-version="true" />
+}
+<section class="public-blog-page"><div class="public-container"><header class="public-blog-page-head"><span class="public-eyebrow">BLOG</span><h1>@Model.Title</h1><p>Gợi ý, câu chuyện và thông tin hữu ích từ các cơ sở De Long.</p></header>
+@if (Model.Posts.Count == 0)
+{
+    <div class="public-empty-state"><h2>Chưa có bài viết</h2><p>Các bài mới sẽ xuất hiện tại đây sau khi được xuất bản.</p></div>
+}
+else
+{
+    <div class="public-blog-grid">
+        @foreach (var post in Model.Posts)
+        {
+            <article class="public-blog-card"><a class="public-blog-media" href="/h/@post.PropertySiteSlug/blog/@post.Slug">@if (!string.IsNullOrWhiteSpace(post.CoverImageUrl)) { <img src="@post.CoverImageUrl" alt="@post.Title" loading="lazy" /> } else { <span>@post.PropertyName</span> }</a><div class="public-blog-copy"><small>@post.PropertyName</small><h3><a href="/h/@post.PropertySiteSlug/blog/@post.Slug">@post.Title</a></h3><p>@post.Excerpt</p><a class="public-text-link" href="/h/@post.PropertySiteSlug/blog/@post.Slug">Đọc bài →</a></div></article>
+        }
+    </div>
+}
+</div></section>

@@ -13,7 +13,9 @@ public sealed class IndexModel(
     PublicBookingService publicBookingService,
     PublicRoomContentService publicRoomContentService,
     PublicPropertyResolver publicPropertyResolver,
-    SiteContentService siteContentService) : PageModel
+    SiteContentService siteContentService,
+    PropertyEditorialContentService editorialContentService,
+    GlobalEditorialShowcaseService globalEditorialShowcaseService) : PageModel
 {
     public bool IsGlobalHome { get; private set; }
     public PublicGlobalRoomCatalogDto GlobalCatalog { get; private set; } = new([], []);
@@ -23,6 +25,10 @@ public sealed class IndexModel(
     public IReadOnlyList<PublicHomeSectionVm> Sections { get; private set; } = [];
     public string? SiteSlug { get; private set; }
     public string ScopePrefix => PublicPropertyResolver.ScopePrefix(SiteSlug);
+    public GlobalEditorialPublicDto? GlobalEditorial { get; private set; }
+    public IReadOnlyList<GalleryItemDto> PropertyGallery { get; private set; } = [];
+    public string PropertyGalleryLayout { get; private set; } = "mosaic";
+    public IReadOnlyList<BlogPostDto> PropertyPosts { get; private set; } = [];
 
     public async Task<IActionResult> OnGetAsync(string? siteSlug, CancellationToken cancellationToken)
     {
@@ -32,6 +38,7 @@ public sealed class IndexModel(
             GlobalCatalog = await publicRoomContentService.GetGlobalCatalogAsync(cancellationToken);
             var globalSections = await siteContentService.GetGlobalPublicSectionsAsync(cancellationToken);
             Sections = NormalizeGlobalSections(ToViewModels(globalSections), GlobalCatalog.Properties.Count);
+            GlobalEditorial = await globalEditorialShowcaseService.GetPublicAsync(cancellationToken);
             var timeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
             var localNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
             DefaultDate = DateOnly.FromDateTime(localNow).ToString("yyyy-MM-dd");
@@ -54,6 +61,9 @@ public sealed class IndexModel(
         var site = await siteContentService.GetPublicAsync(SiteSlug, cancellationToken);
         SiteSettings = site?.Settings;
         Sections = ToViewModels(site?.Sections ?? []);
+        PropertyGallery = await editorialContentService.GetPublicGalleryAsync(property.Id, cancellationToken);
+        PropertyGalleryLayout = await editorialContentService.GetGalleryLayoutAsync(property.Id, cancellationToken);
+        PropertyPosts = await editorialContentService.GetPublicPostsAsync(property.Id, cancellationToken);
         return Page();
     }
 

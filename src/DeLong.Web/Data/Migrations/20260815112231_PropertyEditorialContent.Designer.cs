@@ -3,6 +3,7 @@ using System;
 using DeLong.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DeLong.Web.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260815112231_PropertyEditorialContent")]
+    partial class PropertyEditorialContent
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -594,14 +597,6 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("gallery_item_ids_json");
 
-                    b.Property<string>("GalleryLayout")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasDefaultValue("mosaic")
-                        .HasColumnName("gallery_layout");
-
                     b.Property<int>("GalleryLimit")
                         .HasColumnType("integer")
                         .HasColumnName("gallery_limit");
@@ -938,14 +933,6 @@ namespace DeLong.Web.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("favicon_url");
-
-                    b.Property<string>("GalleryLayout")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasDefaultValue("mosaic")
-                        .HasColumnName("gallery_layout");
 
                     b.Property<string>("GoogleMapsUrl")
                         .HasMaxLength(1000)

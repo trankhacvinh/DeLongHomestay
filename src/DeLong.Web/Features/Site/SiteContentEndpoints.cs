@@ -90,6 +90,16 @@ public static class SiteContentEndpoints
         global.MapGet("/", async (SiteContentService service, CancellationToken ct) =>
             Results.Ok(await service.GetGlobalAdminAsync(ct)));
 
+        global.MapPost("/assets/{kind}", async (
+            string kind,
+            IFormFile file,
+            ISiteAssetStorage storage,
+            CancellationToken ct) =>
+        {
+            var (asset, error) = await storage.SaveAsync("global", kind, file, ct);
+            return error is null ? Results.Ok(asset) : Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = [error] });
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
         global.MapPost("/sections", async (
             SaveHomeSectionRequest request,
             SiteContentService service,

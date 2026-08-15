@@ -14,24 +14,65 @@
         { value: 'Cta', label: 'Kêu gọi hành động' }
     ];
     function defaultContent(type) {
-        if (type === 'Hero') return { eyebrow: 'DE LONG HOMESTAY', title: '', body: '', primaryText: 'Xem tất cả phòng', primaryUrl: '/rooms', secondaryText: 'Khám phá các cơ sở', secondaryUrl: '/#co-so' };
+        if (type === 'Hero') return { eyebrow: 'DE LONG HOMESTAY', title: '', body: '', primaryText: 'Xem tất cả phòng', primaryUrl: '/rooms', secondaryText: 'Khám phá các cơ sở', secondaryUrl: '/#co-so', imageUrl: '' };
         if (type === 'BranchGrid') return { eyebrow: 'CƠ SỞ', title: 'Chọn nơi bạn muốn ghé', propertyIds: [] };
         if (type === 'RoomGrid') return { eyebrow: 'PHÒNG', title: 'Một vài lựa chọn đang mở', mode: 'all', limit: 6, propertyQuotas: {}, roomIds: [] };
         if (type === 'AvailabilitySearch') return { title: 'Chọn cơ sở và ngày bạn muốn ghé' };
-        if (type === 'FeatureGrid') return { eyebrow: '', title: '', body: '', items: [] };
+        if (type === 'FeatureGrid') return { eyebrow: '', title: '', body: '', items: [], imageUrl: '' };
         if (type === 'Cta') return { title: '', body: '', buttonText: 'Xem phòng', buttonUrl: '/rooms' };
         return { html: '<p>Nội dung mới</p>' };
     }
     createApp({
-        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
+        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
         mounted() { nextTick(() => this.mountSortable()); },
         methods: {
             sectionTypeLabel(type) { return this.sectionTypes.find(x => x.value === type)?.label || type; },
-            variantsFor(type) { if (type === 'Hero') return ['split', 'centered']; if (type === 'BranchGrid' || type === 'RoomGrid') return ['grid-3', 'grid-2', 'featured-first']; if (type === 'FeatureGrid') return ['split', 'stacked']; if (type === 'RichText') return ['narrow', 'wide']; if (type === 'Cta') return ['card', 'full-width']; return ['card', 'minimal']; },
+            variantsFor(type) {
+                if (type === 'Hero') return ['split', 'centered', 'image-full', 'booking-overlay', 'editorial'];
+                if (type === 'BranchGrid') return ['grid-3', 'grid-2', 'editorial'];
+                if (type === 'RoomGrid') return ['grid-3', 'grid-2', 'featured-first', 'editorial-cards', 'horizontal-scroll'];
+                if (type === 'AvailabilitySearch') return ['booking-bar', 'card', 'minimal'];
+                if (type === 'FeatureGrid') return ['split', 'stacked', 'icon-grid', 'dark-band', 'editorial'];
+                if (type === 'RichText') return ['narrow', 'wide', 'editorial'];
+                if (type === 'Cta') return ['card', 'full-width', 'dark', 'offer'];
+                return ['card', 'minimal'];
+            },
             includes(list, id) { return Array.isArray(list) && list.some(x => String(x) === String(id)); },
             toggleArray(key, id) { const list = Array.isArray(this.form.content[key]) ? [...this.form.content[key]] : []; const i = list.findIndex(x => String(x) === String(id)); if (i >= 0) list.splice(i, 1); else list.push(id); this.form.content[key] = list; },
             normalizeContent(type, content) { const base = Object.assign(defaultContent(type), content || {}); if (type === 'BranchGrid' && !Array.isArray(base.propertyIds)) base.propertyIds = []; if (type === 'RoomGrid') { if (!Array.isArray(base.roomIds)) base.roomIds = []; if (!base.propertyQuotas || typeof base.propertyQuotas !== 'object' || Array.isArray(base.propertyQuotas)) base.propertyQuotas = {}; } return base; },
             mountSortable() { if (!window.Sortable) return; if (this.sortable) this.sortable.destroy(); const el = document.getElementById('global-section-list'); if (!el) return; this.sortable = Sortable.create(el, { animation: 160, handle: '.home-drag-handle', ghostClass: 'dragging', onEnd: async e => { if (e.oldIndex === e.newIndex) return; const moved = this.sections.splice(e.oldIndex, 1)[0]; this.sections.splice(e.newIndex, 0, moved); try { await DeLongApi.put('/api/admin/site/global/sections/reorder', { ids: this.sections.map(x => x.id) }); this.notify('Đã cập nhật thứ tự.'); } catch (err) { this.notify(err.message || 'Không thể đổi thứ tự.', 'error'); } } }); },
+            async uploadSectionImage(event) {
+                const file = event.target.files?.[0]; event.target.value = '';
+                if (!file || this.uploading) return;
+                const form = new FormData(); form.append('file', file);
+                this.uploading = true;
+                try {
+                    const asset = await DeLongApi.postForm('/api/admin/site/global/assets/section', form);
+                    this.form.content.imageUrl = asset.url;
+                    this.notify('Đã tải ảnh. Lưu khối để áp dụng.');
+                } catch (err) { this.notify(err.message || 'Không thể tải ảnh.', 'error'); }
+                finally { this.uploading = false; }
+            },
+            async applyHospitalityPreset() {
+                if (this.applyingPreset || this.saving) return;
+                if (!window.confirm('Áp dụng bố cục hospitality cho các khối hiện có? Nội dung chữ và ảnh được giữ nguyên; chỉ layout và thứ tự khối thay đổi.')) return;
+                const variants = { Hero: 'split', AvailabilitySearch: 'booking-bar', FeatureGrid: 'split', RoomGrid: 'editorial-cards', BranchGrid: 'editorial', RichText: 'editorial', Cta: 'offer' };
+                const priority = { Hero: 10, AvailabilitySearch: 20, FeatureGrid: 30, RoomGrid: 40, BranchGrid: 50, RichText: 60, Cta: 70 };
+                this.applyingPreset = true;
+                try {
+                    for (const section of this.sections) {
+                        const variant = variants[section.type] || section.variant;
+                        if (variant === section.variant) continue;
+                        const saved = await DeLongApi.put(`/api/admin/site/global/sections/${section.id}`, { type: section.type, name: section.name, variant, contentJson: section.contentJson || '{}', isVisible: section.isVisible });
+                        Object.assign(section, saved);
+                    }
+                    this.sections.sort((a, b) => (priority[a.type] || 999) - (priority[b.type] || 999) || (a.sortOrder || 0) - (b.sortOrder || 0));
+                    await DeLongApi.put('/api/admin/site/global/sections/reorder', { ids: this.sections.map(x => x.id) });
+                    this.notify('Đã áp dụng bố cục khách sạn.');
+                    nextTick(() => this.mountSortable());
+                } catch (err) { this.notify(err.message || 'Không thể áp dụng bố cục khách sạn.', 'error'); }
+                finally { this.applyingPreset = false; }
+            },
             openCreate() { const type = 'Hero'; this.form = { type, name: '', variant: this.variantsFor(type)[0], isVisible: true, content: defaultContent(type), itemsText: '' }; this.editor = { open: true, mode: 'create', id: null }; },
             openEdit(section) { let content = {}; try { content = JSON.parse(section.contentJson || '{}'); } catch (_) {} this.form = { type: section.type, name: section.name, variant: section.variant, isVisible: section.isVisible, content: this.normalizeContent(section.type, content), itemsText: Array.isArray(content.items) ? content.items.join('\n') : '' }; this.editor = { open: true, mode: 'edit', id: section.id }; },
             closeEditor() { if (!this.saving) this.editor.open = false; },

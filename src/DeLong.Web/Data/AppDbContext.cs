@@ -30,6 +30,9 @@ public sealed class AppDbContext
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<UserPropertyAccess> UserPropertyAccesses => Set<UserPropertyAccess>();
+    public DbSet<PropertyGalleryItem> PropertyGalleryItems => Set<PropertyGalleryItem>();
+    public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
+    public DbSet<GlobalEditorialShowcase> GlobalEditorialShowcases => Set<GlobalEditorialShowcase>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -137,6 +140,45 @@ public sealed class AppDbContext
             entity.HasKey(x => new { x.UserId, x.PropertyId });
             entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PropertySiteSettings>(entity =>
+        {
+            entity.Property(x => x.GalleryLayout).HasMaxLength(30).HasDefaultValue("mosaic").IsRequired();
+        });
+
+        modelBuilder.Entity<PropertyGalleryItem>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.SortOrder });
+            entity.Property(x => x.ImageUrl).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.AltText).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Caption).HasMaxLength(500);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BlogPost>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.Slug }).IsUnique();
+            entity.HasIndex(x => new { x.PropertyId, x.IsPublished, x.PublishedAtUtc });
+            entity.Property(x => x.Slug).HasMaxLength(180).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Excerpt).HasMaxLength(800).IsRequired();
+            entity.Property(x => x.CoverImageUrl).HasMaxLength(1000);
+            entity.Property(x => x.BodyHtml).HasColumnType("text").IsRequired();
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GlobalEditorialShowcase>(entity =>
+        {
+            entity.Property(x => x.GalleryMode).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.GalleryPropertyIdsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.GalleryItemIdsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.GalleryTitle).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.GalleryLayout).HasMaxLength(30).HasDefaultValue("mosaic").IsRequired();
+            entity.Property(x => x.BlogMode).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.BlogPropertyIdsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.BlogPostIdsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.BlogTitle).HasMaxLength(240).IsRequired();
         });
 
         modelBuilder.Entity<ApplicationUser>(entity => entity.Property(x => x.DisplayName).HasMaxLength(200));
