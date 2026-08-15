@@ -28,6 +28,7 @@
             return {
                 propertyId: initial.propertyId,
                 propertyName: initial.propertyName || '',
+                publicBasePath: initial.publicBasePath || '/',
                 canEditCode: initial.canEditCode === true,
                 tab: 'settings',
                 settings: Object.assign({ siteName: '', tagline: '', address: '', phone: '', email: '', facebookUrl: '', zaloUrl: '', googleMapsUrl: '', logoUrl: '', faviconUrl: '', ogImageUrl: '', metaTitle: '', metaDescription: '', canonicalBaseUrl: '', ogTitle: '', ogDescription: '', googleSiteVerification: '', robotsIndex: true, customCss: '', customJs: '' }, site.settings || {}),

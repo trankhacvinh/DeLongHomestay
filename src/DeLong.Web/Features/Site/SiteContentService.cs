@@ -43,6 +43,7 @@ public sealed record HomeSectionDto(
     bool IsVisible);
 
 public sealed record SiteAdminDto(SiteSettingsDto Settings, IReadOnlyList<HomeSectionDto> Sections);
+public sealed record GlobalSiteAdminDto(IReadOnlyList<HomeSectionDto> Sections);
 
 public sealed class SaveSiteSettingsRequest
 {
@@ -87,8 +88,92 @@ public sealed class SiteContentService(AppDbContext db)
     // Kept for compatibility with older tests/callers. New public code resolves by route scope.
     public const string PublicPropertyCode = PublicPropertyResolver.LegacyPropertyCode;
     private static readonly HashSet<string> AllowedSectionTypes =
-        ["Hero", "AvailabilitySearch", "RoomGrid", "FeatureGrid", "RichText", "Cta"];
+        ["Hero", "AvailabilitySearch", "BranchGrid", "RoomGrid", "FeatureGrid", "RichText", "Cta"];
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    public async Task<GlobalSiteAdminDto> GetGlobalAdminAsync(CancellationToken ct = default)
+    {
+        await EnsureGlobalDefaultSectionsAsync(ct);
+        var sections = await db.Set<HomeSection>().AsNoTracking()
+            .Where(x => x.PropertyId == null)
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc)
+            .ToListAsync(ct);
+        return new(sections.Select(ToDto).ToList());
+    }
+
+    public async Task<IReadOnlyList<HomeSectionDto>> GetGlobalPublicSectionsAsync(CancellationToken ct = default)
+    {
+        var sections = await db.Set<HomeSection>().AsNoTracking()
+            .Where(x => x.PropertyId == null)
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc)
+            .ToListAsync(ct);
+        return sections.Count > 0
+            ? sections.Select(ToDto).ToList()
+            : GlobalDefaultSections().Select(ToDto).ToList();
+    }
+
+    public async Task<(HomeSectionDto? Section, SiteContentError? Error)> CreateGlobalSectionAsync(
+        SaveHomeSectionRequest request,
+        CancellationToken ct = default)
+    {
+        var (content, error) = ValidateSection(request);
+        if (error is not null) return (null, error);
+        var nextOrder = (await db.Set<HomeSection>().Where(x => x.PropertyId == null)
+            .MaxAsync(x => (int?)x.SortOrder, ct) ?? -1) + 1;
+        var section = new HomeSection
+        {
+            PropertyId = null,
+            Type = request.Type,
+            Name = Clean(request.Name) ?? SectionLabel(request.Type),
+            Variant = Clean(request.Variant) ?? "default",
+            ContentJson = content!,
+            SortOrder = nextOrder,
+            IsVisible = request.IsVisible
+        };
+        db.Set<HomeSection>().Add(section);
+        await db.SaveChangesAsync(ct);
+        return (ToDto(section), null);
+    }
+
+    public async Task<(HomeSectionDto? Section, SiteContentError? Error)> UpdateGlobalSectionAsync(
+        Guid sectionId,
+        SaveHomeSectionRequest request,
+        CancellationToken ct = default)
+    {
+        var section = await db.Set<HomeSection>()
+            .SingleOrDefaultAsync(x => x.Id == sectionId && x.PropertyId == null, ct);
+        if (section is null) return (null, new("not_found", "Không tìm thấy khối trang chủ chung."));
+        var (content, error) = ValidateSection(request);
+        if (error is not null) return (null, error);
+        section.Type = request.Type;
+        section.Name = Clean(request.Name) ?? SectionLabel(request.Type);
+        section.Variant = Clean(request.Variant) ?? "default";
+        section.ContentJson = content!;
+        section.IsVisible = request.IsVisible;
+        await db.SaveChangesAsync(ct);
+        return (ToDto(section), null);
+    }
+
+    public async Task<SiteContentError?> DeleteGlobalSectionAsync(Guid sectionId, CancellationToken ct = default)
+    {
+        var section = await db.Set<HomeSection>()
+            .SingleOrDefaultAsync(x => x.Id == sectionId && x.PropertyId == null, ct);
+        if (section is null) return new("not_found", "Không tìm thấy khối trang chủ chung.");
+        db.Set<HomeSection>().Remove(section);
+        await db.SaveChangesAsync(ct);
+        return null;
+    }
+
+    public async Task<SiteContentError?> ReorderGlobalAsync(IReadOnlyList<Guid> ids, CancellationToken ct = default)
+    {
+        var sections = await db.Set<HomeSection>().Where(x => x.PropertyId == null).ToListAsync(ct);
+        if (ids.Count != sections.Count || ids.Distinct().Count() != ids.Count || sections.Any(x => !ids.Contains(x.Id)))
+            return new("validation", "Danh sách sắp xếp không khớp các khối trang chủ chung hiện tại.");
+        var order = ids.Select((id, index) => new { id, index }).ToDictionary(x => x.id, x => x.index);
+        foreach (var section in sections) section.SortOrder = order[section.Id];
+        await db.SaveChangesAsync(ct);
+        return null;
+    }
 
     public async Task<SiteAdminDto?> GetAdminAsync(Guid propertyId, CancellationToken ct = default)
     {
@@ -221,6 +306,13 @@ public sealed class SiteContentService(AppDbContext db)
         return null;
     }
 
+    private async Task EnsureGlobalDefaultSectionsAsync(CancellationToken ct)
+    {
+        if (await db.Set<HomeSection>().AnyAsync(x => x.PropertyId == null, ct)) return;
+        db.Set<HomeSection>().AddRange(GlobalDefaultSections());
+        await db.SaveChangesAsync(ct);
+    }
+
     private async Task EnsureSettingsAndDefaultSectionsAsync(Property property, CancellationToken ct)
     {
         if (!await db.Set<PropertySiteSettings>().AnyAsync(x => x.PropertyId == property.Id, ct))
@@ -299,6 +391,44 @@ public sealed class SiteContentService(AppDbContext db)
         return (json.ToJsonString(JsonOptions), null);
     }
 
+    private static IReadOnlyList<HomeSection> GlobalDefaultSections() =>
+    [
+        New(null, 0, "Hero", "Mở đầu trang chung", "split", new
+        {
+            eyebrow = "DE LONG HOMESTAY",
+            title = "Chọn một không gian phù hợp với nhịp nghỉ của bạn.",
+            body = "Khám phá các cơ sở và phòng đang mở trên cùng một website; mỗi cơ sở vẫn có trang riêng với nội dung, phòng và luồng đặt phòng độc lập.",
+            primaryText = "Xem tất cả phòng", primaryUrl = "/rooms",
+            secondaryText = "Khám phá các cơ sở", secondaryUrl = "/#co-so"
+        }),
+        New(null, 1, "BranchGrid", "Danh sách cơ sở", "grid-3", new
+        {
+            eyebrow = "CƠ SỞ",
+            title = "Chọn nơi bạn muốn ghé",
+            propertyIds = Array.Empty<Guid>()
+        }),
+        New(null, 2, "RoomGrid", "Phòng nổi bật", "grid-3", new
+        {
+            eyebrow = "PHÒNG",
+            title = "Một vài lựa chọn đang mở",
+            mode = "all",
+            limit = 6,
+            propertyQuotas = new Dictionary<string, int>(),
+            roomIds = Array.Empty<Guid>()
+        }),
+        New(null, 3, "AvailabilitySearch", "Kiểm tra nhanh", "card", new
+        {
+            title = "Chọn cơ sở và ngày bạn muốn ghé"
+        }),
+        New(null, 4, "FeatureGrid", "Giới thiệu", "split", new
+        {
+            eyebrow = "DE LONG HOMESTAY",
+            title = "Nhiều cơ sở, một trải nghiệm đặt phòng rõ ràng.",
+            body = "Bạn có thể xem tất cả phòng trên một danh sách, lọc theo cơ sở rồi đi sâu vào trang riêng của từng nơi.",
+            items = new[] { "Phòng và giá rõ ràng", "Tách dữ liệu theo cơ sở", "Đặt phòng theo đúng chi nhánh", "Tra cứu thuận tiện" }
+        })
+    ];
+
     private static IReadOnlyList<HomeSection> DefaultSections(Property property) =>
     [
         New(property.Id, 0, "Hero", "Mở đầu", "split", new
@@ -320,7 +450,7 @@ public sealed class SiteContentService(AppDbContext db)
         })
     ];
 
-    private static HomeSection New(Guid propertyId, int order, string type, string name, string variant, object content) => new()
+    private static HomeSection New(Guid? propertyId, int order, string type, string name, string variant, object content) => new()
     {
         PropertyId = propertyId,
         SortOrder = order,
@@ -335,6 +465,7 @@ public sealed class SiteContentService(AppDbContext db)
     {
         "Hero" => "Mở đầu",
         "AvailabilitySearch" => "Kiểm tra phòng nhanh",
+        "BranchGrid" => "Danh sách cơ sở",
         "RoomGrid" => "Danh sách phòng",
         "FeatureGrid" => "Điểm nổi bật",
         "Cta" => "Kêu gọi hành động",

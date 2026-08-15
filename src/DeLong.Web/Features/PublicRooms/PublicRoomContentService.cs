@@ -1,4 +1,5 @@
 using DeLong.Web.Data;
+using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Site;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,48 @@ namespace DeLong.Web.Features.PublicRooms;
 
 public sealed class PublicRoomContentService(AppDbContext db)
 {
+    public async Task<PublicGlobalRoomCatalogDto> GetGlobalCatalogAsync(CancellationToken cancellationToken = default)
+    {
+        var properties = await db.Properties.AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name)
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.Code,
+                x.SiteSlug,
+                SiteName = db.Set<PropertySiteSettings>().Where(s => s.PropertyId == x.Id).Select(s => s.SiteName).FirstOrDefault(),
+                Tagline = db.Set<PropertySiteSettings>().Where(s => s.PropertyId == x.Id).Select(s => s.Tagline).FirstOrDefault(),
+                Address = db.Set<PropertySiteSettings>().Where(s => s.PropertyId == x.Id).Select(s => s.Address).FirstOrDefault()
+            })
+            .ToListAsync(cancellationToken);
+
+        var propertyCards = new List<PublicPropertyCardDto>();
+        var globalRooms = new List<PublicGlobalRoomCardDto>();
+        foreach (var property in properties)
+        {
+            var siteSlug = PublicPropertyResolver.EffectiveSiteSlug(property.SiteSlug, property.Code);
+            var catalog = await GetCatalogAsync(property.Id, cancellationToken);
+            propertyCards.Add(new PublicPropertyCardDto(
+                property.Id,
+                property.Name,
+                string.IsNullOrWhiteSpace(property.SiteName) ? property.Name : property.SiteName!,
+                siteSlug,
+                property.Tagline ?? string.Empty,
+                property.Address ?? string.Empty,
+                catalog.Rooms.Count,
+                catalog.Rooms.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))));
+            globalRooms.AddRange(catalog.Rooms.Select(room => new PublicGlobalRoomCardDto(
+                property.Id,
+                property.Name,
+                siteSlug,
+                room)));
+        }
+
+        return new PublicGlobalRoomCatalogDto(propertyCards, globalRooms);
+    }
+
     public async Task<PublicRoomCatalogDto> GetCatalogAsync(CancellationToken cancellationToken = default)
     {
         var propertyId = await db.Properties.AsNoTracking()

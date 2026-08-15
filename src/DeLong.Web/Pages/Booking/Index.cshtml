@@ -9,6 +9,13 @@
     <link rel="stylesheet" href="~/css/booking-v2.css" asp-append-version="true" />
 }
 
+@if (Model.RequiresPropertySelection)
+{
+    <section class="public-page-hero public-booking-hero"><div class="public-container public-page-hero-inner"><div><span class="public-eyebrow">Đặt phòng online</span><h1>Bạn muốn đặt ở cơ sở nào?</h1><p>Chọn cơ sở trước để hệ thống kiểm tra đúng phòng, giá và lịch trống.</p></div><a class="public-text-link" href="/rooms">Xem tất cả phòng →</a></div></section>
+    <section class="public-section"><div class="public-container"><div class="public-branch-grid">@foreach (var property in Model.Properties) { <article class="public-branch-card">@if (!string.IsNullOrWhiteSpace(property.CoverCardUrl)) { <a class="public-branch-media" href="@DeLong.Web.Features.Site.PublicUrlBuilder.Booking(property.SiteSlug)"><img src="@property.CoverCardUrl" alt="@property.SiteName" /></a> }<div class="public-branch-copy"><span class="public-eyebrow">@property.RoomCount phòng</span><h2>@property.SiteName</h2><p>@property.Tagline</p><a class="public-btn public-btn-primary" href="@DeLong.Web.Features.Site.PublicUrlBuilder.Booking(property.SiteSlug)">Đặt tại cơ sở này</a></div></article> }</div></div></section>
+}
+else
+{
 <div id="public-booking-page" class="public-booking-page" v-cloak>
     <script id="public-booking-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
@@ -182,6 +189,7 @@
         </div>
     </section>
 </div>
+}
 
 @section Scripts {
     <script src="~/js/pages/public-booking.js" asp-append-version="true"></script>

@@ -84,6 +84,49 @@ public static class SiteContentEndpoints
             return error is null ? Results.NoContent() : ToProblem(error);
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        var global = app.MapGroup("/api/admin/site/global")
+            .RequireAuthorization("ManageProperties");
+
+        global.MapGet("/", async (SiteContentService service, CancellationToken ct) =>
+            Results.Ok(await service.GetGlobalAdminAsync(ct)));
+
+        global.MapPost("/sections", async (
+            SaveHomeSectionRequest request,
+            SiteContentService service,
+            CancellationToken ct) =>
+        {
+            var (section, error) = await service.CreateGlobalSectionAsync(request, ct);
+            return error is null ? Results.Ok(section) : ToProblem(error);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        global.MapPut("/sections/{sectionId:guid}", async (
+            Guid sectionId,
+            SaveHomeSectionRequest request,
+            SiteContentService service,
+            CancellationToken ct) =>
+        {
+            var (section, error) = await service.UpdateGlobalSectionAsync(sectionId, request, ct);
+            return error is null ? Results.Ok(section) : ToProblem(error);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        global.MapDelete("/sections/{sectionId:guid}", async (
+            Guid sectionId,
+            SiteContentService service,
+            CancellationToken ct) =>
+        {
+            var error = await service.DeleteGlobalSectionAsync(sectionId, ct);
+            return error is null ? Results.NoContent() : ToProblem(error);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        global.MapPut("/sections/reorder", async (
+            ReorderHomeSectionsRequest request,
+            SiteContentService service,
+            CancellationToken ct) =>
+        {
+            var error = await service.ReorderGlobalAsync(request.Ids, ct);
+            return error is null ? Results.NoContent() : ToProblem(error);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
         MapCustomCss(app, "/site/custom.css", scoped: false);
         MapCustomCss(app, "/h/{siteSlug}/site/custom.css", scoped: true);
         MapCustomJs(app, "/site/custom.js", scoped: false);

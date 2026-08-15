@@ -1,5 +1,7 @@
+
 using System.Text.Json;
 using DeLong.Web.Features.PublicBooking;
+using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Site;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -8,23 +10,43 @@ namespace DeLong.Web.Pages.Booking;
 
 public sealed class IndexModel(
     PublicBookingService publicBookingService,
-    PublicPropertyResolver publicPropertyResolver) : PageModel
+    PublicPropertyResolver publicPropertyResolver,
+    PublicRoomContentService publicRoomContentService) : PageModel
 {
     public string PageDataJson { get; private set; } = "{}";
+    public bool RequiresPropertySelection { get; private set; }
+    public IReadOnlyList<PublicPropertyCardDto> Properties { get; private set; } = [];
 
-    public async Task<IActionResult> OnGetAsync(string? siteSlug, string? date, string? room, Guid? rate, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(string? siteSlug, string? site, string? date, string? room, Guid? rate, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(siteSlug))
+        {
+            if (!string.IsNullOrWhiteSpace(site))
+            {
+                var selectedProperty = await publicPropertyResolver.ResolveAsync(site, cancellationToken);
+                return selectedProperty is null
+                    ? NotFound()
+                    : Redirect(PublicUrlBuilder.Booking(selectedProperty.SiteSlug, date, room, rate));
+            }
+
+            var globalCatalog = await publicRoomContentService.GetGlobalCatalogAsync(cancellationToken);
+            if (globalCatalog.Properties.Count == 0) return NotFound();
+            if (globalCatalog.Properties.Count == 1)
+                return Redirect(PublicUrlBuilder.Booking(globalCatalog.Properties[0].SiteSlug, date, room, rate));
+            RequiresPropertySelection = true;
+            Properties = globalCatalog.Properties;
+            return Page();
+        }
+
         var property = await publicPropertyResolver.ResolveAsync(siteSlug, cancellationToken);
         if (property is null) return NotFound();
-        var effectiveSlug = string.IsNullOrWhiteSpace(siteSlug) ? null : property.SiteSlug;
-
+        var effectiveSlug = property.SiteSlug;
         var catalog = await publicBookingService.GetCatalogAsync(effectiveSlug, null, cancellationToken);
         if (catalog is null) return NotFound();
 
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(catalog.TimeZoneId);
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
         var selectedDate = DateOnly.TryParse(date, out var parsedDate) && parsedDate >= today ? parsedDate : today;
-
         var selectedRoom = catalog.Rooms.FirstOrDefault(x => string.Equals(x.Code, room, StringComparison.OrdinalIgnoreCase));
         PublicRateDto? selectedRate = null;
         if (rate.HasValue)

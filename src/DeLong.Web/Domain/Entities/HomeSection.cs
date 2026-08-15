@@ -1,9 +1,10 @@
+
 namespace DeLong.Web.Domain.Entities;
 
 public sealed class HomeSection : EntityBase
 {
-    public Guid PropertyId { get; set; }
-    public Property Property { get; set; } = null!;
+    public Guid? PropertyId { get; set; }
+    public Property? Property { get; set; }
 
     public string Type { get; set; } = "RichText";
     public string Name { get; set; } = string.Empty;

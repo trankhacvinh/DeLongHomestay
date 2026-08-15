@@ -69,6 +69,9 @@ public sealed class PublicPropertyRoutingTests
         var roomService = new PublicRoomContentService(db);
         var catalog = await roomService.GetCatalogAsync(property.Id);
         Assert.Contains(catalog.Rooms, x => x.Id == room.Id);
+        var globalCatalog = await roomService.GetGlobalCatalogAsync();
+        Assert.Contains(globalCatalog.Properties, x => x.Id == property.Id && x.SiteSlug == siteSlug);
+        Assert.Contains(globalCatalog.Rooms, x => x.PropertyId == property.Id && x.PropertySiteSlug == siteSlug && x.Room.Id == room.Id);
         var detail = await roomService.GetRoomAsync(property.Id, room.Slug!);
         Assert.NotNull(detail);
         Assert.Equal(room.Id, detail!.Id);
@@ -89,5 +92,7 @@ public sealed class PublicPropertyRoutingTests
         Assert.Equal("nana-02", PublicPropertyResolver.ToSiteSlug("NANA_02"));
         Assert.Equal("nana", PublicPropertyResolver.EffectiveSiteSlug("NANA", "NANA_02"));
         Assert.Equal("/h/nana-02", PublicPropertyResolver.ScopePrefix("nana-02"));
+        Assert.Equal("/h/nana-02/rooms/family-room", PublicUrlBuilder.Room("nana-02", "family-room"));
+        Assert.Equal("/h/nana-02/booking?date=2026-08-15&room=NN-1", PublicUrlBuilder.Booking("nana-02", "2026-08-15", "NN-1"));
     }
 }
