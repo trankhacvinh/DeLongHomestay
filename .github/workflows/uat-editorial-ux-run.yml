@@ -10,6 +10,9 @@ permissions:
 jobs:
   polish:
     runs-on: ubuntu-latest
+    env:
+      ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=delong_dev;Username=postgres;Password=postgres"
+      Database__SeedOnStartup: "false"
     steps:
       - uses: actions/checkout@v4
         with:
