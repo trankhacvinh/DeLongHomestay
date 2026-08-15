@@ -17,7 +17,7 @@
         <div>
             <div class="page-eyebrow">Hệ thống</div>
             <h1>Cơ sở</h1>
-            <p>Tạo và quản lý các cơ sở. Sau khi tạo, cơ sở sẽ xuất hiện trong phần phân quyền nhân viên.</p>
+            <p>Tạo và quản lý các cơ sở. Mỗi cơ sở có website public riêng theo đường dẫn /h/{mã-cơ-sở}.</p>
         </div>
         <button class="btn btn-primary" type="button" v-on:click="openCreate"><svg><use href="#i-plus" /></svg>Thêm cơ sở</button>
     </div>
@@ -29,6 +29,7 @@
                 <span class="pill" v-bind:class="property.isActive ? 'success' : 'danger'">{{ property.isActive ? 'Hoạt động' : 'Đã ngừng' }}</span>
             </div>
             <dl>
+                <div><dt>Website public</dt><dd><a v-bind:href="'/h/' + property.siteSlug" target="_blank" rel="noopener">/h/{{ property.siteSlug }} ↗</a></dd></div>
                 <div><dt>Múi giờ</dt><dd>{{ property.timeZoneId }}</dd></div>
                 <div><dt>Phòng</dt><dd>{{ property.roomCount }}</dd></div>
                 <div><dt>Tài khoản truy cập</dt><dd>{{ property.userCount }}</dd></div>
@@ -55,20 +56,26 @@
     <div class="modal-backdrop" v-if="editor.open" v-on:click.self="closeEditor">
         <section class="modal-card property-editor" role="dialog" aria-modal="true" aria-labelledby="property-editor-title">
             <div class="modal-head">
-                <div><h2 id="property-editor-title">{{ editor.mode === 'create' ? 'Thêm cơ sở' : 'Sửa cơ sở' }}</h2><p class="small muted">Mã cơ sở dùng nội bộ; tên cơ sở hiển thị trong Admin.</p></div>
+                <div><h2 id="property-editor-title">{{ editor.mode === 'create' ? 'Thêm cơ sở' : 'Sửa cơ sở' }}</h2><p class="small muted">Mã cơ sở là định danh ổn định và được dùng để tạo đường dẫn website public.</p></div>
                 <button class="icon-btn" type="button" v-on:click="closeEditor" aria-label="Đóng">×</button>
             </div>
             <div class="site-modal-body">
                 <div class="form-grid">
                     <div class="field">
                         <label for="property-code">Mã cơ sở *</label>
-                        <input id="property-code" v-model.trim="form.code" maxlength="50" placeholder="DELONG" autocomplete="off" />
-                        <small>Chữ, số, dấu gạch ngang hoặc gạch dưới.</small>
+                        <input id="property-code" v-model.trim="form.code" v-bind:disabled="editor.mode === 'edit'" maxlength="50" placeholder="DELONG" autocomplete="off" />
+                        <small v-if="editor.mode === 'create'">Chữ, số, dấu gạch ngang hoặc gạch dưới. Mã sẽ tạo đường dẫn public và không đổi sau khi lưu.</small>
+                        <small v-else>Mã đã được khóa để đường dẫn public không thay đổi.</small>
                     </div>
                     <div class="field">
                         <label for="property-name">Tên cơ sở *</label>
                         <input id="property-name" v-model.trim="form.name" maxlength="200" placeholder="De Long Homestay" autocomplete="off" />
                         <small>Tên hiển thị trong khu vực quản trị.</small>
+                    </div>
+                    <div class="field form-full" v-if="form.code">
+                        <label>Đường dẫn website public</label>
+                        <input v-bind:value="publicPath(form.code)" readonly aria-label="Đường dẫn website public" />
+                        <small>Ví dụ phòng nana-1 sẽ có dạng {{ publicPath(form.code) }}/rooms/nana-1.</small>
                     </div>
                     <div class="field form-full">
                         <label for="property-time-zone">Múi giờ *</label>
