@@ -34,6 +34,19 @@ jobs:
           indent = first[:len(first) - len(first.lstrip())]
           code = "\n".join(line[len(indent):] if indent and line.startswith(indent) else line for line in lines)
           exec(compile(code, 'editorial-ux-polish.py', 'exec'))
+
+          for path in ['src/DeLong.Web/Pages/Admin/Site/Editorial.cshtml', 'src/DeLong.Web/Pages/Admin/Site/EditorialGlobal.cshtml']:
+              text = Path(path).read_text()
+              text = text.replace('Context.Request.Query["tab"]', 'Request.Query["tab"]')
+              Path(path).write_text(text)
+
+          path = Path('src/DeLong.Web/Features/Site/GlobalEditorialShowcaseService.cs')
+          text = path.read_text()
+          old = '        "Một vài khoảnh khắc tại De Long",\n        true,\n        "all",'
+          new = '        "Một vài khoảnh khắc tại De Long",\n        "mosaic",\n        true,\n        "all",'
+          if old not in text:
+              raise SystemExit('DefaultDto gallery layout insertion point not found')
+          path.write_text(text.replace(old, new, 1))
           PY
       - name: Compile patched source
         run: dotnet build DeLongHomestay.sln --no-restore
