@@ -16,32 +16,37 @@ public sealed class PublicPropertyResolver(AppDbContext db)
     public const string LegacyPropertyCode = "DELONG";
     private static readonly Regex InvalidSlugCharacters = new("[^a-z0-9]+", RegexOptions.Compiled);
 
-    public async Task<PublicPropertyContext?> ResolveAsync(
-        string? siteSlug,
+    public async Task<IReadOnlyList<PublicPropertyContext>> GetActiveAsync(
         CancellationToken cancellationToken = default)
     {
         var properties = await db.Properties.AsNoTracking()
             .Where(x => x.IsActive)
+            .OrderBy(x => x.CreatedAtUtc)
+            .ThenBy(x => x.Name)
             .Select(x => new { x.Id, x.Code, x.Name, x.TimeZoneId, x.SiteSlug })
             .ToListAsync(cancellationToken);
 
+        return properties
+            .Select(x => ToContext(x.Id, x.Code, x.Name, x.TimeZoneId, x.SiteSlug))
+            .ToList();
+    }
+
+    public async Task<PublicPropertyContext?> ResolveAsync(
+        string? siteSlug,
+        CancellationToken cancellationToken = default)
+    {
+        var properties = await GetActiveAsync(cancellationToken);
+
         if (string.IsNullOrWhiteSpace(siteSlug))
-        {
-            var legacy = properties.SingleOrDefault(x => x.Code == LegacyPropertyCode);
-            return legacy is null
-                ? null
-                : ToContext(legacy.Id, legacy.Code, legacy.Name, legacy.TimeZoneId, legacy.SiteSlug);
-        }
+            return properties.SingleOrDefault(x => x.Code == LegacyPropertyCode);
 
         var normalized = NormalizeSiteSlug(siteSlug);
         var matches = properties
-            .Where(x => string.Equals(EffectiveSiteSlug(x.SiteSlug, x.Code), normalized, StringComparison.OrdinalIgnoreCase))
+            .Where(x => string.Equals(x.SiteSlug, normalized, StringComparison.OrdinalIgnoreCase))
             .Take(2)
             .ToList();
 
-        return matches.Count == 1
-            ? ToContext(matches[0].Id, matches[0].Code, matches[0].Name, matches[0].TimeZoneId, matches[0].SiteSlug)
-            : null;
+        return matches.Count == 1 ? matches[0] : null;
     }
 
     public async Task<PublicPropertyContext?> ResolveByIdAsync(

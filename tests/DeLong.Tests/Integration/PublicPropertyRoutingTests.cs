@@ -86,6 +86,48 @@ public sealed class PublicPropertyRoutingTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Public_active_property_list_excludes_inactive_properties()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(connectionString)
+            .Options;
+
+        await using var db = new AppDbContext(options);
+        await db.Database.MigrateAsync();
+
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var active = new Property
+        {
+            Code = $"ACTIVE-{suffix}".ToUpperInvariant(),
+            Name = $"Active Homestay {suffix}",
+            SiteSlug = $"active-{suffix}",
+            TimeZoneId = "Asia/Ho_Chi_Minh",
+            IsActive = true
+        };
+        var inactive = new Property
+        {
+            Code = $"HIDDEN-{suffix}".ToUpperInvariant(),
+            Name = $"Hidden Homestay {suffix}",
+            SiteSlug = $"hidden-{suffix}",
+            TimeZoneId = "Asia/Ho_Chi_Minh",
+            IsActive = false
+        };
+        db.Properties.AddRange(active, inactive);
+        await db.SaveChangesAsync();
+
+        var resolver = new PublicPropertyResolver(db);
+        var visible = await resolver.GetActiveAsync();
+
+        Assert.Contains(visible, x => x.Id == active.Id);
+        Assert.DoesNotContain(visible, x => x.Id == inactive.Id);
+        Assert.Null(await resolver.ResolveAsync(inactive.SiteSlug));
+    }
+
+    [Fact]
     public void Public_site_slug_is_stable_and_human_readable()
     {
         Assert.Equal("de-long", PublicPropertyResolver.ToSiteSlug("DELONG"));

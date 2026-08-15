@@ -1,5 +1,6 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @inject DeLong.Web.Features.Site.SiteContentService SiteContentService
+@inject DeLong.Web.Features.Site.PublicPropertyResolver PublicPropertyResolver
 @inject DeLong.Web.Common.Security.CurrentPropertyService CurrentPropertyService
 @{
     var csrf = Antiforgery.GetAndStoreTokens(Context).RequestToken;
@@ -7,6 +8,10 @@
     var publicSiteSlug = !isAdmin ? Context.Request.RouteValues["siteSlug"]?.ToString() : null;
     var isGlobalPublic = !isAdmin && string.IsNullOrWhiteSpace(publicSiteSlug);
     var publicScopePrefix = !isAdmin ? DeLong.Web.Features.Site.PublicPropertyResolver.ScopePrefix(publicSiteSlug) : string.Empty;
+    var publicProperties = !isAdmin
+        ? await PublicPropertyResolver.GetActiveAsync(Context.RequestAborted)
+        : [];
+    var showPublicBranches = publicProperties.Count > 1;
     var publicSite = !isAdmin && !isGlobalPublic ? await SiteContentService.GetPublicAsync(publicSiteSlug, Context.RequestAborted) : null;
     var publicSettings = publicSite?.Settings;
     var publicSiteName = string.IsNullOrWhiteSpace(publicSettings?.SiteName) ? "De Long Homestay" : publicSettings.SiteName;
@@ -217,6 +222,8 @@
 }
 else
 {
+    var bookingUrl = isGlobalPublic ? "/booking" : DeLong.Web.Features.Site.PublicUrlBuilder.Booking(publicSiteSlug!);
+    var lookupUrl = isGlobalPublic ? "/booking/lookup" : DeLong.Web.Features.Site.PublicUrlBuilder.BookingLookup(publicSiteSlug!);
     <header class="public-site-header">
         <div class="public-container public-site-nav">
             <a class="public-site-brand" href="@(isGlobalPublic ? "/" : DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(publicSiteSlug!))">
@@ -226,9 +233,10 @@ else
             </a>
             <nav class="public-site-links" aria-label="Điều hướng trang khách">
                 <a href="/">Trang chủ</a>
-                <a href="@(isGlobalPublic ? "/rooms" : DeLong.Web.Features.Site.PublicUrlBuilder.Rooms(publicSiteSlug))">Phòng</a>
-                @if (isGlobalPublic) { <a href="/#co-so">Cơ sở</a><a href="/booking">Đặt phòng</a> }
-                else { <a href="@DeLong.Web.Features.Site.PublicUrlBuilder.Booking(publicSiteSlug!)">Đặt phòng</a><a href="@DeLong.Web.Features.Site.PublicUrlBuilder.BookingLookup(publicSiteSlug!)">Tra cứu</a> }
+                <a href="/rooms">Phòng</a>
+                @if (showPublicBranches) { <a href="/#co-so">Cơ sở</a> }
+                <a href="@bookingUrl">Đặt phòng</a>
+                <a href="@lookupUrl">Tra cứu</a>
             </nav>
             <div class="public-site-actions">
                 @if (User.Identity?.IsAuthenticated == true)
@@ -239,7 +247,7 @@ else
                 {
                     <a class="public-admin-link" asp-page="/Account/Login">Đăng nhập</a>
                 }
-                <a class="public-btn public-btn-primary" href="@(isGlobalPublic ? "/booking" : DeLong.Web.Features.Site.PublicUrlBuilder.Booking(publicSiteSlug!))">Kiểm tra phòng</a>
+                <a class="public-btn public-btn-primary" href="@bookingUrl">Đặt phòng</a>
             </div>
         </div>
     </header>
