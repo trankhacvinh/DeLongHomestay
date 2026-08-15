@@ -1,0 +1,25 @@
+name: Check Property Editorial Model
+
+on:
+  push:
+    branches: [ "agent/property-editorial-modelcheck" ]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=delong_dev;Username=postgres;Password=postgres"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/property-gallery-blog
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet tool install --global dotnet-ef --version 10.0.10
+      - run: dotnet restore DeLongHomestay.sln
+      - name: Check pending model changes
+        run: dotnet ef migrations has-pending-model-changes --project src/DeLong.Web --startup-project src/DeLong.Web
