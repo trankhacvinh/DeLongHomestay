@@ -48,8 +48,9 @@ public sealed class CurrentPropertyService(
         // A single accessible property is unambiguous and can be selected automatically.
         // With two or more properties we intentionally return null so the UI can ask the
         // user to choose a working property instead of silently falling back to the first.
-        var candidates = await ToDtoQuery(query)
-            .OrderBy(x => x.Name)
+        var candidates = await ToDtoQuery(query
+                .OrderBy(x => x.Property.Name)
+                .ThenBy(x => x.Property.Code))
             .Take(2)
             .ToListAsync(cancellationToken);
         if (candidates.Count != 1) return null;
@@ -65,12 +66,13 @@ public sealed class CurrentPropertyService(
         var userIdValue = user.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var userId)) return [];
 
-        return await ToDtoQuery(db.UserPropertyAccesses
-                .AsNoTracking()
-                .Where(x => x.UserId == userId && x.Property.IsActive))
-            .OrderBy(x => x.Name)
-            .ThenBy(x => x.Code)
-            .ToListAsync(cancellationToken);
+        var query = db.UserPropertyAccesses
+            .AsNoTracking()
+            .Where(x => x.UserId == userId && x.Property.IsActive)
+            .OrderBy(x => x.Property.Name)
+            .ThenBy(x => x.Property.Code);
+
+        return await ToDtoQuery(query).ToListAsync(cancellationToken);
     }
 
     private static IQueryable<CurrentPropertyDto> ToDtoQuery(IQueryable<UserPropertyAccess> query) =>
