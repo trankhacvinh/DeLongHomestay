@@ -17,9 +17,9 @@
             <div>
                 <span class="public-eyebrow">Đặt phòng online</span>
                 <h1>Chọn cách ở phù hợp với bạn</h1>
-                <p>Đặt nhanh theo khung giờ hoặc chọn ngày nhận/trả nếu bạn muốn ở nhiều ngày. De Long sẽ liên hệ xác nhận trước khi giữ phòng và nhận cọc.</p>
+                <p>Đặt nhanh theo khung giờ hoặc chọn ngày nhận/trả nếu bạn muốn ở nhiều ngày. {{ propertyName }} sẽ liên hệ xác nhận trước khi giữ phòng và nhận cọc.</p>
             </div>
-            <a class="public-text-link" asp-page="/Rooms/Index">Xem mô tả phòng →</a>
+            <a class="public-text-link" v-bind:href="scopePrefix + '/rooms'">Xem mô tả phòng →</a>
         </div>
     </section>
 
@@ -105,7 +105,7 @@
                     </div>
                     <div v-else-if="bookingType === 1 && !loading" class="public-stay-empty">
                         <strong>Chưa mở đặt nhiều ngày online</strong>
-                        Hiện chưa có phòng nào được cấu hình giá lưu trú theo đêm. Bạn có thể chọn “Theo khung giờ” hoặc liên hệ De Long để được tư vấn.
+                        Hiện chưa có phòng nào được cấu hình giá lưu trú theo đêm. Bạn có thể chọn “Theo khung giờ” hoặc liên hệ {{ propertyName }} để được tư vấn.
                     </div>
                 </div>
 
@@ -146,7 +146,7 @@
                         <label class="public-form-full"><span>Ghi chú</span><textarea v-model.trim="form.note" maxlength="1000" placeholder="Ví dụ: muốn nhận phòng trễ hơn 30 phút..."></textarea></label>
                         <label class="public-honeypot" aria-hidden="true"><span>Website</span><input v-model="form.website" tabindex="-1" autocomplete="off" /></label>
                     </div>
-                    <div class="public-booking-notice">Yêu cầu này <strong>chưa tự động giữ phòng</strong>. De Long sẽ liên hệ xác nhận trước khi lượt đặt chuyển sang trạng thái giữ/xác nhận.</div>
+                    <div class="public-booking-notice">Yêu cầu này <strong>chưa tự động giữ phòng</strong>. {{ propertyName }} sẽ liên hệ xác nhận trước khi lượt đặt chuyển sang trạng thái giữ/xác nhận.</div>
                     <button class="public-btn public-btn-primary public-submit-booking" type="button" v-bind:disabled="submitting || !canSubmit" v-on:click="submitRequest">{{ submitting ? 'Đang gửi...' : 'Gửi yêu cầu đặt phòng' }}</button>
                     <p class="public-form-error" v-if="errorMessage">{{ errorMessage }}</p>
                 </div>
@@ -157,7 +157,7 @@
                     <img v-bind:src="roomImage(selectedRoom).cardUrl" v-bind:alt="roomImage(selectedRoom).altText || selectedRoom.name" />
                 </div>
                 <div v-else class="public-summary-room-art" v-bind:data-room-code="selectedRoom.code">
-                    <small>DE LONG STAY</small>
+                    <small>{{ propertyName }}</small>
                     <strong>{{ selectedRoom.name }}</strong>
                 </div>
                 <div class="public-summary-content">
