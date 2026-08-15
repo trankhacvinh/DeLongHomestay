@@ -35,16 +35,17 @@ jobs:
           code = "\n".join(line[len(indent):] if indent and line.startswith(indent) else line for line in lines)
           exec(compile(code, 'editorial-ux-polish.py', 'exec'))
           PY
+      - name: Compile patched source
+        run: dotnet build DeLongHomestay.sln --no-restore
       - name: Generate EF migration
-        run: dotnet ef migrations add EditorialGalleryLayouts --project src/DeLong.Web --startup-project src/DeLong.Web --output-dir Data/Migrations
+        run: dotnet ef migrations add EditorialGalleryLayouts --project src/DeLong.Web --startup-project src/DeLong.Web --output-dir Data/Migrations --no-build
       - name: Validate
         run: |
-          dotnet build DeLongHomestay.sln --no-restore
           dotnet test DeLongHomestay.sln --no-build
           node --check src/DeLong.Web/wwwroot/js/pages/admin-editorial.js
           node --check src/DeLong.Web/wwwroot/js/pages/admin-editorial-global.js
           node --check src/DeLong.Web/wwwroot/js/pages/public-editorial-gallery.js
-          dotnet ef migrations has-pending-model-changes --project src/DeLong.Web --startup-project src/DeLong.Web
+          dotnet ef migrations has-pending-model-changes --project src/DeLong.Web --startup-project src/DeLong.Web --no-build
       - name: Commit cleaned result
         shell: bash
         run: |
