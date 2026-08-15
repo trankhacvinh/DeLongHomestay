@@ -10,6 +10,43 @@
 .sidebar-nav::-webkit-scrollbar-thumb { background:rgba(214,228,225,.22); border-radius:999px; }
 .sidebar-nav:hover::-webkit-scrollbar-thumb { background:rgba(214,228,225,.38); }
 
+/* Native choice controls must not inherit the full-width text-input rules from site.css. */
+.admin-body input[type=checkbox],
+.admin-body input[type=radio] {
+    width:18px!important;
+    min-width:18px!important;
+    height:18px!important;
+    min-height:18px!important;
+    margin:0;
+    padding:0!important;
+    flex:0 0 18px;
+    box-shadow:none!important;
+    background:transparent;
+    accent-color:var(--brand-700);
+    cursor:pointer;
+}
+.admin-body input[type=checkbox] {
+    appearance:auto;
+    -webkit-appearance:checkbox;
+    border:initial;
+    border-radius:initial;
+}
+.admin-body input[type=radio] {
+    appearance:auto;
+    -webkit-appearance:radio;
+    border:initial;
+    border-radius:50%;
+}
+.admin-body .site-toggle,
+.admin-body .check-row {
+    align-items:center;
+}
+.admin-body .site-toggle > span,
+.admin-body .check-row > span {
+    min-width:0;
+    flex:1 1 auto;
+}
+
 /* Keep the Admin header visually stable: one row, one fixed height. */
 .admin-topbar {
     height:var(--topbar);
