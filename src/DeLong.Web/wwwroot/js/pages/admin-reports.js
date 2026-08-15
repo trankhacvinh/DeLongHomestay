@@ -15,6 +15,9 @@
         data() {
             return {
                 propertyId: initial.propertyId,
+                scope: initial.scope || initial.propertyId,
+                scopeName: initial.scopeName || initial.propertyName || '',
+                properties: initial.properties || [],
                 month: initial.month,
                 report: initial.report || { byRoom: [], bySource: [], trend: [] }
             };
@@ -47,9 +50,15 @@
             barHeight(value) {
                 return Math.max(2, Math.round(Math.abs(Number(value || 0)) / this.trendMax * 100));
             },
+            navigate(month, scope) {
+                const query = new URLSearchParams({ propertyId: this.propertyId, month, scope });
+                window.location.assign(`/Admin/Reports?${query.toString()}`);
+            },
             moveMonth(delta) {
-                const month = shiftMonth(this.month, delta);
-                window.location.assign(`/Admin/Reports?propertyId=${this.propertyId}&month=${month}`);
+                this.navigate(shiftMonth(this.month, delta), this.scope);
+            },
+            changeScope() {
+                this.navigate(this.month, this.scope);
             }
         }
     }).mount(root);
