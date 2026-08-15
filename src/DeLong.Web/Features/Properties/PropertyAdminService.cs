@@ -189,5 +189,5 @@ public sealed class PropertyAdminService(AppDbContext db)
     }
 
     private static string NormalizeCode(string value) =>
-        new string((value ?? string.Empty).Trim().ToUpperInvariant().Where(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_').ToArray());
+        new string((value ?? string.Empty).Trim().ToUpperInvariant().Where(ch => char.IsLetterOrDigit(ch) || ch == '-' || ch == '_').ToArray());
 }
