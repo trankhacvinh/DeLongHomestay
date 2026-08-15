@@ -1,17 +1,71 @@
 using DeLong.Web.Data;
+using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
+using DeLong.Web.Features.Site;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicRooms;
 
 public sealed class PublicRoomContentService(AppDbContext db)
 {
-    private const string PublicPropertyCode = "DELONG";
+    public async Task<PublicGlobalRoomCatalogDto> GetGlobalCatalogAsync(CancellationToken cancellationToken = default)
+    {
+        var properties = await db.Properties.AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name)
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.Code,
+                x.SiteSlug,
+                SiteName = db.Set<PropertySiteSettings>().Where(s => s.PropertyId == x.Id).Select(s => s.SiteName).FirstOrDefault(),
+                Tagline = db.Set<PropertySiteSettings>().Where(s => s.PropertyId == x.Id).Select(s => s.Tagline).FirstOrDefault(),
+                Address = db.Set<PropertySiteSettings>().Where(s => s.PropertyId == x.Id).Select(s => s.Address).FirstOrDefault(),
+                CoverImageUrl = db.Set<PropertySiteSettings>().Where(s => s.PropertyId == x.Id).Select(s => s.CoverImageUrl).FirstOrDefault()
+            })
+            .ToListAsync(cancellationToken);
+
+        var propertyCards = new List<PublicPropertyCardDto>();
+        var globalRooms = new List<PublicGlobalRoomCardDto>();
+        foreach (var property in properties)
+        {
+            var siteSlug = PublicPropertyResolver.EffectiveSiteSlug(property.SiteSlug, property.Code);
+            var catalog = await GetCatalogAsync(property.Id, cancellationToken);
+            propertyCards.Add(new PublicPropertyCardDto(
+                property.Id,
+                property.Name,
+                string.IsNullOrWhiteSpace(property.SiteName) ? property.Name : property.SiteName!,
+                siteSlug,
+                property.Tagline ?? string.Empty,
+                property.Address ?? string.Empty,
+                catalog.Rooms.Count,
+                string.IsNullOrWhiteSpace(property.CoverImageUrl) ? null : property.CoverImageUrl));
+            globalRooms.AddRange(catalog.Rooms.Select(room => new PublicGlobalRoomCardDto(
+                property.Id,
+                property.Name,
+                siteSlug,
+                room)));
+        }
+
+        return new PublicGlobalRoomCatalogDto(propertyCards, globalRooms);
+    }
 
     public async Task<PublicRoomCatalogDto> GetCatalogAsync(CancellationToken cancellationToken = default)
     {
+        var propertyId = await db.Properties.AsNoTracking()
+            .Where(x => x.Code == PublicPropertyResolver.LegacyPropertyCode && x.IsActive)
+            .Select(x => (Guid?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+        return propertyId.HasValue
+            ? await GetCatalogAsync(propertyId.Value, cancellationToken)
+            : new PublicRoomCatalogDto([]);
+    }
+
+    public async Task<PublicRoomCatalogDto> GetCatalogAsync(Guid propertyId, CancellationToken cancellationToken = default)
+    {
         var rooms = await db.Rooms.AsNoTracking()
-            .Where(x => x.Property.Code == PublicPropertyCode && x.Property.IsActive && x.IsActive && x.IsPublished)
+            .Where(x => x.PropertyId == propertyId && x.Property.IsActive && x.IsActive && x.IsPublished)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
             .Select(x => new
             {
@@ -59,11 +113,22 @@ public sealed class PublicRoomContentService(AppDbContext db)
 
     public async Task<PublicRoomDetailDto?> GetRoomAsync(string slugOrCode, CancellationToken cancellationToken = default)
     {
+        var propertyId = await db.Properties.AsNoTracking()
+            .Where(x => x.Code == PublicPropertyResolver.LegacyPropertyCode && x.IsActive)
+            .Select(x => (Guid?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+        return propertyId.HasValue
+            ? await GetRoomAsync(propertyId.Value, slugOrCode, cancellationToken)
+            : null;
+    }
+
+    public async Task<PublicRoomDetailDto?> GetRoomAsync(Guid propertyId, string slugOrCode, CancellationToken cancellationToken = default)
+    {
         var normalized = slugOrCode.Trim();
         if (string.IsNullOrWhiteSpace(normalized)) return null;
 
         var room = await db.Rooms.AsNoTracking()
-            .Where(x => x.Property.Code == PublicPropertyCode && x.Property.IsActive && x.IsActive && x.IsPublished &&
+            .Where(x => x.PropertyId == propertyId && x.Property.IsActive && x.IsActive && x.IsPublished &&
                         (x.Slug == normalized.ToLower() || x.Code == normalized.ToUpper()))
             .Select(x => new
             {

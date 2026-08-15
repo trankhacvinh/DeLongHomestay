@@ -48,6 +48,7 @@ public static class DbSeeder
             Id = DeLongPropertyId,
             Code = "DELONG",
             Name = "De Long Homestay",
+            SiteSlug = "de-long",
             TimeZoneId = "Asia/Ho_Chi_Minh"
         };
 
@@ -158,11 +159,10 @@ public static class DbSeeder
                 Id = Guid.CreateVersion7(),
                 UserName = email,
                 Email = email,
-                DisplayName = "De Long Admin",
                 EmailConfirmed = true,
+                DisplayName = "De Long Admin",
                 IsActive = true
             };
-
             var createResult = await userManager.CreateAsync(user, password);
             if (!createResult.Succeeded)
             {
@@ -173,12 +173,15 @@ public static class DbSeeder
 
         if (!await userManager.IsInRoleAsync(user, "Admin"))
         {
-            await userManager.AddToRoleAsync(user, "Admin");
+            var roleResult = await userManager.AddToRoleAsync(user, "Admin");
+            if (!roleResult.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    $"Unable to assign Admin role: {string.Join(", ", roleResult.Errors.Select(x => x.Description))}");
+            }
         }
 
-        var hasAccess = await db.UserPropertyAccesses
-            .AnyAsync(x => x.UserId == user.Id && x.PropertyId == DeLongPropertyId);
-        if (!hasAccess)
+        if (!await db.UserPropertyAccesses.AnyAsync(x => x.UserId == user.Id && x.PropertyId == DeLongPropertyId))
         {
             db.UserPropertyAccesses.Add(new UserPropertyAccess
             {

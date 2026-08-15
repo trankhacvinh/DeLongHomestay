@@ -9,6 +9,13 @@
     <link rel="stylesheet" href="~/css/booking-v2.css" asp-append-version="true" />
 }
 
+@if (Model.RequiresPropertySelection)
+{
+    <section class="public-page-hero public-booking-hero"><div class="public-container public-page-hero-inner"><div><span class="public-eyebrow">Đặt phòng online</span><h1>Bạn muốn đặt ở cơ sở nào?</h1><p>Chọn cơ sở trước để hệ thống kiểm tra đúng phòng, giá và lịch trống.</p></div><a class="public-text-link" href="/rooms">Xem tất cả phòng →</a></div></section>
+    <section class="public-section"><div class="public-container"><div class="public-branch-grid">@foreach (var property in Model.Properties) { <article class="public-branch-card">@if (!string.IsNullOrWhiteSpace(property.CoverCardUrl)) { <a class="public-branch-media" href="@DeLong.Web.Features.Site.PublicUrlBuilder.Booking(property.SiteSlug)"><img src="@property.CoverCardUrl" alt="@property.SiteName" /></a> }<div class="public-branch-copy"><span class="public-eyebrow">@property.RoomCount phòng</span><h2>@property.SiteName</h2><p>@property.Tagline</p><a class="public-btn public-btn-primary" href="@DeLong.Web.Features.Site.PublicUrlBuilder.Booking(property.SiteSlug)">Đặt tại cơ sở này</a></div></article> }</div></div></section>
+}
+else
+{
 <div id="public-booking-page" class="public-booking-page" v-cloak>
     <script id="public-booking-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
@@ -17,9 +24,9 @@
             <div>
                 <span class="public-eyebrow">Đặt phòng online</span>
                 <h1>Chọn cách ở phù hợp với bạn</h1>
-                <p>Đặt nhanh theo khung giờ hoặc chọn ngày nhận/trả nếu bạn muốn ở nhiều ngày. De Long sẽ liên hệ xác nhận trước khi giữ phòng và nhận cọc.</p>
+                <p>Đặt nhanh theo khung giờ hoặc chọn ngày nhận/trả nếu bạn muốn ở nhiều ngày. {{ propertyName }} sẽ liên hệ xác nhận trước khi giữ phòng và nhận cọc.</p>
             </div>
-            <a class="public-text-link" asp-page="/Rooms/Index">Xem mô tả phòng →</a>
+            <a class="public-text-link" v-bind:href="scopePrefix + '/rooms'">Xem mô tả phòng →</a>
         </div>
     </section>
 
@@ -84,7 +91,10 @@
                         <button v-for="room in roomList" v-bind:key="room.id" type="button" class="public-booking-room"
                                 v-bind:class="{ active: selectedRoomId === room.id, disabled: !roomSelectable(room) }"
                                 v-bind:disabled="!roomSelectable(room)" v-on:click="chooseRoom(room)">
-                            <span class="public-mini-room-art" v-bind:data-room-code="room.code">{{ room.code.split('-').slice(-1)[0] }}</span>
+                            <span class="public-mini-room-art public-mini-room-photo" v-if="roomImage(room)">
+                                <img v-bind:src="roomImage(room).thumbnailUrl" v-bind:alt="roomImage(room).altText || room.name" loading="lazy" />
+                            </span>
+                            <span v-else class="public-mini-room-art" v-bind:data-room-code="room.code">{{ room.code.split('-').slice(-1)[0] }}</span>
                             <span class="public-booking-room-copy">
                                 <strong>{{ room.name }}</strong>
                                 <small v-if="bookingType === 0">{{ room.capacity }} người · từ {{ money(room.fromPrice) }}</small>
@@ -102,7 +112,7 @@
                     </div>
                     <div v-else-if="bookingType === 1 && !loading" class="public-stay-empty">
                         <strong>Chưa mở đặt nhiều ngày online</strong>
-                        Hiện chưa có phòng nào được cấu hình giá lưu trú theo đêm. Bạn có thể chọn “Theo khung giờ” hoặc liên hệ De Long để được tư vấn.
+                        Hiện chưa có phòng nào được cấu hình giá lưu trú theo đêm. Bạn có thể chọn “Theo khung giờ” hoặc liên hệ {{ propertyName }} để được tư vấn.
                     </div>
                 </div>
 
@@ -143,15 +153,18 @@
                         <label class="public-form-full"><span>Ghi chú</span><textarea v-model.trim="form.note" maxlength="1000" placeholder="Ví dụ: muốn nhận phòng trễ hơn 30 phút..."></textarea></label>
                         <label class="public-honeypot" aria-hidden="true"><span>Website</span><input v-model="form.website" tabindex="-1" autocomplete="off" /></label>
                     </div>
-                    <div class="public-booking-notice">Yêu cầu này <strong>chưa tự động giữ phòng</strong>. De Long sẽ liên hệ xác nhận trước khi lượt đặt chuyển sang trạng thái giữ/xác nhận.</div>
+                    <div class="public-booking-notice">Yêu cầu này <strong>chưa tự động giữ phòng</strong>. {{ propertyName }} sẽ liên hệ xác nhận trước khi lượt đặt chuyển sang trạng thái giữ/xác nhận.</div>
                     <button class="public-btn public-btn-primary public-submit-booking" type="button" v-bind:disabled="submitting || !canSubmit" v-on:click="submitRequest">{{ submitting ? 'Đang gửi...' : 'Gửi yêu cầu đặt phòng' }}</button>
                     <p class="public-form-error" v-if="errorMessage">{{ errorMessage }}</p>
                 </div>
             </div>
 
             <aside class="public-booking-summary" v-if="selectedRoom && selectedRate">
-                <div class="public-summary-room-art" v-bind:data-room-code="selectedRoom.code">
-                    <small>DE LONG STAY</small>
+                <div class="public-summary-room-art public-summary-room-photo" v-if="roomImage(selectedRoom)">
+                    <img v-bind:src="roomImage(selectedRoom).cardUrl" v-bind:alt="roomImage(selectedRoom).altText || selectedRoom.name" />
+                </div>
+                <div v-else class="public-summary-room-art" v-bind:data-room-code="selectedRoom.code">
+                    <small>{{ propertyName }}</small>
                     <strong>{{ selectedRoom.name }}</strong>
                 </div>
                 <div class="public-summary-content">
@@ -176,6 +189,7 @@
         </div>
     </section>
 </div>
+}
 
 @section Scripts {
     <script src="~/js/pages/public-booking.js" asp-append-version="true"></script>

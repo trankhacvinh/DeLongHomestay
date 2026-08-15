@@ -7,27 +7,59 @@
     <div>
         <div class="page-eyebrow">@Model.PropertyName</div>
         <h1>Tổng quan hôm nay</h1>
-        <p>@Model.TodayLabel · Những việc cần chú ý trong ca vận hành hiện tại.</p>
+        <p>@Model.TodayLabel · Những việc cần chú ý trong phạm vi đang xem.</p>
     </div>
-    <div class="toolbar">
-        <a class="btn btn-light btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Xem booking</a>
-        <a class="btn btn-primary btn-sm" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId"><svg><use href="#i-plus" /></svg>Đặt phòng</a>
+    <div class="toolbar dashboard-scope-toolbar">
+        <form method="get" class="dashboard-scope-form">
+            <input type="hidden" name="propertyId" value="@Model.PropertyId" />
+            <select name="scope" class="property-scope-select" aria-label="Phạm vi cơ sở" onchange="this.form.submit()">
+                @if (Model.Properties.Count > 1)
+                {
+                    if (Model.IsAllScope)
+                    {
+                        <option value="all" selected>Tất cả cơ sở</option>
+                    }
+                    else
+                    {
+                        <option value="all">Tất cả cơ sở</option>
+                    }
+                }
+                @foreach (var property in Model.Properties)
+                {
+                    if (Model.Scope == property.Id.ToString())
+                    {
+                        <option value="@property.Id" selected>@property.Name</option>
+                    }
+                    else
+                    {
+                        <option value="@property.Id">@property.Name</option>
+                    }
+                }
+            </select>
+        </form>
+        <a class="btn btn-light btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Booking · @Model.WorkingPropertyName</a>
+        <a class="btn btn-primary btn-sm" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId"><svg><use href="#i-plus" /></svg>Đặt phòng · @Model.WorkingPropertyName</a>
     </div>
 </div>
+
+@if (Model.IsAllScope)
+{
+    <div class="dashboard-scope-note"><strong>Đang xem tổng hợp tất cả cơ sở được phân quyền.</strong><span>Các nút thao tác vẫn mở cơ sở đang làm việc: @Model.WorkingPropertyName.</span></div>
+}
 
 @if (Model.RequestedCount > 0)
 {
     <section class="panel website-request-panel">
         <div class="panel-head">
             <div><h2>Yêu cầu mới từ website</h2><span class="tiny muted">Khách đã gửi yêu cầu nhưng phòng chưa được giữ chính thức</span></div>
-            <div class="toolbar"><span class="pill warning">@Model.RequestedCount yêu cầu</span><a class="btn btn-light btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Xử lý</a></div>
+            <div class="toolbar"><span class="pill warning">@Model.RequestedCount yêu cầu</span><a class="btn btn-light btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Xử lý tại @Model.WorkingPropertyName</a></div>
         </div>
         <div class="dashboard-list">
             @foreach (var item in Model.WebsiteRequests)
             {
                 <div class="dashboard-item">
                     <span class="dashboard-time">@item.DateTimeText</span>
-                    <div class="dashboard-main"><strong>@item.CustomerName</strong><span>@item.CustomerPhone · @item.RoomName · @item.Code</span></div>
+                    <div class="dashboard-main"><strong>@item.CustomerName</strong><span>@item.CustomerPhone · @item.RoomName · @item.Code@if (Model.Properties.Count > 1) { <text> · @item.PropertyName</text> }</span></div>
                     <span class="dashboard-amount">@item.TotalAmount.ToString("N0") đ</span>
                 </div>
             }
@@ -63,13 +95,13 @@
     <div class="finance-strip">
         <div><span>Thực thu hôm nay</span><strong>@Model.ReceiptsToday.ToString("N0") đ</strong></div>
         <div><span>Công nợ hiện tại</span><strong>@Model.Outstanding.ToString("N0") đ</strong></div>
-        <div><span>Truy cập nhanh</span><strong><a asp-page="/Admin/Finance/Index" asp-route-propertyId="@Model.PropertyId">Thu chi →</a></strong></div>
+        <div><span>Truy cập nhanh</span><strong><a asp-page="/Admin/Finance/Index" asp-route-propertyId="@Model.PropertyId" asp-route-scope="@Model.Scope">Thu chi →</a></strong></div>
     </div>
 }
 
 <div class="dashboard-grid">
     <section class="panel">
-        <div class="panel-head"><div><h2>Sắp check-in</h2><span class="tiny muted">Theo thứ tự thời gian hôm nay</span></div><a class="btn btn-ghost btn-sm" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId">Mở lịch</a></div>
+        <div class="panel-head"><div><h2>Sắp check-in</h2><span class="tiny muted">Theo thứ tự thời gian hôm nay</span></div><a class="btn btn-ghost btn-sm" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId">Mở lịch · @Model.WorkingPropertyName</a></div>
         <div class="dashboard-list">
             @if (Model.Arrivals.Count == 0)
             {
@@ -81,7 +113,7 @@
                 {
                     <div class="dashboard-item">
                         <span class="dashboard-time">@item.TimeText</span>
-                        <div class="dashboard-main"><strong>@item.CustomerName</strong><span>@item.RoomName · @item.Code</span></div>
+                        <div class="dashboard-main"><strong>@item.CustomerName</strong><span>@item.RoomName · @item.Code@if (Model.Properties.Count > 1) { <text> · @item.PropertyName</text> }</span></div>
                         @if (item.BalanceAmount > 0) { <span class="dashboard-amount text-danger">Còn @item.BalanceAmount.ToString("N0") đ</span> }
                         else { <span class="dashboard-amount text-success">Đã đủ tiền</span> }
                     </div>
@@ -91,9 +123,9 @@
     </section>
 
     <section class="panel">
-        <div class="panel-head"><div><h2>Vận hành nhanh</h2><span class="tiny muted">Các màn hình thường dùng trong ca</span></div></div>
+        <div class="panel-head"><div><h2>Vận hành nhanh</h2><span class="tiny muted">Thao tác tại cơ sở đang làm việc: @Model.WorkingPropertyName</span></div></div>
         <div class="quick-actions">
-            <a class="quick-action" asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@Model.PropertyId"><strong>Dọn phòng</strong><span>@Model.DirtyRooms.Count phòng đang xử lý →</span></a>
+            <a class="quick-action" asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@Model.PropertyId"><strong>Dọn phòng</strong><span>Mở trạng thái phòng →</span></a>
             <a class="quick-action" asp-page="/Admin/Customers/Index" asp-route-propertyId="@Model.PropertyId"><strong>Khách hàng</strong><span>Tra cứu SĐT / lịch sử →</span></a>
             <a class="quick-action" asp-page="/Admin/Rooms/Index" asp-route-propertyId="@Model.PropertyId"><strong>Phòng & giá</strong><span>Quản lý phòng →</span></a>
             <a class="quick-action" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId"><strong>Booking</strong><span>Tra cứu & thanh toán →</span></a>
@@ -113,14 +145,14 @@
             {
                 @foreach (var item in Model.Departures)
                 {
-                    <div class="dashboard-item"><span class="dashboard-time">@item.TimeText</span><div class="dashboard-main"><strong>@item.CustomerName</strong><span>@item.RoomName · @item.Code</span></div>@if (item.BalanceAmount > 0){<span class="dashboard-amount text-danger">Còn @item.BalanceAmount.ToString("N0") đ</span>}</div>
+                    <div class="dashboard-item"><span class="dashboard-time">@item.TimeText</span><div class="dashboard-main"><strong>@item.CustomerName</strong><span>@item.RoomName · @item.Code@if (Model.Properties.Count > 1) { <text> · @item.PropertyName</text> }</span></div>@if (item.BalanceAmount > 0){<span class="dashboard-amount text-danger">Còn @item.BalanceAmount.ToString("N0") đ</span>}</div>
                 }
             }
         </div>
     </section>
 
     <section class="panel">
-        <div class="panel-head"><div><h2>Trạng thái dọn phòng</h2><span class="tiny muted">Phòng bẩn / đang dọn</span></div><a class="btn btn-ghost btn-sm" asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@Model.PropertyId">Chi tiết</a></div>
+        <div class="panel-head"><div><h2>Trạng thái dọn phòng</h2><span class="tiny muted">Phòng bẩn / đang dọn</span></div><a class="btn btn-ghost btn-sm" asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@Model.PropertyId">Chi tiết · @Model.WorkingPropertyName</a></div>
         <div class="dashboard-list">
             @if (Model.DirtyRooms.Count == 0)
             {
@@ -130,9 +162,15 @@
             {
                 @foreach (var room in Model.DirtyRooms)
                 {
-                    <div class="dashboard-item"><span class="dashboard-time">@(room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty ? "Bẩn" : "Dọn")</span><div class="dashboard-main"><strong>@room.Name</strong><span>@room.Code</span></div><span class="pill @(room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty ? "warning" : "")">@(room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty ? "Cần dọn" : "Đang dọn")</span></div>
+                    <div class="dashboard-item"><span class="dashboard-time">@(room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty ? "Bẩn" : "Dọn")</span><div class="dashboard-main"><strong>@room.Name</strong><span>@room.Code@if (Model.Properties.Count > 1) { <text> · @room.PropertyName</text> }</span></div><span class="pill @(room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty ? "warning" : "")">@(room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty ? "Cần dọn" : "Đang dọn")</span></div>
                 }
             }
         </div>
     </section>
 </div>
+
+@section Head {
+<style>
+.dashboard-scope-toolbar{flex-wrap:wrap}.dashboard-scope-form{margin:0}.property-scope-select{min-height:38px;width:auto;max-width:230px}.dashboard-scope-note{display:flex;gap:8px 18px;align-items:center;flex-wrap:wrap;margin:-8px 0 18px;padding:11px 15px;border:1px solid #dce6e2;border-radius:12px;background:#f6faf8;color:var(--muted);font-size:.88rem}.dashboard-scope-note strong{color:var(--text)}
+</style>
+}

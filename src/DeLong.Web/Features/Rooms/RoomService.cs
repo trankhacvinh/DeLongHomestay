@@ -36,7 +36,18 @@ public sealed class RoomService(AppDbContext db)
         var normalizedCode = request.Code.Trim().ToUpperInvariant();
         if (await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Code == normalizedCode, cancellationToken)) return (null, "Mã phòng đã tồn tại trong cơ sở này.");
 
-        var room = new Room { PropertyId = propertyId, Code = normalizedCode, Name = request.Name.Trim(), Capacity = request.Capacity, SortOrder = request.SortOrder, IsActive = true };
+        var name = request.Name.Trim();
+        var slug = await CreateUniqueSlugAsync(propertyId, name, normalizedCode, null, cancellationToken);
+        var room = new Room
+        {
+            PropertyId = propertyId,
+            Code = normalizedCode,
+            Name = name,
+            Slug = slug,
+            Capacity = request.Capacity,
+            SortOrder = request.SortOrder,
+            IsActive = true
+        };
         db.Rooms.Add(room);
         await db.SaveChangesAsync(cancellationToken);
         return (await GetAsync(propertyId, room.Id, cancellationToken), null);
@@ -50,7 +61,16 @@ public sealed class RoomService(AppDbContext db)
         if (room is null) return (null, "Không tìm thấy phòng.");
         var normalizedCode = request.Code.Trim().ToUpperInvariant();
         if (await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Code == normalizedCode && x.Id != roomId, cancellationToken)) return (null, "Mã phòng đã tồn tại trong cơ sở này.");
-        room.Code = normalizedCode; room.Name = request.Name.Trim(); room.Capacity = request.Capacity; room.SortOrder = request.SortOrder; room.IsActive = request.IsActive;
+
+        var name = request.Name.Trim();
+        if (string.IsNullOrWhiteSpace(room.Slug))
+            room.Slug = await CreateUniqueSlugAsync(propertyId, name, normalizedCode, roomId, cancellationToken);
+
+        room.Code = normalizedCode;
+        room.Name = name;
+        room.Capacity = request.Capacity;
+        room.SortOrder = request.SortOrder;
+        room.IsActive = request.IsActive;
         await db.SaveChangesAsync(cancellationToken);
         return (await GetAsync(propertyId, roomId, cancellationToken), null);
     }
@@ -63,6 +83,35 @@ public sealed class RoomService(AppDbContext db)
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }
+
+    private async Task<string> CreateUniqueSlugAsync(
+        Guid propertyId,
+        string name,
+        string code,
+        Guid? excludeRoomId,
+        CancellationToken cancellationToken)
+    {
+        var baseSlug = RoomContentService.CreateSlug(name);
+        if (string.IsNullOrWhiteSpace(baseSlug)) baseSlug = RoomContentService.CreateSlug(code);
+        if (string.IsNullOrWhiteSpace(baseSlug)) baseSlug = code.ToLowerInvariant();
+
+        var candidate = baseSlug;
+        var suffixNumber = 2;
+        while (await SlugExistsAsync(propertyId, candidate, excludeRoomId, cancellationToken))
+        {
+            var suffix = $"-{suffixNumber++}";
+            var maxBaseLength = Math.Max(1, 180 - suffix.Length);
+            var trimmedBase = baseSlug.Length > maxBaseLength ? baseSlug[..maxBaseLength].TrimEnd('-') : baseSlug;
+            candidate = $"{trimmedBase}{suffix}";
+        }
+
+        return candidate;
+    }
+
+    private Task<bool> SlugExistsAsync(Guid propertyId, string slug, Guid? excludeRoomId, CancellationToken cancellationToken) =>
+        excludeRoomId.HasValue
+            ? db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id != excludeRoomId.Value && x.Slug == slug, cancellationToken)
+            : db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Slug == slug, cancellationToken);
 
     private static string? Validate(string code, string name, int capacity)
     {

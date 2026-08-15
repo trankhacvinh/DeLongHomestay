@@ -1,0 +1,32 @@
+@page
+@model DeLong.Web.Pages.Admin.SelectPropertyModel
+@{
+    ViewData["Title"] = "Chọn cơ sở";
+}
+
+<section class="property-choice-page">
+    <div class="property-choice-copy">
+        <div class="page-eyebrow">Phạm vi làm việc</div>
+        <h1>Bạn đang làm việc tại cơ sở nào?</h1>
+        <p>Tài khoản của bạn được cấp quyền nhiều cơ sở. Hãy chọn một cơ sở để thao tác phòng, booking, lịch, khách hàng và vận hành. Hệ thống sẽ nhớ lựa chọn này cho lần sau.</p>
+    </div>
+
+    <div class="property-choice-grid">
+        @foreach (var property in Model.Properties)
+        {
+            <a class="panel property-choice-card" href="@property.Url">
+                <span class="property-choice-code">@property.Code</span>
+                <strong>@property.Name</strong>
+                <span>Chọn cơ sở này <span aria-hidden="true">→</span></span>
+            </a>
+        }
+    </div>
+
+    <p class="property-choice-note">Bạn chỉ nhìn thấy các cơ sở đã được phân quyền. Có thể đổi cơ sở bất cứ lúc nào từ bộ chọn trên thanh Admin.</p>
+</section>
+
+@section Head {
+<style>
+.property-choice-page{max-width:980px;margin:48px auto;display:grid;gap:28px}.property-choice-copy{max-width:720px}.property-choice-copy h1{margin:8px 0 12px;font-size:clamp(2rem,4vw,3rem);letter-spacing:-.045em}.property-choice-copy p,.property-choice-note{color:var(--muted);line-height:1.65}.property-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.property-choice-card{padding:24px;display:grid;gap:10px;text-decoration:none;color:var(--text);transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}.property-choice-card:hover{transform:translateY(-2px);border-color:#9fbfba;box-shadow:0 12px 28px rgba(19,75,70,.08)}.property-choice-card strong{font-size:1.22rem}.property-choice-card>span:last-child{color:#17605e;font-weight:800}.property-choice-code{width:max-content;padding:5px 8px;border-radius:999px;background:#e8f2ef;color:#17605e;font-size:.75rem;font-weight:850;letter-spacing:.07em}.property-choice-note{margin:0;font-size:.9rem}@@media(max-width:720px){.property-choice-page{margin:20px auto}.property-choice-grid{grid-template-columns:1fr}}
+</style>
+}

@@ -1,0 +1,193 @@
+using System.Security.Claims;
+using DeLong.Web.Data;
+using DeLong.Web.Domain.Entities;
+using DeLong.Web.Domain.Enums;
+using DeLong.Web.Features.Site;
+using Microsoft.EntityFrameworkCore;
+
+namespace DeLong.Web.Features.Properties;
+
+public sealed record PropertyAdminDto(
+    Guid Id,
+    string Code,
+    string Name,
+    string TimeZoneId,
+    string SiteSlug,
+    bool IsActive,
+    int RoomCount,
+    int UserCount);
+
+public sealed class SavePropertyRequest
+{
+    public string Code { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public string? SiteSlug { get; init; }
+    public string TimeZoneId { get; init; } = "Asia/Ho_Chi_Minh";
+    public bool IsActive { get; init; } = true;
+}
+
+public sealed record PropertyAdminError(string Code, string Message);
+
+public sealed class PropertyAdminService(AppDbContext db)
+{
+    private static readonly BookingStatus[] LockingStatuses =
+        [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
+
+    public async Task<IReadOnlyList<PropertyAdminDto>> ListAsync(CancellationToken ct = default)
+    {
+        var items = await db.Properties.AsNoTracking()
+            .OrderByDescending(x => x.IsActive)
+            .ThenBy(x => x.Name)
+            .Select(x => new
+            {
+                x.Id,
+                x.Code,
+                x.Name,
+                x.SiteSlug,
+                x.TimeZoneId,
+                x.IsActive,
+                RoomCount = db.Rooms.Count(r => r.PropertyId == x.Id),
+                UserCount = db.UserPropertyAccesses.Count(a => a.PropertyId == x.Id)
+            })
+            .ToListAsync(ct);
+
+        return items.Select(x => new PropertyAdminDto(
+            x.Id,
+            x.Code,
+            x.Name,
+            x.TimeZoneId,
+            PublicPropertyResolver.EffectiveSiteSlug(x.SiteSlug, x.Code),
+            x.IsActive,
+            x.RoomCount,
+            x.UserCount)).ToList();
+    }
+
+    public async Task<(PropertyAdminDto? Property, PropertyAdminError? Error)> CreateAsync(
+        SavePropertyRequest request,
+        ClaimsPrincipal user,
+        CancellationToken ct = default)
+    {
+        var validation = Validate(request);
+        if (validation is not null) return (null, validation);
+
+        var code = NormalizeCode(request.Code);
+        if (await db.Properties.AnyAsync(x => x.Code == code, ct))
+            return (null, new("duplicate_code", "Mã cơ sở đã tồn tại."));
+
+        var siteSlug = NormalizeRequestedSiteSlug(request.SiteSlug, code);
+        var slugError = await ValidateSiteSlugUniqueAsync(siteSlug, null, ct);
+        if (slugError is not null) return (null, slugError);
+
+        var property = new Property
+        {
+            Code = code,
+            Name = request.Name.Trim(),
+            SiteSlug = siteSlug,
+            TimeZoneId = request.TimeZoneId.Trim(),
+            IsActive = request.IsActive
+        };
+        db.Properties.Add(property);
+
+        var userIdValue = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(userIdValue, out var userId))
+        {
+            db.UserPropertyAccesses.Add(new UserPropertyAccess
+            {
+                UserId = userId,
+                PropertyId = property.Id
+            });
+        }
+
+        db.Set<PropertySiteSettings>().Add(new PropertySiteSettings
+        {
+            PropertyId = property.Id,
+            SiteName = property.Name,
+            RobotsIndex = true
+        });
+
+        await db.SaveChangesAsync(ct);
+        return (new(property.Id, property.Code, property.Name, property.TimeZoneId, siteSlug, property.IsActive, 0, 1), null);
+    }
+
+    public async Task<(PropertyAdminDto? Property, PropertyAdminError? Error)> UpdateAsync(
+        Guid propertyId,
+        SavePropertyRequest request,
+        CancellationToken ct = default)
+    {
+        var validation = Validate(request);
+        if (validation is not null) return (null, validation);
+
+        var property = await db.Properties.SingleOrDefaultAsync(x => x.Id == propertyId, ct);
+        if (property is null) return (null, new("not_found", "Không tìm thấy cơ sở."));
+
+        var code = NormalizeCode(request.Code);
+        if (await db.Properties.AnyAsync(x => x.Id != propertyId && x.Code == code, ct))
+            return (null, new("duplicate_code", "Mã cơ sở đã tồn tại."));
+
+        var siteSlug = NormalizeRequestedSiteSlug(request.SiteSlug, code);
+        var slugError = await ValidateSiteSlugUniqueAsync(siteSlug, propertyId, ct);
+        if (slugError is not null) return (null, slugError);
+
+        if (property.IsActive && !request.IsActive)
+        {
+            var hasLockingBookings = await db.Bookings.AsNoTracking()
+                .AnyAsync(x => x.PropertyId == propertyId && LockingStatuses.Contains(x.Status), ct);
+            if (hasLockingBookings)
+                return (null, new("property_in_use", "Cơ sở còn lượt đặt đang giữ, đã xác nhận hoặc đang ở. Hãy xử lý các lượt này trước khi ngừng cơ sở."));
+        }
+
+        property.Code = code;
+        property.Name = request.Name.Trim();
+        property.SiteSlug = siteSlug;
+        property.TimeZoneId = request.TimeZoneId.Trim();
+        property.IsActive = request.IsActive;
+        await db.SaveChangesAsync(ct);
+
+        var roomCount = await db.Rooms.CountAsync(x => x.PropertyId == propertyId, ct);
+        var userCount = await db.UserPropertyAccesses.CountAsync(x => x.PropertyId == propertyId, ct);
+        return (new(
+            property.Id,
+            property.Code,
+            property.Name,
+            property.TimeZoneId,
+            siteSlug,
+            property.IsActive,
+            roomCount,
+            userCount), null);
+    }
+
+    private async Task<PropertyAdminError?> ValidateSiteSlugUniqueAsync(string siteSlug, Guid? excludePropertyId, CancellationToken ct)
+    {
+        if (siteSlug.Length is < 2 or > 100)
+            return new("validation", "Đường dẫn public phải từ 2 đến 100 ký tự, chỉ gồm chữ thường, số và dấu gạch ngang.");
+
+        var properties = await db.Properties.AsNoTracking()
+            .Select(x => new { x.Id, x.Code, x.SiteSlug })
+            .ToListAsync(ct);
+        if (properties.Any(x => x.Id != excludePropertyId &&
+            string.Equals(PublicPropertyResolver.EffectiveSiteSlug(x.SiteSlug, x.Code), siteSlug, StringComparison.OrdinalIgnoreCase)))
+            return new("duplicate_public_route", "Đường dẫn website public này đã được cơ sở khác sử dụng.");
+        return null;
+    }
+
+    private static PropertyAdminError? Validate(SavePropertyRequest request)
+    {
+        var code = NormalizeCode(request.Code);
+        if (code.Length is < 2 or > 50)
+            return new("validation", "Mã cơ sở phải từ 2 đến 50 ký tự.");
+        if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 200)
+            return new("validation", "Tên cơ sở là bắt buộc và tối đa 200 ký tự.");
+        try { _ = TimeZoneInfo.FindSystemTimeZoneById(request.TimeZoneId.Trim()); }
+        catch { return new("validation", "Múi giờ không hợp lệ trên máy chủ."); }
+        return null;
+    }
+
+    private static string NormalizeRequestedSiteSlug(string? requested, string code)
+    {
+        var value = string.IsNullOrWhiteSpace(requested) ? PublicPropertyResolver.ToSiteSlug(code) : requested;
+        return PublicPropertyResolver.NormalizeSiteSlug(value!);
+    }
+
+    private static string NormalizeCode(string value) =>
+        new string((value ?? string.Empty).Trim().ToUpperInvariant().Where(ch => char.IsLetterOrDigit(ch) || ch == '-' || ch == '_').ToArray());
+}

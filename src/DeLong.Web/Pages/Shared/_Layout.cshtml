@@ -1,15 +1,34 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject DeLong.Web.Features.Site.SiteContentService SiteContentService
+@inject DeLong.Web.Common.Security.CurrentPropertyService CurrentPropertyService
 @{
     var csrf = Antiforgery.GetAndStoreTokens(Context).RequestToken;
     var isAdmin = Context.Request.Path.StartsWithSegments("/Admin");
+    var publicSiteSlug = !isAdmin ? Context.Request.RouteValues["siteSlug"]?.ToString() : null;
+    var isGlobalPublic = !isAdmin && string.IsNullOrWhiteSpace(publicSiteSlug);
+    var publicScopePrefix = !isAdmin ? DeLong.Web.Features.Site.PublicPropertyResolver.ScopePrefix(publicSiteSlug) : string.Empty;
+    var publicSite = !isAdmin && !isGlobalPublic ? await SiteContentService.GetPublicAsync(publicSiteSlug, Context.RequestAborted) : null;
+    var publicSettings = publicSite?.Settings;
+    var publicSiteName = string.IsNullOrWhiteSpace(publicSettings?.SiteName) ? "De Long Homestay" : publicSettings.SiteName;
+    var publicTagline = string.IsNullOrWhiteSpace(publicSettings?.Tagline) ? "Long Thành · Đồng Nai" : publicSettings.Tagline;
     var path = Context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
-    string? propertyId = Context.Request.Query["propertyId"].ToString();
-    if (string.IsNullOrWhiteSpace(propertyId)) propertyId = null;
+    var requestedPropertyValue = Context.Request.Query["propertyId"].ToString();
+    Guid? requestedPropertyId = Guid.TryParse(requestedPropertyValue, out var parsedPropertyId) ? parsedPropertyId : null;
+    IReadOnlyList<DeLong.Web.Common.Security.CurrentPropertyDto> accessibleProperties = [];
+    DeLong.Web.Common.Security.CurrentPropertyDto? currentProperty = null;
+    if (isAdmin && User.Identity?.IsAuthenticated == true)
+    {
+        accessibleProperties = await CurrentPropertyService.GetAccessibleAsync(User, Context.RequestAborted);
+        currentProperty = await CurrentPropertyService.ResolveAsync(User, requestedPropertyId, Context.RequestAborted);
+    }
+    string? propertyId = currentProperty?.Id.ToString();
 
     var canViewOperations = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") || User.IsInRole("Viewer");
     var canViewRooms = canViewOperations;
     var canManageSettings = User.IsInRole("Admin") || User.IsInRole("Manager");
     var canManageStaff = User.IsInRole("Admin");
+    var canManageProperties = User.IsInRole("Admin");
+    var canManageSite = User.IsInRole("Admin") || User.IsInRole("Manager");
     var displayName = User.FindFirst("delong_display_name")?.Value ?? User.Identity?.Name ?? "Tài khoản";
     var roleLabel = User.IsInRole("Admin") ? "Quản trị viên"
         : User.IsInRole("Manager") ? "Quản lý"
@@ -34,13 +53,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content="@csrf" />
     <meta name="theme-color" content="#0d2b2e" />
-    <title>@ViewData["Title"] - De Long Homestay</title>
+    @{
+        var requestedTitle = ViewData["Title"]?.ToString();
+        var isPublicHome = !isAdmin && string.Equals(Context.Request.RouteValues["page"]?.ToString(), "/Index", StringComparison.OrdinalIgnoreCase);
+        var documentTitle = isAdmin
+            ? $"{requestedTitle} - De Long Homestay"
+            : (isPublicHome ? (string.IsNullOrWhiteSpace(requestedTitle) ? publicSiteName : requestedTitle) : $"{requestedTitle} - {publicSiteName}");
+        var metaDescription = ViewData["MetaDescription"]?.ToString() ?? publicSettings?.MetaDescription;
+        var canonical = !isAdmin && !string.IsNullOrWhiteSpace(publicSettings?.CanonicalBaseUrl)
+            ? $"{publicSettings.CanonicalBaseUrl.TrimEnd('/')}{Context.Request.Path}"
+            : null;
+    }
+    <title>@documentTitle</title>
+    @if (!isAdmin)
+    {
+        @if (!string.IsNullOrWhiteSpace(metaDescription)) { <meta name="description" content="@metaDescription" /> }
+        <meta name="robots" content="@(publicSettings?.RobotsIndex == false ? "noindex,nofollow" : "index,follow")" />
+        @if (!string.IsNullOrWhiteSpace(canonical)) { <link rel="canonical" href="@canonical" /> }
+        @if (!string.IsNullOrWhiteSpace(publicSettings?.FaviconUrl)) { <link rel="icon" href="@publicSettings.FaviconUrl" type="image/png" /> }
+        @if (!string.IsNullOrWhiteSpace(publicSettings?.GoogleSiteVerification)) { <meta name="google-site-verification" content="@publicSettings.GoogleSiteVerification" /> }
+        <meta property="og:title" content="@(string.IsNullOrWhiteSpace(publicSettings?.OgTitle) ? documentTitle : publicSettings.OgTitle)" />
+        @if (!string.IsNullOrWhiteSpace(publicSettings?.OgDescription ?? metaDescription)) { <meta property="og:description" content="@(publicSettings?.OgDescription ?? metaDescription)" /> }
+        @if (!string.IsNullOrWhiteSpace(publicSettings?.OgImageUrl)) { <meta property="og:image" content="@publicSettings.OgImageUrl" /> }
+        @if (!string.IsNullOrWhiteSpace(canonical)) { <meta property="og:url" content="@canonical" /> }
+        <meta property="og:type" content="website" />
+        var structuredData = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "LodgingBusiness",
+                ["name"] = publicSiteName,
+                ["description"] = metaDescription,
+                ["telephone"] = publicSettings?.Phone,
+                ["email"] = publicSettings?.Email,
+                ["address"] = publicSettings?.Address,
+                ["url"] = publicSettings?.CanonicalBaseUrl,
+                ["logo"] = publicSettings?.LogoUrl,
+                ["image"] = publicSettings?.OgImageUrl
+            });
+        <script type="application/ld+json">@Html.Raw(structuredData)</script>
+    }
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/operational-polish.css" asp-append-version="true" />
+    @if (isAdmin) { <link rel="stylesheet" href="~/css/admin-shell-fixes.css" asp-append-version="true" /> }
     @await RenderSectionAsync("Head", required: false)
     <link rel="stylesheet" href="~/css/mobile-final.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/public.css" asp-append-version="true" />
+    @if (!isAdmin && !isGlobalPublic) { <link rel="stylesheet" href="@(publicScopePrefix + "/site/custom.css")" /> }
 </head>
 <body class="@(isAdmin ? "admin-body" : "public-body")">
 <a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
@@ -84,7 +143,7 @@
                     }
                     <a class="@NavClass("/Admin/Housekeeping")" asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-sparkles" /></svg><span>Dọn phòng</span></a>
                 </div>
-                @if (canViewRooms || canManageSettings || canManageStaff)
+                @if (canViewRooms || canManageSettings || canManageStaff || canManageProperties || canManageSite)
                 {
                     <div class="nav-group">
                         <div class="nav-label">Quản lý</div>
@@ -96,9 +155,17 @@
                         {
                             <a class="@NavClass("/Admin/Settings")" asp-page="/Admin/Settings/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-settings" /></svg><span>Cấu hình</span></a>
                         }
+                        @if (canManageSite)
+                        {
+                            <a class="@NavClass("/Admin/Site")" asp-page="/Admin/Site/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-settings" /></svg><span>Website</span></a>
+                        }
+                        @if (canManageProperties)
+                        {
+                            <a class="@NavClass("/Admin/Properties")" asp-page="/Admin/Properties/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-bed" /></svg><span>Cơ sở</span></a>
+                        }
                         @if (canManageStaff)
                         {
-                            <a class="@NavClass("/Admin/Staff")" asp-page="/Admin/Staff/Index"><svg><use href="#i-users" /></svg><span>Nhân viên</span></a>
+                            <a class="@NavClass("/Admin/Staff")" asp-page="/Admin/Staff/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-users" /></svg><span>Nhân viên</span></a>
                         }
                     </div>
                 }
@@ -116,7 +183,30 @@
         <main class="admin-main">
             <header class="admin-topbar">
                 <button class="mobile-menu btn-icon" type="button" data-sidebar-toggle aria-label="Mở menu" aria-expanded="false"><svg><use href="#i-menu" /></svg></button>
-                <div class="topbar-context"><span class="topbar-property">De Long Homestay</span><span class="topbar-page">@ViewData["Title"]</span></div>
+                <div class="topbar-context">
+                    @if (accessibleProperties.Count > 1 && currentProperty is not null)
+                    {
+                        <select class="property-context-select" data-property-switcher aria-label="Cơ sở hiện tại" title="Chọn cơ sở đang làm việc">
+                            @foreach (var property in accessibleProperties)
+                            {
+                                if (property.Id == currentProperty.Id)
+                                {
+                                    <option value="@property.Id" selected>@property.Name · @property.Code</option>
+                                }
+                                else
+                                {
+                                    <option value="@property.Id">@property.Name · @property.Code</option>
+                                }
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        var contextName = currentProperty?.Name ?? (accessibleProperties.Count > 0 ? "Không xác định cơ sở" : "Chưa có cơ sở");
+                        <span class="topbar-property@(currentProperty is null ? " is-empty" : string.Empty)">@contextName</span>
+                    }
+                    <span class="topbar-page">@ViewData["Title"]</span>
+                </div>
                 <span class="spacer"></span>
                 <div class="user-chip"><span class="user-avatar">@userInitial</span><span class="user-copy"><strong>@displayName</strong><small>@roleLabel</small></span></div>
                 <form method="post" asp-page="/Account/Logout"><button class="btn-icon logout-btn" type="submit" title="Đăng xuất" aria-label="Đăng xuất"><svg><use href="#i-logout" /></svg></button></form>
@@ -129,11 +219,16 @@ else
 {
     <header class="public-site-header">
         <div class="public-container public-site-nav">
-            <a class="public-site-brand" asp-page="/Index"><span class="brand-mark">DL</span><span><strong>De Long Homestay</strong><small>Long Thành · Đồng Nai</small></span></a>
+            <a class="public-site-brand" href="@(isGlobalPublic ? "/" : DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(publicSiteSlug!))">
+                @if (!string.IsNullOrWhiteSpace(publicSettings?.LogoUrl)) { <img class="public-site-brand-logo" src="@publicSettings.LogoUrl" alt="@publicSiteName" /> }
+                else { <span class="brand-mark">DL</span> }
+                <span><strong>@publicSiteName</strong><small>@publicTagline</small></span>
+            </a>
             <nav class="public-site-links" aria-label="Điều hướng trang khách">
-                <a asp-page="/Index">Trang chủ</a>
-                <a asp-page="/Rooms/Index">Phòng</a>
-                <a asp-page="/Booking/Index">Đặt phòng</a>
+                <a href="/">Trang chủ</a>
+                <a href="@(isGlobalPublic ? "/rooms" : DeLong.Web.Features.Site.PublicUrlBuilder.Rooms(publicSiteSlug))">Phòng</a>
+                @if (isGlobalPublic) { <a href="/#co-so">Cơ sở</a><a href="/booking">Đặt phòng</a> }
+                else { <a href="@DeLong.Web.Features.Site.PublicUrlBuilder.Booking(publicSiteSlug!)">Đặt phòng</a><a href="@DeLong.Web.Features.Site.PublicUrlBuilder.BookingLookup(publicSiteSlug!)">Tra cứu</a> }
             </nav>
             <div class="public-site-actions">
                 @if (User.Identity?.IsAuthenticated == true)
@@ -144,7 +239,7 @@ else
                 {
                     <a class="public-admin-link" asp-page="/Account/Login">Đăng nhập</a>
                 }
-                <a class="public-btn public-btn-primary" asp-page="/Booking/Index">Kiểm tra phòng</a>
+                <a class="public-btn public-btn-primary" href="@(isGlobalPublic ? "/booking" : DeLong.Web.Features.Site.PublicUrlBuilder.Booking(publicSiteSlug!))">Kiểm tra phòng</a>
             </div>
         </div>
     </header>
@@ -155,5 +250,6 @@ else
 <script src="~/js/core/api.js" asp-append-version="true"></script>
 <script src="~/js/core/shell.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
+@if (!isAdmin && !isGlobalPublic) { <script src="@(publicScopePrefix + "/site/custom.js")"></script> }
 </body>
 </html>

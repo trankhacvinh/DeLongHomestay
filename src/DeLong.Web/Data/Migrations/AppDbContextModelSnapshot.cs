@@ -476,6 +476,65 @@ namespace DeLong.Web.Data.Migrations
                     b.ToTable("expenses");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.HomeSection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContentJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("content_json");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<bool>("IsVisible")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_visible");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<string>("Variant")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("variant");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_home_section");
+
+                    b.HasIndex("PropertyId", "SortOrder")
+                        .HasDatabaseName("i_x_home_section_property_id_sort_order");
+
+                    b.ToTable("home_section");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Payment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -590,6 +649,11 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
+                    b.Property<string>("SiteSlug")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("site_slug");
+
                     b.Property<string>("TimeZoneId")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -607,7 +671,144 @@ namespace DeLong.Web.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("i_x_properties_code");
 
+                    b.HasIndex("SiteSlug")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_properties_site_slug");
+
                     b.ToTable("properties");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertySiteSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("address");
+
+                    b.Property<string>("CanonicalBaseUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("canonical_base_url");
+
+                    b.Property<string>("CoverImageUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("cover_image_url");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("CustomCss")
+                        .HasMaxLength(50000)
+                        .HasColumnType("character varying(50000)")
+                        .HasColumnName("custom_css");
+
+                    b.Property<string>("CustomJs")
+                        .HasMaxLength(100000)
+                        .HasColumnType("character varying(100000)")
+                        .HasColumnName("custom_js");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("FacebookUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("facebook_url");
+
+                    b.Property<string>("FaviconUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("favicon_url");
+
+                    b.Property<string>("GoogleMapsUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("google_maps_url");
+
+                    b.Property<string>("GoogleSiteVerification")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("google_site_verification");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("logo_url");
+
+                    b.Property<string>("MetaDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("meta_description");
+
+                    b.Property<string>("MetaTitle")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("meta_title");
+
+                    b.Property<string>("OgDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("og_description");
+
+                    b.Property<string>("OgImageUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("og_image_url");
+
+                    b.Property<string>("OgTitle")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("og_title");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("phone");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<bool>("RobotsIndex")
+                        .HasColumnType("boolean")
+                        .HasColumnName("robots_index");
+
+                    b.Property<string>("SiteName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("site_name");
+
+                    b.Property<string>("Tagline")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("tagline");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<string>("ZaloUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("zalo_url");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_property_site_settings");
+
+                    b.HasIndex("PropertyId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_property_site_settings_property_id");
+
+                    b.ToTable("property_site_settings");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Room", b =>
@@ -1385,6 +1586,17 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Property");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.HomeSection", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("f_k_home_section_properties_property_id");
+
+                    b.Navigation("Property");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Payment", b =>
                 {
                     b.HasOne("DeLong.Web.Domain.Entities.Booking", "Booking")
@@ -1402,6 +1614,18 @@ namespace DeLong.Web.Data.Migrations
                         .HasConstraintName("f_k_payments_properties_property_id");
 
                     b.Navigation("Booking");
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertySiteSettings", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_property_site_settings_properties_property_id");
 
                     b.Navigation("Property");
                 });

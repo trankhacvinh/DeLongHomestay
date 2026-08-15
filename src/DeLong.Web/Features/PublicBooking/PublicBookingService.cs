@@ -3,18 +3,22 @@ using DeLong.Web.Data;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Customers;
+using DeLong.Web.Features.Site;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicBooking;
 
 public sealed class PublicBookingService(AppDbContext db, BookingService bookingService)
 {
-    private const string PublicPropertyCode = "DELONG";
+    private readonly PublicPropertyResolver publicPropertyResolver = new(db);
     private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
 
-    public async Task<PublicCatalogDto?> GetCatalogAsync(DateOnly? availabilityDate = null, CancellationToken cancellationToken = default)
+    public Task<PublicCatalogDto?> GetCatalogAsync(DateOnly? availabilityDate = null, CancellationToken cancellationToken = default) =>
+        GetCatalogAsync(null, availabilityDate, cancellationToken);
+
+    public async Task<PublicCatalogDto?> GetCatalogAsync(string? siteSlug, DateOnly? availabilityDate = null, CancellationToken cancellationToken = default)
     {
-        var property = await db.Properties.AsNoTracking().Where(x => x.Code == PublicPropertyCode && x.IsActive).Select(x => new { x.Id, x.Name, x.TimeZoneId }).SingleOrDefaultAsync(cancellationToken);
+        var property = await publicPropertyResolver.ResolveAsync(siteSlug, cancellationToken);
         if (property is null) return null;
         HashSet<(Guid RoomId, Guid RateId)> unavailable = availabilityDate.HasValue ? await GetUnavailableRateKeysAsync(property.Id, property.TimeZoneId, availabilityDate.Value, cancellationToken) : [];
         var rooms = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == property.Id && x.IsActive && x.IsPublished).OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
@@ -28,12 +32,27 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         return new PublicCatalogDto(property.Id, property.Name, property.TimeZoneId, roomDtos);
     }
 
-    public async Task<PublicRoomDto?> GetRoomAsync(string code, CancellationToken cancellationToken = default) => (await GetCatalogAsync(null, cancellationToken))?.Rooms.SingleOrDefault(x => string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase));
-    public async Task<PublicAvailabilityDto?> GetAvailabilityAsync(DateOnly date, CancellationToken cancellationToken = default) { var catalog = await GetCatalogAsync(date, cancellationToken); return catalog is null ? null : new(date.ToString("yyyy-MM-dd"), catalog.Rooms); }
+    public async Task<PublicRoomDto?> GetRoomAsync(string code, CancellationToken cancellationToken = default) =>
+        (await GetCatalogAsync(null, null, cancellationToken))?.Rooms.SingleOrDefault(x => string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase));
 
-    public async Task<(PublicStayAvailabilityDto? Availability, PublicBookingError? Error)> GetStayAvailabilityAsync(DateOnly checkInDate, DateOnly checkOutDate, CancellationToken cancellationToken = default)
+    public async Task<PublicRoomDto?> GetRoomAsync(string? siteSlug, string code, CancellationToken cancellationToken = default) =>
+        (await GetCatalogAsync(siteSlug, null, cancellationToken))?.Rooms.SingleOrDefault(x => string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase));
+
+    public Task<PublicAvailabilityDto?> GetAvailabilityAsync(DateOnly date, CancellationToken cancellationToken = default) =>
+        GetAvailabilityAsync(null, date, cancellationToken);
+
+    public async Task<PublicAvailabilityDto?> GetAvailabilityAsync(string? siteSlug, DateOnly date, CancellationToken cancellationToken = default)
     {
-        var property = await db.Properties.AsNoTracking().Where(x => x.Code == PublicPropertyCode && x.IsActive).Select(x => new { x.Id, x.TimeZoneId }).SingleOrDefaultAsync(cancellationToken);
+        var catalog = await GetCatalogAsync(siteSlug, date, cancellationToken);
+        return catalog is null ? null : new(date.ToString("yyyy-MM-dd"), catalog.Rooms);
+    }
+
+    public Task<(PublicStayAvailabilityDto? Availability, PublicBookingError? Error)> GetStayAvailabilityAsync(DateOnly checkInDate, DateOnly checkOutDate, CancellationToken cancellationToken = default) =>
+        GetStayAvailabilityAsync(null, checkInDate, checkOutDate, cancellationToken);
+
+    public async Task<(PublicStayAvailabilityDto? Availability, PublicBookingError? Error)> GetStayAvailabilityAsync(string? siteSlug, DateOnly checkInDate, DateOnly checkOutDate, CancellationToken cancellationToken = default)
+    {
+        var property = await publicPropertyResolver.ResolveAsync(siteSlug, cancellationToken);
         if (property is null) return (null, new("property_not_found", "Cơ sở hiện không khả dụng."));
         var validation = ValidateStayDates(checkInDate, checkOutDate, property.TimeZoneId); if (validation is not null) return (null, validation);
         var nights = checkOutDate.DayNumber - checkInDate.DayNumber; var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
@@ -51,16 +70,21 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         return (new PublicStayAvailabilityDto(checkInDate.ToString("yyyy-MM-dd"), checkOutDate.ToString("yyyy-MM-dd"), nights, results), null);
     }
 
-    public async Task<(PublicBookingResult? Result, PublicBookingError? Error)> CreateRequestAsync(PublicBookingRequest request, CancellationToken cancellationToken = default)
+    public Task<(PublicBookingResult? Result, PublicBookingError? Error)> CreateRequestAsync(PublicBookingRequest request, CancellationToken cancellationToken = default) =>
+        CreateRequestAsync(null, request, cancellationToken);
+
+    public async Task<(PublicBookingResult? Result, PublicBookingError? Error)> CreateRequestAsync(string? siteSlug, PublicBookingRequest request, CancellationToken cancellationToken = default)
     {
         if (!string.IsNullOrWhiteSpace(request.Website)) return (null, new("spam", "Không thể gửi yêu cầu."));
-        return request.Type == BookingType.MultiDay ? await CreateMultiDayRequestAsync(request, cancellationToken) : await CreateTimeSlotRequestAsync(request, cancellationToken);
+        return request.Type == BookingType.MultiDay
+            ? await CreateMultiDayRequestAsync(siteSlug, request, cancellationToken)
+            : await CreateTimeSlotRequestAsync(siteSlug, request, cancellationToken);
     }
 
-    private async Task<(PublicBookingResult?, PublicBookingError?)> CreateTimeSlotRequestAsync(PublicBookingRequest request, CancellationToken ct)
+    private async Task<(PublicBookingResult?, PublicBookingError?)> CreateTimeSlotRequestAsync(string? siteSlug, PublicBookingRequest request, CancellationToken ct)
     {
         if (!DateOnly.TryParseExact(request.StayDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var stayDate)) return (null, new("validation", "Ngày đặt phòng không hợp lệ."));
-        var context = await GetRequestContextAsync(request.CustomerName, request.CustomerPhone, ct); if (context.Error is not null) return (null, context.Error);
+        var context = await GetRequestContextAsync(siteSlug, request.CustomerName, request.CustomerPhone, ct); if (context.Error is not null) return (null, context.Error);
         if (ValidateDateWindow(stayDate, context.TodayLocal) is { } dateError) return (null, dateError);
         var rate = await db.RoomRates.AsNoTracking().Where(x => x.Id == request.RateId && x.RoomId == request.RoomId && x.IsActive && x.Type != RoomRateType.Nightly && x.Room.IsActive && x.Room.IsPublished && x.Room.PropertyId == context.PropertyId)
             .Select(x => new { x.Id, x.Name, x.StartTime, x.EndTime, x.Type, x.Price, RoomId = x.Room.Id, RoomName = x.Room.Name }).SingleOrDefaultAsync(ct);
@@ -71,10 +95,10 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         return booking is null ? (null, new(error?.Code ?? "booking_failed", error?.Message ?? "Không thể tạo yêu cầu đặt phòng.")) : (new PublicBookingResult(booking.Id, booking.Code, booking.Type, rate.RoomName, rate.Name, null, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
     }
 
-    private async Task<(PublicBookingResult?, PublicBookingError?)> CreateMultiDayRequestAsync(PublicBookingRequest request, CancellationToken ct)
+    private async Task<(PublicBookingResult?, PublicBookingError?)> CreateMultiDayRequestAsync(string? siteSlug, PublicBookingRequest request, CancellationToken ct)
     {
         if (!DateOnly.TryParseExact(request.CheckInDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var checkInDate) || !DateOnly.TryParseExact(request.CheckOutDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var checkOutDate)) return (null, new("validation", "Ngày nhận hoặc ngày trả không hợp lệ."));
-        var context = await GetRequestContextAsync(request.CustomerName, request.CustomerPhone, ct); if (context.Error is not null) return (null, context.Error);
+        var context = await GetRequestContextAsync(siteSlug, request.CustomerName, request.CustomerPhone, ct); if (context.Error is not null) return (null, context.Error);
         var dateError = ValidateStayDates(checkInDate, checkOutDate, context.TimeZone.Id); if (dateError is not null) return (null, dateError);
         var rate = await db.RoomRates.AsNoTracking().Where(x => x.Id == request.RateId && x.RoomId == request.RoomId && x.IsActive && x.Type == RoomRateType.Nightly && x.Price > 0 && x.Room.IsActive && x.Room.IsPublished && x.Room.PropertyId == context.PropertyId)
             .Select(x => new { x.Id, x.Name, x.StartTime, x.EndTime, x.Price, RoomId = x.Room.Id, RoomName = x.Room.Name }).SingleOrDefaultAsync(ct);
@@ -87,9 +111,9 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         return booking is null ? (null, new(error?.Code ?? "booking_failed", error?.Message ?? "Không thể tạo yêu cầu lưu trú.")) : (new PublicBookingResult(booking.Id, booking.Code, booking.Type, rate.RoomName, rate.Name, nights, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
     }
 
-    private async Task<(Guid PropertyId, TimeZoneInfo TimeZone, DateOnly TodayLocal, string Name, string Phone, PublicBookingError? Error)> GetRequestContextAsync(string rawName, string rawPhone, CancellationToken ct)
+    private async Task<(Guid PropertyId, TimeZoneInfo TimeZone, DateOnly TodayLocal, string Name, string Phone, PublicBookingError? Error)> GetRequestContextAsync(string? siteSlug, string rawName, string rawPhone, CancellationToken ct)
     {
-        var property = await db.Properties.AsNoTracking().Where(x => x.Code == PublicPropertyCode && x.IsActive).Select(x => new { x.Id, x.TimeZoneId }).SingleOrDefaultAsync(ct);
+        var property = await publicPropertyResolver.ResolveAsync(siteSlug, ct);
         if (property is null) return (Guid.Empty, TimeZoneInfo.Utc, default, "", "", new("property_not_found", "Cơ sở hiện không khả dụng."));
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId); var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
         var name = rawName.Trim(); var phone = rawPhone.Trim();

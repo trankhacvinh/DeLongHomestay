@@ -10,17 +10,26 @@
         <div>
             <div class="page-eyebrow">Tài chính vận hành</div>
             <h1>Thu chi</h1>
-            <p>Theo dõi tiền khách đã trả, hoàn tiền, chi phí và công nợ từ cùng một sổ giao dịch.</p>
+            <p>Theo dõi tiền khách đã trả, hoàn tiền, chi phí và công nợ theo từng cơ sở hoặc toàn bộ cơ sở được phân quyền.</p>
         </div>
-        <div class="toolbar finance-toolbar" aria-label="Điều hướng tháng">
+        <div class="toolbar finance-toolbar" aria-label="Bộ lọc tài chính">
+            <select class="property-scope-select" v-model="scope" v-on:change="changeScope" aria-label="Phạm vi cơ sở">
+                <option v-if="properties.length > 1" value="all">Tất cả cơ sở</option>
+                <option v-for="property in properties" v-bind:key="property.id" v-bind:value="property.id">{{ property.name }}</option>
+            </select>
             <button class="btn-icon" type="button" v-on:click="moveMonth(-1)" aria-label="Tháng trước"><svg><use href="#i-chevron-left" /></svg></button>
             <div class="month-selector"><svg><use href="#i-calendar" /></svg><strong>{{ monthLabel }}</strong></div>
             <button class="btn-icon" type="button" v-on:click="moveMonth(1)" aria-label="Tháng sau"><svg><use href="#i-chevron-right" /></svg></button>
             @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
             {
-                <button class="btn btn-primary" type="button" v-on:click="openExpense"><svg><use href="#i-plus" /></svg> Ghi chi phí</button>
+                <button v-if="canMutateScope" class="btn btn-primary" type="button" v-on:click="openExpense"><svg><use href="#i-plus" /></svg> Ghi chi phí</button>
             }
         </div>
+    </div>
+
+    <div v-if="canManage && !canMutateScope" class="scope-readonly-note">
+        <strong>Đang xem {{ scopeName }} ở chế độ tổng hợp.</strong>
+        <span>Để ghi hoặc void chi phí, hãy chuyển “cơ sở đang làm việc” trên thanh trên sang đúng cơ sở rồi mở lại Thu chi.</span>
     </div>
 
     <section class="finance-overview" aria-label="Tổng quan tài chính tháng">
@@ -51,8 +60,8 @@
             <span>Công nợ booking hiện tại</span>
             <strong>{{ money(outstanding) }}</strong>
         </div>
-        <p>Khoản khách còn phải thanh toán trên các booking đang hiệu lực.</p>
-        <a class="btn btn-light btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Xem booking</a>
+        <p>Khoản khách còn phải thanh toán trong phạm vi {{ scopeName }}.</p>
+        <a class="btn btn-light btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Mở booking cơ sở đang làm việc</a>
     </div>
 
     <div class="finance-ledger-grid">
@@ -66,8 +75,8 @@
                     <thead><tr><th>Ngày</th><th>Booking / Khách</th><th>Phương thức</th><th class="text-right">Số tiền</th></tr></thead>
                     <tbody>
                         <tr v-for="payment in payments" v-bind:key="payment.id" v-bind:class="{ 'row-voided': payment.isVoided }">
-                            <td data-label="Ngày"><span class="ledger-date">{{ dateTimeText(payment.occurredAtUtc) }}</span></td>
-                            <td data-label="Booking"><div class="ledger-primary"><strong>{{ payment.bookingCode }}</strong><span>{{ payment.customerName }}</span></div></td>
+                            <td data-label="Ngày"><span class="ledger-date">{{ dateTimeText(payment.occurredAtUtc, payment.propertyId) }}</span></td>
+                            <td data-label="Booking"><div class="ledger-primary"><strong>{{ payment.bookingCode }}</strong><span>{{ payment.customerName }}</span><small v-if="properties.length > 1">{{ propertyLabel(payment.propertyId) }}</small></div></td>
                             <td data-label="Phương thức"><div class="ledger-primary"><strong>{{ paymentMethodText(payment.method) }}</strong><span v-if="payment.reference">{{ payment.reference }}</span></div></td>
                             <td data-label="Số tiền" class="text-right"><strong class="ledger-amount" v-bind:class="payment.type === 0 ? 'text-success' : 'text-danger'">{{ payment.type === 0 ? '+' : '−' }}{{ money(payment.amount) }}</strong><span v-if="payment.isVoided" class="void-badge">VOID</span></td>
                         </tr>
@@ -87,14 +96,14 @@
                     <thead><tr><th>Ngày</th><th>Nội dung</th><th>Phương thức</th><th class="text-right">Số tiền</th><th></th></tr></thead>
                     <tbody>
                         <tr v-for="expense in expenses" v-bind:key="expense.id" v-bind:class="{ 'row-voided': expense.isVoided }">
-                            <td data-label="Ngày"><span class="ledger-date">{{ dateTimeText(expense.occurredAtUtc) }}</span></td>
-                            <td data-label="Nội dung"><div class="ledger-primary"><strong>{{ expense.category }}</strong><span>{{ expense.description }}</span><small v-if="expense.vendor">{{ expense.vendor }}</small><small v-if="expense.isVoided">VOID · {{ expense.voidReason }}</small></div></td>
+                            <td data-label="Ngày"><span class="ledger-date">{{ dateTimeText(expense.occurredAtUtc, expense.propertyId) }}</span></td>
+                            <td data-label="Nội dung"><div class="ledger-primary"><strong>{{ expense.category }}</strong><span>{{ expense.description }}</span><small v-if="properties.length > 1">{{ propertyLabel(expense.propertyId) }}</small><small v-if="expense.vendor">{{ expense.vendor }}</small><small v-if="expense.isVoided">VOID · {{ expense.voidReason }}</small></div></td>
                             <td data-label="Phương thức"><strong class="ledger-method">{{ paymentMethodText(expense.method) }}</strong></td>
                             <td data-label="Số tiền" class="text-right"><strong class="ledger-amount text-danger">−{{ money(expense.amount) }}</strong></td>
                             <td data-label="Thao tác" class="ledger-action">
                                 @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                                 {
-                                    <button v-if="!expense.isVoided" class="btn btn-light btn-sm" type="button" v-on:click="openVoid(expense)">Void</button>
+                                    <button v-if="canMutateScope && !expense.isVoided" class="btn btn-light btn-sm" type="button" v-on:click="openVoid(expense)">Void</button>
                                 }
                             </td>
                         </tr>
@@ -133,6 +142,7 @@
 </div>
 @section Head {
     <link rel="stylesheet" href="~/css/finance-reports.css" asp-append-version="true" />
+    <style>.property-scope-select{min-height:40px;width:auto;max-width:230px}.scope-readonly-note{display:flex;gap:8px 18px;align-items:center;flex-wrap:wrap;padding:12px 16px;border:1px solid #dce6e2;border-radius:12px;background:#f6faf8;color:var(--muted);font-size:.88rem}.scope-readonly-note strong{color:var(--text)}</style>
 }
 @section Scripts {
     <script>window.DeLongFinanceCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") ? "true" : "false");</script>

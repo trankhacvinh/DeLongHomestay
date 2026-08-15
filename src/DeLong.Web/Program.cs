@@ -12,10 +12,12 @@ using DeLong.Web.Features.Finance;
 using DeLong.Web.Features.Housekeeping;
 using DeLong.Web.Features.Imports;
 using DeLong.Web.Features.Payments;
+using DeLong.Web.Features.Properties;
 using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Reports;
 using DeLong.Web.Features.Rooms;
+using DeLong.Web.Features.Site;
 using DeLong.Web.Features.Staff;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.DataProtection;
@@ -54,6 +56,7 @@ builder.Services
     .PersistKeysToFileSystem(new DirectoryInfo(storagePaths.DataProtectionRoot));
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
     .AddCheck<StorageHealthCheck>("storage", tags: ["ready"]);
@@ -108,6 +111,9 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ViewRooms", policy => policy.RequireRole("Admin", "Manager", "Staff", "Viewer"));
     options.AddPolicy("ViewHousekeeping", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping", "Viewer"));
     options.AddPolicy("ManageStaff", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("ManageProperties", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("ManageSiteContent", policy => policy.RequireRole("Admin", "Manager"));
+    options.AddPolicy("ManageSiteCode", policy => policy.RequireRole("Admin"));
     options.AddPolicy("ManageImports", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageRooms", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageBookings", policy => policy.RequireRole("Admin", "Manager", "Staff"));
@@ -128,11 +134,21 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizePage("/Admin/Rooms/Content", "ManageRooms");
     options.Conventions.AuthorizeFolder("/Admin/Housekeeping", "ViewHousekeeping");
     options.Conventions.AuthorizeFolder("/Admin/Settings", "ManageRooms");
+    options.Conventions.AuthorizeFolder("/Admin/Properties", "ManageProperties");
+    options.Conventions.AuthorizeFolder("/Admin/Site", "ManageSiteContent");
     options.Conventions.AuthorizeFolder("/Admin/Imports", "ManageImports");
     options.Conventions.AuthorizeFolder("/Admin/Finance", "ViewFinance");
     options.Conventions.AuthorizeFolder("/Admin/Reports", "ViewReports");
     options.Conventions.AuthorizeFolder("/Admin/Staff", "ManageStaff");
     options.Conventions.AllowAnonymousToPage("/Account/Login");
+
+    // Public multi-property routes. Legacy root routes remain available for DELONG.
+    options.Conventions.AddPageRoute("/Index", "h/{siteSlug}");
+    options.Conventions.AddPageRoute("/Rooms/Index", "h/{siteSlug}/rooms");
+    options.Conventions.AddPageRoute("/Rooms/Details", "h/{siteSlug}/rooms/{code}");
+    options.Conventions.AddPageRoute("/Booking/Index", "h/{siteSlug}/booking");
+    options.Conventions.AddPageRoute("/Booking/Lookup", "h/{siteSlug}/booking/lookup");
+    options.Conventions.AddPageRoute("/Booking/Success", "h/{siteSlug}/booking/success");
 });
 builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
@@ -149,6 +165,16 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("public-lookup", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 
 builder.Services.AddScoped<ApiAntiforgeryFilter>();
@@ -156,6 +182,10 @@ builder.Services.AddScoped<PropertyAccessService>();
 builder.Services.AddScoped<PropertyAccessFilter>();
 builder.Services.AddScoped<CurrentPropertyService>();
 builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<PropertyAdminService>();
+builder.Services.AddScoped<PublicPropertyResolver>();
+builder.Services.AddScoped<SiteContentService>();
+builder.Services.AddSingleton<ISiteAssetStorage, LocalSiteAssetStorage>();
 builder.Services.AddScoped<RoomService>();
 builder.Services.AddScoped<RoomRateService>();
 builder.Services.AddScoped<RoomContentService>();
@@ -172,6 +202,7 @@ builder.Services.AddScoped<FinanceService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<StaffAccountService>();
 builder.Services.AddScoped<PublicBookingService>();
+builder.Services.AddScoped<PublicBookingLookupService>();
 builder.Services.AddScoped<PublicRoomContentService>();
 builder.Services.AddScoped<PublicRequestInboxService>();
 
@@ -206,6 +237,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseMiddleware<ForcePasswordChangeMiddleware>();
 app.UseAuthorization();
+app.UseMiddleware<WorkingPropertyMiddleware>();
 app.UseRateLimiter();
 app.UseAntiforgery();
 
@@ -221,6 +253,9 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 }).AllowAnonymous();
 
 app.MapRazorPages();
+app.MapPropertyAdminEndpoints();
+app.MapSiteContentEndpoints();
+app.MapPublicSeoEndpoints();
 app.MapRoomEndpoints();
 app.MapRoomRateEndpoints();
 app.MapRoomContentEndpoints();
@@ -232,7 +267,9 @@ app.MapHousekeepingEndpoints();
 app.MapExpenseEndpoints();
 app.MapAuditEndpoints();
 app.MapStaffAccountEndpoints();
+app.MapPublicRoomMediaEndpoints();
 app.MapPublicBookingEndpoints();
+app.MapPublicBookingLookupEndpoints();
 
 if (app.Configuration.GetValue<bool>("Database:AutoMigrate") || app.Configuration.GetValue<bool>("Database:SeedOnStartup"))
 {

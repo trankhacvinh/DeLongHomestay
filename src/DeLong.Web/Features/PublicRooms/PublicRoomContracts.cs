@@ -62,3 +62,23 @@ public sealed record PublicRoomDetailDto(
     IReadOnlyList<PublicRoomRateDto> Rates);
 
 public sealed record PublicRoomCatalogDto(IReadOnlyList<PublicRoomCardDto> Rooms);
+
+public sealed record PublicPropertyCardDto(
+    Guid Id,
+    string Name,
+    string SiteName,
+    string SiteSlug,
+    string Tagline,
+    string Address,
+    int RoomCount,
+    string? CoverCardUrl);
+
+public sealed record PublicGlobalRoomCardDto(
+    Guid PropertyId,
+    string PropertyName,
+    string PropertySiteSlug,
+    PublicRoomCardDto Room);
+
+public sealed record PublicGlobalRoomCatalogDto(
+    IReadOnlyList<PublicPropertyCardDto> Properties,
+    IReadOnlyList<PublicGlobalRoomCardDto> Rooms);

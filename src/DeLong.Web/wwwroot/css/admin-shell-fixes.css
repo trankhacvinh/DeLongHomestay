@@ -1,0 +1,217 @@
+.sidebar-nav {
+    overflow-x:hidden;
+    overflow-y:auto;
+    padding-right:4px;
+    scrollbar-width:thin;
+    scrollbar-color:rgba(214,228,225,.28) transparent;
+}
+.sidebar-nav::-webkit-scrollbar { width:6px; }
+.sidebar-nav::-webkit-scrollbar-track { background:transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb { background:rgba(214,228,225,.22); border-radius:999px; }
+.sidebar-nav:hover::-webkit-scrollbar-thumb { background:rgba(214,228,225,.38); }
+
+/* Native choice controls must not inherit the full-width text-input rules from site.css. */
+.admin-body input[type=checkbox],
+.admin-body input[type=radio] {
+    width:18px!important;
+    min-width:18px!important;
+    height:18px!important;
+    min-height:18px!important;
+    margin:0;
+    padding:0!important;
+    flex:0 0 18px;
+    box-shadow:none!important;
+    background:transparent;
+    accent-color:var(--brand-700);
+    cursor:pointer;
+}
+.admin-body input[type=checkbox] {
+    appearance:auto;
+    -webkit-appearance:checkbox;
+    border:initial;
+    border-radius:initial;
+}
+.admin-body input[type=radio] {
+    appearance:auto;
+    -webkit-appearance:radio;
+    border:initial;
+    border-radius:50%;
+}
+.admin-body .site-toggle,
+.admin-body .check-row {
+    align-items:center;
+}
+.admin-body .site-toggle > span,
+.admin-body .check-row > span {
+    min-width:0;
+    flex:1 1 auto;
+}
+
+/* Keep the Admin header visually stable: one row, one fixed height. */
+.admin-topbar {
+    height:var(--topbar);
+    min-height:var(--topbar);
+    flex-wrap:nowrap;
+}
+.admin-topbar .topbar-context {
+    min-width:0;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex:0 1 auto;
+    white-space:nowrap;
+}
+.admin-topbar .topbar-property {
+    max-width:300px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.admin-topbar .topbar-property.is-empty { color:var(--muted); font-weight:700; }
+.admin-topbar .topbar-page {
+    display:inline-flex;
+    align-items:center;
+    min-width:0;
+    color:var(--muted);
+    font-size:12px;
+    font-weight:650;
+    white-space:nowrap;
+}
+.admin-topbar .topbar-page::before {
+    content:"";
+    width:1px;
+    height:22px;
+    margin-right:10px;
+    background:var(--line);
+    flex:0 0 1px;
+}
+.property-context-select {
+    width:clamp(220px,24vw,330px);
+    max-width:330px;
+    height:40px;
+    min-height:40px;
+    padding:7px 36px 7px 12px;
+    border:1px solid var(--line-strong);
+    border-radius:11px;
+    background-color:#fff;
+    color:var(--text);
+    font-size:13px;
+    font-weight:780;
+    line-height:1;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    box-shadow:var(--shadow-xs);
+    flex:0 1 330px;
+}
+.property-context-select:hover { border-color:#aebfbb; background:#fff; }
+.property-context-select:focus { background:#fff; border-color:#7aa6a4; }
+
+/* Finance/report filters must never split an arrow onto its own row on desktop. */
+.admin-body .finance-page-head,
+.admin-body .reports-page-head {
+    align-items:flex-start;
+}
+.admin-body .finance-page-head > :first-child,
+.admin-body .reports-page-head > :first-child {
+    min-width:0;
+    flex:1 1 520px;
+}
+.admin-body .finance-page-head .finance-toolbar,
+.admin-body .reports-page-head .report-toolbar {
+    flex:0 0 auto;
+    flex-wrap:nowrap;
+    justify-content:flex-end;
+    align-items:center;
+    max-width:100%;
+}
+.admin-body .property-scope-select {
+    width:190px;
+    min-width:170px;
+    max-width:220px;
+    min-height:40px;
+    flex:0 0 auto;
+}
+.admin-body .finance-toolbar .btn-icon,
+.admin-body .report-toolbar .btn-icon,
+.admin-body .finance-toolbar .month-selector,
+.admin-body .report-toolbar .month-selector,
+.admin-body .finance-toolbar .btn-primary {
+    flex:0 0 auto;
+}
+
+.property-editor { width:min(760px,100%); max-width:760px; }
+.property-editor .site-modal-body { padding:26px 30px 24px; }
+.property-editor .form-grid { gap:18px 20px; align-items:start; padding:0; }
+.property-editor .field { align-content:start; }
+.property-editor .field input,
+.property-editor .field select { min-height:48px; }
+.property-editor .field small { min-height:18px; line-height:1.45; }
+.property-editor .field select { cursor:pointer; }
+.site-toggle.property-active-toggle { display:flex; align-items:center; gap:14px; padding:16px 18px; }
+.site-toggle.property-active-toggle input[type=checkbox] {
+    appearance:auto;
+    -webkit-appearance:checkbox;
+    width:18px;
+    height:18px;
+    min-height:18px;
+    margin:0;
+    padding:0;
+    flex:0 0 18px;
+    border:initial;
+    border-radius:initial;
+    box-shadow:none;
+    accent-color:var(--brand-700);
+}
+.site-toggle.property-active-toggle span { min-width:0; flex:1; }
+.site-toggle.property-active-toggle strong,
+.site-toggle.property-active-toggle small { display:block; }
+.property-load-error {
+    padding:24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+    border-color:#efd3d1;
+    background:#fff9f8;
+}
+.property-load-error-copy { display:grid; gap:5px; }
+.property-load-error-copy strong { color:var(--danger); }
+.property-load-error-copy span { color:var(--muted); line-height:1.5; }
+
+@media (max-width:1180px) {
+    .admin-body .finance-page-head,
+    .admin-body .reports-page-head {
+        align-items:flex-start;
+        flex-direction:column;
+    }
+    .admin-body .finance-page-head .finance-toolbar,
+    .admin-body .reports-page-head .report-toolbar {
+        width:100%;
+        justify-content:flex-start;
+    }
+}
+
+@media (max-width:900px) {
+    .property-context-select { width:min(42vw,280px); max-width:280px; }
+    .admin-topbar .topbar-page { display:none; }
+}
+
+@media (max-width:760px) {
+    .property-context-select { width:min(58vw,260px); max-width:260px; }
+    .property-editor .site-modal-body { padding:20px; }
+    .property-editor .form-grid { gap:15px; }
+    .property-editor .field small { min-height:0; }
+    .property-load-error { align-items:flex-start; flex-direction:column; }
+    .admin-body .finance-page-head .finance-toolbar,
+    .admin-body .reports-page-head .report-toolbar {
+        display:flex;
+        width:100%;
+        overflow-x:auto;
+        flex-wrap:nowrap;
+        padding-bottom:2px;
+        scrollbar-width:none;
+    }
+    .admin-body .finance-page-head .finance-toolbar::-webkit-scrollbar,
+    .admin-body .reports-page-head .report-toolbar::-webkit-scrollbar { display:none; }
+    .admin-body .property-scope-select { min-width:170px; }
+}

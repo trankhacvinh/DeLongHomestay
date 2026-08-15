@@ -1,0 +1,69 @@
+@page "/booking/lookup"
+@model DeLong.Web.Pages.Booking.LookupModel
+@{
+    ViewData["Title"] = "Tra cứu đặt phòng";
+    ViewData["MetaDescription"] = "Tra cứu trạng thái đặt phòng bằng mã đặt phòng và số điện thoại đã dùng khi gửi yêu cầu.";
+}
+
+@section Head {
+    <link rel="stylesheet" href="~/css/booking-lookup.css" asp-append-version="true" />
+}
+
+<main id="booking-lookup" class="lookup-page" v-cloak data-site-slug="@Model.SiteSlug">
+    <section class="lookup-hero public-container">
+        <span class="public-eyebrow">Tra cứu đặt phòng</span>
+        <h1>Kiểm tra lượt đặt của bạn</h1>
+        <p>Nhập mã đặt phòng và số điện thoại đã dùng khi gửi yêu cầu. Chúng tôi chỉ hiển thị thông tin khi cả hai dữ liệu khớp.</p>
+    </section>
+
+    <section class="public-container lookup-shell">
+        <form class="lookup-form" v-on:submit.prevent="lookup">
+            <label>
+                <span>Mã đặt phòng</span>
+                <input v-model.trim="form.code" autocomplete="off" maxlength="50" placeholder="BK-260815-XXXXXXXXXX" required />
+            </label>
+            <label>
+                <span>Số điện thoại</span>
+                <input v-model.trim="form.phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="30" placeholder="09xx xxx xxx" required />
+            </label>
+            <button class="public-btn public-btn-primary" type="submit" v-bind:disabled="loading || !canSubmit">
+                {{ loading ? 'Đang tra cứu…' : 'Tra cứu đặt phòng' }}
+            </button>
+            <p class="lookup-error" v-if="error">{{ error }}</p>
+        </form>
+
+        <article class="lookup-result" v-if="result" aria-live="polite">
+            <header>
+                <div>
+                    <span class="public-eyebrow">{{ result.code }}</span>
+                    <h2>{{ result.roomName }}</h2>
+                    <p>{{ result.customerName }}</p>
+                </div>
+                <span class="lookup-status" v-bind:data-status="result.status">{{ result.statusLabel }}</span>
+            </header>
+
+            <dl class="lookup-details">
+                <div><dt>Hình thức</dt><dd>{{ result.bookingType }}</dd></div>
+                <div><dt>Nhận phòng</dt><dd>{{ dateTime(result.checkInLocal) }}</dd></div>
+                <div><dt>Trả phòng</dt><dd>{{ dateTime(result.checkOutLocal) }}</dd></div>
+                <div v-if="result.nightCount"><dt>Số đêm</dt><dd>{{ result.nightCount }} đêm</dd></div>
+            </dl>
+
+            <div class="lookup-money">
+                <div><span>Tổng tiền</span><strong>{{ money(result.totalAmount) }}</strong></div>
+                <div><span>Đã thanh toán</span><strong>{{ money(result.paidAmount) }}</strong></div>
+                <div class="balance"><span>Còn lại</span><strong>{{ money(result.balance) }}</strong></div>
+            </div>
+
+            <footer v-if="result.propertyPhone || result.propertyAddress">
+                <strong>Cần hỗ trợ?</strong>
+                <span v-if="result.propertyPhone">{{ result.propertyPhone }}</span>
+                <span v-if="result.propertyAddress">{{ result.propertyAddress }}</span>
+            </footer>
+        </article>
+    </section>
+</main>
+
+@section Scripts {
+    <script src="~/js/pages/booking-lookup.js" asp-append-version="true"></script>
+}
