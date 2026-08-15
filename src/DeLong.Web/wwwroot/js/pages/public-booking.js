@@ -35,6 +35,7 @@
                 checkOutDate: addDays(arrival, 1),
                 rooms: initial.rooms || [],
                 stayRooms: [],
+                roomMedia: {},
                 selectedRoomId: initial.initialRoomId || null,
                 selectedRateId: initial.initialRateId || null,
                 loading: false,
@@ -80,7 +81,7 @@
             }
         },
         async mounted() {
-            await this.loadAvailability();
+            await Promise.all([this.loadRoomMedia(), this.loadAvailability()]);
             if (!this.selectedRoomId && this.rooms.length) {
                 const first = this.rooms.find(x => this.availableCount(x) > 0) || this.rooms[0];
                 if (first) this.chooseRoom(first);
@@ -96,6 +97,17 @@
                 const date = parseIsoDate(value);
                 if (!date) return '';
                 return new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+            },
+            roomImage(room) {
+                return room?.id ? this.roomMedia[room.id] || null : null;
+            },
+            async loadRoomMedia() {
+                try {
+                    const items = await DeLongApi.get('/api/public/room-media');
+                    this.roomMedia = Object.fromEntries((items || []).map(item => [item.roomId, item]));
+                } catch {
+                    this.roomMedia = {};
+                }
             },
             timeSlotRates(room) {
                 return (room?.rates || []).filter(x => Number(x.type) !== 2);
