@@ -2,6 +2,7 @@ using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Rooms;
+using DeLong.Web.Features.Site;
 using DeLong.Web.Pages.Rooms;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -91,8 +92,8 @@ public sealed class RoomSlugTests
         await db.SaveChangesAsync();
 
         var requestedSlug = RoomContentService.CreateSlug(legacyRoom.Name);
-        var page = new DetailsModel(new PublicRoomContentService(db), db);
-        var result = await page.OnGetAsync(requestedSlug, CancellationToken.None);
+        var page = new DetailsModel(new PublicRoomContentService(db), new PublicPropertyResolver(db), db);
+        var result = await page.OnGetAsync(requestedSlug, null, CancellationToken.None);
 
         Assert.IsType<PageResult>(result);
         Assert.Equal(legacyRoom.Id, page.Room.Id);
