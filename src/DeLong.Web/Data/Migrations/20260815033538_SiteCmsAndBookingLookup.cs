@@ -87,6 +87,27 @@ namespace DeLong.Web.Data.Migrations
                 table: "property_site_settings",
                 column: "property_id",
                 unique: true);
+
+            migrationBuilder.Sql(
+                """
+                INSERT INTO property_site_settings
+                    (id, property_id, site_name, tagline, address, phone, meta_title, meta_description, robots_index, created_at_utc, updated_at_utc)
+                SELECT
+                    '0198a5a0-1000-7000-8000-000000000101'::uuid,
+                    p.id,
+                    'De Long Homestay',
+                    'Long Thành · Đồng Nai',
+                    'Hẻm 39 Nguyễn Đình Chiểu, khu Phước Hải, Long Thành, Đồng Nai',
+                    '0352291921',
+                    'De Long Homestay',
+                    'Không gian nghỉ riêng tư tại Long Thành, Đồng Nai với lựa chọn theo khung giờ, qua đêm và lưu trú nhiều ngày.',
+                    TRUE,
+                    NOW(),
+                    NOW()
+                FROM properties p
+                WHERE p.code = 'DELONG'
+                  AND NOT EXISTS (SELECT 1 FROM property_site_settings s WHERE s.property_id = p.id);
+                """);
         }
 
         /// <inheritdoc />
