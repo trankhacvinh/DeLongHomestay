@@ -9,7 +9,8 @@ public static class SiteContentEndpoints
     public static IEndpointRouteBuilder MapSiteContentEndpoints(this IEndpointRouteBuilder app)
     {
         var admin = app.MapGroup("/api/admin/properties/{propertyId:guid}/site")
-            .RequireAuthorization("ManageSiteContent");
+            .RequireAuthorization("ManageSiteContent")
+            .AddEndpointFilter<PropertyAccessFilter>();
 
         admin.MapGet("/", async (Guid propertyId, SiteContentService service, CancellationToken ct) =>
         {
