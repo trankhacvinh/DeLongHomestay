@@ -18,12 +18,16 @@
                     @if (!string.IsNullOrWhiteSpace(Model.Room)) { <div><small>Phòng</small><strong>@Model.Room</strong></div> }
                     @if (Model.Amount > 0) { <div><small>Tạm tính</small><strong>@Model.Amount.ToString("N0")đ</strong></div> }
                 </div>
+                <p class="public-success-lookup-note">Hãy lưu lại mã trên. Bạn có thể dùng mã này cùng số điện thoại đã đặt để xem trạng thái sau này.</p>
             }
             <div class="public-success-actions">
-                <a class="public-btn public-btn-primary" asp-page="/Index">Về trang chủ</a>
-                <a class="public-btn public-btn-ghost" asp-page="/Rooms/Index">Xem thêm phòng</a>
+                <a class="public-btn public-btn-primary" asp-page="/Booking/Lookup">Tra cứu đặt phòng</a>
+                <a class="public-btn public-btn-ghost" asp-page="/Index">Về trang chủ</a>
             </div>
-            <p class="public-success-contact">Cần hỗ trợ ngay? Gọi De Long: <strong>0352 291 921</strong></p>
+            @if (!string.IsNullOrWhiteSpace(Model.Phone))
+            {
+                <p class="public-success-contact">Cần hỗ trợ ngay? Gọi De Long: <strong>@Model.Phone</strong></p>
+            }
         </div>
     </div>
 </section>
