@@ -9,8 +9,10 @@
     <link rel="stylesheet" href="~/css/hospitality-editorial.css" asp-append-version="true" />
 }
 <article class="public-blog-article">
-    <nav class="public-room-breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>›</span><a href="/h/@Model.Post.PropertySiteSlug">@Model.Post.PropertyName</a><span>›</span><a href="/h/@Model.Post.PropertySiteSlug/blog">Blog</a><span>›</span><strong>@Model.Post.Title</strong></nav>
-    <header><span class="public-eyebrow">@Model.Post.PropertyName</span><h1>@Model.Post.Title</h1><p>@Model.Post.Excerpt</p>@if (Model.Post.PublishedAtUtc.HasValue) { <small>@Model.Post.PublishedAtUtc.Value.ToString("dd/MM/yyyy")</small> }</header>
-    @if (!string.IsNullOrWhiteSpace(Model.Post.CoverImageUrl)) { <figure class="public-blog-article-cover"><img src="@Model.Post.CoverImageUrl" alt="@Model.Post.Title" /></figure> }
-    <div class="public-blog-body">@Html.Raw(Model.Post.BodyHtml)</div>
+    <div class="public-container public-blog-article-shell">
+        <nav class="public-blog-breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>›</span><a href="/h/@Model.Post.PropertySiteSlug">@Model.Post.PropertyName</a><span>›</span><a href="/h/@Model.Post.PropertySiteSlug/blog">Blog</a><span>›</span><span class="current" aria-current="page">@Model.Post.Title</span></nav>
+        <header class="public-blog-article-header"><span class="public-eyebrow">@Model.Post.PropertyName</span><h1>@Model.Post.Title</h1><p>@Model.Post.Excerpt</p>@if (Model.Post.PublishedAtUtc.HasValue) { <small>@Model.Post.PublishedAtUtc.Value.ToString("dd/MM/yyyy")</small> }</header>
+        @if (!string.IsNullOrWhiteSpace(Model.Post.CoverImageUrl)) { <figure class="public-blog-article-cover"><img src="@Model.Post.CoverImageUrl" alt="@Model.Post.Title" /></figure> }
+        <div class="public-blog-body">@Html.Raw(Model.Post.BodyHtml)</div>
+    </div>
 </article>

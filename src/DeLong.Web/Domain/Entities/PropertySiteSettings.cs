@@ -15,6 +15,7 @@ public sealed class PropertySiteSettings : EntityBase
     public string? GoogleMapsUrl { get; set; }
 
     public string? CoverImageUrl { get; set; }
+    public string GalleryLayout { get; set; } = "mosaic";
     public string? LogoUrl { get; set; }
     public string? FaviconUrl { get; set; }
     public string? OgImageUrl { get; set; }

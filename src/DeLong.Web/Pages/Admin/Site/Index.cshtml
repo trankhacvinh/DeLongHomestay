@@ -16,7 +16,7 @@
             <h1>{{ propertyName }}</h1>
             <p>Quản lý thương hiệu, SEO, nội dung trang chủ và mã tùy chỉnh cho website public.</p>
         </div>
-        <div class="site-head-actions">@if (User.IsInRole("Admin")) { <a class="btn btn-light" asp-page="/Admin/Site/Global">Trang chủ chung</a> }<a class="btn btn-light" v-bind:href="publicBasePath" target="_blank" rel="noopener">Xem trang cơ sở ↗</a></div>
+        <div class="site-head-actions"><a class="btn btn-light" v-bind:href="publicBasePath" target="_blank" rel="noopener">Xem trang cơ sở ↗</a></div>
     </div>
 
     <nav class="site-tabs" aria-label="Khu vực cấu hình website">

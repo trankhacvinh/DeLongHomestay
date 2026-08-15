@@ -14,17 +14,19 @@ public sealed class EditorialModel(
 {
     public string PageDataJson { get; private set; } = "{}";
 
-    public async Task<IActionResult> OnGetAsync(Guid? propertyId, CancellationToken ct)
+    public async Task<IActionResult> OnGetAsync(Guid? propertyId, string? tab, CancellationToken ct)
     {
         var property = await currentPropertyService.ResolveAsync(User, propertyId, ct);
         if (property is null) return Forbid();
         var publicProperty = await publicPropertyResolver.ResolveByIdAsync(property.Id, ct);
         var siteSlug = publicProperty?.SiteSlug ?? PublicPropertyResolver.ToSiteSlug(property.Code);
+        var selectedTab = string.Equals(tab, "blog", StringComparison.OrdinalIgnoreCase) ? "blog" : "gallery";
         PageDataJson = JsonSerializer.Serialize(new
         {
             propertyId = property.Id,
             propertyName = property.Name,
             siteSlug,
+            tab = selectedTab,
             isAdmin = User.IsInRole("Admin")
         }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return Page();

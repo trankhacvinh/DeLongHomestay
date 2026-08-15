@@ -34,7 +34,8 @@ public sealed record BlogPostDto(
 
 public sealed record PropertyEditorialAdminDto(
     IReadOnlyList<GalleryItemDto> Gallery,
-    IReadOnlyList<BlogPostDto> Posts);
+    IReadOnlyList<BlogPostDto> Posts,
+    string GalleryLayout);
 
 public sealed class SaveGalleryItemRequest
 {
@@ -45,6 +46,7 @@ public sealed class SaveGalleryItemRequest
 }
 
 public sealed record ReorderGalleryRequest(IReadOnlyList<Guid> Ids);
+public sealed record SaveGalleryLayoutRequest(string Layout);
 
 public sealed class SaveBlogPostRequest
 {
@@ -65,7 +67,8 @@ public sealed class PropertyEditorialContentService(AppDbContext db)
         if (!await db.Properties.AnyAsync(x => x.Id == propertyId, ct)) return null;
         return new(
             await GetGalleryQuery(propertyId, includeUnpublished: true).ToListAsync(ct),
-            await GetBlogQuery(propertyId, includeUnpublished: true).ToListAsync(ct));
+            await GetBlogQuery(propertyId, includeUnpublished: true).ToListAsync(ct),
+            await GetGalleryLayoutAsync(propertyId, ct));
     }
 
     public Task<List<GalleryItemDto>> GetPublicGalleryAsync(Guid propertyId, CancellationToken ct = default) =>
@@ -80,6 +83,33 @@ public sealed class PropertyEditorialContentService(AppDbContext db)
     public Task<List<BlogPostDto>> GetGlobalPublicPostsAsync(CancellationToken ct = default) =>
         GetBlogQuery(null, includeUnpublished: false).ToListAsync(ct);
 
+
+    public async Task<string> GetGalleryLayoutAsync(Guid propertyId, CancellationToken ct = default)
+    {
+        var layout = await db.Set<PropertySiteSettings>().AsNoTracking()
+            .Where(x => x.PropertyId == propertyId)
+            .Select(x => x.GalleryLayout)
+            .SingleOrDefaultAsync(ct);
+        return NormalizeGalleryLayout(layout);
+    }
+
+    public async Task<SiteContentError?> SaveGalleryLayoutAsync(Guid propertyId, string? layout, CancellationToken ct = default)
+    {
+        if (!await db.Properties.AnyAsync(x => x.Id == propertyId, ct))
+            return new("not_found", "Không tìm thấy cơ sở.");
+        var normalized = NormalizeGalleryLayout(layout);
+        if (!string.Equals(layout, normalized, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(layout))
+            return new("validation", "Kiểu hiển thị Gallery không hợp lệ.");
+        var settings = await db.Set<PropertySiteSettings>().SingleOrDefaultAsync(x => x.PropertyId == propertyId, ct);
+        if (settings is null)
+        {
+            settings = new PropertySiteSettings { PropertyId = propertyId };
+            db.Set<PropertySiteSettings>().Add(settings);
+        }
+        settings.GalleryLayout = normalized;
+        await db.SaveChangesAsync(ct);
+        return null;
+    }
     public async Task<BlogPostDto?> GetPublicPostAsync(Guid propertyId, string slug, CancellationToken ct = default)
     {
         var normalized = NormalizeSlug(slug);
@@ -281,6 +311,10 @@ public sealed class PropertyEditorialContentService(AppDbContext db)
         var cover = Limit(Clean(request.CoverImageUrl), 1000);
         return (slug, title, excerpt, body, cover, null);
     }
+
+    private static string NormalizeGalleryLayout(string? value) =>
+        string.Equals(value, "grid", StringComparison.OrdinalIgnoreCase) ? "grid" :
+        string.Equals(value, "slider", StringComparison.OrdinalIgnoreCase) ? "slider" : "mosaic";
 
     public static string NormalizeSlug(string value)
     {

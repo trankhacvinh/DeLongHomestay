@@ -142,6 +142,11 @@ public sealed class AppDbContext
             entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<PropertySiteSettings>(entity =>
+        {
+            entity.Property(x => x.GalleryLayout).HasMaxLength(30).HasDefaultValue("mosaic").IsRequired();
+        });
+
         modelBuilder.Entity<PropertyGalleryItem>(entity =>
         {
             entity.HasIndex(x => new { x.PropertyId, x.SortOrder });
@@ -169,6 +174,7 @@ public sealed class AppDbContext
             entity.Property(x => x.GalleryPropertyIdsJson).HasColumnType("jsonb").IsRequired();
             entity.Property(x => x.GalleryItemIdsJson).HasColumnType("jsonb").IsRequired();
             entity.Property(x => x.GalleryTitle).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.GalleryLayout).HasMaxLength(30).HasDefaultValue("mosaic").IsRequired();
             entity.Property(x => x.BlogMode).HasMaxLength(30).IsRequired();
             entity.Property(x => x.BlogPropertyIdsJson).HasColumnType("jsonb").IsRequired();
             entity.Property(x => x.BlogPostIdsJson).HasColumnType("jsonb").IsRequired();

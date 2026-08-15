@@ -27,6 +27,7 @@ public sealed class IndexModel(
     public string ScopePrefix => PublicPropertyResolver.ScopePrefix(SiteSlug);
     public GlobalEditorialPublicDto? GlobalEditorial { get; private set; }
     public IReadOnlyList<GalleryItemDto> PropertyGallery { get; private set; } = [];
+    public string PropertyGalleryLayout { get; private set; } = "mosaic";
     public IReadOnlyList<BlogPostDto> PropertyPosts { get; private set; } = [];
 
     public async Task<IActionResult> OnGetAsync(string? siteSlug, CancellationToken cancellationToken)
@@ -61,6 +62,7 @@ public sealed class IndexModel(
         SiteSettings = site?.Settings;
         Sections = ToViewModels(site?.Sections ?? []);
         PropertyGallery = await editorialContentService.GetPublicGalleryAsync(property.Id, cancellationToken);
+        PropertyGalleryLayout = await editorialContentService.GetGalleryLayoutAsync(property.Id, cancellationToken);
         PropertyPosts = await editorialContentService.GetPublicPostsAsync(property.Id, cancellationToken);
         return Page();
     }

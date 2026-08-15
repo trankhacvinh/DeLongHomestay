@@ -34,6 +34,12 @@ public static class PropertyEditorialContentEndpoints
             return error is null ? Results.NoContent() : ToProblem(error);
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        admin.MapPut("/gallery/layout", async (Guid propertyId, SaveGalleryLayoutRequest request, PropertyEditorialContentService service, CancellationToken ct) =>
+        {
+            var error = await service.SaveGalleryLayoutAsync(propertyId, request.Layout, ct);
+            return error is null ? Results.NoContent() : ToProblem(error);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
         admin.MapPut("/gallery/reorder", async (Guid propertyId, ReorderGalleryRequest request, PropertyEditorialContentService service, CancellationToken ct) =>
         {
             var error = await service.ReorderGalleryAsync(propertyId, request.Ids, ct);

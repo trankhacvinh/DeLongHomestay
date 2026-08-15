@@ -10,9 +10,10 @@ public sealed class EditorialGlobalModel(PublicRoomContentService publicRoomCont
 {
     public string PageDataJson { get; private set; } = "{}";
 
-    public async Task OnGetAsync(CancellationToken ct)
+    public async Task OnGetAsync(string? tab, CancellationToken ct)
     {
         var catalog = await publicRoomContentService.GetGlobalCatalogAsync(ct);
-        PageDataJson = JsonSerializer.Serialize(new { properties = catalog.Properties }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var selectedTab = string.Equals(tab, "blog", StringComparison.OrdinalIgnoreCase) ? "blog" : "gallery";
+        PageDataJson = JsonSerializer.Serialize(new { properties = catalog.Properties, tab = selectedTab }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
     }
 }

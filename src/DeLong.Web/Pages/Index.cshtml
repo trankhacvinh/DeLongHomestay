@@ -150,10 +150,10 @@
     {
         if (editorial.Gallery.Count > 0)
         {
-            <section class="public-section public-editorial-gallery"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">GALLERY</span><h2>@editorial.Settings.GalleryTitle</h2></div></div><div class="public-gallery-mosaic">
+            <section class="public-section public-editorial-gallery"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">GALLERY</span><h2>@editorial.Settings.GalleryTitle</h2></div></div><div class="public-gallery-mosaic public-gallery-layout-@editorial.Settings.GalleryLayout">
                 @foreach (var item in editorial.Gallery)
                 {
-                    <figure><a href="@PublicUrlBuilder.PropertyHome(item.PropertySiteSlug)"><img src="@item.ImageUrl" alt="@item.AltText" loading="lazy" /></a><figcaption><strong>@item.PropertyName</strong>@if (!string.IsNullOrWhiteSpace(item.Caption)) { <span>@item.Caption</span> }</figcaption></figure>
+                    <figure><button class="public-gallery-lightbox-trigger" type="button" data-gallery-open data-src="@item.ImageUrl" data-alt="@item.AltText" data-caption="@item.Caption"><img src="@item.ImageUrl" alt="@item.AltText" loading="lazy" /></button><figcaption><a href="@PublicUrlBuilder.PropertyHome(item.PropertySiteSlug)">@item.PropertyName</a>@if (!string.IsNullOrWhiteSpace(item.Caption)) { <span>@item.Caption</span> }</figcaption></figure>
                 }
             </div></div></section>
         }
@@ -220,10 +220,10 @@ else
 
     if (Model.PropertyGallery.Count > 0)
     {
-        <section class="public-section public-editorial-gallery"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">GALLERY</span><h2>Không gian tại @siteName</h2></div></div><div class="public-gallery-mosaic">
+        <section class="public-section public-editorial-gallery"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">GALLERY</span><h2>Không gian tại @siteName</h2></div></div><div class="public-gallery-mosaic public-gallery-layout-@Model.PropertyGalleryLayout">
             @foreach (var item in Model.PropertyGallery.Take(12))
             {
-                <figure><img src="@item.ImageUrl" alt="@item.AltText" loading="lazy" /><figcaption>@if (!string.IsNullOrWhiteSpace(item.Caption)) { <span>@item.Caption</span> }</figcaption></figure>
+                <figure><button class="public-gallery-lightbox-trigger" type="button" data-gallery-open data-src="@item.ImageUrl" data-alt="@item.AltText" data-caption="@item.Caption"><img src="@item.ImageUrl" alt="@item.AltText" loading="lazy" /></button><figcaption>@if (!string.IsNullOrWhiteSpace(item.Caption)) { <span>@item.Caption</span> }</figcaption></figure>
             }
         </div></div></section>
     }
@@ -237,3 +237,5 @@ else
         </div></div></section>
     }
 }
+<dialog class="public-gallery-lightbox" data-gallery-lightbox aria-label="Xem ảnh Gallery"><button class="public-gallery-lightbox-close" type="button" data-gallery-close aria-label="Đóng">×</button><button class="public-gallery-lightbox-nav prev" type="button" data-gallery-prev aria-label="Ảnh trước">‹</button><figure><img data-gallery-lightbox-image alt="" /><figcaption data-gallery-lightbox-caption></figcaption></figure><button class="public-gallery-lightbox-nav next" type="button" data-gallery-next aria-label="Ảnh tiếp theo">›</button></dialog>
+@section Scripts { <script src="~/js/pages/public-editorial-gallery.js" asp-append-version="true"></script> }

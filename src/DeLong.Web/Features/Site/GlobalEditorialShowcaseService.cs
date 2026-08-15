@@ -13,6 +13,7 @@ public sealed record GlobalEditorialShowcaseDto(
     IReadOnlyList<Guid> GalleryItemIds,
     int GalleryLimit,
     string GalleryTitle,
+    string GalleryLayout,
     bool BlogEnabled,
     string BlogMode,
     IReadOnlyList<Guid> BlogPropertyIds,
@@ -28,6 +29,7 @@ public sealed class SaveGlobalEditorialShowcaseRequest
     public IReadOnlyList<Guid> GalleryItemIds { get; init; } = [];
     public int GalleryLimit { get; init; } = 8;
     public string? GalleryTitle { get; init; }
+    public string GalleryLayout { get; init; } = "mosaic";
     public bool BlogEnabled { get; init; } = true;
     public string BlogMode { get; init; } = "all";
     public IReadOnlyList<Guid> BlogPropertyIds { get; init; } = [];
@@ -59,6 +61,8 @@ public sealed class GlobalEditorialShowcaseService(
     {
         if (request.GalleryMode is not ("all" or "properties" or "manual") || request.BlogMode is not ("all" or "properties" or "manual"))
             return (null, new("validation", "Chế độ chọn nội dung không hợp lệ."));
+        if (request.GalleryLayout is not ("mosaic" or "grid" or "slider"))
+            return (null, new("validation", "Kiểu hiển thị Gallery không hợp lệ."));
         if (request.GalleryLimit is < 1 or > 24 || request.BlogLimit is < 1 or > 12)
             return (null, new("validation", "Số lượng nội dung hiển thị không hợp lệ."));
 
@@ -69,6 +73,7 @@ public sealed class GlobalEditorialShowcaseService(
         entity.GalleryItemIdsJson = JsonSerializer.Serialize(request.GalleryItemIds.Distinct(), JsonOptions);
         entity.GalleryLimit = request.GalleryLimit;
         entity.GalleryTitle = Clean(request.GalleryTitle) ?? "Một vài khoảnh khắc tại De Long";
+        entity.GalleryLayout = request.GalleryLayout;
         entity.BlogEnabled = request.BlogEnabled;
         entity.BlogMode = request.BlogMode;
         entity.BlogPropertyIdsJson = JsonSerializer.Serialize(request.BlogPropertyIds.Distinct(), JsonOptions);
@@ -134,6 +139,7 @@ public sealed class GlobalEditorialShowcaseService(
         [],
         8,
         "Một vài khoảnh khắc tại De Long",
+        "mosaic",
         true,
         "all",
         [],
@@ -149,6 +155,7 @@ public sealed class GlobalEditorialShowcaseService(
         ParseIds(entity.GalleryItemIdsJson),
         entity.GalleryLimit,
         entity.GalleryTitle,
+        entity.GalleryLayout,
         entity.BlogEnabled,
         entity.BlogMode,
         ParseIds(entity.BlogPropertyIdsJson),
