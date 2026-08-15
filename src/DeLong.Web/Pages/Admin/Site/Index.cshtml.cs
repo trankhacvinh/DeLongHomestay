@@ -10,7 +10,8 @@ namespace DeLong.Web.Pages.Admin.Site;
 [Authorize(Policy = "ManageSiteContent")]
 public sealed class IndexModel(
     CurrentPropertyService currentPropertyService,
-    SiteContentService siteContentService) : PageModel
+    SiteContentService siteContentService,
+    PublicPropertyResolver publicPropertyResolver) : PageModel
 {
     public string PageDataJson { get; private set; } = "{}";
 
@@ -20,7 +21,8 @@ public sealed class IndexModel(
         if (property is null) return Forbid();
         var site = await siteContentService.GetAdminAsync(property.Id, ct);
         if (site is null) return NotFound();
-        var siteSlug = PublicPropertyResolver.ToSiteSlug(property.Code);
+        var publicProperty = await publicPropertyResolver.ResolveByIdAsync(property.Id, ct);
+        var siteSlug = publicProperty?.SiteSlug ?? PublicPropertyResolver.ToSiteSlug(property.Code);
         PageDataJson = JsonSerializer.Serialize(new
         {
             propertyId = property.Id,
