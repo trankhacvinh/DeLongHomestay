@@ -9,7 +9,7 @@
         <div class="public-success-card">
             <div class="public-success-icon" aria-hidden="true">✓</div>
             <span class="public-eyebrow">Đã nhận yêu cầu</span>
-            <h1>Cảm ơn bạn. De Long sẽ liên hệ để xác nhận.</h1>
+            <h1>Cảm ơn bạn. @Model.SiteName sẽ liên hệ để xác nhận.</h1>
             <p>Yêu cầu online chưa tự động giữ phòng. Nhân viên sẽ kiểm tra lại lịch và liên hệ qua số điện thoại bạn đã cung cấp.</p>
             @if (!string.IsNullOrWhiteSpace(Model.Code))
             {
@@ -21,12 +21,12 @@
                 <p class="public-success-lookup-note">Hãy lưu lại mã trên. Bạn có thể dùng mã này cùng số điện thoại đã đặt để xem trạng thái sau này.</p>
             }
             <div class="public-success-actions">
-                <a class="public-btn public-btn-primary" asp-page="/Booking/Lookup">Tra cứu đặt phòng</a>
-                <a class="public-btn public-btn-ghost" asp-page="/Index">Về trang chủ</a>
+                <a class="public-btn public-btn-primary" asp-page="/Booking/Lookup" asp-route-siteSlug="@Model.SiteSlug">Tra cứu đặt phòng</a>
+                <a class="public-btn public-btn-ghost" asp-page="/Index" asp-route-siteSlug="@Model.SiteSlug">Về trang chủ</a>
             </div>
             @if (!string.IsNullOrWhiteSpace(Model.Phone))
             {
-                <p class="public-success-contact">Cần hỗ trợ ngay? Gọi De Long: <strong>@Model.Phone</strong></p>
+                <p class="public-success-contact">Cần hỗ trợ ngay? Gọi @Model.SiteName: <strong>@Model.Phone</strong></p>
             }
         </div>
     </div>
