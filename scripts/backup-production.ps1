@@ -10,7 +10,7 @@ if (-not $env:DATABASE_URL) { throw "Set DATABASE_URL to a PostgreSQL URI before
 $repoRoot = Split-Path -Parent $PSScriptRoot
 if (-not $BackupRoot) { $BackupRoot = Join-Path $repoRoot "backups" }
 if (-not $DataRoot) { $DataRoot = Join-Path $repoRoot "src\DeLong.Web\App_Data" }
-if (-not $MediaRoot) { $MediaRoot = Join-Path $repoRoot "src\DeLong.Web\wwwroot\uploads\rooms" }
+if (-not $MediaRoot) { $MediaRoot = Join-Path $repoRoot "src\DeLong.Web\wwwroot\uploads" }
 
 $stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
 $target = Join-Path $BackupRoot $stamp
@@ -28,7 +28,7 @@ if (Test-Path $DataRoot) {
 }
 
 if (Test-Path $MediaRoot) {
-    Write-Host "[3/3] Backing up public media: $MediaRoot"
+    Write-Host "[3/3] Backing up public uploads (rooms + site assets): $MediaRoot"
     Compress-Archive -Path (Join-Path $MediaRoot "*") -DestinationPath (Join-Path $target "media-root.zip") -Force
 } else {
     Write-Host "[3/3] Media root missing ($MediaRoot); skipping public media archive."
