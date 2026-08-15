@@ -11,6 +11,18 @@
     var orderedImages = cover is null
         ? Model.Room.Images
         : new[] { cover }.Concat(Model.Room.Images.Where(x => x.Id != cover.Id)).ToList();
+    string AmenitySymbol(string amenity)
+    {
+        var text = (amenity ?? string.Empty).Trim().ToLowerInvariant();
+        if (text.Contains("wifi") || text.Contains("wi-fi")) return "⌁";
+        if (text.Contains("máy lạnh") || text.Contains("điều hòa")) return "❄";
+        if (text.Contains("bồn tắm") || text.Contains("bathtub")) return "♨";
+        if (text.Contains("netflix") || text.Contains("tv") || text.Contains("tivi")) return "▣";
+        if (text.Contains("máy sấy")) return "≈";
+        if (text.Contains("bãi xe") || text.Contains("đỗ xe")) return "P";
+        if (text.Contains("tủ lạnh")) return "◇";
+        return "✦";
+    }
 }
 
 @section Head {
@@ -23,7 +35,7 @@
 <main class="public-room-page">
     <section class="public-room-intro">
         <div class="public-container">
-            <nav class="public-breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>›</span><a href="@PublicUrlBuilder.PropertyHome(Model.SiteSlug!)">@Model.PropertyName</a><span>›</span><span aria-current="page">@Model.Room.Name</span></nav>
+            <nav class="public-breadcrumb" aria-label="Breadcrumb"><a href="/">Trang chủ</a><span>›</span><a href="@PublicUrlBuilder.PropertyHome(Model.SiteSlug!)">@Model.PropertyName</a><span>›</span><a href="@PublicUrlBuilder.Rooms(Model.SiteSlug)">Phòng</a><span>›</span><span aria-current="page">@Model.Room.Name</span></nav>
             <div class="public-room-intro-row">
                 <div>
                     <span class="public-eyebrow">@Model.Room.Code</span>
@@ -118,10 +130,10 @@
                     <section class="public-room-content-block">
                         <span class="public-eyebrow">Tiện nghi</span>
                         <h2>Có sẵn trong phòng</h2>
-                        <div class="public-amenity-grid public-amenity-grid-wide">
+                        <div class="public-amenity-grid public-amenity-grid-wide public-amenity-icon-grid">
                             @foreach (var amenity in Model.Room.Amenities)
                             {
-                                <span><i aria-hidden="true">✓</i>@amenity</span>
+                                <span><i aria-hidden="true">@AmenitySymbol(amenity)</i><b>@amenity</b></span>
                             }
                         </div>
                     </section>
@@ -171,20 +183,25 @@
             </div>
 
             <aside class="public-room-booking-aside">
-                <div class="public-room-booking-card">
-                    <span class="public-eyebrow">@Model.Room.Name</span>
+                <div class="public-room-booking-card public-room-booking-card-v3">
+                    <span class="public-eyebrow">Đặt @Model.Room.Name</span>
                     <div class="public-room-booking-price">
-                        <small>Đặt nhanh từ</small>
+                        <small>Giá từ</small>
                         <strong>@Model.Room.QuickFromPrice.ToString("N0")đ</strong>
                     </div>
                     <div class="public-room-booking-facts">
-                        <span><b>@Model.Room.Capacity</b> người</span>
-                        @if (Model.Room.HasBathtub) { <span>Bồn tắm</span> }
-                        @if (Model.Room.OvernightPrice.HasValue) { <span>Qua đêm @Model.Room.OvernightPrice.Value.ToString("N0")đ</span> }
-                        @if (Model.Room.NightlyPrice.HasValue) { <span>Lưu trú @Model.Room.NightlyPrice.Value.ToString("N0")đ/đêm</span> }
+                        <span><b>@Model.Room.Capacity người</b></span>
+                        @if (Model.Room.HasBathtub) { <span><b>Có bồn tắm</b></span> }
+                        @if (Model.Room.OvernightPrice.HasValue) { <span><b>Qua đêm @Model.Room.OvernightPrice.Value.ToString("N0")đ</b></span> }
+                        @if (Model.Room.NightlyPrice.HasValue) { <span><b>Lưu trú @Model.Room.NightlyPrice.Value.ToString("N0")đ/đêm</b></span> }
                     </div>
-                    <a class="public-btn public-btn-primary public-room-booking-cta" href="@PublicUrlBuilder.Booking(Model.SiteSlug!, room: Model.Room.Code)">Kiểm tra phòng trống</a>
-                    <p>Yêu cầu online chưa tự động khóa phòng. @Model.PropertyName sẽ liên hệ xác nhận trước khi giữ phòng chính thức.</p>
+                    <form class="public-room-quick-book" method="get" action="@PublicUrlBuilder.Booking(Model.SiteSlug!)">
+                        <input type="hidden" name="room" value="@Model.Room.Code" />
+                        <label><span>Ngày sử dụng</span><input type="date" name="date" /></label>
+                        <button class="public-btn public-btn-primary public-room-booking-cta" type="submit">Đặt phòng</button>
+                    </form>
+                    <div class="public-room-booking-trust"><span>✓ Gửi yêu cầu online nhanh</span><span>✓ Nhân viên xác nhận trước khi giữ phòng</span></div>
+                    <p>Bạn chưa cần thanh toán chỉ để gửi yêu cầu. Giờ thực tế có thể được xác nhận lại theo tình trạng phòng.</p>
                 </div>
             </aside>
         </div>
