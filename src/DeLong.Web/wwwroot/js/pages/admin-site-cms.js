@@ -31,7 +31,7 @@
                 publicBasePath: initial.publicBasePath || '/',
                 canEditCode: initial.canEditCode === true,
                 tab: 'settings',
-                settings: Object.assign({ siteName: '', tagline: '', address: '', phone: '', email: '', facebookUrl: '', zaloUrl: '', googleMapsUrl: '', logoUrl: '', faviconUrl: '', ogImageUrl: '', metaTitle: '', metaDescription: '', canonicalBaseUrl: '', ogTitle: '', ogDescription: '', googleSiteVerification: '', robotsIndex: true, customCss: '', customJs: '' }, site.settings || {}),
+                settings: Object.assign({ siteName: '', tagline: '', address: '', phone: '', email: '', facebookUrl: '', zaloUrl: '', googleMapsUrl: '', coverImageUrl: '', logoUrl: '', faviconUrl: '', ogImageUrl: '', metaTitle: '', metaDescription: '', canonicalBaseUrl: '', ogTitle: '', ogDescription: '', googleSiteVerification: '', robotsIndex: true, customCss: '', customJs: '' }, site.settings || {}),
                 sections: site.sections || [],
                 sectionTypes,
                 sectionEditor: { open: false, mode: 'create', id: null },
@@ -91,6 +91,7 @@
                 const form = new FormData(); form.append('file', file);
                 try {
                     const asset = await DeLongApi.postForm(`/api/admin/properties/${this.propertyId}/site/assets/${kind}`, form);
+                    if (kind === 'cover') this.settings.coverImageUrl = asset.url;
                     if (kind === 'logo') this.settings.logoUrl = asset.url;
                     if (kind === 'favicon') this.settings.faviconUrl = asset.url;
                     if (kind === 'og') this.settings.ogImageUrl = asset.url;
