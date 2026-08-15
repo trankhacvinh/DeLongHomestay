@@ -20,10 +20,13 @@ public sealed class IndexModel(
         if (property is null) return Forbid();
         var site = await siteContentService.GetAdminAsync(property.Id, ct);
         if (site is null) return NotFound();
+        var siteSlug = PublicPropertyResolver.ToSiteSlug(property.Code);
         PageDataJson = JsonSerializer.Serialize(new
         {
             propertyId = property.Id,
             propertyName = property.Name,
+            siteSlug,
+            publicBasePath = $"/h/{Uri.EscapeDataString(siteSlug)}",
             canEditCode = User.IsInRole("Admin"),
             site
         }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
