@@ -85,7 +85,8 @@ public sealed class IndexModel(
                 x.Id,
                 x.SiteName,
                 x.SiteSlug,
-                x.RoomCount
+                x.RoomCount,
+                x.CoverCardUrl
             })
         }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return Page();
