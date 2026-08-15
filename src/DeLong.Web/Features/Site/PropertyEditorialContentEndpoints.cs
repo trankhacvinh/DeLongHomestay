@@ -58,6 +58,28 @@ public static class PropertyEditorialContentEndpoints
             return error is null ? Results.NoContent() : ToProblem(error);
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        var global = app.MapGroup("/api/admin/site/global/editorial")
+            .RequireAuthorization("ManageProperties");
+
+        global.MapGet("/", async (
+            GlobalEditorialShowcaseService showcase,
+            PropertyEditorialContentService editorial,
+            CancellationToken ct) => Results.Ok(new
+            {
+                settings = await showcase.GetAsync(ct),
+                gallery = await editorial.GetGlobalPublicGalleryAsync(ct),
+                posts = await editorial.GetGlobalPublicPostsAsync(ct)
+            }));
+
+        global.MapPut("/", async (
+            SaveGlobalEditorialShowcaseRequest request,
+            GlobalEditorialShowcaseService showcase,
+            CancellationToken ct) =>
+        {
+            var (settings, error) = await showcase.SaveAsync(request, ct);
+            return error is null ? Results.Ok(settings) : ToProblem(error);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
         return app;
     }
 
