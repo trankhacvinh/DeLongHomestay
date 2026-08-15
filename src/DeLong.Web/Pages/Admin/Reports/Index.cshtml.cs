@@ -40,7 +40,7 @@ public sealed class IndexModel(
 
         IReadOnlyList<CurrentPropertyDto> targetProperties = allScope
             ? accessible
-            : new[] { selectedProperty };
+            : new[] { selectedProperty! };
         var scopedReports = new List<ScopedReport>();
         foreach (var property in targetProperties)
         {
