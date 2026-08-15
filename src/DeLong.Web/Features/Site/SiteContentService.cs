@@ -20,6 +20,7 @@ public sealed record SiteSettingsDto(
     string FacebookUrl,
     string ZaloUrl,
     string GoogleMapsUrl,
+    string CoverImageUrl,
     string LogoUrl,
     string FaviconUrl,
     string OgImageUrl,
@@ -55,6 +56,7 @@ public sealed class SaveSiteSettingsRequest
     public string? FacebookUrl { get; init; }
     public string? ZaloUrl { get; init; }
     public string? GoogleMapsUrl { get; init; }
+    public string? CoverImageUrl { get; init; }
     public string? LogoUrl { get; init; }
     public string? FaviconUrl { get; init; }
     public string? OgImageUrl { get; init; }
@@ -223,6 +225,7 @@ public sealed class SiteContentService(AppDbContext db)
         settings.FacebookUrl = Clean(request.FacebookUrl);
         settings.ZaloUrl = Clean(request.ZaloUrl);
         settings.GoogleMapsUrl = Clean(request.GoogleMapsUrl);
+        settings.CoverImageUrl = Clean(request.CoverImageUrl);
         settings.LogoUrl = Clean(request.LogoUrl);
         settings.FaviconUrl = Clean(request.FaviconUrl);
         settings.OgImageUrl = Clean(request.OgImageUrl);
@@ -357,6 +360,7 @@ public sealed class SiteContentService(AppDbContext db)
         Clean(settings?.FacebookUrl) ?? string.Empty,
         Clean(settings?.ZaloUrl) ?? string.Empty,
         Clean(settings?.GoogleMapsUrl) ?? string.Empty,
+        Clean(settings?.CoverImageUrl) ?? string.Empty,
         Clean(settings?.LogoUrl) ?? string.Empty,
         Clean(settings?.FaviconUrl) ?? string.Empty,
         Clean(settings?.OgImageUrl) ?? string.Empty,
