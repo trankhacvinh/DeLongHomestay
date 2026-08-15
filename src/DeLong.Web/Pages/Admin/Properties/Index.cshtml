@@ -2,6 +2,11 @@
 @model DeLong.Web.Pages.Admin.Properties.IndexModel
 @{
     ViewData["Title"] = "Cơ sở";
+    var timeZones = TimeZoneInfo.GetSystemTimeZones()
+        .OrderByDescending(zone => string.Equals(zone.Id, "Asia/Ho_Chi_Minh", StringComparison.OrdinalIgnoreCase))
+        .ThenBy(zone => zone.BaseUtcOffset)
+        .ThenBy(zone => zone.Id)
+        .ToList();
 }
 @section Head {
     <link rel="stylesheet" href="~/css/site-cms.css" asp-append-version="true" />
@@ -67,8 +72,13 @@
                     </div>
                     <div class="field form-full">
                         <label for="property-time-zone">Múi giờ *</label>
-                        <input id="property-time-zone" v-model.trim="form.timeZoneId" maxlength="100" placeholder="Asia/Ho_Chi_Minh" autocomplete="off" />
-                        <small>Ví dụ: Asia/Ho_Chi_Minh.</small>
+                        <select id="property-time-zone" v-model="form.timeZoneId">
+                            @foreach (var zone in timeZones)
+                            {
+                                <option value="@zone.Id">@zone.DisplayName · @zone.Id</option>
+                            }
+                        </select>
+                        <small>Chọn theo nơi cơ sở hoạt động. Việt Nam dùng Asia/Ho_Chi_Minh (UTC+07:00).</small>
                     </div>
                     <label class="site-toggle property-active-toggle form-full">
                         <input type="checkbox" v-model="form.isActive" />
