@@ -10,7 +10,7 @@ public sealed class Property : EntityBase
     public string Name { get; set; } = string.Empty;
 
     [MaxLength(100)]
-    public string SiteSlug { get; set; } = string.Empty;
+    public string? SiteSlug { get; set; }
 
     public string TimeZoneId { get; set; } = "Asia/Ho_Chi_Minh";
     public bool IsActive { get; set; } = true;
