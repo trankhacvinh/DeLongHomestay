@@ -28,6 +28,7 @@
             const today = initial.today || initial.date;
             const arrival = initial.date || today;
             return {
+                propertyName: initial.propertyName || 'Cơ sở',
                 siteSlug: initial.siteSlug || '',
                 scopePrefix: initial.scopePrefix || '',
                 bookingType: 0,
