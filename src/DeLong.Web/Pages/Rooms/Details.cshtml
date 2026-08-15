@@ -27,7 +27,7 @@
                     <span class="public-eyebrow">@Model.Room.Code</span>
                     <h1>@Model.Room.Name</h1>
                     <p>@(string.IsNullOrWhiteSpace(Model.Room.ShortDescription)
-                        ? $"Không gian riêng tư dành cho tối đa {Model.Room.Capacity} người tại De Long Homestay."
+                        ? $"Không gian riêng tư dành cho tối đa {Model.Room.Capacity} người tại {Model.PropertyName}."
                         : Model.Room.ShortDescription)</p>
                 </div>
                 @if (Model.Room.Tags.Count > 0)
@@ -80,7 +80,7 @@
             else
             {
                 <div class="public-room-detail-art public-room-art public-room-fallback-art" data-room-code="@Model.Room.Code">
-                    <span class="public-room-poster public-room-poster-detail"><small>DE LONG STAY · @Model.Room.Code</small><strong>@Model.Room.Name</strong></span>
+                    <span class="public-room-poster public-room-poster-detail"><small>@Model.PropertyName · @Model.Room.Code</small><strong>@Model.Room.Name</strong></span>
                 </div>
             }
         </div>
@@ -136,7 +136,7 @@
                                 <div class="public-rate-compact-list">
                                     @foreach (var rate in timeSlotRates)
                                     {
-                                        <a asp-page="/Booking/Index" asp-route-room="@Model.Room.Code" asp-route-rate="@rate.Id">
+                                        <a asp-page="/Booking/Index" asp-route-siteSlug="@Model.SiteSlug" asp-route-room="@Model.Room.Code" asp-route-rate="@rate.Id">
                                             <span><strong>@rate.Name</strong><small>@rate.StartTime → @rate.EndTime</small></span>
                                             <b>@rate.Price.ToString("N0")đ</b>
                                         </a>
@@ -148,7 +148,7 @@
                         {
                             <div class="public-rate-group">
                                 <div class="public-rate-group-title"><strong>Qua đêm</strong><span>Một đêm ngắn</span></div>
-                                <a class="public-rate-feature" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code" asp-route-rate="@overnightRate.Id">
+                                <a class="public-rate-feature" asp-page="/Booking/Index" asp-route-siteSlug="@Model.SiteSlug" asp-route-room="@Model.Room.Code" asp-route-rate="@overnightRate.Id">
                                     <span><strong>@overnightRate.StartTime → @overnightRate.EndTime</strong><small>@overnightRate.Name</small></span>
                                     <b>@overnightRate.Price.ToString("N0")đ</b>
                                 </a>
@@ -158,7 +158,7 @@
                         {
                             <div class="public-rate-group public-rate-group-nightly">
                                 <div class="public-rate-group-title"><strong>Lưu trú nhiều ngày</strong><span>Giá riêng theo đêm</span></div>
-                                <a class="public-rate-feature" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code">
+                                <a class="public-rate-feature" asp-page="/Booking/Index" asp-route-siteSlug="@Model.SiteSlug" asp-route-room="@Model.Room.Code">
                                     <span><strong>Nhận @nightlyRate.StartTime · trả @nightlyRate.EndTime</strong><small>Tính theo số đêm lưu trú</small></span>
                                     <b>@nightlyRate.Price.ToString("N0")đ/đêm</b>
                                 </a>
@@ -181,8 +181,8 @@
                         @if (Model.Room.OvernightPrice.HasValue) { <span>Qua đêm @Model.Room.OvernightPrice.Value.ToString("N0")đ</span> }
                         @if (Model.Room.NightlyPrice.HasValue) { <span>Lưu trú @Model.Room.NightlyPrice.Value.ToString("N0")đ/đêm</span> }
                     </div>
-                    <a class="public-btn public-btn-primary public-room-booking-cta" asp-page="/Booking/Index" asp-route-room="@Model.Room.Code">Kiểm tra phòng trống</a>
-                    <p>Yêu cầu online chưa tự động khóa phòng. De Long sẽ liên hệ xác nhận trước khi giữ phòng chính thức.</p>
+                    <a class="public-btn public-btn-primary public-room-booking-cta" asp-page="/Booking/Index" asp-route-siteSlug="@Model.SiteSlug" asp-route-room="@Model.Room.Code">Kiểm tra phòng trống</a>
+                    <p>Yêu cầu online chưa tự động khóa phòng. @Model.PropertyName sẽ liên hệ xác nhận trước khi giữ phòng chính thức.</p>
                 </div>
             </aside>
         </div>
