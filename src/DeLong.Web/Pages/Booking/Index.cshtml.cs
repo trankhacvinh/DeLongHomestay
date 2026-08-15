@@ -1,17 +1,25 @@
 using System.Text.Json;
 using DeLong.Web.Features.PublicBooking;
+using DeLong.Web.Features.Site;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace DeLong.Web.Pages.Booking;
 
-public sealed class IndexModel(PublicBookingService publicBookingService) : PageModel
+public sealed class IndexModel(
+    PublicBookingService publicBookingService,
+    PublicPropertyResolver publicPropertyResolver) : PageModel
 {
     public string PageDataJson { get; private set; } = "{}";
 
-    public async Task OnGetAsync(string? date, string? room, Guid? rate, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(string? siteSlug, string? date, string? room, Guid? rate, CancellationToken cancellationToken)
     {
-        var catalog = await publicBookingService.GetCatalogAsync(null, cancellationToken);
-        if (catalog is null) return;
+        var property = await publicPropertyResolver.ResolveAsync(siteSlug, cancellationToken);
+        if (property is null) return NotFound();
+        var effectiveSlug = string.IsNullOrWhiteSpace(siteSlug) ? null : property.SiteSlug;
+
+        var catalog = await publicBookingService.GetCatalogAsync(effectiveSlug, null, cancellationToken);
+        if (catalog is null) return NotFound();
 
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(catalog.TimeZoneId);
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
@@ -33,11 +41,14 @@ public sealed class IndexModel(PublicBookingService publicBookingService) : Page
         {
             propertyName = catalog.PropertyName,
             timeZoneId = catalog.TimeZoneId,
+            siteSlug = effectiveSlug,
+            scopePrefix = PublicPropertyResolver.ScopePrefix(effectiveSlug),
             today = today.ToString("yyyy-MM-dd"),
             date = selectedDate.ToString("yyyy-MM-dd"),
             rooms = catalog.Rooms,
             initialRoomId = selectedRoom?.Id,
             initialRateId = selectedRate?.Id
         }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        return Page();
     }
 }
