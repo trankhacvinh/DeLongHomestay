@@ -30,6 +30,8 @@ public sealed class AppDbContext
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<UserPropertyAccess> UserPropertyAccesses => Set<UserPropertyAccess>();
+    public DbSet<PropertyGalleryItem> PropertyGalleryItems => Set<PropertyGalleryItem>();
+    public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -136,6 +138,27 @@ public sealed class AppDbContext
         {
             entity.HasKey(x => new { x.UserId, x.PropertyId });
             entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PropertyGalleryItem>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.SortOrder });
+            entity.Property(x => x.ImageUrl).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.AltText).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Caption).HasMaxLength(500);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BlogPost>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.Slug }).IsUnique();
+            entity.HasIndex(x => new { x.PropertyId, x.IsPublished, x.PublishedAtUtc });
+            entity.Property(x => x.Slug).HasMaxLength(180).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Excerpt).HasMaxLength(800).IsRequired();
+            entity.Property(x => x.CoverImageUrl).HasMaxLength(1000);
+            entity.Property(x => x.BodyHtml).HasColumnType("text").IsRequired();
             entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
         });
 
