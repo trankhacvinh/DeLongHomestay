@@ -73,13 +73,15 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
                 break;
         }
 
+        var outputWidth = output.Width;
+        var outputHeight = output.Height;
         using (output)
         using (var image = SKImage.FromBitmap(output))
         using (var encoded = image.Encode(format, quality))
         await using (var stream = File.Create(Path.Combine(publicRoot, fileName)))
             encoded.SaveTo(stream);
 
-        return (new StoredSiteAsset($"/uploads/site/{safeProperty}/{fileName}", output.Width, output.Height), null);
+        return (new StoredSiteAsset($"/uploads/site/{safeProperty}/{fileName}", outputWidth, outputHeight), null);
     }
 
     private static SKBitmap ResizeMax(SKBitmap source, int maxSize)

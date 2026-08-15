@@ -244,8 +244,9 @@ public sealed class SiteContentService(AppDbContext db)
         var property = await db.Properties.AsNoTracking().SingleOrDefaultAsync(x => x.Id == propertyId, ct);
         if (property is null) return null;
         var settings = await db.Set<PropertySiteSettings>().AsNoTracking().SingleOrDefaultAsync(x => x.PropertyId == propertyId, ct);
-        var sections = await db.Set<HomeSection>().AsNoTracking().Where(x => x.PropertyId == propertyId)
-            .OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc).Select(x => ToDto(x)).ToListAsync(ct);
+        var sectionEntities = await db.Set<HomeSection>().AsNoTracking().Where(x => x.PropertyId == propertyId)
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc).ToListAsync(ct);
+        var sections = sectionEntities.Select(ToDto).ToList();
         return new SiteAdminDto(ToDto(property, settings), sections);
     }
 
