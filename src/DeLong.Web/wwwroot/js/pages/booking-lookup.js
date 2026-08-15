@@ -2,6 +2,7 @@
     const root = document.getElementById('booking-lookup');
     if (!root || !window.Vue) return;
 
+    const siteSlug = root.dataset.siteSlug || '';
     const { createApp } = Vue;
     createApp({
         data() {
@@ -32,7 +33,10 @@
                 this.result = null;
                 this.error = '';
                 try {
-                    this.result = await DeLongApi.post('/api/public/booking-lookup', this.form);
+                    const endpoint = siteSlug
+                        ? `/api/public/booking-lookup?siteSlug=${encodeURIComponent(siteSlug)}`
+                        : '/api/public/booking-lookup';
+                    this.result = await DeLongApi.post(endpoint, this.form);
                 } catch (error) {
                     this.error = error.status === 429
                         ? 'Bạn đã tra cứu quá nhiều lần. Vui lòng thử lại sau ít phút.'
