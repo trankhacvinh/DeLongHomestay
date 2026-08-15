@@ -21,17 +21,21 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - name: Fix JSON-LD Razor nesting
+        shell: bash
+        run: |
+          python3 -c 'from pathlib import Path; p=Path("src/DeLong.Web/Pages/Shared/_Layout.cshtml"); s=p.read_text(); s=s.replace("        @{\n            var structuredData", "        var structuredData", 1).replace("            });\n        }\n        <script type=\"application/ld+json\">", "            });\n        <script type=\"application/ld+json\">", 1); p.write_text(s)'
       - name: Install dotnet-ef
         run: dotnet tool install --global dotnet-ef --version 10.*
       - name: Restore
         run: dotnet restore DeLongHomestay.sln
       - name: Generate migration
         run: dotnet ef migrations add SiteCmsAndBookingLookup --project src/DeLong.Web --startup-project src/DeLong.Web
-      - name: Commit migration
+      - name: Commit migration and layout fix
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/DeLong.Web/Data/Migrations/
+          git add src/DeLong.Web/Pages/Shared/_Layout.cshtml src/DeLong.Web/Data/Migrations/
           git commit -m "feat: add site CMS migration"
           git push origin HEAD:agent/site-cms-and-lookup
