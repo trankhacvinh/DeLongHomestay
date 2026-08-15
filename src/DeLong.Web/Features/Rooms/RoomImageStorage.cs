@@ -1,3 +1,4 @@
+using DeLong.Web.Common.Operations;
 using SkiaSharp;
 
 namespace DeLong.Web.Features.Rooms;
@@ -20,9 +21,10 @@ public interface IRoomImageStorage
     Task DeleteAsync(StoredRoomImage image, CancellationToken cancellationToken = default);
 }
 
-public sealed class LocalRoomImageStorage(IWebHostEnvironment environment) : IRoomImageStorage
+public sealed class LocalRoomImageStorage(StoragePaths paths, IWebHostEnvironment environment) : IRoomImageStorage
 {
     private const long MaxBytes = 12L * 1024 * 1024;
+    private const string StoragePrefix = "storage://";
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
     private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase) { "image/jpeg", "image/png", "image/webp" };
     private static readonly SKSamplingOptions Sampling = new(SKFilterMode.Linear, SKMipmapMode.Linear);
@@ -46,9 +48,10 @@ public sealed class LocalRoomImageStorage(IWebHostEnvironment environment) : IRo
         var width = source.Width;
         var height = source.Height;
 
-        var originalRoot = Path.Combine(environment.ContentRootPath, "App_Data", "room-images", roomId.ToString("N"), imageId.ToString("N"));
-        var webRoot = environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot");
-        var publicRoot = Path.Combine(webRoot, "uploads", "rooms", roomId.ToString("N"), imageId.ToString("N"));
+        var roomSegment = roomId.ToString("N");
+        var imageSegment = imageId.ToString("N");
+        var originalRoot = Path.Combine(paths.OriginalRoomImagesRoot, roomSegment, imageSegment);
+        var publicRoot = Path.Combine(paths.MediaPublicRoot, roomSegment, imageSegment);
         Directory.CreateDirectory(originalRoot);
         Directory.CreateDirectory(publicRoot);
 
@@ -60,9 +63,11 @@ public sealed class LocalRoomImageStorage(IWebHostEnvironment environment) : IRo
         SaveWebp(ResizeCrop(source, 900, 675, 0.5, 0.5), Path.Combine(publicRoot, "card.webp"), 82);
         SaveWebp(ResizeCrop(source, 480, 360, 0.5, 0.5), Path.Combine(publicRoot, "thumb.webp"), 80);
 
-        var urlRoot = $"/uploads/rooms/{roomId:N}/{imageId:N}";
+        var requestRoot = paths.MediaRequestPath.Value?.TrimEnd('/') ?? "/uploads/rooms";
+        var urlRoot = $"{requestRoot}/{roomSegment}/{imageSegment}";
+        var storagePath = $"{StoragePrefix}room-images/{roomSegment}/{imageSegment}/{originalName}";
         return (new StoredRoomImage(
-            Path.GetRelativePath(environment.ContentRootPath, originalPath).Replace('\\', '/'),
+            storagePath,
             $"{urlRoot}/large.webp",
             $"{urlRoot}/card.webp",
             $"{urlRoot}/thumb.webp",
@@ -76,7 +81,7 @@ public sealed class LocalRoomImageStorage(IWebHostEnvironment environment) : IRo
     public async Task<string?> RegenerateCropsAsync(StoredRoomImage image, double focalX, double focalY, CancellationToken cancellationToken = default)
     {
         if (focalX is < 0 or > 1 || focalY is < 0 or > 1) return "Điểm lấy nét ảnh không hợp lệ.";
-        var originalPath = Path.Combine(environment.ContentRootPath, image.OriginalStoragePath.Replace('/', Path.DirectorySeparatorChar));
+        var originalPath = ResolveOriginalPath(image.OriginalStoragePath);
         if (!File.Exists(originalPath)) return "Không tìm thấy ảnh gốc để tạo lại thumbnail.";
 
         var bytes = await File.ReadAllBytesAsync(originalPath, cancellationToken);
@@ -84,9 +89,7 @@ public sealed class LocalRoomImageStorage(IWebHostEnvironment environment) : IRo
         if (decodedResult.Bitmap is null) return decodedResult.Error;
         using var source = decodedResult.Bitmap;
 
-        var webRoot = environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot");
-        var largePath = Path.Combine(webRoot, image.LargeUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-        var publicRoot = Path.GetDirectoryName(largePath);
+        var publicRoot = ResolvePublicDirectory(image.LargeUrl);
         if (string.IsNullOrWhiteSpace(publicRoot)) return "Không xác định được thư mục ảnh tối ưu.";
         Directory.CreateDirectory(publicRoot);
 
@@ -97,15 +100,43 @@ public sealed class LocalRoomImageStorage(IWebHostEnvironment environment) : IRo
 
     public Task DeleteAsync(StoredRoomImage image, CancellationToken cancellationToken = default)
     {
-        var originalPath = Path.Combine(environment.ContentRootPath, image.OriginalStoragePath.Replace('/', Path.DirectorySeparatorChar));
+        var originalPath = ResolveOriginalPath(image.OriginalStoragePath);
         var originalDirectory = Path.GetDirectoryName(originalPath);
         if (!string.IsNullOrWhiteSpace(originalDirectory) && Directory.Exists(originalDirectory)) Directory.Delete(originalDirectory, true);
 
-        var webRoot = environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot");
-        var publicPath = image.LargeUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-        var publicDirectory = Path.GetDirectoryName(Path.Combine(webRoot, publicPath));
+        var publicDirectory = ResolvePublicDirectory(image.LargeUrl);
         if (!string.IsNullOrWhiteSpace(publicDirectory) && Directory.Exists(publicDirectory)) Directory.Delete(publicDirectory, true);
         return Task.CompletedTask;
+    }
+
+    private string ResolveOriginalPath(string storedPath)
+    {
+        if (storedPath.StartsWith(StoragePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var relative = storedPath[StoragePrefix.Length..].Replace('/', Path.DirectorySeparatorChar);
+            return Path.GetFullPath(Path.Combine(paths.DataRoot, relative));
+        }
+
+        // Backward compatibility for images stored before configurable production storage existed.
+        return Path.GetFullPath(Path.Combine(
+            environment.ContentRootPath,
+            storedPath.Replace('/', Path.DirectorySeparatorChar)));
+    }
+
+    private string? ResolvePublicDirectory(string publicUrl)
+    {
+        var requestRoot = paths.MediaRequestPath.Value?.TrimEnd('/') ?? "/uploads/rooms";
+        if (publicUrl.StartsWith(requestRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            var relative = publicUrl[requestRoot.Length..].TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            var filePath = Path.Combine(paths.MediaPublicRoot, relative);
+            return Path.GetDirectoryName(filePath);
+        }
+
+        // Backward compatibility for an unexpected legacy URL outside the configured request root.
+        var webRoot = environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot");
+        var legacyPath = Path.Combine(webRoot, publicUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+        return Path.GetDirectoryName(legacyPath);
     }
 
     private static (SKBitmap? Bitmap, string? Error) DecodeNormalized(byte[] bytes)

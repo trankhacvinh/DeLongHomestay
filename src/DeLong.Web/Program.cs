@@ -1,5 +1,7 @@
+using System.Net;
 using System.Threading.RateLimiting;
 using DeLong.Web.Common.Auditing;
+using DeLong.Web.Common.Operations;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
 using DeLong.Web.Data.Seed;
@@ -16,9 +18,13 @@ using DeLong.Web.Features.Reports;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Features.Staff;
 using DeLong.Web.Identity;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,7 +34,39 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured. Use .NET User Secrets in development.");
 }
 
+var storagePaths = StoragePaths.Resolve(builder.Configuration, builder.Environment);
+storagePaths.EnsureDirectories();
+
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddJsonConsole(options =>
+    {
+        options.TimestampFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+        options.UseUtcTimestamp = true;
+    });
+}
+
+builder.Services.AddSingleton(storagePaths);
+builder.Services
+    .AddDataProtection()
+    .SetApplicationName("DeLongHomestay")
+    .PersistKeysToFileSystem(new DirectoryInfo(storagePaths.DataProtectionRoot));
+
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
+    .AddCheck<StorageHealthCheck>("storage", tags: ["ready"]);
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 2;
+    foreach (var configured in builder.Configuration.GetSection("ReverseProxy:KnownProxies").Get<string[]>() ?? [])
+    {
+        if (IPAddress.TryParse(configured, out var address)) options.KnownProxies.Add(address);
+    }
+});
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
@@ -57,6 +95,9 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.Name = "delong.auth";
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
     options.SlidingExpiration = true;
 });
 
@@ -136,6 +177,9 @@ builder.Services.AddScoped<PublicRequestInboxService>();
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
+app.UseMiddleware<RequestLoggingMiddleware>();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -144,12 +188,37 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+var defaultMediaRoot = Path.GetFullPath(Path.Combine(
+    app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"),
+    "uploads",
+    "rooms"));
+if (!string.Equals(defaultMediaRoot, storagePaths.MediaPublicRoot, StringComparison.OrdinalIgnoreCase))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(storagePaths.MediaPublicRoot),
+        RequestPath = storagePaths.MediaRequestPath
+    });
+}
+
 app.UseRouting();
 app.UseAuthentication();
 app.UseMiddleware<ForcePasswordChangeMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.UseAntiforgery();
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = HealthResponseWriter.WriteAsync
+}).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = HealthResponseWriter.WriteAsync
+}).AllowAnonymous();
 
 app.MapRazorPages();
 app.MapRoomEndpoints();
