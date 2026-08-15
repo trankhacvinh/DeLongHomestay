@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BACKUP_ROOT="${DELONG_BACKUP_DIR:-$REPO_ROOT/backups}"
 DATA_ROOT="${DELONG_DATA_ROOT:-$REPO_ROOT/src/DeLong.Web/App_Data}"
-MEDIA_ROOT="${DELONG_MEDIA_ROOT:-$REPO_ROOT/src/DeLong.Web/wwwroot/uploads/rooms}"
+MEDIA_ROOT="${DELONG_MEDIA_ROOT:-$REPO_ROOT/src/DeLong.Web/wwwroot/uploads}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 TARGET="${BACKUP_ROOT%/}/${STAMP}"
 
@@ -24,7 +24,7 @@ else
 fi
 
 if [[ -d "$MEDIA_ROOT" ]]; then
-  echo "[3/3] Backing up public media: $MEDIA_ROOT"
+  echo "[3/3] Backing up public uploads (rooms + site assets): $MEDIA_ROOT"
   tar -czf "$TARGET/media-root.tar.gz" -C "$(dirname "$MEDIA_ROOT")" "$(basename "$MEDIA_ROOT")"
 else
   echo "[3/3] Media root missing ($MEDIA_ROOT); skipping public media archive."
