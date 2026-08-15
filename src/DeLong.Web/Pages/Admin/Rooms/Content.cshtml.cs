@@ -11,7 +11,8 @@ namespace DeLong.Web.Pages.Admin.Rooms;
 [Authorize(Policy = "ManageRooms")]
 public sealed class ContentModel(
     RoomContentService contentService,
-    CurrentPropertyService currentPropertyService) : PageModel
+    CurrentPropertyService currentPropertyService,
+    PublicPropertyResolver publicPropertyResolver) : PageModel
 {
     public Guid PropertyId { get; private set; }
     public Guid RoomId { get; private set; }
@@ -27,7 +28,8 @@ public sealed class ContentModel(
 
         var amenityCatalog = await contentService.GetAmenityCatalogAsync(currentProperty.Id, cancellationToken);
         var amenityPresets = await contentService.GetAmenityPresetsAsync(currentProperty.Id, cancellationToken);
-        var siteSlug = PublicPropertyResolver.ToSiteSlug(currentProperty.Code);
+        var publicProperty = await publicPropertyResolver.ResolveByIdAsync(currentProperty.Id, cancellationToken);
+        var siteSlug = publicProperty?.SiteSlug ?? PublicPropertyResolver.ToSiteSlug(currentProperty.Code);
 
         PropertyId = currentProperty.Id;
         RoomId = roomId;
