@@ -303,19 +303,19 @@ public sealed class SiteContentService(AppDbContext db)
     [
         New(property.Id, 0, "Hero", "Mở đầu", "split", new
         {
-            eyebrow = "LONG THÀNH · ĐỒNG NAI",
+            eyebrow = property.Name.ToUpperInvariant(),
             title = "Một khoảng nghỉ riêng tư, vừa đủ để chậm lại.",
-            body = "6 không gian nghỉ được thiết kế cho những buổi hẹn ngắn, một tối thư giãn hoặc một đêm yên tĩnh tại Long Thành.",
+            body = $"Khám phá các không gian nghỉ tại {property.Name}, phù hợp cho nghỉ ngắn, qua đêm hoặc lưu trú nhiều ngày.",
             primaryText = "Kiểm tra phòng trống", primaryUrl = "/booking",
-            secondaryText = "Xem 6 phòng", secondaryUrl = "/rooms"
+            secondaryText = "Xem phòng", secondaryUrl = "/rooms"
         }),
         New(property.Id, 1, "AvailabilitySearch", "Kiểm tra nhanh", "card", new { title = "Chọn ngày bạn muốn ghé" }),
         New(property.Id, 2, "RoomGrid", "Danh sách phòng", "grid-3", new { eyebrow = "KHÔNG GIAN", title = "Chọn căn phòng hợp với nhịp của bạn", limit = 6 }),
         New(property.Id, 3, "FeatureGrid", "Giới thiệu cuối trang", "split", new
         {
-            eyebrow = "DE LONG HOMESTAY",
-            title = "Không cần một chuyến đi xa để có một khoảng nghỉ.",
-            body = "Chúng tôi tập trung vào sự riêng tư, giờ nhận phòng linh hoạt và trải nghiệm gọn nhẹ.",
+            eyebrow = property.Name.ToUpperInvariant(),
+            title = "Một khoảng nghỉ được tổ chức theo cách bạn cần.",
+            body = "Website hiển thị phòng, giá và thời gian rõ ràng; đội ngũ cơ sở xác nhận trực tiếp trước khi giữ phòng chính thức.",
             items = new[] { "Nhận phòng linh hoạt", "Không gian riêng tư", "Giá hiển thị rõ ràng", "Nhân viên xác nhận trực tiếp" }
         })
     ];
