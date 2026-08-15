@@ -64,8 +64,7 @@
         @if (!string.IsNullOrWhiteSpace(publicSettings?.OgImageUrl)) { <meta property="og:image" content="@publicSettings.OgImageUrl" /> }
         @if (!string.IsNullOrWhiteSpace(canonical)) { <meta property="og:url" content="@canonical" /> }
         <meta property="og:type" content="website" />
-        @{
-            var structuredData = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object?>
+        var structuredData = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object?>
             {
                 ["@context"] = "https://schema.org",
                 ["@type"] = "LodgingBusiness",
@@ -78,7 +77,6 @@
                 ["logo"] = publicSettings?.LogoUrl,
                 ["image"] = publicSettings?.OgImageUrl
             });
-        }
         <script type="application/ld+json">@Html.Raw(structuredData)</script>
     }
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
