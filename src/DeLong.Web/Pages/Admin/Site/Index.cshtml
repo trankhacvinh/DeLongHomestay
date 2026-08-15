@@ -1,0 +1,138 @@
+@page
+@model DeLong.Web.Pages.Admin.Site.IndexModel
+@{
+    ViewData["Title"] = "Website";
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/site-cms.css" asp-append-version="true" />
+}
+
+<div id="site-cms" class="site-admin-page" v-cloak>
+    <script id="site-cms-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+
+    <div class="page-title-row site-page-head">
+        <div>
+            <div class="page-eyebrow">Website & nội dung</div>
+            <h1>{{ propertyName }}</h1>
+            <p>Quản lý thương hiệu, SEO, nội dung trang chủ và mã tùy chỉnh cho website public.</p>
+        </div>
+        <a class="btn btn-light" href="/" target="_blank" rel="noopener">Xem website ↗</a>
+    </div>
+
+    <nav class="site-tabs" aria-label="Khu vực cấu hình website">
+        <button type="button" v-bind:class="{ active: tab === 'settings' }" v-on:click="tab = 'settings'">Thông tin & SEO</button>
+        <button type="button" v-bind:class="{ active: tab === 'home' }" v-on:click="tab = 'home'">Trang chủ <span>{{ sections.length }}</span></button>
+        <button v-if="canEditCode" type="button" v-bind:class="{ active: tab === 'code' }" v-on:click="tab = 'code'">CSS / JS</button>
+    </nav>
+
+    <section v-if="tab === 'settings'" class="site-settings-layout">
+        <div class="site-settings-main">
+            <section class="panel site-section-card">
+                <div class="site-section-title"><span>01</span><div><h2>Thương hiệu & liên hệ</h2><p>Dùng cho header, footer, trang tra cứu và dữ liệu có cấu trúc.</p></div></div>
+                <div class="form-grid site-form-grid">
+                    <div class="field"><label>Tên hiển thị</label><input v-model.trim="settings.siteName" maxlength="200" /></div>
+                    <div class="field"><label>Tagline</label><input v-model.trim="settings.tagline" maxlength="300" placeholder="Long Thành · Đồng Nai" /></div>
+                    <div class="field form-full"><label>Địa chỉ</label><input v-model.trim="settings.address" maxlength="500" /></div>
+                    <div class="field"><label>Số điện thoại</label><input v-model.trim="settings.phone" maxlength="50" /></div>
+                    <div class="field"><label>Email</label><input type="email" v-model.trim="settings.email" maxlength="254" /></div>
+                    <div class="field"><label>Facebook</label><input v-model.trim="settings.facebookUrl" placeholder="https://…" /></div>
+                    <div class="field"><label>Zalo</label><input v-model.trim="settings.zaloUrl" placeholder="https://…" /></div>
+                    <div class="field form-full"><label>Google Maps</label><input v-model.trim="settings.googleMapsUrl" placeholder="https://…" /></div>
+                </div>
+            </section>
+
+            <section class="panel site-section-card">
+                <div class="site-section-title"><span>02</span><div><h2>SEO</h2><p>Tiêu đề và mô tả mặc định; từng trang vẫn có thể ghi đè khi cần.</p></div></div>
+                <div class="form-grid site-form-grid">
+                    <div class="field form-full"><label>SEO title</label><input v-model.trim="settings.metaTitle" maxlength="200" /><small>{{ settings.metaTitle.length }}/200</small></div>
+                    <div class="field form-full"><label>Meta description</label><textarea v-model.trim="settings.metaDescription" maxlength="500" rows="4"></textarea><small>{{ settings.metaDescription.length }}/500</small></div>
+                    <div class="field form-full"><label>Canonical base URL</label><input v-model.trim="settings.canonicalBaseUrl" placeholder="https://delonghomestay.vn" /></div>
+                    <div class="field"><label>Open Graph title</label><input v-model.trim="settings.ogTitle" maxlength="200" /></div>
+                    <div class="field"><label>Google site verification</label><input v-model.trim="settings.googleSiteVerification" maxlength="300" /></div>
+                    <div class="field form-full"><label>Open Graph description</label><textarea v-model.trim="settings.ogDescription" maxlength="500" rows="3"></textarea></div>
+                    <label class="site-toggle form-full"><input type="checkbox" v-model="settings.robotsIndex" /><span><strong>Cho phép công cụ tìm kiếm index website</strong><small>Tắt trong staging hoặc khi website chưa sẵn sàng public.</small></span></label>
+                </div>
+            </section>
+        </div>
+
+        <aside class="site-settings-aside">
+            <section class="panel site-media-card">
+                <div class="site-section-title compact"><div><h2>Logo & favicon</h2><p>Ảnh được tối ưu tự động trước khi dùng.</p></div></div>
+                <div class="site-media-item">
+                    <div class="site-media-preview logo"><img v-if="settings.logoUrl" v-bind:src="settings.logoUrl" alt="Logo preview" /><span v-else>LOGO</span></div>
+                    <div><strong>Logo</strong><small>PNG, JPG hoặc WebP</small><label class="btn btn-light btn-sm file-btn">Tải logo<input type="file" accept="image/png,image/jpeg,image/webp" v-on:change="uploadAsset('logo', $event)" /></label></div>
+                </div>
+                <div class="site-media-item">
+                    <div class="site-media-preview favicon"><img v-if="settings.faviconUrl" v-bind:src="settings.faviconUrl" alt="Favicon preview" /><span v-else>DL</span></div>
+                    <div><strong>Favicon</strong><small>Hệ thống tạo PNG 64×64</small><label class="btn btn-light btn-sm file-btn">Tải favicon<input type="file" accept="image/png,image/jpeg,image/webp" v-on:change="uploadAsset('favicon', $event)" /></label></div>
+                </div>
+                <div class="site-media-item vertical">
+                    <div class="site-media-preview og"><img v-if="settings.ogImageUrl" v-bind:src="settings.ogImageUrl" alt="OG preview" /><span v-else>1200 × 630</span></div>
+                    <div><strong>Ảnh chia sẻ mạng xã hội</strong><small>Dùng khi link website được chia sẻ.</small><label class="btn btn-light btn-sm file-btn">Tải ảnh OG<input type="file" accept="image/png,image/jpeg,image/webp" v-on:change="uploadAsset('og', $event)" /></label></div>
+                </div>
+            </section>
+            <button class="btn btn-primary site-save-button" type="button" v-bind:disabled="saving" v-on:click="saveSettings">{{ saving ? 'Đang lưu…' : 'Lưu thông tin website' }}</button>
+        </aside>
+    </section>
+
+    <section v-if="tab === 'home'" class="site-home-layout">
+        <div class="site-home-toolbar panel">
+            <div><span class="page-eyebrow">Block editor</span><h2>Cấu trúc trang chủ</h2><p>Kéo để đổi thứ tự. Tắt một khối để ẩn tạm mà không mất nội dung.</p></div>
+            <button class="btn btn-primary" type="button" v-on:click="openSectionCreate"><svg><use href="#i-plus" /></svg>Thêm khối</button>
+        </div>
+
+        <div id="home-section-list" class="home-section-list">
+            <article class="panel home-section-card" v-for="section in sections" v-bind:key="section.id" v-bind:data-id="section.id" v-bind:class="{ hidden: !section.isVisible }">
+                <button class="home-drag-handle" type="button" aria-label="Kéo để sắp xếp">⋮⋮</button>
+                <div class="home-section-copy"><span class="home-section-type">{{ sectionTypeLabel(section.type) }}</span><strong>{{ section.name }}</strong><small>{{ section.variant }} · {{ section.isVisible ? 'Đang hiển thị' : 'Đang ẩn' }}</small></div>
+                <div class="home-section-actions"><button class="btn btn-light btn-sm" type="button" v-on:click="toggleSection(section)">{{ section.isVisible ? 'Ẩn' : 'Hiện' }}</button><button class="btn btn-light btn-sm" type="button" v-on:click="openSectionEdit(section)">Sửa</button></div>
+            </article>
+        </div>
+    </section>
+
+    <section v-if="tab === 'code' && canEditCode" class="site-code-grid">
+        <section class="panel site-section-card">
+            <div class="site-section-title"><span>CSS</span><div><h2>Custom CSS</h2><p>Được tải sau stylesheet hệ thống tại <code>/site/custom.css</code>.</p></div></div>
+            <textarea class="code-editor" v-model="settings.customCss" spellcheck="false" placeholder="/* CSS tùy chỉnh */"></textarea>
+        </section>
+        <section class="panel site-section-card">
+            <div class="site-section-title"><span>JS</span><div><h2>Custom JavaScript</h2><p>Chỉ Admin được sửa. Script chạy trên website public từ <code>/site/custom.js</code>.</p></div></div>
+            <div class="site-code-warning"><strong>Cẩn thận:</strong> JavaScript sai có thể làm hỏng trải nghiệm public. Không dán code từ nguồn không tin cậy.</div>
+            <textarea class="code-editor" v-model="settings.customJs" spellcheck="false" placeholder="// JavaScript tùy chỉnh"></textarea>
+        </section>
+        <button class="btn btn-primary site-save-button" type="button" v-bind:disabled="saving" v-on:click="saveSettings">{{ saving ? 'Đang lưu…' : 'Lưu CSS / JS' }}</button>
+    </section>
+
+    <div class="modal-backdrop" v-if="sectionEditor.open" v-on:click.self="closeSectionEditor">
+        <section class="modal-card home-section-editor" role="dialog" aria-modal="true" aria-labelledby="home-section-editor-title">
+            <div class="modal-head"><div><h2 id="home-section-editor-title">{{ sectionEditor.mode === 'create' ? 'Thêm khối trang chủ' : 'Sửa khối trang chủ' }}</h2><p class="small muted">Chọn loại khối rồi nhập nội dung; layout cụ thể được điều khiển bằng variant.</p></div><button class="icon-btn" type="button" v-on:click="closeSectionEditor" aria-label="Đóng">×</button></div>
+            <div class="site-modal-body home-editor-scroll">
+                <div class="form-grid site-form-grid">
+                    <div class="field"><label>Loại khối</label><select v-model="sectionForm.type" v-on:change="sectionTypeChanged"><option v-for="type in sectionTypes" v-bind:key="type.value" v-bind:value="type.value">{{ type.label }}</option></select></div>
+                    <div class="field"><label>Tên quản trị</label><input v-model.trim="sectionForm.name" maxlength="120" /></div>
+                    <div class="field"><label>Layout / variant</label><select v-model="sectionForm.variant"><option v-for="variant in variantsFor(sectionForm.type)" v-bind:key="variant" v-bind:value="variant">{{ variant }}</option></select></div>
+                    <label class="site-toggle"><input type="checkbox" v-model="sectionForm.isVisible" /><span><strong>Hiển thị khối</strong></span></label>
+                </div>
+
+                <div class="home-content-fields" v-if="sectionForm.type === 'Hero'">
+                    <div class="field"><label>Eyebrow</label><input v-model="sectionForm.content.eyebrow" /></div><div class="field"><label>Tiêu đề</label><textarea v-model="sectionForm.content.title" rows="2"></textarea></div><div class="field"><label>Mô tả</label><textarea v-model="sectionForm.content.body" rows="4"></textarea></div>
+                    <div class="form-grid"><div class="field"><label>CTA chính</label><input v-model="sectionForm.content.primaryText" /></div><div class="field"><label>URL</label><input v-model="sectionForm.content.primaryUrl" /></div><div class="field"><label>CTA phụ</label><input v-model="sectionForm.content.secondaryText" /></div><div class="field"><label>URL</label><input v-model="sectionForm.content.secondaryUrl" /></div></div>
+                    <div class="field"><label>Ảnh hero (URL)</label><div class="asset-input-row"><input v-model="sectionForm.content.imageUrl" /><label class="btn btn-light btn-sm file-btn">Tải ảnh<input type="file" accept="image/png,image/jpeg,image/webp" v-on:change="uploadSectionImage($event)" /></label></div></div>
+                </div>
+                <div class="home-content-fields" v-else-if="sectionForm.type === 'RoomGrid'"><div class="field"><label>Eyebrow</label><input v-model="sectionForm.content.eyebrow" /></div><div class="field"><label>Tiêu đề</label><input v-model="sectionForm.content.title" /></div><div class="field"><label>Số phòng tối đa</label><input type="number" min="1" max="12" v-model.number="sectionForm.content.limit" /></div></div>
+                <div class="home-content-fields" v-else-if="sectionForm.type === 'AvailabilitySearch'"><div class="field"><label>Tiêu đề</label><input v-model="sectionForm.content.title" /></div></div>
+                <div class="home-content-fields" v-else-if="sectionForm.type === 'FeatureGrid'"><div class="field"><label>Eyebrow</label><input v-model="sectionForm.content.eyebrow" /></div><div class="field"><label>Tiêu đề</label><textarea v-model="sectionForm.content.title" rows="2"></textarea></div><div class="field"><label>Mô tả</label><textarea v-model="sectionForm.content.body" rows="4"></textarea></div><div class="field"><label>Các mục (mỗi dòng một mục)</label><textarea v-model="sectionForm.itemsText" rows="5"></textarea></div></div>
+                <div class="home-content-fields" v-else-if="sectionForm.type === 'RichText'"><div class="field"><label>Nội dung HTML</label><textarea v-model="sectionForm.content.html" rows="12" placeholder="<h2>…</h2>"></textarea><small>Server sẽ sanitize HTML trước khi lưu.</small></div></div>
+                <div class="home-content-fields" v-else-if="sectionForm.type === 'Cta'"><div class="field"><label>Tiêu đề</label><input v-model="sectionForm.content.title" /></div><div class="field"><label>Mô tả</label><textarea v-model="sectionForm.content.body" rows="3"></textarea></div><div class="form-grid"><div class="field"><label>Nút</label><input v-model="sectionForm.content.buttonText" /></div><div class="field"><label>URL</label><input v-model="sectionForm.content.buttonUrl" /></div></div></div>
+            </div>
+            <div class="modal-actions"><button v-if="sectionEditor.mode === 'edit'" class="btn btn-danger-outline" type="button" v-on:click="deleteSection">Xóa khối</button><span class="modal-spacer"></span><button class="btn btn-light" type="button" v-on:click="closeSectionEditor">Hủy</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveSection">{{ saving ? 'Đang lưu…' : 'Lưu khối' }}</button></div>
+        </section>
+    </div>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script>
+    <script src="~/js/pages/admin-site-cms.js" asp-append-version="true"></script>
+}
