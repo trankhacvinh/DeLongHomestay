@@ -2,14 +2,14 @@
 @model DeLong.Web.Pages.Booking.LookupModel
 @{
     ViewData["Title"] = "Tra cứu đặt phòng";
-    ViewData["MetaDescription"] = "Tra cứu trạng thái đặt phòng De Long Homestay bằng mã đặt phòng và số điện thoại đã dùng khi gửi yêu cầu.";
+    ViewData["MetaDescription"] = "Tra cứu trạng thái đặt phòng bằng mã đặt phòng và số điện thoại đã dùng khi gửi yêu cầu.";
 }
 
 @section Head {
     <link rel="stylesheet" href="~/css/booking-lookup.css" asp-append-version="true" />
 }
 
-<main id="booking-lookup" class="lookup-page" v-cloak>
+<main id="booking-lookup" class="lookup-page" v-cloak data-site-slug="@Model.SiteSlug">
     <section class="lookup-hero public-container">
         <span class="public-eyebrow">Tra cứu đặt phòng</span>
         <h1>Kiểm tra lượt đặt của bạn</h1>
