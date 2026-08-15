@@ -32,14 +32,22 @@ public sealed record PublicBookingLookupDto(
 
 public sealed class PublicBookingLookupService(AppDbContext db)
 {
-    public async Task<PublicBookingLookupDto?> LookupAsync(string rawCode, string rawPhone, CancellationToken ct = default)
+    private readonly PublicPropertyResolver publicPropertyResolver = new(db);
+
+    public Task<PublicBookingLookupDto?> LookupAsync(string rawCode, string rawPhone, CancellationToken ct = default) =>
+        LookupAsync(null, rawCode, rawPhone, ct);
+
+    public async Task<PublicBookingLookupDto?> LookupAsync(string? siteSlug, string rawCode, string rawPhone, CancellationToken ct = default)
     {
+        var property = await publicPropertyResolver.ResolveAsync(siteSlug, ct);
+        if (property is null) return null;
+
         var code = (rawCode ?? string.Empty).Trim().ToUpperInvariant();
         var phone = CustomerService.NormalizePhone(rawPhone ?? string.Empty);
         if (code.Length is < 8 or > 50 || phone.Length < 8) return null;
 
         var booking = await db.Bookings.AsNoTracking()
-            .Where(x => x.Property.Code == SiteContentService.PublicPropertyCode && x.Code == code && x.Customer.NormalizedPhone == phone)
+            .Where(x => x.PropertyId == property.Id && x.Code == code && x.Customer.NormalizedPhone == phone)
             .Select(x => new
             {
                 x.Code,
@@ -61,7 +69,7 @@ public sealed class PublicBookingLookupService(AppDbContext db)
         if (booking is null) return null;
 
         var site = await db.Set<PropertySiteSettings>().AsNoTracking()
-            .Where(x => x.Property.Code == SiteContentService.PublicPropertyCode)
+            .Where(x => x.PropertyId == property.Id)
             .Select(x => new { x.Phone, x.Address, x.SiteName })
             .SingleOrDefaultAsync(ct);
 
