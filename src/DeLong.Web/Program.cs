@@ -244,6 +244,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 app.MapRazorPages();
 app.MapPropertyAdminEndpoints();
 app.MapSiteContentEndpoints();
+app.MapPublicSeoEndpoints();
 app.MapRoomEndpoints();
 app.MapRoomRateEndpoints();
 app.MapRoomContentEndpoints();
