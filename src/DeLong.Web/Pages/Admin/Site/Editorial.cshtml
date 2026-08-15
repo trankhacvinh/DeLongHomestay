@@ -62,9 +62,10 @@
         <div class="editorial-blog-editor-layout">
             <main class="editorial-blog-editor-main">
                 <section class="panel editorial-blog-editor-card">
-                    <div class="editorial-blog-card-head"><span>01</span><div><h2>Thông tin bài viết</h2><p>Tiêu đề và mô tả ngắn là phần khách nhìn thấy trước khi mở bài.</p></div></div>
+                    <div class="editorial-blog-card-head"><span>01</span><div><h2>Thông tin bài viết</h2><p>Tiêu đề, đường dẫn và mô tả ngắn là phần nền tảng của bài viết.</p></div></div>
                     <div class="editorial-blog-fields">
                         <div class="field"><label for="blog-post-title">Tiêu đề</label><input id="blog-post-title" v-model.trim="postForm.title" maxlength="240" autocomplete="off" placeholder="Ví dụ: 3 cách chọn phòng phù hợp cho một kỳ nghỉ riêng tư" /><small class="editorial-field-help">{{ (postForm.title || '').length }}/240 ký tự</small></div>
+                        <div class="field"><label for="blog-post-slug">Slug</label><input id="blog-post-slug" v-model.trim="postForm.slug" maxlength="180" autocomplete="off" placeholder="tu-dong-tu-tieu-de" /><small class="editorial-field-help">Đường dẫn public: /h/{{ siteSlug }}/blog/{{ postForm.slug || 'tu-dong-tu-tieu-de' }} · Để trống khi tạo mới để hệ thống sinh từ tiêu đề.</small></div>
                         <div class="field"><label for="blog-post-excerpt">Mô tả ngắn</label><textarea id="blog-post-excerpt" v-model.trim="postForm.excerpt" rows="3" maxlength="800" placeholder="Tóm tắt ngắn gọn nội dung và lý do khách nên đọc bài này."></textarea><small class="editorial-field-help">{{ (postForm.excerpt || '').length }}/800 ký tự</small></div>
                     </div>
                 </section>
@@ -83,7 +84,6 @@
                 <section class="panel editorial-blog-publish-card">
                     <div class="editorial-blog-side-head"><span class="page-eyebrow">Xuất bản</span><strong>{{ postForm.isPublished ? 'Đang hiển thị trên website' : 'Đang là bản nháp' }}</strong></div>
                     <label class="site-toggle editorial-publish-toggle"><input type="checkbox" v-model="postForm.isPublished" /><span><strong>{{ postForm.isPublished ? 'Đã bật xuất bản' : 'Chưa xuất bản' }}</strong><small>Có thể lưu nháp rồi quay lại hoàn thiện sau.</small></span></label>
-                    <div class="field"><label for="blog-post-slug">Đường dẫn</label><div class="editorial-slug-input"><span>/blog/</span><input id="blog-post-slug" v-model.trim="postForm.slug" maxlength="180" placeholder="tu-dong-tu-tieu-de" /></div><small class="editorial-field-help">Để trống khi tạo mới để hệ thống sinh từ tiêu đề.</small></div>
                 </section>
 
                 <section class="panel editorial-blog-cover-card">
