@@ -10,9 +10,16 @@ Repo có launch profile mặc định cho Development. Lệnh sau dùng storage 
 dotnet run --project src/DeLong.Web
 ```
 
-Nếu cố tình chạy `Production` ở local thì readiness sẽ yêu cầu storage production giống production thật. Có thể dùng cách đó để diễn tập deployment.
+Nếu cố tình chạy `Production` ở local, app vẫn dùng hai root rõ ràng trong `appsettings.Production.json`:
 
-## 1. Cấu hình bắt buộc
+```text
+Storage:DataRoot=App_Data
+Storage:MediaPublicRoot=wwwroot/uploads/rooms
+```
+
+Vì vậy `/health/ready` không yêu cầu bạn phải tạo một volume ngoài source chỉ để chạy thử Production local.
+
+## 1. Cấu hình production
 
 Không commit secret vào Git. Production nên cấp secret bằng environment variables / secret store của host.
 
@@ -21,11 +28,8 @@ ASPNETCORE_ENVIRONMENT=Production
 ConnectionStrings__DefaultConnection=Host=...;Port=5432;Database=...;Username=...;Password=...;SSL Mode=Require
 AllowedHosts=your-domain.example
 
-# DataRoot chứa ảnh gốc + Data Protection keys, phải tồn tại qua redeploy.
-Storage__DataRoot=/srv/delong/data
-
-# Ảnh public mặc định vẫn nằm trong wwwroot/uploads/rooms như khi development.
-# appsettings.Production.json đã cấu hình giá trị này; chỉ override khi cần.
+# Mặc định đã có trong appsettings.Production.json:
+Storage__DataRoot=App_Data
 Storage__MediaPublicRoot=wwwroot/uploads/rooms
 Storage__MediaRequestPath=/uploads/rooms
 Storage__RequirePersistent=true
@@ -39,14 +43,16 @@ Database__SeedOnStartup=false
 
 `Storage__DataRoot` chứa ảnh gốc và ASP.NET Data Protection keys. `Storage__MediaPublicRoot` chứa WebP large/card/thumbnail được public ở `/uploads/rooms/...`.
 
-De Long giữ media public ở `wwwroot/uploads/rooms` cho dễ quản lý. Khi deploy, cần bảo đảm đúng thư mục này **không bị xóa khi release mới được triển khai**: hoặc host giữ working directory, hoặc mount/persist riêng chính thư mục `wwwroot/uploads`. Backup script vẫn phải sao lưu nó.
+De Long giữ media public ở `wwwroot/uploads/rooms` cho dễ quản lý. Đây là cấu trúc mặc định cả Development lẫn Production. Khi deploy, cần bảo đảm `App_Data` và `wwwroot/uploads` **không bị xóa khi release mới được triển khai**. Với host dùng một working directory cố định thì có thể giữ nguyên như trên; với host thay toàn bộ release directory thì mount/persist riêng hai thư mục này hoặc override `Storage__DataRoot` / `Storage__MediaPublicRoot` sang vị trí bền vững.
 
 ## 2. Health checks
 
 - `GET /health/live`: process ASP.NET đang chạy.
 - `GET /health/ready`: kiểm tra PostgreSQL và khả năng ghi storage.
 
-Trong Production, `Storage:RequirePersistent=true`. `Storage:DataRoot` phải được cấu hình explicit. `Storage:MediaPublicRoot` đã explicit trong `appsettings.Production.json` là `wwwroot/uploads/rooms`; readiness kiểm tra thư mục đó ghi được nhưng không thể tự chứng minh host có giữ filesystem sau redeploy, nên phần persistence vẫn phải được xác nhận trong UAT deployment.
+Trong Production, `Storage:RequirePersistent=true` yêu cầu hai storage root phải được cấu hình rõ ràng. `appsettings.Production.json` đã cấu hình sẵn `App_Data` và `wwwroot/uploads/rooms`, nên chạy Production local hoặc single-folder deployment không còn báo `Unhealthy` chỉ vì thiếu biến môi trường storage.
+
+Readiness chỉ có thể xác nhận thư mục tồn tại và ghi được; nó không thể tự chứng minh hosting có giữ filesystem sau redeploy. Việc `App_Data` và `wwwroot/uploads` sống sót qua một lần redeploy staging vẫn là điều kiện UAT trước go-live.
 
 Load balancer/monitor nên dùng `/health/ready` để quyết định instance có nhận traffic hay không.
 
@@ -71,9 +77,18 @@ Trước migration phải backup database. Nếu migration lớn/rủi ro, tạo
 Backup cần gồm **hai phần**:
 
 1. PostgreSQL — booking, khách, payment, room content, audit...
-2. Runtime files — `Storage__DataRoot` + `wwwroot/uploads/rooms`.
+2. Runtime files — `App_Data` + `wwwroot/uploads/rooms` hoặc các root đã override khi deploy.
 
-Repo có script `scripts/backup-production.sh` và `scripts/backup-production.ps1`. Script dùng `DATABASE_URL` dạng PostgreSQL URI cho `pg_dump` và tạo checksum SHA-256.
+Repo có `scripts/backup-production.sh` và `scripts/backup-production.ps1`. Script dùng `DATABASE_URL` dạng PostgreSQL URI cho `pg_dump` và tạo checksum SHA-256.
+
+Khi dùng cấu trúc mặc định, đặt:
+
+```text
+DELONG_DATA_ROOT=src/DeLong.Web/App_Data
+DELONG_MEDIA_ROOT=src/DeLong.Web/wwwroot/uploads/rooms
+```
+
+Trên server nên dùng absolute path tương ứng với thư mục deploy thật.
 
 Khuyến nghị tối thiểu khi go-live:
 
@@ -89,7 +104,7 @@ Không diễn tập restore trực tiếp trên production database.
 1. Tạo database rỗng/staging.
 2. Set `DATABASE_URL` tới database staging.
 3. Chạy script restore với cờ xác nhận.
-4. Restore runtime files vào thư mục staging riêng.
+4. Restore `App_Data` và `wwwroot/uploads/rooms` vào thư mục staging riêng.
 5. Chạy app staging.
 6. Kiểm tra `/health/ready`.
 7. UAT: đăng nhập → lịch phòng → booking → payment → public rooms/images.
@@ -98,11 +113,11 @@ Ghi lại ngày restore, tên backup và kết quả trong nhật ký vận hàn
 
 ## 7. Media hiện có khi chuyển từ local lên production
 
-Các ảnh đã upload local không nằm trong Git. Nếu production dùng cùng cấu trúc `wwwroot/uploads`, copy:
+Các ảnh đã upload local không nằm trong Git. Nếu production dùng cùng cấu trúc mặc định, copy nguyên hai thư mục runtime:
 
 ```text
-src/DeLong.Web/App_Data/room-images/  -> Storage__DataRoot/room-images/
-src/DeLong.Web/wwwroot/uploads/rooms/ -> <production content root>/wwwroot/uploads/rooms/
+src/DeLong.Web/App_Data/                 -> <production content root>/App_Data/
+src/DeLong.Web/wwwroot/uploads/rooms/   -> <production content root>/wwwroot/uploads/rooms/
 ```
 
 Database URL ảnh vẫn là `/uploads/rooms/...`, nên không cần rewrite record.
@@ -119,7 +134,7 @@ Chỉ go-live khi đủ:
 - Production config không chứa secret trong repo.
 - `/health/live` và `/health/ready` xanh.
 - PostgreSQL backup + restore rehearsal PASS.
-- `Storage__DataRoot` và `wwwroot/uploads/rooms` sống sót qua một lần redeploy staging.
+- `App_Data` và `wwwroot/uploads/rooms` sống sót qua một lần redeploy staging.
 - Tài khoản nhân viên thật và role đúng.
 - Public booking end-to-end PASS.
 - Nhân viên thực hiện được booking → giữ/xác nhận → thanh toán → nhận phòng → trả phòng → dọn phòng.
