@@ -21,6 +21,7 @@ public sealed class SavePropertyRequest
 {
     public string Code { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
+    public string? SiteSlug { get; init; }
     public string TimeZoneId { get; init; } = "Asia/Ho_Chi_Minh";
     public bool IsActive { get; init; } = true;
 }
@@ -42,6 +43,7 @@ public sealed class PropertyAdminService(AppDbContext db)
                 x.Id,
                 x.Code,
                 x.Name,
+                x.SiteSlug,
                 x.TimeZoneId,
                 x.IsActive,
                 RoomCount = db.Rooms.Count(r => r.PropertyId == x.Id),
@@ -54,7 +56,7 @@ public sealed class PropertyAdminService(AppDbContext db)
             x.Code,
             x.Name,
             x.TimeZoneId,
-            PublicPropertyResolver.ToSiteSlug(x.Code),
+            PublicPropertyResolver.EffectiveSiteSlug(x.SiteSlug, x.Code),
             x.IsActive,
             x.RoomCount,
             x.UserCount)).ToList();
@@ -72,15 +74,15 @@ public sealed class PropertyAdminService(AppDbContext db)
         if (await db.Properties.AnyAsync(x => x.Code == code, ct))
             return (null, new("duplicate_code", "Mã cơ sở đã tồn tại."));
 
-        var siteSlug = PublicPropertyResolver.ToSiteSlug(code);
-        var activeCodes = await db.Properties.AsNoTracking().Select(x => x.Code).ToListAsync(ct);
-        if (activeCodes.Any(existing => string.Equals(PublicPropertyResolver.ToSiteSlug(existing), siteSlug, StringComparison.OrdinalIgnoreCase)))
-            return (null, new("duplicate_public_route", "Đường dẫn public sinh từ mã cơ sở đã được sử dụng. Hãy chọn mã cơ sở khác."));
+        var siteSlug = NormalizeRequestedSiteSlug(request.SiteSlug, code);
+        var slugError = await ValidateSiteSlugUniqueAsync(siteSlug, null, ct);
+        if (slugError is not null) return (null, slugError);
 
         var property = new Property
         {
             Code = code,
             Name = request.Name.Trim(),
+            SiteSlug = siteSlug,
             TimeZoneId = request.TimeZoneId.Trim(),
             IsActive = request.IsActive
         };
@@ -119,8 +121,12 @@ public sealed class PropertyAdminService(AppDbContext db)
         if (property is null) return (null, new("not_found", "Không tìm thấy cơ sở."));
 
         var code = NormalizeCode(request.Code);
-        if (!string.Equals(property.Code, code, StringComparison.Ordinal))
-            return (null, new("code_immutable", "Mã cơ sở không thể đổi sau khi tạo vì đang dùng làm định danh ổn định cho đường dẫn public."));
+        if (await db.Properties.AnyAsync(x => x.Id != propertyId && x.Code == code, ct))
+            return (null, new("duplicate_code", "Mã cơ sở đã tồn tại."));
+
+        var siteSlug = NormalizeRequestedSiteSlug(request.SiteSlug, code);
+        var slugError = await ValidateSiteSlugUniqueAsync(siteSlug, propertyId, ct);
+        if (slugError is not null) return (null, slugError);
 
         if (property.IsActive && !request.IsActive)
         {
@@ -130,7 +136,9 @@ public sealed class PropertyAdminService(AppDbContext db)
                 return (null, new("property_in_use", "Cơ sở còn lượt đặt đang giữ, đã xác nhận hoặc đang ở. Hãy xử lý các lượt này trước khi ngừng cơ sở."));
         }
 
+        property.Code = code;
         property.Name = request.Name.Trim();
+        property.SiteSlug = siteSlug;
         property.TimeZoneId = request.TimeZoneId.Trim();
         property.IsActive = request.IsActive;
         await db.SaveChangesAsync(ct);
@@ -142,10 +150,24 @@ public sealed class PropertyAdminService(AppDbContext db)
             property.Code,
             property.Name,
             property.TimeZoneId,
-            PublicPropertyResolver.ToSiteSlug(property.Code),
+            siteSlug,
             property.IsActive,
             roomCount,
             userCount), null);
+    }
+
+    private async Task<PropertyAdminError?> ValidateSiteSlugUniqueAsync(string siteSlug, Guid? excludePropertyId, CancellationToken ct)
+    {
+        if (siteSlug.Length is < 2 or > 100)
+            return new("validation", "Đường dẫn public phải từ 2 đến 100 ký tự, chỉ gồm chữ thường, số và dấu gạch ngang.");
+
+        var properties = await db.Properties.AsNoTracking()
+            .Select(x => new { x.Id, x.Code, x.SiteSlug })
+            .ToListAsync(ct);
+        if (properties.Any(x => x.Id != excludePropertyId &&
+            string.Equals(PublicPropertyResolver.EffectiveSiteSlug(x.SiteSlug, x.Code), siteSlug, StringComparison.OrdinalIgnoreCase)))
+            return new("duplicate_public_route", "Đường dẫn website public này đã được cơ sở khác sử dụng.");
+        return null;
     }
 
     private static PropertyAdminError? Validate(SavePropertyRequest request)
@@ -156,8 +178,14 @@ public sealed class PropertyAdminService(AppDbContext db)
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 200)
             return new("validation", "Tên cơ sở là bắt buộc và tối đa 200 ký tự.");
         try { _ = TimeZoneInfo.FindSystemTimeZoneById(request.TimeZoneId.Trim()); }
-        catch { return new("validation", "Múi giờ không hợp lệ trên máy chủ."); }
+        catch { return new("validation", "Múi giờ không hợp lệ trên máy chủ.")); }
         return null;
+    }
+
+    private static string NormalizeRequestedSiteSlug(string? requested, string code)
+    {
+        var value = string.IsNullOrWhiteSpace(requested) ? PublicPropertyResolver.ToSiteSlug(code) : requested;
+        return PublicPropertyResolver.NormalizeSiteSlug(value!);
     }
 
     private static string NormalizeCode(string value) =>
