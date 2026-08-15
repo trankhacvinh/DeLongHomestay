@@ -149,6 +149,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AddPageRoute("/Booking/Index", "h/{siteSlug}/booking");
     options.Conventions.AddPageRoute("/Booking/Lookup", "h/{siteSlug}/booking/lookup");
     options.Conventions.AddPageRoute("/Booking/Success", "h/{siteSlug}/booking/success");
+    options.Conventions.AddPageRoute("/Blog/Index", "h/{siteSlug}/blog");
+    options.Conventions.AddPageRoute("/Blog/Details", "h/{siteSlug}/blog/{slug}");
 });
 builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
@@ -185,6 +187,8 @@ builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<PropertyAdminService>();
 builder.Services.AddScoped<PublicPropertyResolver>();
 builder.Services.AddScoped<SiteContentService>();
+builder.Services.AddScoped<PropertyEditorialContentService>();
+builder.Services.AddScoped<GlobalEditorialShowcaseService>();
 builder.Services.AddSingleton<ISiteAssetStorage, LocalSiteAssetStorage>();
 builder.Services.AddScoped<RoomService>();
 builder.Services.AddScoped<RoomRateService>();
@@ -255,6 +259,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 app.MapRazorPages();
 app.MapPropertyAdminEndpoints();
 app.MapSiteContentEndpoints();
+app.MapPropertyEditorialContentEndpoints();
 app.MapPublicSeoEndpoints();
 app.MapRoomEndpoints();
 app.MapRoomRateEndpoints();
