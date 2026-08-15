@@ -141,6 +141,14 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Admin/Reports", "ViewReports");
     options.Conventions.AuthorizeFolder("/Admin/Staff", "ManageStaff");
     options.Conventions.AllowAnonymousToPage("/Account/Login");
+
+    // Public multi-property routes. Legacy root routes remain available for DELONG.
+    options.Conventions.AddPageRoute("/Index", "h/{siteSlug}");
+    options.Conventions.AddPageRoute("/Rooms/Index", "h/{siteSlug}/rooms");
+    options.Conventions.AddPageRoute("/Rooms/Details", "h/{siteSlug}/rooms/{code}");
+    options.Conventions.AddPageRoute("/Booking/Index", "h/{siteSlug}/booking");
+    options.Conventions.AddPageRoute("/Booking/Lookup", "h/{siteSlug}/booking/lookup");
+    options.Conventions.AddPageRoute("/Booking/Success", "h/{siteSlug}/booking/success");
 });
 builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
@@ -175,6 +183,7 @@ builder.Services.AddScoped<PropertyAccessFilter>();
 builder.Services.AddScoped<CurrentPropertyService>();
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<PropertyAdminService>();
+builder.Services.AddScoped<PublicPropertyResolver>();
 builder.Services.AddScoped<SiteContentService>();
 builder.Services.AddSingleton<ISiteAssetStorage, LocalSiteAssetStorage>();
 builder.Services.AddScoped<RoomService>();
