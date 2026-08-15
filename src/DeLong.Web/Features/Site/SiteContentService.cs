@@ -80,8 +80,10 @@ public sealed class SaveHomeSectionRequest
 public sealed record ReorderHomeSectionsRequest(IReadOnlyList<Guid> Ids);
 public sealed record SiteContentError(string Code, string Message);
 
-public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver publicPropertyResolver)
+public sealed class SiteContentService(AppDbContext db)
 {
+    private readonly PublicPropertyResolver publicPropertyResolver = new(db);
+
     // Kept for compatibility with older tests/callers. New public code resolves by route scope.
     public const string PublicPropertyCode = PublicPropertyResolver.LegacyPropertyCode;
     private static readonly HashSet<string> AllowedSectionTypes =
