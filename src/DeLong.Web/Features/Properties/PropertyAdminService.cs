@@ -178,7 +178,7 @@ public sealed class PropertyAdminService(AppDbContext db)
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 200)
             return new("validation", "Tên cơ sở là bắt buộc và tối đa 200 ký tự.");
         try { _ = TimeZoneInfo.FindSystemTimeZoneById(request.TimeZoneId.Trim()); }
-        catch { return new("validation", "Múi giờ không hợp lệ trên máy chủ.")); }
+        catch { return new("validation", "Múi giờ không hợp lệ trên máy chủ."); }
         return null;
     }
 
