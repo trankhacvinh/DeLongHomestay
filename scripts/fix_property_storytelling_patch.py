@@ -4,7 +4,7 @@ p = Path('scripts/property_storytelling_patch.py')
 text = p.read_text()
 start = text.index('# Public property page: render FAQ, location, policy blocks and load styling.')
 end = text.index('# Similar rooms in room detail.')
-replacement = r'''# Public property page: render FAQ, location, policy blocks and load styling.
+replacement = r"""# Public property page: render FAQ, location, policy blocks and load styling.
 path = "src/DeLong.Web/Pages/Index.cshtml"
 patch(
     path,
@@ -46,5 +46,5 @@ if insert_at < 0:
 page = page[:insert_at] + storytelling_cases + page[insert_at:]
 p.write_text(page)
 
-'''
+"""
 p.write_text(text[:start] + replacement + text[end:])
