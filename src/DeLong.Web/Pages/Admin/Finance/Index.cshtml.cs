@@ -1,6 +1,5 @@
 using System.Text.Json;
 using DeLong.Web.Common.Security;
-using DeLong.Web.Features.Expenses;
 using DeLong.Web.Features.Finance;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -39,7 +38,9 @@ public sealed class IndexModel(
             ? parsedMonth
             : new DateOnly(localNow.Year, localNow.Month, 1);
 
-        var targetProperties = allScope ? accessible : [selectedProperty];
+        IReadOnlyList<CurrentPropertyDto> targetProperties = allScope
+            ? accessible
+            : new[] { selectedProperty! };
         var snapshots = new List<FinanceSnapshotDto>();
         foreach (var property in targetProperties)
         {
