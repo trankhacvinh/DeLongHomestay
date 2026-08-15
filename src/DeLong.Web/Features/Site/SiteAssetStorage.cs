@@ -25,7 +25,7 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         if (file.Length <= 0) return (null, "File ảnh trống.");
         if (file.Length > MaxBytes) return (null, "Mỗi ảnh tối đa 12 MB.");
         if (!AllowedTypes.Contains(file.ContentType)) return (null, "Chỉ hỗ trợ JPG, PNG hoặc WebP.");
-        if (kind is not ("logo" or "favicon" or "og" or "section")) return (null, "Loại ảnh website không hợp lệ.");
+        if (kind is not ("cover" or "logo" or "favicon" or "og" or "section")) return (null, "Loại ảnh website không hợp lệ.");
 
         await using var memory = new MemoryStream((int)Math.Min(file.Length, int.MaxValue));
         await file.CopyToAsync(memory, ct);
@@ -47,6 +47,12 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         int quality;
         switch (kind)
         {
+            case "cover":
+                fileName = "cover.webp";
+                output = ResizeCrop(decoded, 1600, 1000);
+                format = SKEncodedImageFormat.Webp;
+                quality = 86;
+                break;
             case "favicon":
                 fileName = "favicon-64.png";
                 output = ResizeContain(decoded, 64, 64);
