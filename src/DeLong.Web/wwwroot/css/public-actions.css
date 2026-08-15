@@ -86,76 +86,103 @@
     justify-content:space-between;
     gap:12px;
 }
-.public-room-card-v2-footer .public-room-book-now {
-    margin-left:auto;
-}
+.public-room-card-v2-footer .public-room-book-now { margin-left:auto; }
 
-.public-booking-property-bar {
-    padding:18px 0 0;
-    background:#f7f6f1;
+/* Property choice belongs inside step 02, immediately before the room list. */
+.public-booking-property-choices {
+    margin:0 0 18px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;
 }
-.public-booking-property-switch {
-    min-height:78px;
-    padding:13px 16px;
-    border:1px solid #d9e1de;
-    border-radius:17px;
-    background:rgba(255,255,255,.88);
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:24px;
-    box-shadow:0 10px 28px rgba(25,56,51,.045);
-}
-.public-booking-property-copy {
+.public-booking-property-choice {
     min-width:0;
-    display:grid;
-    gap:2px;
-}
-.public-booking-property-copy > span {
-    color:#236d70;
-    font-size:9px;
-    font-weight:850;
-    letter-spacing:.14em;
-}
-.public-booking-property-copy strong {
+    min-height:76px;
+    padding:9px 11px 9px 9px;
+    border:1px solid #d7e0dd;
+    border-radius:14px;
+    background:#fff;
     color:#172422;
-    font-size:15px;
-    letter-spacing:-.015em;
-}
-.public-booking-property-copy small {
-    color:#75837f;
-    font-size:10px;
-}
-.public-booking-property-field {
-    width:min(360px,42vw);
     display:grid;
-    gap:5px;
+    grid-template-columns:68px minmax(0,1fr) auto;
+    gap:11px;
+    align-items:center;
+    text-align:left;
+    cursor:pointer;
+    box-shadow:0 3px 12px rgba(24,57,52,.025);
+    transition:border-color .16s ease,background .16s ease,box-shadow .16s ease,transform .16s ease;
+}
+.public-booking-property-choice:hover {
+    border-color:#9dbab4;
+    background:#fbfdfc;
+    transform:translateY(-1px);
+    box-shadow:0 8px 20px rgba(24,57,52,.06);
+}
+.public-booking-property-choice.active {
+    border-color:#3d8988;
+    background:#f0f8f5;
+    box-shadow:inset 0 0 0 1px rgba(31,112,112,.08),0 7px 20px rgba(24,86,81,.055);
+    cursor:default;
+}
+.public-booking-property-choice.active:hover { transform:none; }
+.public-booking-property-media {
+    width:68px;
+    height:56px;
+    border-radius:11px;
+    overflow:hidden;
+    display:grid;
+    place-items:center;
+    background:linear-gradient(145deg,#174f52,#6e9990);
+    color:#fff;
     flex:0 0 auto;
 }
-.public-booking-property-field > span {
-    color:#71807c;
+.public-booking-property-media img {
+    width:100%;
+    height:100%;
+    display:block;
+    object-fit:cover;
+}
+.public-booking-property-fallback {
+    width:100%;
+    height:100%;
+    display:grid;
+    place-items:center;
+    background:radial-gradient(circle at 78% 12%,rgba(255,255,255,.17),transparent 34%),linear-gradient(145deg,#174f52,#638f88);
+    color:#fff;
+    font-size:16px;
+    font-weight:850;
+    letter-spacing:.06em;
+}
+.public-booking-property-choice-copy {
+    min-width:0;
+    display:grid;
+    gap:4px;
+}
+.public-booking-property-choice-copy strong {
+    overflow:hidden;
+    color:#172422;
+    font-size:13px;
+    line-height:1.25;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.public-booking-property-choice-copy small {
+    color:#778682;
+    font-size:10px;
+    font-weight:650;
+}
+.public-booking-property-state {
+    padding:5px 8px;
+    border-radius:999px;
+    background:#f0f4f2;
+    color:#60736f;
     font-size:9px;
     font-weight:800;
-    text-transform:uppercase;
-    letter-spacing:.08em;
+    white-space:nowrap;
 }
-.public-booking-property-field select {
-    width:100%;
-    min-height:44px;
-    padding:0 38px 0 13px;
-    border:1px solid #cfdad6;
-    border-radius:11px;
-    background:#fff;
-    color:#19302d;
-    font:inherit;
-    font-weight:720;
-    cursor:pointer;
-    box-shadow:0 2px 7px rgba(25,56,51,.03);
-}
-.public-booking-property-field select:hover { border-color:#a9bfba; }
-.public-booking-property-field select:focus {
-    outline:3px solid rgba(35,109,112,.12);
-    border-color:#70a09e;
+.public-booking-property-choice.active .public-booking-property-state {
+    background:#dcefeb;
+    color:#17635f;
 }
 
 @media (max-width:760px) {
@@ -168,18 +195,25 @@
         column-gap:10px;
     }
     .public-room-book-now { min-height:33px; padding:0 11px; }
-    .public-booking-property-switch {
-        align-items:stretch;
-        flex-direction:column;
-        gap:12px;
+    .public-booking-property-choices {
+        margin-left:-2px;
+        margin-right:-2px;
+        padding:2px;
+        display:flex;
+        overflow-x:auto;
+        scroll-snap-type:x proximity;
+        scrollbar-width:none;
     }
-    .public-booking-property-field { width:100%; }
+    .public-booking-property-choices::-webkit-scrollbar { display:none; }
+    .public-booking-property-choice {
+        min-width:min(290px,82vw);
+        flex:0 0 min(290px,82vw);
+        scroll-snap-align:start;
+    }
 }
 
 @media (max-width:520px) {
-    .public-room-card .public-room-body {
-        grid-template-columns:1fr;
-    }
+    .public-room-card .public-room-body { grid-template-columns:1fr; }
     .public-room-card .public-room-body > div:first-child,
     .public-room-card .public-room-price,
     .public-room-card .public-room-book-now {
@@ -198,5 +232,15 @@
     .public-room-card-v2-footer .public-room-book-now {
         width:100%;
         margin-left:0;
+    }
+    .public-booking-property-choice {
+        grid-template-columns:58px minmax(0,1fr);
+        min-height:70px;
+    }
+    .public-booking-property-media { width:58px;height:50px; }
+    .public-booking-property-state {
+        grid-column:2;
+        justify-self:start;
+        margin-top:-2px;
     }
 }
