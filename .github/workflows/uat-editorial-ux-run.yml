@@ -29,8 +29,10 @@ jobs:
           marker = "          python3 <<'PY'\n"
           start = workflow.index(marker) + len(marker)
           end = workflow.index("\n          PY\n", start)
-          raw = workflow[start:end]
-          code = "\n".join(line[10:] if line.startswith("          ") else line for line in raw.splitlines())
+          lines = workflow[start:end].splitlines()
+          first = next((line for line in lines if line.strip()), '')
+          indent = first[:len(first) - len(first.lstrip())]
+          code = "\n".join(line[len(indent):] if indent and line.startswith(indent) else line for line in lines)
           exec(compile(code, 'editorial-ux-polish.py', 'exec'))
           PY
       - name: Generate EF migration
