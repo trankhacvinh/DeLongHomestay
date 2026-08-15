@@ -7,7 +7,7 @@ public static class AuditEndpoints
     public static IEndpointRouteBuilder MapAuditEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/admin/properties/{propertyId:guid}/audit")
-            .RequireAuthorization("AdminArea")
+            .RequireAuthorization("ViewOperations")
             .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Audit");
 

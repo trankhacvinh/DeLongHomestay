@@ -56,6 +56,17 @@ public sealed class IndexModel(
 
         PropertyId = property.Id;
         PropertyName = property.Name;
+
+        var housekeepingOnly = User.IsInRole("Housekeeping") &&
+            !User.IsInRole("Admin") &&
+            !User.IsInRole("Manager") &&
+            !User.IsInRole("Staff") &&
+            !User.IsInRole("Viewer");
+        if (housekeepingOnly)
+        {
+            return RedirectToPage("/Admin/Housekeeping/Index", new { propertyId = PropertyId });
+        }
+
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
         var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
         var today = DateOnly.FromDateTime(nowLocal);

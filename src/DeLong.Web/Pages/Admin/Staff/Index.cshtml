@@ -1,0 +1,176 @@
+@page
+@model DeLong.Web.Pages.Admin.Staff.IndexModel
+@{
+    ViewData["Title"] = "Nhân viên";
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/staff.css" asp-append-version="true" />
+}
+<div id="staff-page" v-cloak>
+    <script id="staff-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+
+    <div class="page-title-row staff-page-head">
+        <div>
+            <div class="page-eyebrow">Quản trị truy cập</div>
+            <h1>Nhân viên & phân quyền</h1>
+            <p>Tạo tài khoản riêng cho từng người, giới hạn cơ sở được truy cập và thu hồi quyền mà không dùng chung mật khẩu Admin.</p>
+        </div>
+        <button class="btn btn-primary" type="button" v-on:click="openCreate"><svg><use href="#i-plus" /></svg>Thêm nhân viên</button>
+    </div>
+
+    <section class="staff-stat-grid" aria-label="Tổng quan tài khoản">
+        <article class="staff-stat"><span>Đang hoạt động</span><strong>{{ activeCount }}</strong><small>/ {{ accounts.length }} tài khoản</small></article>
+        <article class="staff-stat"><span>Quản trị / Quản lý</span><strong>{{ leadershipCount }}</strong><small>tài khoản quyền cao</small></article>
+        <article class="staff-stat"><span>Chờ đổi mật khẩu</span><strong>{{ mustChangeCount }}</strong><small>đang dùng mật khẩu tạm</small></article>
+        <article class="staff-stat" v-bind:class="{ alert: lockedCount > 0 }"><span>Tạm khóa đăng nhập</span><strong>{{ lockedCount }}</strong><small>do nhập sai nhiều lần</small></article>
+    </section>
+
+    <section class="panel staff-role-guide">
+        <div class="staff-section-head">
+            <div><span class="page-eyebrow">Vai trò hệ thống</span><h2>Quyền được cấp theo công việc</h2></div>
+            <span class="small muted">Vai trò áp dụng toàn tài khoản; cơ sở truy cập được chọn riêng.</span>
+        </div>
+        <div class="staff-role-guide-grid">
+            <article class="role-guide-card" v-for="role in roles" v-bind:key="role.value">
+                <span class="role-badge" v-bind:class="'role-' + role.tone">{{ role.label }}</span>
+                <p>{{ role.description }}</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="entity-toolbar staff-toolbar">
+            <div class="entity-toolbar-main staff-toolbar-main">
+                <input class="search-input" v-model.trim="search" placeholder="Tìm tên hoặc email..." aria-label="Tìm nhân viên" />
+                <select v-model="roleFilter" aria-label="Lọc vai trò">
+                    <option value="">Tất cả vai trò</option>
+                    <option v-for="role in roles" v-bind:key="role.value" v-bind:value="role.value">{{ role.label }}</option>
+                </select>
+                <select v-model="statusFilter" aria-label="Lọc trạng thái tài khoản">
+                    <option value="active">Đang hoạt động</option>
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="inactive">Đã ngừng</option>
+                    <option value="locked">Tạm khóa đăng nhập</option>
+                    <option value="temporary">Chờ đổi mật khẩu</option>
+                </select>
+            </div>
+            <span class="entity-count">{{ filteredAccounts.length }} tài khoản</span>
+        </div>
+
+        <div class="table-wrap staff-table-wrap">
+            <table class="data-table staff-table">
+                <thead><tr><th>Nhân viên</th><th>Vai trò</th><th>Cơ sở truy cập</th><th>Bảo mật</th><th>Trạng thái</th><th></th></tr></thead>
+                <tbody>
+                    <tr v-for="account in filteredAccounts" v-bind:key="account.id" v-bind:class="{ 'staff-row-inactive': !account.isActive }">
+                        <td>
+                            <div class="entity-cell">
+                                <span class="entity-avatar staff-avatar">{{ initials(account.displayName) }}</span>
+                                <div class="entity-copy"><strong>{{ account.displayName }} <span v-if="account.isSelf" class="self-tag">Bạn</span></strong><span>{{ account.email }}</span></div>
+                            </div>
+                        </td>
+                        <td><span class="role-badge" v-bind:class="roleClass(account.role)">{{ roleLabel(account.role) }}</span></td>
+                        <td><div class="property-chip-row"><span class="property-chip" v-for="property in account.properties" v-bind:key="property.id">{{ property.name }}</span></div></td>
+                        <td>
+                            <div class="security-stack">
+                                <span v-if="account.isLockedOut" class="security-state danger">Tạm khóa đăng nhập</span>
+                                <span v-else-if="account.mustChangePassword" class="security-state warning">Mật khẩu tạm</span>
+                                <span v-else class="security-state success">Sẵn sàng</span>
+                                <small v-if="account.isLockedOut && account.lockoutEnd">đến {{ dateTimeText(account.lockoutEnd) }}</small>
+                            </div>
+                        </td>
+                        <td><span class="pill" v-bind:class="account.isActive ? 'success' : 'danger'">{{ account.isActive ? 'Hoạt động' : 'Đã ngừng' }}</span></td>
+                        <td><button class="btn btn-light btn-sm row-action" type="button" v-bind:disabled="!account.canManage" v-on:click="openEdit(account)">Quản lý</button></td>
+                    </tr>
+                    <tr v-if="filteredAccounts.length === 0"><td colspan="6" class="empty-state"><strong>Không có tài khoản phù hợp</strong>Thử đổi từ khóa hoặc bộ lọc trạng thái.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="staff-mobile-list">
+            <article class="staff-mobile-card" v-for="account in filteredAccounts" v-bind:key="'mobile-' + account.id">
+                <div class="staff-mobile-head"><div class="entity-cell"><span class="entity-avatar staff-avatar">{{ initials(account.displayName) }}</span><div class="entity-copy"><strong>{{ account.displayName }} <span v-if="account.isSelf" class="self-tag">Bạn</span></strong><span>{{ account.email }}</span></div></div><span class="pill" v-bind:class="account.isActive ? 'success' : 'danger'">{{ account.isActive ? 'Hoạt động' : 'Đã ngừng' }}</span></div>
+                <div class="staff-mobile-meta"><span class="role-badge" v-bind:class="roleClass(account.role)">{{ roleLabel(account.role) }}</span><span v-if="account.isLockedOut" class="security-state danger">Tạm khóa</span><span v-else-if="account.mustChangePassword" class="security-state warning">Mật khẩu tạm</span></div>
+                <div class="property-chip-row"><span class="property-chip" v-for="property in account.properties" v-bind:key="property.id">{{ property.name }}</span></div>
+                <button class="btn btn-light btn-sm" type="button" v-bind:disabled="!account.canManage" v-on:click="openEdit(account)">Quản lý tài khoản</button>
+            </article>
+        </div>
+    </section>
+
+    <div class="modal-backdrop" v-if="editor.open" v-on:click.self="closeEditor">
+        <section class="modal-card staff-editor" role="dialog" aria-modal="true" aria-labelledby="staff-editor-title">
+            <div class="modal-head">
+                <div><h2 id="staff-editor-title">{{ editor.mode === 'create' ? 'Thêm nhân viên' : 'Quản lý tài khoản' }}</h2><p class="small muted">{{ editor.mode === 'create' ? 'Tạo tài khoản riêng và mật khẩu tạm để bàn giao.' : form.email }}</p></div>
+                <button class="icon-btn" type="button" v-on:click="closeEditor" aria-label="Đóng">×</button>
+            </div>
+
+            <div v-if="editor.mode === 'edit' && editor.account?.isSelf" class="staff-notice info"><strong>Đây là tài khoản bạn đang dùng.</strong><span>Để tránh tự khóa mình, vai trò, cơ sở truy cập và trạng thái không thể thay đổi tại đây.</span></div>
+
+            <div class="staff-editor-scroll">
+                <section class="staff-form-section">
+                    <div class="staff-form-title"><span>01</span><div><strong>Thông tin đăng nhập</strong><small>Email đồng thời là tên đăng nhập.</small></div></div>
+                    <div class="form-grid staff-form-grid">
+                        <div class="field"><label>Tên hiển thị *</label><input v-model.trim="form.displayName" maxlength="200" autocomplete="name" placeholder="Nguyễn Minh Anh" /></div>
+                        <div class="field"><label>Email *</label><input type="email" v-model.trim="form.email" maxlength="254" autocomplete="email" placeholder="nhanvien@example.com" /></div>
+                    </div>
+                </section>
+
+                <section class="staff-form-section">
+                    <div class="staff-form-title"><span>02</span><div><strong>Vai trò</strong><small>Chọn theo công việc chính của người dùng.</small></div></div>
+                    <div class="role-picker" v-bind:class="{ disabled: editor.account?.isSelf }">
+                        <label class="role-picker-card" v-for="role in roles" v-bind:key="role.value" v-bind:class="{ selected: form.role === role.value }">
+                            <input type="radio" v-model="form.role" v-bind:value="role.value" v-bind:disabled="editor.account?.isSelf" />
+                            <span class="role-badge" v-bind:class="'role-' + role.tone">{{ role.label }}</span>
+                            <small>{{ role.description }}</small>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="staff-form-section">
+                    <div class="staff-form-title"><span>03</span><div><strong>Cơ sở được truy cập</strong><small>Tài khoản chỉ nhìn thấy dữ liệu của các cơ sở được chọn.</small></div></div>
+                    <div class="property-picker">
+                        <label class="property-choice" v-for="property in availableProperties" v-bind:key="property.id" v-bind:class="{ selected: form.propertyIds.includes(property.id) }"><input type="checkbox" v-bind:value="property.id" v-model="form.propertyIds" v-bind:disabled="editor.account?.isSelf" /><span><strong>{{ property.name }}</strong><small>{{ property.code }}</small></span></label>
+                    </div>
+                </section>
+
+                <section class="staff-form-section" v-if="editor.mode === 'create'">
+                    <div class="staff-form-title"><span>04</span><div><strong>Mật khẩu tạm</strong><small>Nhân viên bắt buộc đổi mật khẩu ngay lần đăng nhập đầu.</small></div></div>
+                    <div class="temporary-password-box">
+                        <div class="field"><label>Mật khẩu tạm *</label><div class="password-input-row"><input v-bind:type="showPassword ? 'text' : 'password'" v-model="form.temporaryPassword" minlength="8" autocomplete="new-password" /><button class="btn btn-light btn-sm" type="button" v-on:click="showPassword = !showPassword">{{ showPassword ? 'Ẩn' : 'Hiện' }}</button></div></div>
+                        <button class="btn btn-light btn-sm" type="button" v-on:click="generateTemporaryPassword">Tạo mật khẩu tạm</button>
+                    </div>
+                </section>
+
+                <section class="staff-form-section" v-if="editor.mode === 'edit'">
+                    <div class="staff-form-title"><span>04</span><div><strong>Trạng thái & bảo mật</strong><small>Khóa tài khoản không xóa lịch sử thao tác của nhân viên.</small></div></div>
+                    <div class="staff-security-actions">
+                        <label class="account-active-toggle" v-bind:class="{ disabled: editor.account?.isSelf }"><input type="checkbox" v-model="form.isActive" v-bind:disabled="editor.account?.isSelf" /><span><strong>Tài khoản đang hoạt động</strong><small>Tắt để ngăn đăng nhập mới và vô hiệu session cũ.</small></span></label>
+                        <div class="staff-security-button-row" v-if="!editor.account?.isSelf">
+                            <button class="btn btn-light btn-sm" type="button" v-on:click="openResetPassword">Đặt lại mật khẩu</button>
+                            <button v-if="editor.account?.isLockedOut" class="btn btn-light btn-sm" type="button" v-bind:disabled="saving" v-on:click="unlockAccount">Mở khóa đăng nhập</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button>
+                <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveAccount">{{ saving ? 'Đang lưu...' : (editor.mode === 'create' ? 'Tạo tài khoản' : 'Lưu thay đổi') }}</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop staff-reset-layer" v-if="resetModal.open" v-on:click.self="closeResetPassword">
+        <section class="modal-card staff-reset-modal" role="dialog" aria-modal="true" aria-labelledby="reset-password-title">
+            <div class="modal-head"><div><h2 id="reset-password-title">Đặt lại mật khẩu</h2><p class="small muted">{{ editor.account?.displayName }} sẽ phải đổi mật khẩu này khi đăng nhập lại.</p></div><button class="icon-btn" type="button" v-on:click="closeResetPassword" aria-label="Đóng">×</button></div>
+            <div class="staff-notice warning"><strong>Session cũ sẽ bị vô hiệu.</strong><span>Chỉ gửi mật khẩu tạm qua kênh riêng cho đúng nhân viên.</span></div>
+            <div class="field"><label>Mật khẩu tạm mới *</label><div class="password-input-row"><input v-bind:type="resetModal.showPassword ? 'text' : 'password'" v-model="resetModal.password" minlength="8" autocomplete="new-password" /><button class="btn btn-light btn-sm" type="button" v-on:click="resetModal.showPassword = !resetModal.showPassword">{{ resetModal.showPassword ? 'Ẩn' : 'Hiện' }}</button></div></div>
+            <button class="btn btn-light btn-sm" type="button" v-on:click="generateResetPassword">Tạo mật khẩu tạm</button>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closeResetPassword">Hủy</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="resetPassword">{{ saving ? 'Đang xử lý...' : 'Đặt lại mật khẩu' }}</button></div>
+        </section>
+    </div>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+</div>
+@section Scripts {
+    <script src="~/js/pages/admin-staff.js" asp-append-version="true"></script>
+}

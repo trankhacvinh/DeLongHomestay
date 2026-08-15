@@ -8,7 +8,7 @@ public static class ImportEndpoints
     public static IEndpointRouteBuilder MapImportEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/admin/properties/{propertyId:guid}/imports")
-            .RequireAuthorization("ManageBookings")
+            .RequireAuthorization("ManageImports")
             .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Imports");
 
