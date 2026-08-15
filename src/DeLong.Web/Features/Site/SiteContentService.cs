@@ -80,9 +80,10 @@ public sealed class SaveHomeSectionRequest
 public sealed record ReorderHomeSectionsRequest(IReadOnlyList<Guid> Ids);
 public sealed record SiteContentError(string Code, string Message);
 
-public sealed class SiteContentService(AppDbContext db)
+public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver publicPropertyResolver)
 {
-    public const string PublicPropertyCode = "DELONG";
+    // Kept for compatibility with older tests/callers. New public code resolves by route scope.
+    public const string PublicPropertyCode = PublicPropertyResolver.LegacyPropertyCode;
     private static readonly HashSet<string> AllowedSectionTypes =
         ["Hero", "AvailabilitySearch", "RoomGrid", "FeatureGrid", "RichText", "Cta"];
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -95,13 +96,12 @@ public sealed class SiteContentService(AppDbContext db)
         return await ReadSiteAsync(propertyId, ct);
     }
 
-    public async Task<SiteAdminDto?> GetPublicAsync(CancellationToken ct = default)
+    public Task<SiteAdminDto?> GetPublicAsync(CancellationToken ct = default) => GetPublicAsync(null, ct);
+
+    public async Task<SiteAdminDto?> GetPublicAsync(string? siteSlug, CancellationToken ct = default)
     {
-        var propertyId = await db.Properties.AsNoTracking()
-            .Where(x => x.Code == PublicPropertyCode && x.IsActive)
-            .Select(x => (Guid?)x.Id)
-            .SingleOrDefaultAsync(ct);
-        return propertyId.HasValue ? await ReadSiteAsync(propertyId.Value, ct) : null;
+        var property = await publicPropertyResolver.ResolveAsync(siteSlug, ct);
+        return property is null ? null : await ReadSiteAsync(property.Id, ct);
     }
 
     public async Task<(SiteSettingsDto? Settings, SiteContentError? Error)> SaveSettingsAsync(
