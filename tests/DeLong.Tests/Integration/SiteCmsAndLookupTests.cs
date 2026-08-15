@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json.Nodes;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
@@ -95,8 +96,11 @@ public sealed class SiteCmsAndLookupTests
         });
         Assert.Null(richError);
         Assert.NotNull(richText);
-        Assert.Contains("Xin chào", richText!.ContentJson);
-        Assert.DoesNotContain("<script", richText.ContentJson, StringComparison.OrdinalIgnoreCase);
+        var richJson = JsonNode.Parse(richText!.ContentJson)!.AsObject();
+        var sanitizedHtml = richJson["html"]!.GetValue<string>();
+        Assert.Contains("Xin chào", sanitizedHtml);
+        Assert.Contains("Nội dung sạch", sanitizedHtml);
+        Assert.DoesNotContain("<script", sanitizedHtml, StringComparison.OrdinalIgnoreCase);
 
         var (updated, updateError) = await propertyService.UpdateAsync(created.Id, new SavePropertyRequest
         {
