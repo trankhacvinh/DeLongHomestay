@@ -1,0 +1,35 @@
+name: Similar Room Card Hotfix
+
+on:
+  push:
+    branches: [ feat/mobile-booking-conversion ]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/mobile-booking-conversion
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Apply card hotfix
+        run: python3 scripts/fix_similar_room_cards.py
+      - name: Build
+        run: dotnet build DeLongHomestay.sln --configuration Release
+      - name: Test
+        run: dotnet test DeLongHomestay.sln --configuration Release --no-build --verbosity minimal
+      - name: Commit hotfix and clean tooling
+        shell: bash
+        run: |
+          git config user.name "trankhacvinh"
+          git config user.email "trankhacvinh@users.noreply.github.com"
+          git rm -f .github/workflows/fix-similar-room-cards.yml scripts/fix_similar_room_cards.py
+          git add -A
+          git commit -m "fix: prevent duplicate similar room card labels"
+          git push origin HEAD:feat/mobile-booking-conversion
