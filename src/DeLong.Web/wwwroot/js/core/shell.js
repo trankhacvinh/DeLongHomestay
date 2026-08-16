@@ -84,6 +84,52 @@
     }
 
     if (body.classList.contains('public-body')) {
+        const isScopedPropertyPage = /^\/h\/[^/]+(?:\/|$)/i.test(window.location.pathname);
+        if (!isScopedPropertyPage) {
+            fetch('/api/public/global-branding', { headers: { Accept: 'application/json' } })
+                .then(response => response.ok ? response.json() : null)
+                .then(branding => {
+                    if (!branding) return;
+                    document.querySelectorAll('.public-site-brand').forEach(brand => {
+                        const currentMedia = brand.querySelector('.public-site-brand-logo, .brand-mark');
+                        if (branding.logoUrl && currentMedia) {
+                            if (currentMedia.tagName === 'IMG') {
+                                currentMedia.src = branding.logoUrl;
+                                currentMedia.alt = branding.siteName || 'De Long Homestay';
+                            } else {
+                                const image = document.createElement('img');
+                                image.className = 'public-site-brand-logo';
+                                image.src = branding.logoUrl;
+                                image.alt = branding.siteName || 'De Long Homestay';
+                                currentMedia.replaceWith(image);
+                            }
+                        }
+
+                        const copy = [...brand.children].find(element => element.tagName === 'SPAN' && !element.classList.contains('brand-mark'));
+                        const name = copy?.querySelector('strong');
+                        const tagline = copy?.querySelector('small');
+                        if (name && branding.siteName) name.textContent = branding.siteName;
+                        if (tagline) tagline.textContent = branding.tagline || '';
+                    });
+
+                    if (branding.faviconUrl) {
+                        let favicon = document.querySelector('link[rel~="icon"]');
+                        if (!favicon) {
+                            favicon = document.createElement('link');
+                            favicon.rel = 'icon';
+                            document.head.appendChild(favicon);
+                        }
+                        favicon.href = branding.faviconUrl;
+                    }
+
+                    const ogSiteName = document.querySelector('meta[property="og:site_name"]');
+                    if (ogSiteName && branding.siteName) ogSiteName.setAttribute('content', branding.siteName);
+                })
+                .catch(() => {
+                    // Keep the server-rendered fallback if branding cannot be loaded.
+                });
+        }
+
         if (!document.querySelector('link[data-public-actions]')) {
             const stylesheet = document.createElement('link');
             stylesheet.rel = 'stylesheet';

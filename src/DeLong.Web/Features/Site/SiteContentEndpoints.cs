@@ -1,5 +1,6 @@
 using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
+using DeLong.Web.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.Site;
@@ -88,7 +89,40 @@ public static class SiteContentEndpoints
             .RequireAuthorization("ManageProperties");
 
         global.MapGet("/", async (SiteContentService service, CancellationToken ct) =>
-            Results.Ok(await service.GetGlobalAdminAsync(ct)));
+        {
+            var result = await service.GetGlobalAdminAsync(ct);
+            return Results.Ok(new
+            {
+                sections = result.Sections.Where(x => x.Type != GlobalSiteBrandingStore.MetadataSectionType)
+            });
+        });
+
+        global.MapGet("/branding", async (
+            AppDbContext db,
+            SiteContentService service,
+            PublicPropertyResolver resolver,
+            CancellationToken ct) =>
+        {
+            var properties = await resolver.GetActiveAsync(ct);
+            return Results.Ok(await GlobalSiteBrandingStore.ResolveAsync(db, service, properties, ct));
+        });
+
+        global.MapPut("/branding", async (
+            SaveGlobalSiteBrandingRequest request,
+            AppDbContext db,
+            SiteContentService service,
+            PublicPropertyResolver resolver,
+            CancellationToken ct) =>
+        {
+            // Make sure the normal global homepage blocks exist before the reserved metadata row is created.
+            await service.GetGlobalAdminAsync(ct);
+            var (success, error) = await GlobalSiteBrandingStore.SaveAsync(db, request, ct);
+            if (!success)
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["branding"] = [error ?? "Cấu hình thương hiệu không hợp lệ."] });
+
+            var properties = await resolver.GetActiveAsync(ct);
+            return Results.Ok(await GlobalSiteBrandingStore.ResolveAsync(db, service, properties, ct));
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
         global.MapPost("/assets/{kind}", async (
             string kind,
@@ -130,12 +164,30 @@ public static class SiteContentEndpoints
 
         global.MapPut("/sections/reorder", async (
             ReorderHomeSectionsRequest request,
-            SiteContentService service,
+            AppDbContext db,
             CancellationToken ct) =>
         {
-            var error = await service.ReorderGlobalAsync(request.Ids, ct);
-            return error is null ? Results.NoContent() : ToProblem(error);
+            var sections = await db.Set<HomeSection>()
+                .Where(x => x.PropertyId == null && x.Type != GlobalSiteBrandingStore.MetadataSectionType)
+                .ToListAsync(ct);
+            if (request.Ids.Count != sections.Count || request.Ids.Distinct().Count() != request.Ids.Count || sections.Any(x => !request.Ids.Contains(x.Id)))
+                return ToProblem(new SiteContentError("validation", "Danh sách sắp xếp không khớp các khối trang chủ chung hiện tại."));
+
+            var order = request.Ids.Select((id, index) => new { id, index }).ToDictionary(x => x.id, x => x.index);
+            foreach (var section in sections) section.SortOrder = order[section.Id];
+            await db.SaveChangesAsync(ct);
+            return Results.NoContent();
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        app.MapGet("/api/public/global-branding", async (
+            AppDbContext db,
+            SiteContentService service,
+            PublicPropertyResolver resolver,
+            CancellationToken ct) =>
+        {
+            var properties = await resolver.GetActiveAsync(ct);
+            return Results.Ok(await GlobalSiteBrandingStore.ResolveAsync(db, service, properties, ct));
+        }).AllowAnonymous();
 
         MapCustomCss(app, "/site/custom.css", scoped: false);
         MapCustomCss(app, "/h/{siteSlug}/site/custom.css", scoped: true);

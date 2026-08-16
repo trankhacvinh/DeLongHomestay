@@ -1,5 +1,6 @@
 
 using System.Text.Json;
+using DeLong.Web.Data;
 using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Site;
 using Microsoft.AspNetCore.Authorization;
@@ -10,7 +11,9 @@ namespace DeLong.Web.Pages.Admin.Site;
 [Authorize(Roles = "Admin")]
 public sealed class GlobalModel(
     SiteContentService siteContentService,
-    PublicRoomContentService publicRoomContentService) : PageModel
+    PublicRoomContentService publicRoomContentService,
+    PublicPropertyResolver publicPropertyResolver,
+    AppDbContext db) : PageModel
 {
     public string PageDataJson { get; private set; } = "{}";
 
@@ -18,9 +21,12 @@ public sealed class GlobalModel(
     {
         var site = await siteContentService.GetGlobalAdminAsync(ct);
         var catalog = await publicRoomContentService.GetGlobalCatalogAsync(ct);
+        var activeProperties = await publicPropertyResolver.GetActiveAsync(ct);
+        var branding = await GlobalSiteBrandingStore.ResolveAsync(db, siteContentService, activeProperties, ct);
         PageDataJson = JsonSerializer.Serialize(new
         {
-            sections = site.Sections,
+            branding,
+            sections = site.Sections.Where(x => x.Type != GlobalSiteBrandingStore.MetadataSectionType),
             properties = catalog.Properties,
             rooms = catalog.Rooms.Select(x => new
             {

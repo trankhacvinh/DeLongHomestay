@@ -22,8 +22,25 @@
         if (type === 'Cta') return { title: '', body: '', buttonText: 'Xem phòng', buttonUrl: '/rooms' };
         return { html: '<p>Nội dung mới</p>' };
     }
+    function brandingForm(value) {
+        const source = value || {};
+        return {
+            siteName: source.overrideSiteName || '',
+            tagline: source.overrideTagline || '',
+            logoUrl: source.overrideLogoUrl || '',
+            faviconUrl: source.overrideFaviconUrl || '',
+            ogImageUrl: source.overrideOgImageUrl || '',
+            metaTitle: source.overrideMetaTitle || '',
+            metaDescription: source.overrideMetaDescription || ''
+        };
+    }
     createApp({
-        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
+        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, brandingEffective: initial.branding || {}, branding: brandingForm(initial.branding), brandingSaving: false, brandingUploading: '', editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
+        computed: {
+            brandPreviewLogo() { return this.branding.logoUrl || this.brandingEffective.logoUrl || ''; },
+            brandPreviewName() { return this.branding.siteName || this.brandingEffective.siteName || 'De Long Homestay'; },
+            brandPreviewTagline() { return this.branding.tagline || this.brandingEffective.tagline || ''; }
+        },
         mounted() { nextTick(() => this.mountSortable()); },
         methods: {
             sectionTypeLabel(type) { return this.sectionTypes.find(x => x.value === type)?.label || type; },
@@ -41,6 +58,34 @@
             toggleArray(key, id) { const list = Array.isArray(this.form.content[key]) ? [...this.form.content[key]] : []; const i = list.findIndex(x => String(x) === String(id)); if (i >= 0) list.splice(i, 1); else list.push(id); this.form.content[key] = list; },
             normalizeContent(type, content) { const base = Object.assign(defaultContent(type), content || {}); if (type === 'BranchGrid' && !Array.isArray(base.propertyIds)) base.propertyIds = []; if (type === 'RoomGrid') { if (!Array.isArray(base.roomIds)) base.roomIds = []; if (!base.propertyQuotas || typeof base.propertyQuotas !== 'object' || Array.isArray(base.propertyQuotas)) base.propertyQuotas = {}; } return base; },
             mountSortable() { if (!window.Sortable) return; if (this.sortable) this.sortable.destroy(); const el = document.getElementById('global-section-list'); if (!el) return; this.sortable = Sortable.create(el, { animation: 160, handle: '.home-drag-handle', ghostClass: 'dragging', onEnd: async e => { if (e.oldIndex === e.newIndex) return; const moved = this.sections.splice(e.oldIndex, 1)[0]; this.sections.splice(e.newIndex, 0, moved); try { await DeLongApi.put('/api/admin/site/global/sections/reorder', { ids: this.sections.map(x => x.id) }); this.notify('Đã cập nhật thứ tự.'); } catch (err) { this.notify(err.message || 'Không thể đổi thứ tự.', 'error'); } } }); },
+            async saveBranding() {
+                if (this.brandingSaving || this.brandingUploading) return;
+                this.brandingSaving = true;
+                try {
+                    const saved = await DeLongApi.put('/api/admin/site/global/branding', this.branding);
+                    this.brandingEffective = saved || {};
+                    this.branding = brandingForm(saved);
+                    this.notify('Đã lưu thương hiệu chung.');
+                } catch (err) { this.notify(err.message || 'Không thể lưu thương hiệu chung.', 'error'); }
+                finally { this.brandingSaving = false; }
+            },
+            async useInheritedBranding() {
+                if (!window.confirm('Xóa toàn bộ giá trị ghi đè và dùng lại cấu hình của cơ sở duy nhất đang hoạt động?')) return;
+                this.branding = { siteName: '', tagline: '', logoUrl: '', faviconUrl: '', ogImageUrl: '', metaTitle: '', metaDescription: '' };
+                await this.saveBranding();
+            },
+            async uploadBrandAsset(kind, field, event) {
+                const file = event.target.files?.[0]; event.target.value = '';
+                if (!file || this.brandingUploading) return;
+                const form = new FormData(); form.append('file', file);
+                this.brandingUploading = kind;
+                try {
+                    const asset = await DeLongApi.postForm(`/api/admin/site/global/assets/${kind}`, form);
+                    this.branding[field] = asset.url;
+                    this.notify('Đã tải ảnh. Bấm Lưu thương hiệu chung để áp dụng.');
+                } catch (err) { this.notify(err.message || 'Không thể tải ảnh.', 'error'); }
+                finally { this.brandingUploading = ''; }
+            },
             async uploadSectionImage(event) {
                 const file = event.target.files?.[0]; event.target.value = '';
                 if (!file || this.uploading) return;
