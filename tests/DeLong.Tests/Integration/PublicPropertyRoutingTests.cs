@@ -137,4 +137,42 @@ public sealed class PublicPropertyRoutingTests
         Assert.Equal("/h/nana-02/rooms/family-room", PublicUrlBuilder.Room("nana-02", "family-room"));
         Assert.Equal("/h/nana-02/booking?date=2026-08-15&room=NN-1", PublicUrlBuilder.Booking("nana-02", "2026-08-15", "NN-1"));
     }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Published_blog_and_rooms_are_the_only_content_candidates_for_public_sitemaps()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString).Options;
+        await using var db = new AppDbContext(options);
+        await db.Database.MigrateAsync();
+
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var property = new Property
+        {
+            Code = $"SEO-{suffix}".ToUpperInvariant(),
+            Name = $"SEO Property {suffix}",
+            SiteSlug = $"seo-{suffix}",
+            TimeZoneId = "Asia/Ho_Chi_Minh",
+            IsActive = true
+        };
+        db.Properties.Add(property);
+        db.Rooms.AddRange(
+            new Room { PropertyId = property.Id, Code = $"SEO-A-{suffix}", Name = "Published", Slug = $"published-{suffix}", Capacity = 2, IsActive = true, IsPublished = true },
+            new Room { PropertyId = property.Id, Code = $"SEO-B-{suffix}", Name = "Hidden", Slug = $"hidden-{suffix}", Capacity = 2, IsActive = true, IsPublished = false });
+        db.BlogPosts.AddRange(
+            new BlogPost { PropertyId = property.Id, Slug = $"published-story-{suffix}", Title = "Published story", Excerpt = "Published", BodyHtml = "<p>Published</p>", IsPublished = true, PublishedAtUtc = DateTime.UtcNow },
+            new BlogPost { PropertyId = property.Id, Slug = $"draft-story-{suffix}", Title = "Draft story", Excerpt = "Draft", BodyHtml = "<p>Draft</p>", IsPublished = false });
+        await db.SaveChangesAsync();
+
+        var publishedRooms = await db.Rooms.Where(x => x.PropertyId == property.Id && x.IsActive && x.IsPublished).Select(x => x.Slug).ToListAsync();
+        var publishedPosts = await db.BlogPosts.Where(x => x.PropertyId == property.Id && x.IsPublished).Select(x => x.Slug).ToListAsync();
+        Assert.Single(publishedRooms);
+        Assert.Contains($"published-{suffix}", publishedRooms);
+        Assert.Single(publishedPosts);
+        Assert.Contains($"published-story-{suffix}", publishedPosts);
+    }
+
 }

@@ -66,37 +66,73 @@
             ? $"{requestedTitle} - De Long Homestay"
             : (isPublicHome ? (string.IsNullOrWhiteSpace(requestedTitle) ? publicSiteName : requestedTitle) : $"{requestedTitle} - {publicSiteName}");
         var metaDescription = ViewData["MetaDescription"]?.ToString() ?? publicSettings?.MetaDescription;
-        var canonical = !isAdmin && !string.IsNullOrWhiteSpace(publicSettings?.CanonicalBaseUrl)
-            ? $"{publicSettings.CanonicalBaseUrl.TrimEnd('/')}{Context.Request.Path}"
+        var robots = isAdmin
+            ? "noindex,nofollow"
+            : (ViewData["Robots"]?.ToString() ?? (publicSettings?.RobotsIndex == false ? "noindex,nofollow" : "index,follow"));
+        var configuredBaseUrl = publicSettings?.CanonicalBaseUrl?.Trim().TrimEnd('/');
+        var canonicalBaseUrl = !isAdmin
+            ? (string.IsNullOrWhiteSpace(configuredBaseUrl) ? $"{Context.Request.Scheme}://{Context.Request.Host}" : configuredBaseUrl)
             : null;
+        var canonicalUrlOverride = ViewData["CanonicalUrl"]?.ToString();
+        var canonicalPath = ViewData["CanonicalPath"]?.ToString();
+        if (string.IsNullOrWhiteSpace(canonicalPath)) canonicalPath = Context.Request.Path.Value ?? "/";
+        if (!string.IsNullOrWhiteSpace(canonicalPath) && canonicalPath.Length > 1) canonicalPath = canonicalPath.TrimEnd('/');
+        var canonical = !isAdmin
+            ? (!string.IsNullOrWhiteSpace(canonicalUrlOverride)
+                ? canonicalUrlOverride
+                : $"{canonicalBaseUrl}{(canonicalPath!.StartsWith('/') ? canonicalPath : "/" + canonicalPath)}")
+            : null;
+        var ogTitle = ViewData["OgTitle"]?.ToString() ?? (string.IsNullOrWhiteSpace(publicSettings?.OgTitle) ? documentTitle : publicSettings.OgTitle);
+        var ogDescription = ViewData["OgDescription"]?.ToString() ?? publicSettings?.OgDescription ?? metaDescription;
+        var ogImage = ViewData["OgImage"]?.ToString() ?? publicSettings?.OgImageUrl;
+        var ogType = ViewData["OgType"]?.ToString() ?? "website";
+        var structuredDataJson = ViewData["StructuredData"]?.ToString();
+        if (!isAdmin && string.IsNullOrWhiteSpace(structuredDataJson))
+        {
+            var defaultStructuredData = isGlobalPublic
+                ? new Dictionary<string, object?>
+                {
+                    ["@context"] = "https://schema.org",
+                    ["@type"] = "WebSite",
+                    ["name"] = "De Long Homestay",
+                    ["url"] = canonicalBaseUrl,
+                    ["description"] = metaDescription
+                }
+                : new Dictionary<string, object?>
+                {
+                    ["@context"] = "https://schema.org",
+                    ["@type"] = "LodgingBusiness",
+                    ["name"] = publicSiteName,
+                    ["description"] = metaDescription,
+                    ["telephone"] = publicSettings?.Phone,
+                    ["email"] = publicSettings?.Email,
+                    ["address"] = publicSettings?.Address,
+                    ["url"] = canonical,
+                    ["logo"] = publicSettings?.LogoUrl,
+                    ["image"] = string.IsNullOrWhiteSpace(publicSettings?.OgImageUrl) ? publicSettings?.CoverImageUrl : publicSettings.OgImageUrl
+                };
+            structuredDataJson = System.Text.Json.JsonSerializer.Serialize(defaultStructuredData);
+        }
     }
     <title>@documentTitle</title>
+    <meta name="robots" content="@robots" />
     @if (!isAdmin)
     {
         @if (!string.IsNullOrWhiteSpace(metaDescription)) { <meta name="description" content="@metaDescription" /> }
-        <meta name="robots" content="@(publicSettings?.RobotsIndex == false ? "noindex,nofollow" : "index,follow")" />
         @if (!string.IsNullOrWhiteSpace(canonical)) { <link rel="canonical" href="@canonical" /> }
         @if (!string.IsNullOrWhiteSpace(publicSettings?.FaviconUrl)) { <link rel="icon" href="@publicSettings.FaviconUrl" type="image/png" /> }
         @if (!string.IsNullOrWhiteSpace(publicSettings?.GoogleSiteVerification)) { <meta name="google-site-verification" content="@publicSettings.GoogleSiteVerification" /> }
-        <meta property="og:title" content="@(string.IsNullOrWhiteSpace(publicSettings?.OgTitle) ? documentTitle : publicSettings.OgTitle)" />
-        @if (!string.IsNullOrWhiteSpace(publicSettings?.OgDescription ?? metaDescription)) { <meta property="og:description" content="@(publicSettings?.OgDescription ?? metaDescription)" /> }
-        @if (!string.IsNullOrWhiteSpace(publicSettings?.OgImageUrl)) { <meta property="og:image" content="@publicSettings.OgImageUrl" /> }
+        <meta property="og:title" content="@ogTitle" />
+        @if (!string.IsNullOrWhiteSpace(ogDescription)) { <meta property="og:description" content="@ogDescription" /> }
+        @if (!string.IsNullOrWhiteSpace(ogImage)) { <meta property="og:image" content="@ogImage" /><meta property="og:image:alt" content="@ogTitle" /> }
         @if (!string.IsNullOrWhiteSpace(canonical)) { <meta property="og:url" content="@canonical" /> }
-        <meta property="og:type" content="website" />
-        var structuredData = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object?>
-            {
-                ["@context"] = "https://schema.org",
-                ["@type"] = "LodgingBusiness",
-                ["name"] = publicSiteName,
-                ["description"] = metaDescription,
-                ["telephone"] = publicSettings?.Phone,
-                ["email"] = publicSettings?.Email,
-                ["address"] = publicSettings?.Address,
-                ["url"] = publicSettings?.CanonicalBaseUrl,
-                ["logo"] = publicSettings?.LogoUrl,
-                ["image"] = publicSettings?.OgImageUrl
-            });
-        <script type="application/ld+json">@Html.Raw(structuredData)</script>
+        <meta property="og:type" content="@ogType" />
+        <meta property="og:site_name" content="@publicSiteName" />
+        <meta name="twitter:card" content="@(string.IsNullOrWhiteSpace(ogImage) ? "summary" : "summary_large_image")" />
+        <meta name="twitter:title" content="@ogTitle" />
+        @if (!string.IsNullOrWhiteSpace(ogDescription)) { <meta name="twitter:description" content="@ogDescription" /> }
+        @if (!string.IsNullOrWhiteSpace(ogImage)) { <meta name="twitter:image" content="@ogImage" /> }
+        @if (!string.IsNullOrWhiteSpace(structuredDataJson)) { <script type="application/ld+json">@Html.Raw(structuredDataJson)</script> }
     }
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" />

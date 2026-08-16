@@ -4,6 +4,25 @@
 @model DeLong.Web.Pages.Rooms.DetailsModel
 @{
     ViewData["Title"] = Model.Room.Name;
+    ViewData["MetaDescription"] = string.IsNullOrWhiteSpace(Model.Room.ShortDescription)
+        ? $"{Model.Room.Name} tại {Model.PropertyName}, phù hợp tối đa {Model.Room.Capacity} người. Xem tiện nghi, giá và đặt phòng online."
+        : Model.Room.ShortDescription;
+    ViewData["CanonicalPath"] = PublicUrlBuilder.Room(Model.SiteSlug!, Model.Room.Slug);
+    ViewData["OgTitle"] = $"{Model.Room.Name} · {Model.PropertyName}";
+    ViewData["OgDescription"] = ViewData["MetaDescription"];
+    ViewData["OgImage"] = Model.Room.Images.FirstOrDefault(x => x.IsCover)?.LargeUrl ?? Model.Room.Images.FirstOrDefault()?.LargeUrl;
+    ViewData["OgType"] = "website";
+    var roomStructuredData = new Dictionary<string, object?>
+    {
+        ["@context"] = "https://schema.org",
+        ["@type"] = "HotelRoom",
+        ["name"] = Model.Room.Name,
+        ["description"] = ViewData["MetaDescription"],
+        ["occupancy"] = new Dictionary<string, object?> { ["@type"] = "QuantitativeValue", ["maxValue"] = Model.Room.Capacity },
+        ["image"] = Model.Room.Images.Select(x => x.LargeUrl).Take(8).ToArray(),
+        ["amenityFeature"] = Model.Room.Amenities.Select(x => new Dictionary<string, object?> { ["@type"] = "LocationFeatureSpecification", ["name"] = x, ["value"] = true }).ToArray()
+    };
+    ViewData["StructuredData"] = System.Text.Json.JsonSerializer.Serialize(roomStructuredData);
     var timeSlotRates = Model.Room.Rates.Where(rate => rate.Type == RoomRateType.TimeSlot).ToList();
     var overnightRate = Model.Room.Rates.FirstOrDefault(rate => rate.Type == RoomRateType.Overnight);
     var nightlyRate = Model.Room.Rates.FirstOrDefault(rate => rate.Type == RoomRateType.Nightly);

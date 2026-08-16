@@ -1,4 +1,3 @@
-
 using System.Security;
 using DeLong.Web.Data;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +6,8 @@ namespace DeLong.Web.Features.Site;
 
 public static class PublicSeoEndpoints
 {
+    private sealed record SitemapEntry(string Path, DateTime? LastModifiedUtc = null);
+
     public static IEndpointRouteBuilder MapPublicSeoEndpoints(this IEndpointRouteBuilder app)
     {
         MapRobots(app, "/robots.txt", scoped: false);
@@ -23,7 +24,7 @@ public static class PublicSeoEndpoints
             if (!scoped)
             {
                 var baseUrl = BaseUrl(http, null);
-                var body = $"User-agent: *\nAllow: /\nDisallow: /Admin\nDisallow: /Account\nSitemap: {baseUrl}/sitemap.xml\n";
+                var body = $"User-agent: *\nAllow: /\nDisallow: /Admin\nDisallow: /Account\nDisallow: /booking/lookup\nDisallow: /booking/success\nSitemap: {baseUrl}/sitemap.xml\n";
                 http.Response.Headers.CacheControl = "public,max-age=300";
                 return Results.Text(body, "text/plain; charset=utf-8");
             }
@@ -35,7 +36,7 @@ public static class PublicSeoEndpoints
             var scopedBaseUrl = BaseUrl(http, site.Settings.CanonicalBaseUrl);
             var scopedBody = site.Settings.RobotsIndex == false
                 ? "User-agent: *\nDisallow: /\n"
-                : $"User-agent: *\nAllow: {prefix}/\nDisallow: /Admin\nDisallow: /Account\nSitemap: {scopedBaseUrl}{prefix}/sitemap.xml\n";
+                : $"User-agent: *\nAllow: {prefix}/\nDisallow: {prefix}/booking/lookup\nDisallow: {prefix}/booking/success\nDisallow: /Admin\nDisallow: /Account\nSitemap: {scopedBaseUrl}{prefix}/sitemap.xml\n";
             http.Response.Headers.CacheControl = "public,max-age=300";
             return Results.Text(scopedBody, "text/plain; charset=utf-8");
         }).AllowAnonymous();
@@ -48,48 +49,83 @@ public static class PublicSeoEndpoints
             if (!scoped)
             {
                 var properties = await db.Properties.AsNoTracking().Where(x => x.IsActive)
-                    .OrderBy(x => x.Name).Select(x => new { x.Id, x.Code, x.SiteSlug }).ToListAsync(ct);
+                    .OrderBy(x => x.Name)
+                    .Select(x => new { x.Id, x.Code, x.SiteSlug, x.UpdatedAtUtc })
+                    .ToListAsync(ct);
                 var baseUrl = BaseUrl(http, null);
-                var urls = new List<string> { "/", "/rooms", "/booking" };
+                var urls = new List<SitemapEntry>
+                {
+                    new("/"),
+                    new("/rooms"),
+                    new("/blog")
+                };
+
                 foreach (var property in properties)
                 {
                     var siteSlug = PublicPropertyResolver.EffectiveSiteSlug(property.SiteSlug, property.Code);
-                    var prefix = PublicUrlBuilder.PropertyHome(siteSlug);
-                    urls.Add(prefix);
-                    urls.Add(PublicUrlBuilder.Rooms(siteSlug));
-                    urls.Add(PublicUrlBuilder.Booking(siteSlug));
-                    var roomSlugs = await db.Rooms.AsNoTracking()
+                    urls.Add(new(PublicUrlBuilder.PropertyHome(siteSlug), property.UpdatedAtUtc));
+                    urls.Add(new(PublicUrlBuilder.Rooms(siteSlug), property.UpdatedAtUtc));
+
+                    var propertyRooms = await db.Rooms.AsNoTracking()
                         .Where(x => x.PropertyId == property.Id && x.IsActive && x.IsPublished && x.Slug != null && x.Slug != "")
-                        .OrderBy(x => x.SortOrder).Select(x => x.Slug!).ToListAsync(ct);
-                    urls.AddRange(roomSlugs.Select(roomSlug => PublicUrlBuilder.Room(siteSlug, roomSlug)));
+                        .OrderBy(x => x.SortOrder)
+                        .Select(x => new { Slug = x.Slug!, x.UpdatedAtUtc })
+                        .ToListAsync(ct);
+                    urls.AddRange(propertyRooms.Select(x => new SitemapEntry(PublicUrlBuilder.Room(siteSlug, x.Slug), x.UpdatedAtUtc)));
+
+                    var propertyPosts = await db.BlogPosts.AsNoTracking()
+                        .Where(x => x.PropertyId == property.Id && x.IsPublished)
+                        .OrderByDescending(x => x.PublishedAtUtc)
+                        .Select(x => new { x.Slug, x.PublishedAtUtc, x.UpdatedAtUtc })
+                        .ToListAsync(ct);
+                    if (propertyPosts.Count > 0) urls.Add(new($"/h/{Uri.EscapeDataString(siteSlug)}/blog", propertyPosts.Max(x => x.UpdatedAtUtc)));
+                    urls.AddRange(propertyPosts.Select(x => new SitemapEntry($"/h/{Uri.EscapeDataString(siteSlug)}/blog/{Uri.EscapeDataString(x.Slug)}", x.UpdatedAtUtc)));
                 }
-                return Sitemap(http, baseUrl, urls.Distinct());
+
+                return Sitemap(http, baseUrl, urls);
             }
 
             var effectiveSlug = http.Request.RouteValues["siteSlug"]?.ToString();
             var propertyScope = await resolver.ResolveAsync(effectiveSlug, ct);
             var site = await service.GetPublicAsync(effectiveSlug, ct);
             if (propertyScope is null || site is null) return Results.NotFound();
+            if (site.Settings.RobotsIndex == false) return Sitemap(http, BaseUrl(http, site.Settings.CanonicalBaseUrl), []);
+
             var scopedBaseUrl = BaseUrl(http, site.Settings.CanonicalBaseUrl);
-            var slugs = await db.Rooms.AsNoTracking()
+            var rooms = await db.Rooms.AsNoTracking()
                 .Where(x => x.PropertyId == propertyScope.Id && x.Property.IsActive && x.IsActive && x.IsPublished && x.Slug != null && x.Slug != "")
-                .OrderBy(x => x.SortOrder).Select(x => x.Slug!).ToListAsync(ct);
-            var scopedUrls = new List<string>
+                .OrderBy(x => x.SortOrder)
+                .Select(x => new { Slug = x.Slug!, x.UpdatedAtUtc })
+                .ToListAsync(ct);
+            var posts = await db.BlogPosts.AsNoTracking()
+                .Where(x => x.PropertyId == propertyScope.Id && x.IsPublished)
+                .OrderByDescending(x => x.PublishedAtUtc)
+                .Select(x => new { x.Slug, x.UpdatedAtUtc })
+                .ToListAsync(ct);
+
+            var scopedUrls = new List<SitemapEntry>
             {
-                PublicUrlBuilder.PropertyHome(propertyScope.SiteSlug),
-                PublicUrlBuilder.Rooms(propertyScope.SiteSlug),
-                PublicUrlBuilder.Booking(propertyScope.SiteSlug)
+                new(PublicUrlBuilder.PropertyHome(propertyScope.SiteSlug)),
+                new(PublicUrlBuilder.Rooms(propertyScope.SiteSlug))
             };
-            scopedUrls.AddRange(slugs.Select(x => PublicUrlBuilder.Room(propertyScope.SiteSlug, x)));
+            scopedUrls.AddRange(rooms.Select(x => new SitemapEntry(PublicUrlBuilder.Room(propertyScope.SiteSlug, x.Slug), x.UpdatedAtUtc)));
+            if (posts.Count > 0) scopedUrls.Add(new($"/h/{Uri.EscapeDataString(propertyScope.SiteSlug)}/blog", posts.Max(x => x.UpdatedAtUtc)));
+            scopedUrls.AddRange(posts.Select(x => new SitemapEntry($"/h/{Uri.EscapeDataString(propertyScope.SiteSlug)}/blog/{Uri.EscapeDataString(x.Slug)}", x.UpdatedAtUtc)));
             return Sitemap(http, scopedBaseUrl, scopedUrls);
         }).AllowAnonymous();
     }
 
-    private static IResult Sitemap(HttpContext http, string baseUrl, IEnumerable<string> urls)
+    private static IResult Sitemap(HttpContext http, string baseUrl, IEnumerable<SitemapEntry> entries)
     {
+        var unique = entries.GroupBy(x => x.Path, StringComparer.OrdinalIgnoreCase).Select(x => x.First());
         var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
                   "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n" +
-                  string.Join("\n", urls.Select(x => $"  <url><loc>{SecurityElement.Escape(baseUrl + x)}</loc></url>")) +
+                  string.Join("\n", unique.Select(x =>
+                  {
+                      var loc = SecurityElement.Escape(baseUrl + x.Path);
+                      var lastmod = x.LastModifiedUtc.HasValue ? $"<lastmod>{x.LastModifiedUtc.Value.ToUniversalTime():yyyy-MM-dd}</lastmod>" : string.Empty;
+                      return $"  <url><loc>{loc}</loc>{lastmod}</url>";
+                  })) +
                   "\n</urlset>";
         http.Response.Headers.CacheControl = "public,max-age=300";
         return Results.Text(xml, "application/xml; charset=utf-8");
