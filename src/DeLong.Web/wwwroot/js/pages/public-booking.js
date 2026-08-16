@@ -39,6 +39,9 @@
                 rooms: initial.rooms || [],
                 stayRooms: [],
                 roomMedia: {},
+                roomPreviewCache: {},
+                roomPreview: { open: false, loading: false, error: '', data: null },
+                gallery: { open: false, loading: false, error: '', images: [], index: 0, roomName: '' },
                 selectedRoomId: initial.initialRoomId || null,
                 selectedRateId: initial.initialRateId || null,
                 loading: false,
@@ -98,9 +101,13 @@
             },
             dateText() {
                 return this.stayDateText(this.date);
+            },
+            galleryImage() {
+                return this.gallery.images[this.gallery.index] || null;
             }
         },
         async mounted() {
+            document.addEventListener('keydown', this.handleBookingModalKeydown);
             await Promise.all([this.loadRoomMedia(), this.loadAvailability()]);
             if (!this.selectedRoomId && this.rooms.length) {
                 const first = this.rooms.find(x => this.availableCount(x) > 0) || this.rooms[0];
@@ -113,6 +120,10 @@
                 const target = document.getElementById(this.deepLinkedRate && this.selectedRate ? 'booking-contact-step' : 'booking-rate-step');
                 target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
+        },
+        beforeUnmount() {
+            document.removeEventListener('keydown', this.handleBookingModalKeydown);
+            document.documentElement.classList.remove('booking-room-modal-open');
         },
         methods: {
             apiUrl(path, params = {}) {
@@ -132,6 +143,13 @@
             roomImage(room) {
                 return room?.id ? this.roomMedia[room.id] || null : null;
             },
+            roomImageCount(room) {
+                return Number(this.roomImage(room)?.imageCount || 0);
+            },
+            roomDetailUrl(roomOrDetail) {
+                const slug = roomOrDetail?.slug || this.roomImage(roomOrDetail)?.slug || roomOrDetail?.code || '';
+                return slug ? `${this.scopePrefix}/rooms/${encodeURIComponent(slug)}` : `${this.scopePrefix}/rooms`;
+            },
             async loadRoomMedia() {
                 try {
                     const items = await DeLongApi.get(this.apiUrl('/api/public/room-media'));
@@ -139,6 +157,81 @@
                 } catch {
                     this.roomMedia = {};
                 }
+            },
+            async fetchRoomPreview(room) {
+                if (!room?.id) throw new Error('Không tìm thấy phòng.');
+                if (this.roomPreviewCache[room.id]) return this.roomPreviewCache[room.id];
+                const media = this.roomImage(room);
+                const slug = media?.slug || room.code;
+                if (!slug) throw new Error('Phòng chưa có đường dẫn public.');
+                const detail = await DeLongApi.get(this.apiUrl(`/api/public/room-preview/${encodeURIComponent(slug)}`));
+                this.roomPreviewCache[room.id] = detail;
+                return detail;
+            },
+            syncBookingModalLock() {
+                document.documentElement.classList.toggle('booking-room-modal-open', this.roomPreview.open || this.gallery.open);
+            },
+            async openRoomPreview(room) {
+                if (!room) return;
+                this.roomPreview = { open: true, loading: true, error: '', data: null };
+                this.syncBookingModalLock();
+                try {
+                    this.roomPreview.data = await this.fetchRoomPreview(room);
+                } catch (error) {
+                    this.roomPreview.error = error.message || 'Không thể tải chi tiết phòng.';
+                } finally {
+                    this.roomPreview.loading = false;
+                }
+            },
+            closeRoomPreview() {
+                this.roomPreview.open = false;
+                this.syncBookingModalLock();
+            },
+            async openRoomGallery(room) {
+                if (!room) return;
+                this.gallery = { open: true, loading: true, error: '', images: [], index: 0, roomName: room.name || '' };
+                this.syncBookingModalLock();
+                try {
+                    const detail = await this.fetchRoomPreview(room);
+                    this.gallery.roomName = detail.name || room.name || '';
+                    this.gallery.images = Array.isArray(detail.images) ? detail.images : [];
+                    if (!this.gallery.images.length) this.gallery.error = 'Phòng này chưa có ảnh trong thư viện.';
+                } catch (error) {
+                    this.gallery.error = error.message || 'Không thể tải thư viện ảnh.';
+                } finally {
+                    this.gallery.loading = false;
+                }
+            },
+            closeGallery() {
+                this.gallery.open = false;
+                this.syncBookingModalLock();
+            },
+            setGalleryImage(index) {
+                if (!this.gallery.images.length) return;
+                this.gallery.index = Math.max(0, Math.min(index, this.gallery.images.length - 1));
+            },
+            previousGalleryImage() {
+                if (!this.gallery.images.length) return;
+                this.gallery.index = (this.gallery.index - 1 + this.gallery.images.length) % this.gallery.images.length;
+            },
+            nextGalleryImage() {
+                if (!this.gallery.images.length) return;
+                this.gallery.index = (this.gallery.index + 1) % this.gallery.images.length;
+            },
+            openGalleryFromPreview() {
+                const room = this.selectedRoom;
+                this.closeRoomPreview();
+                if (room) this.openRoomGallery(room);
+            },
+            handleBookingModalKeydown(event) {
+                if (event.key === 'Escape') {
+                    if (this.gallery.open) this.closeGallery();
+                    else if (this.roomPreview.open) this.closeRoomPreview();
+                    return;
+                }
+                if (!this.gallery.open) return;
+                if (event.key === 'ArrowLeft') this.previousGalleryImage();
+                if (event.key === 'ArrowRight') this.nextGalleryImage();
             },
             timeSlotRates(room) {
                 return (room?.rates || []).filter(x => Number(x.type) !== 2);
