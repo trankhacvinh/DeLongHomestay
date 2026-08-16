@@ -179,6 +179,16 @@ public static class SiteContentEndpoints
             return Results.NoContent();
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        app.MapGet("/api/public/global-branding", async (
+            AppDbContext db,
+            SiteContentService service,
+            PublicPropertyResolver resolver,
+            CancellationToken ct) =>
+        {
+            var properties = await resolver.GetActiveAsync(ct);
+            return Results.Ok(await GlobalSiteBrandingStore.ResolveAsync(db, service, properties, ct));
+        }).AllowAnonymous();
+
         MapCustomCss(app, "/site/custom.css", scoped: false);
         MapCustomCss(app, "/h/{siteSlug}/site/custom.css", scoped: true);
         MapCustomJs(app, "/site/custom.js", scoped: false);
