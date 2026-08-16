@@ -38,6 +38,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 var storagePaths = StoragePaths.Resolve(builder.Configuration, builder.Environment);
 storagePaths.EnsureDirectories();
+var productionWarnings = ProductionStartupGuard.Validate(builder.Configuration, builder.Environment, storagePaths);
 
 if (!builder.Environment.IsDevelopment())
 {
@@ -211,6 +212,7 @@ builder.Services.AddScoped<PublicRoomContentService>();
 builder.Services.AddScoped<PublicRequestInboxService>();
 
 var app = builder.Build();
+foreach (var warning in productionWarnings) app.Logger.LogWarning("Production startup warning: {Warning}", warning);
 
 app.UseForwardedHeaders();
 app.Use(async (context, next) =>

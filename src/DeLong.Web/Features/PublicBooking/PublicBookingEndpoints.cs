@@ -26,9 +26,10 @@ public static class PublicBookingEndpoints
             var (availability, error) = await service.GetStayAvailabilityAsync(siteSlug, arrival, departure, ct);
             return error is not null ? Results.ValidationProblem(new Dictionary<string, string[]> { ["dates"] = [error.Message] }) : availability is null ? Results.NotFound() : Results.Ok(availability);
         });
-        group.MapPost("/booking-requests", async ([FromQuery] string? siteSlug, PublicBookingRequest request, PublicBookingService service, CancellationToken ct) =>
+        group.MapPost("/booking-requests", async (HttpContext http, [FromQuery] string? siteSlug, PublicBookingRequest request, PublicBookingService service, CancellationToken ct) =>
         {
-            var (result, error) = await service.CreateRequestAsync(siteSlug, request, ct);
+            var idempotencyKey = http.Request.Headers["Idempotency-Key"].FirstOrDefault();
+            var (result, error) = await service.CreateRequestAsync(siteSlug, request, idempotencyKey, ct);
             if (result is not null)
             {
                 var prefix = PublicPropertyResolver.ScopePrefix(siteSlug);

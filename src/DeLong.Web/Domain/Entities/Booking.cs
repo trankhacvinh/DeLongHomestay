@@ -31,6 +31,7 @@ public sealed class Booking : EntityBase
     public decimal ExtraAmount { get; set; }
     public decimal DiscountAmount { get; set; }
     public string? Source { get; set; }
+    public string? PublicRequestKey { get; set; }
     public string? Note { get; set; }
 
     public ICollection<Payment> Payments { get; set; } = [];

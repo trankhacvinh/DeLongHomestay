@@ -139,3 +139,25 @@ Chỉ go-live khi đủ:
 - Public booking end-to-end PASS.
 - Nhân viên thực hiện được booking → giữ/xác nhận → thanh toán → nhận phòng → trả phòng → dọn phòng.
 - Có người chịu trách nhiệm kiểm tra log/health và phục hồi backup khi cần.
+
+## 10. Release stabilization guards
+
+Production startup từ chối chạy nếu `Database:AutoMigrate=true`, `Database:SeedOnStartup=true`, `Storage:RequirePersistent=false`, hoặc storage roots không được cấu hình rõ. `AllowedHosts=*` và thiếu `ReverseProxy:KnownProxies` được ghi warning để không làm hỏng local/staging nhưng phải xử lý trước go-live.
+
+`/health/ready` ngoài PostgreSQL + khả năng ghi storage còn kiểm tra **pending EF migrations** và dung lượng trống tối thiểu (`Storage:MinimumFreeSpaceMb`, production mặc định 256 MB). Health endpoint public mặc định không trả description chi tiết; chỉ bật `Operations:ExposeHealthDetails=true` khi thật sự cần chẩn đoán trong môi trường được bảo vệ.
+
+Mỗi response có `X-Request-ID`; nếu upstream gửi request id hợp lệ thì app giữ lại để correlation. Request chậm hơn `Operations:SlowRequestThresholdMs` (mặc định 1500 ms) được log ở mức Warning.
+
+Public booking gửi `Idempotency-Key` và lưu key theo từng cơ sở. Retry cùng key trả lại booking đã tạo thay vì tạo thêm một yêu cầu trùng; đây là lớp bảo vệ cho double-click/network retry, không thay thế rate limiting.
+
+Sau deploy chạy smoke test không ghi dữ liệu:
+
+```bash
+./scripts/smoke-production.sh https://your-domain.example de-long
+```
+
+PowerShell:
+
+```powershell
+./scripts/smoke-production.ps1 -BaseUrl https://your-domain.example -SiteSlug de-long
+```

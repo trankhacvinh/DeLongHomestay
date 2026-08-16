@@ -42,12 +42,12 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
             Type = request.Type, RoomRateId = request.RoomRateId, RateName = Clean(request.RateName), UnitPrice = request.UnitPrice, NightCount = request.NightCount,
             CheckInUtc = checkInUtc, CheckOutUtc = checkOutUtc, Status = request.Status,
             RoomAmount = request.RoomAmount, ExtraAmount = request.ExtraAmount, DiscountAmount = request.DiscountAmount,
-            Source = Clean(request.Source), Note = Clean(request.Note)
+            Source = Clean(request.Source), PublicRequestKey = Clean(request.PublicRequestKey), Note = Clean(request.Note)
         };
         booking.Code = CreateBookingCode(booking.CreatedAtUtc);
         db.Bookings.Add(booking);
         auditService.Add(propertyId, "Booking", booking.Id, "Created", actorUserId, after: Snapshot(booking));
-        var saveError = await SaveWithConflictGuardAsync(cancellationToken); if (saveError is not null) return (null, saveError);
+        var saveError = await SaveWithConflictGuardAsync(cancellationToken, !string.IsNullOrWhiteSpace(request.PublicRequestKey)); if (saveError is not null) return (null, saveError);
         return (await GetAsync(propertyId, booking.Id, cancellationToken), null);
     }
 
@@ -123,11 +123,12 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         return null;
     }
 
-    private async Task<BookingOperationError?> SaveWithConflictGuardAsync(CancellationToken cancellationToken)
+    private async Task<BookingOperationError?> SaveWithConflictGuardAsync(CancellationToken cancellationToken, bool publicRequest = false)
     {
         try { await db.SaveChangesAsync(cancellationToken); return null; }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == PostgresErrorCodes.ExclusionViolation) { return ConflictError(); }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == PostgresErrorCodes.UniqueViolation && string.Equals(pg.ConstraintName, BookingCodeUniqueConstraint, StringComparison.OrdinalIgnoreCase)) { return new("booking_code_conflict", "Không thể tạo mã booking duy nhất. Vui lòng thử gửi lại yêu cầu."); }
+        catch (DbUpdateException ex) when (publicRequest && ex.InnerException is PostgresException pg && pg.SqlState == PostgresErrorCodes.UniqueViolation) { return new("public_request_retry", "Yêu cầu đã được nhận hoặc đang được xử lý. Vui lòng thử lại."); }
     }
 
     private static IQueryable<BookingDto> Project(IQueryable<Booking> query) => query.Select(x => new BookingDto(
