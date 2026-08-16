@@ -161,3 +161,8 @@ PowerShell:
 ```powershell
 ./scripts/smoke-production.ps1 -BaseUrl https://your-domain.example -SiteSlug de-long
 ```
+
+### SMTP credential encryption
+
+SMTP password được lưu trong PostgreSQL dưới dạng ASP.NET Core Data Protection ciphertext. Khi backup/restore môi trường có cấu hình email, phải backup và restore **cả database lẫn Data Protection key ring**. Nếu chỉ restore database sang key ring khác, password SMTP cũ không thể giải mã; Admin phải nhập lại password trong Cấu hình → Thông báo.
+

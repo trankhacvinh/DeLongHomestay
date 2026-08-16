@@ -10,6 +10,26 @@
 .sidebar-nav::-webkit-scrollbar-thumb { background:rgba(214,228,225,.22); border-radius:999px; }
 .sidebar-nav:hover::-webkit-scrollbar-thumb { background:rgba(214,228,225,.38); }
 
+/* Give every Admin modal a compact, rounded scrollbar that matches the shell. */
+.admin-body .modal-card {
+    scrollbar-width:thin;
+    scrollbar-color:#a9bbb7 transparent;
+    scrollbar-gutter:stable;
+}
+.admin-body .modal-card::-webkit-scrollbar { width:10px; height:10px; }
+.admin-body .modal-card::-webkit-scrollbar-track {
+    background:transparent;
+    margin:12px 0;
+}
+.admin-body .modal-card::-webkit-scrollbar-thumb {
+    min-height:44px;
+    border:3px solid #fff;
+    border-radius:999px;
+    background:#a9bbb7;
+}
+.admin-body .modal-card::-webkit-scrollbar-thumb:hover { background:#7f9893; }
+.admin-body .modal-card::-webkit-scrollbar-corner { background:transparent; }
+
 /* Native choice controls must not inherit the full-width text-input rules from site.css. */
 .admin-body input[type=checkbox],
 .admin-body input[type=radio] {

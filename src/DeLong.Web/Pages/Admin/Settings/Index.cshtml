@@ -8,12 +8,44 @@
 
     <div class="page-title-row">
         <div>
-            <div class="page-eyebrow">Phòng & giá</div>
+            <div class="page-eyebrow">Hệ thống & giá</div>
             <h1>Cấu hình</h1>
-            <p>Quản lý giá theo khung giờ, qua đêm và lưu trú nhiều ngày. Mỗi phòng có thể có một giá theo đêm với giờ nhận/trả riêng.</p>
+            <p>Cấu hình thông báo đặt phòng, email SMTP và các mức giá của cơ sở.</p>
         </div>
         <button class="btn btn-primary" type="button" v-on:click="openCreate"><svg><use href="#i-plus" /></svg>Thêm mức giá</button>
     </div>
+
+    <section class="panel notification-settings-panel">
+        <div class="panel-head">
+            <div>
+                <h2>Thông báo đặt phòng</h2>
+                <p class="small muted">Thông báo realtime trong trang quản trị và gửi email khi khách gửi yêu cầu đặt phòng từ website.</p>
+            </div>
+            <span class="pill success" v-if="notification.inAppBookingEnabled">Realtime</span>
+        </div>
+        <div class="panel-body">
+            <div class="notification-settings-grid">
+                <label class="check-row full"><input type="checkbox" v-model="notification.inAppBookingEnabled" /> Hiện thông báo realtime trong trang quản trị</label>
+                <label class="check-row full"><input type="checkbox" v-model="notification.emailBookingEnabled" /> Gửi email khi có yêu cầu đặt phòng mới</label>
+                <div class="field full"><label for="notification-recipients">Email nhận thông báo</label><textarea id="notification-recipients" rows="2" v-model.trim="notification.emailRecipients" placeholder="owner@example.com; staff@example.com"></textarea></div>
+                <div class="field"><label for="smtp-host">SMTP host</label><input id="smtp-host" v-model.trim="notification.smtpHost" maxlength="300" autocomplete="off" placeholder="smtp.gmail.com" /></div>
+                <div class="field"><label for="smtp-port">Port</label><input id="smtp-port" type="number" min="1" max="65535" v-model.number="notification.smtpPort" /></div>
+                <label class="check-row full"><input type="checkbox" v-model="notification.smtpUseSsl" /> Bật SSL/TLS (STARTTLS với port 587)</label>
+                <div class="field"><label for="smtp-user">SMTP username</label><input id="smtp-user" v-model.trim="notification.smtpUsername" maxlength="300" autocomplete="username" /></div>
+                <div class="field"><label for="smtp-password">SMTP password</label><div class="notification-settings-secret"><input id="smtp-password" type="password" v-model="notification.smtpPassword" autocomplete="new-password" placeholder="Để trống để giữ password hiện tại" /><small>{{ notification.smtpPasswordConfigured ? 'Đã lưu mã hóa' : 'Chưa có' }}</small></div></div>
+                <label v-if="notification.smtpPasswordConfigured" class="check-row full"><input type="checkbox" v-model="notification.clearSmtpPassword" /> Xóa SMTP password đang lưu</label>
+                <div class="field"><label for="smtp-from-email">Email người gửi</label><input id="smtp-from-email" type="email" v-model.trim="notification.smtpFromEmail" maxlength="320" autocomplete="email" placeholder="booking@example.com" /></div>
+                <div class="field"><label for="smtp-from-name">Tên người gửi</label><input id="smtp-from-name" v-model.trim="notification.smtpFromName" maxlength="240" placeholder="De Long Homestay" /></div>
+            </div>
+            <div class="notification-settings-status error" v-if="notification.lastEmailError"><strong>Lỗi email gần nhất:</strong><span>{{ notification.lastEmailError }}</span></div>
+            <div class="notification-settings-status" v-else-if="notification.lastEmailSentAtUtc"><strong>Email hoạt động:</strong><span>Gửi thành công {{ notificationDate(notification.lastEmailSentAtUtc) }}</span></div>
+            <div class="notification-settings-status" v-else><strong>SMTP:</strong><span>{{ notification.smtpHost && notification.smtpFromEmail ? 'Đã nhập cấu hình. Hãy gửi email thử để xác nhận.' : 'Chưa cấu hình đầy đủ.' }}</span></div>
+            <div class="notification-settings-actions">
+                <button class="btn btn-light" type="button" v-bind:disabled="testingEmail || savingNotifications" v-on:click="sendTestEmail">{{ testingEmail ? 'Đang gửi...' : 'Gửi email thử' }}</button>
+                <button class="btn btn-primary" type="button" v-bind:disabled="savingNotifications || testingEmail" v-on:click="saveNotificationSettings">{{ savingNotifications ? 'Đang lưu...' : 'Lưu thông báo' }}</button>
+            </div>
+        </div>
+    </section>
 
     <div class="settings-room-grid">
         <section class="panel settings-room" v-for="room in activeRooms" v-bind:key="room.id">

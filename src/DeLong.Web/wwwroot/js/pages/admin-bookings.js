@@ -121,6 +121,12 @@
                     Number(this.selectedBooking.discountAmount || 0));
             }
         },
+        mounted() {
+            const bookingId = new URLSearchParams(window.location.search).get('bookingId');
+            if (!bookingId) return;
+            const booking = this.bookings.find(item => item.id === bookingId);
+            if (booking) void this.openBooking(booking);
+        },
         methods: {
             money(value) {
                 return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);

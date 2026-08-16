@@ -126,6 +126,14 @@
     white-space:nowrap;
 }
 
+.responsive-booking-table .entity-copy span {
+    color:var(--text-soft);
+    font-size:12px;
+    font-weight:720;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:.01em;
+}
+
 .booking-code {
     display:inline-block;
     color:var(--brand-700);
@@ -202,6 +210,16 @@
 .payment-summary-card strong {
     font-size:15px;
     white-space:nowrap;
+}
+
+.booking-detail-hero > div > span:last-child {
+    margin-top:4px;
+    color:var(--text-soft);
+    font-size:14px;
+    font-weight:720;
+    line-height:1.4;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:.005em;
 }
 
 .booking-detail-list > div {
@@ -344,6 +362,10 @@
     .responsive-booking-table .booking-balance,
     .responsive-booking-table .money-stack {
         white-space:normal;
+    }
+
+    .booking-detail-hero > div > span:last-child {
+        font-size:15px;
     }
 
     .booking-toast {
