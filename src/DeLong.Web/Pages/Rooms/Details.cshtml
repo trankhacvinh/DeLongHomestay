@@ -94,7 +94,9 @@
                                  width="@(isPrimary ? image.LargeWidth : 900)"
                                  height="@(isPrimary ? image.LargeHeight : 675)"
                                  style="object-position:@(image.FocalX * 100)% @(image.FocalY * 100)%"
-                                 loading="@(isPrimary ? "eager" : "lazy")" />
+                                 loading="@(isPrimary ? "eager" : "lazy")"
+                                 fetchpriority="@(isPrimary ? "high" : "low")"
+                                 decoding="async" />
                             @if (i == Math.Min(orderedImages.Count, 5) - 1 && orderedImages.Count > 1)
                             {
                                 <span class="public-gallery-count">Xem tất cả @orderedImages.Count ảnh</span>

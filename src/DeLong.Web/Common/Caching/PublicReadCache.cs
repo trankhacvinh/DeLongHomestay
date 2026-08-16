@@ -18,6 +18,7 @@ public static class PublicCacheKeys
     public static string Room(Guid propertyId, string slugOrCode) => $"public:room:{propertyId:N}:{slugOrCode.Trim().ToLowerInvariant()}";
     public static string Gallery(Guid propertyId) => $"public:editorial:gallery:{propertyId:N}";
     public static string Posts(Guid propertyId) => $"public:editorial:posts:{propertyId:N}";
+    public static string Post(Guid propertyId, string slug) => $"public:editorial:post:{propertyId:N}:{slug.Trim().ToLowerInvariant()}";
     public static string GalleryLayout(Guid propertyId) => $"public:editorial:gallery-layout:{propertyId:N}";
 }
 

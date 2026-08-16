@@ -10,7 +10,7 @@ public sealed class IndexModel(
 {
     public string? SiteSlug { get; private set; }
     public string Title { get; private set; } = "Blog De Long Homestay";
-    public IReadOnlyList<BlogPostDto> Posts { get; private set; } = [];
+    public IReadOnlyList<BlogPostSummaryDto> Posts { get; private set; } = [];
 
     public async Task<IActionResult> OnGetAsync(string? siteSlug, CancellationToken ct)
     {

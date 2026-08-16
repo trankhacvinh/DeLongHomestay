@@ -34,6 +34,18 @@ public sealed record BlogPostDto(
     bool IsPublished,
     DateTime? PublishedAtUtc);
 
+public sealed record BlogPostSummaryDto(
+    Guid Id,
+    Guid PropertyId,
+    string PropertyName,
+    string PropertySiteSlug,
+    string Slug,
+    string Title,
+    string Excerpt,
+    string CoverImageUrl,
+    bool IsPublished,
+    DateTime? PublishedAtUtc);
+
 public sealed record PropertyEditorialAdminDto(
     IReadOnlyList<GalleryItemDto> Gallery,
     IReadOnlyList<BlogPostDto> Posts,
@@ -78,17 +90,17 @@ public sealed class PropertyEditorialContentService(AppDbContext db, IFusionCach
         cache is null ? await GetGalleryQuery(propertyId, false).ToListAsync(ct) :
         await cache.GetOrSetAsync<List<GalleryItemDto>>(PublicCacheKeys.Gallery(propertyId), async (_, token) => await GetGalleryQuery(propertyId, false).ToListAsync(token), tags: [PublicCacheKeys.Tag], token: ct);
 
-    public async Task<List<BlogPostDto>> GetPublicPostsAsync(Guid propertyId, CancellationToken ct = default) =>
-        cache is null ? await GetBlogQuery(propertyId, false).ToListAsync(ct) :
-        await cache.GetOrSetAsync<List<BlogPostDto>>(PublicCacheKeys.Posts(propertyId), async (_, token) => await GetBlogQuery(propertyId, false).ToListAsync(token), tags: [PublicCacheKeys.Tag], token: ct);
+    public async Task<List<BlogPostSummaryDto>> GetPublicPostsAsync(Guid propertyId, CancellationToken ct = default) =>
+        cache is null ? await GetBlogSummaryQuery(propertyId, false).ToListAsync(ct) :
+        await cache.GetOrSetAsync<List<BlogPostSummaryDto>>(PublicCacheKeys.Posts(propertyId), async (_, token) => await GetBlogSummaryQuery(propertyId, false).ToListAsync(token), tags: [PublicCacheKeys.Tag], token: ct);
 
     public async Task<List<GalleryItemDto>> GetGlobalPublicGalleryAsync(CancellationToken ct = default) =>
         cache is null ? await GetGalleryQuery(null, false).ToListAsync(ct) :
         await cache.GetOrSetAsync<List<GalleryItemDto>>(PublicCacheKeys.GlobalGallery, async (_, token) => await GetGalleryQuery(null, false).ToListAsync(token), tags: [PublicCacheKeys.Tag], token: ct);
 
-    public async Task<List<BlogPostDto>> GetGlobalPublicPostsAsync(CancellationToken ct = default) =>
-        cache is null ? await GetBlogQuery(null, false).ToListAsync(ct) :
-        await cache.GetOrSetAsync<List<BlogPostDto>>(PublicCacheKeys.GlobalPosts, async (_, token) => await GetBlogQuery(null, false).ToListAsync(token), tags: [PublicCacheKeys.Tag], token: ct);
+    public async Task<List<BlogPostSummaryDto>> GetGlobalPublicPostsAsync(CancellationToken ct = default) =>
+        cache is null ? await GetBlogSummaryQuery(null, false).ToListAsync(ct) :
+        await cache.GetOrSetAsync<List<BlogPostSummaryDto>>(PublicCacheKeys.GlobalPosts, async (_, token) => await GetBlogSummaryQuery(null, false).ToListAsync(token), tags: [PublicCacheKeys.Tag], token: ct);
 
 
     public async Task<string> GetGalleryLayoutAsync(Guid propertyId, CancellationToken ct = default)
@@ -123,8 +135,14 @@ public sealed class PropertyEditorialContentService(AppDbContext db, IFusionCach
     public async Task<BlogPostDto?> GetPublicPostAsync(Guid propertyId, string slug, CancellationToken ct = default)
     {
         var normalized = NormalizeSlug(slug);
-        var posts = await GetPublicPostsAsync(propertyId, ct);
-        return posts.SingleOrDefault(x => x.Slug == normalized);
+        async Task<BlogPostDto?> LoadAsync(CancellationToken token) =>
+            await GetBlogQuery(propertyId, false, normalized).SingleOrDefaultAsync(token);
+        if (cache is null) return await LoadAsync(ct);
+        return await cache.GetOrSetAsync<BlogPostDto?>(
+            PublicCacheKeys.Post(propertyId, normalized),
+            async (_, token) => await LoadAsync(token),
+            tags: [PublicCacheKeys.Tag],
+            token: ct);
     }
 
     public async Task<(GalleryItemDto? Item, SiteContentError? Error)> CreateGalleryAsync(
@@ -272,11 +290,32 @@ public sealed class PropertyEditorialContentService(AppDbContext db, IFusionCach
                 x.IsPublished));
     }
 
-    private IQueryable<BlogPostDto> GetBlogQuery(Guid? propertyId, bool includeUnpublished)
+    private IQueryable<BlogPostSummaryDto> GetBlogSummaryQuery(Guid? propertyId, bool includeUnpublished)
     {
         var query = db.BlogPosts.AsNoTracking()
             .Where(x => x.Property.IsActive);
         if (propertyId.HasValue) query = query.Where(x => x.PropertyId == propertyId.Value);
+        if (!includeUnpublished) query = query.Where(x => x.IsPublished && x.PublishedAtUtc != null);
+        return query.OrderByDescending(x => x.PublishedAtUtc ?? x.CreatedAtUtc)
+            .Select(x => new BlogPostSummaryDto(
+                x.Id,
+                x.PropertyId,
+                x.Property.Name,
+                string.IsNullOrWhiteSpace(x.Property.SiteSlug) ? x.Property.Code.ToLower() : x.Property.SiteSlug!,
+                x.Slug,
+                x.Title,
+                x.Excerpt,
+                x.CoverImageUrl ?? string.Empty,
+                x.IsPublished,
+                x.PublishedAtUtc));
+    }
+
+    private IQueryable<BlogPostDto> GetBlogQuery(Guid? propertyId, bool includeUnpublished, string? slug = null)
+    {
+        var query = db.BlogPosts.AsNoTracking()
+            .Where(x => x.Property.IsActive);
+        if (propertyId.HasValue) query = query.Where(x => x.PropertyId == propertyId.Value);
+        if (!string.IsNullOrWhiteSpace(slug)) query = query.Where(x => x.Slug == slug);
         if (!includeUnpublished) query = query.Where(x => x.IsPublished && x.PublishedAtUtc != null);
         return query.OrderByDescending(x => x.PublishedAtUtc ?? x.CreatedAtUtc)
             .Select(x => new BlogPostDto(
