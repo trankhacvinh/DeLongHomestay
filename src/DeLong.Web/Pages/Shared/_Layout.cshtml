@@ -5,6 +5,10 @@
 @{
     var csrf = Antiforgery.GetAndStoreTokens(Context).RequestToken;
     var isAdmin = Context.Request.Path.StartsWithSegments("/Admin");
+    var routePage = Context.Request.RouteValues["page"]?.ToString();
+    var needsVue = isAdmin ||
+    string.Equals(routePage, "/Booking/Index", StringComparison.OrdinalIgnoreCase) ||
+    string.Equals(routePage, "/Booking/Lookup", StringComparison.OrdinalIgnoreCase);
     var publicSiteSlug = !isAdmin ? Context.Request.RouteValues["siteSlug"]?.ToString() : null;
     var isGlobalPublic = !isAdmin && string.IsNullOrWhiteSpace(publicSiteSlug);
     var publicScopePrefix = !isAdmin ? DeLong.Web.Features.Site.PublicPropertyResolver.ScopePrefix(publicSiteSlug) : string.Empty;
@@ -135,7 +139,7 @@
         @if (!string.IsNullOrWhiteSpace(structuredDataJson)) { <script type="application/ld+json">@Html.Raw(structuredDataJson)</script> }
     }
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" />
+    @if (isAdmin) { <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" /> }
     <link rel="stylesheet" href="~/css/operational-polish.css" asp-append-version="true" />
     @if (isAdmin) { <link rel="stylesheet" href="~/css/admin-shell-fixes.css" asp-append-version="true" /> }
     @await RenderSectionAsync("Head", required: false)
@@ -345,7 +349,7 @@ else
     </footer>
 }
 <div id="global-toast-root" class="toast-root" aria-live="polite"></div>
-<script src="https://cdn.jsdelivr.net/npm/vue@3.5.40/dist/vue.global.prod.js"></script>
+@if (needsVue) { <script src="https://cdn.jsdelivr.net/npm/vue@3.5.40/dist/vue.global.prod.js"></script> }
 <script src="~/js/core/api.js" asp-append-version="true"></script>
 <script src="~/js/core/shell.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)

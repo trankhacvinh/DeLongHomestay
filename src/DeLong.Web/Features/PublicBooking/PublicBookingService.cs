@@ -12,6 +12,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
 {
     private readonly PublicPropertyResolver publicPropertyResolver = resolver ?? new PublicPropertyResolver(db);
     private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
+    private sealed record BookingConflictWindow(Guid RoomId, DateTime CheckInUtc, DateTime CheckOutUtc);
 
     public Task<PublicCatalogDto?> GetCatalogAsync(DateOnly? availabilityDate = null, CancellationToken cancellationToken = default) =>
         GetCatalogAsync(null, availabilityDate, cancellationToken);
@@ -59,11 +60,31 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var rates = await db.RoomRates.AsNoTracking().Where(r => r.Room.PropertyId == property.Id && r.Room.IsActive && r.Room.IsPublished && r.IsActive && r.Type == RoomRateType.Nightly && r.Price > 0)
             .OrderBy(r => r.Room.SortOrder).ThenBy(r => r.SortOrder).Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Price, RoomId = r.Room.Id, RoomCode = r.Room.Code, RoomName = r.Room.Name, r.Room.Capacity }).ToListAsync(cancellationToken);
         var roomRates = rates.GroupBy(r => r.RoomId).Select(g => g.First()).ToList();
-        var results = new List<PublicStayRoomDto>();
-        foreach (var rate in roomRates)
+        var candidates = roomRates.Select(rate =>
         {
             var (checkInUtc, checkOutUtc) = ToUtcStayRange(checkInDate, checkOutDate, rate.StartTime, rate.EndTime, timeZone);
-            var conflict = await bookingService.HasConflictAsync(property.Id, rate.RoomId, checkInUtc, checkOutUtc, null, cancellationToken);
+            return new { Rate = rate, CheckInUtc = checkInUtc, CheckOutUtc = checkOutUtc };
+        }).ToList();
+
+        List<BookingConflictWindow> lockedBookings = [];
+        if (candidates.Count > 0)
+        {
+            var roomIds = candidates.Select(x => x.Rate.RoomId).Distinct().ToArray();
+            var windowStartUtc = candidates.Min(x => x.CheckInUtc);
+            var windowEndUtc = candidates.Max(x => x.CheckOutUtc);
+            lockedBookings = await db.Bookings.AsNoTracking()
+                .Where(x => x.PropertyId == property.Id && roomIds.Contains(x.RoomId) && LockingStatuses.Contains(x.Status) &&
+                            x.CheckInUtc < windowEndUtc && windowStartUtc < x.CheckOutUtc)
+                .Select(x => new BookingConflictWindow(x.RoomId, x.CheckInUtc, x.CheckOutUtc))
+                .ToListAsync(cancellationToken);
+        }
+
+        var results = new List<PublicStayRoomDto>();
+        foreach (var candidate in candidates)
+        {
+            var rate = candidate.Rate;
+            var conflict = lockedBookings.Any(x =>
+                x.RoomId == rate.RoomId && x.CheckInUtc < candidate.CheckOutUtc && candidate.CheckInUtc < x.CheckOutUtc);
             var dto = new PublicRateDto(rate.Id, rate.Name, rate.StartTime.ToString("HH:mm"), rate.EndTime.ToString("HH:mm"), RoomRateType.Nightly, false, rate.Price, !conflict);
             results.Add(new PublicStayRoomDto(rate.RoomId, rate.RoomCode, rate.RoomName, rate.Capacity, HasBathtub(rate.RoomCode), dto, nights, rate.Price * nights, !conflict));
         }

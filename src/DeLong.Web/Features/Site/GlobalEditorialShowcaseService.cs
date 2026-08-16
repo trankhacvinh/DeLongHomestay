@@ -43,7 +43,7 @@ public sealed class SaveGlobalEditorialShowcaseRequest
 public sealed record GlobalEditorialPublicDto(
     GlobalEditorialShowcaseDto Settings,
     IReadOnlyList<GalleryItemDto> Gallery,
-    IReadOnlyList<BlogPostDto> Posts);
+    IReadOnlyList<BlogPostSummaryDto> Posts);
 
 public sealed class GlobalEditorialShowcaseService(
     AppDbContext db,
@@ -118,9 +118,9 @@ public sealed class GlobalEditorialShowcaseService(
         return query.Take(settings.GalleryLimit).ToList();
     }
 
-    private static IReadOnlyList<BlogPostDto> SelectPosts(IReadOnlyList<BlogPostDto> all, GlobalEditorialShowcaseDto settings)
+    private static IReadOnlyList<BlogPostSummaryDto> SelectPosts(IReadOnlyList<BlogPostSummaryDto> all, GlobalEditorialShowcaseDto settings)
     {
-        IEnumerable<BlogPostDto> query = all;
+        IEnumerable<BlogPostSummaryDto> query = all;
         if (settings.BlogMode == "properties" && settings.BlogPropertyIds.Count > 0)
             query = query.Where(x => settings.BlogPropertyIds.Contains(x.PropertyId));
         else if (settings.BlogMode == "manual")

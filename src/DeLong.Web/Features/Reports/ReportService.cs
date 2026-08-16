@@ -57,15 +57,13 @@ public sealed class ReportService(AppDbContext db)
                         x.OccurredAtUtc >= fromUtc && x.OccurredAtUtc < toUtc)
             .SumAsync(x => x.Amount, cancellationToken);
 
-        var balances = await db.Bookings
+        var outstanding = await db.Bookings
             .AsNoTracking()
             .Where(x => x.PropertyId == propertyId && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
-            .Select(x => new
-            {
-                Total = x.RoomAmount + x.ExtraAmount - x.DiscountAmount,
-                Paid = x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount)
-            })
-            .ToListAsync(cancellationToken);
+            .Select(x => x.RoomAmount + x.ExtraAmount - x.DiscountAmount -
+                         x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount))
+            .Where(balance => balance > 0)
+            .SumAsync(cancellationToken);
 
         var byRoom = bookingRows
             .GroupBy(x => new { x.RoomId, x.RoomName })
@@ -129,7 +127,7 @@ public sealed class ReportService(AppDbContext db)
             netReceipts,
             expenseTotal,
             netReceipts - expenseTotal,
-            balances.Sum(x => Math.Max(0, x.Total - x.Paid)),
+            outstanding,
             byRoom,
             bySource,
             trend);

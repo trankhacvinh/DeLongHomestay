@@ -83,6 +83,10 @@ public sealed class PropertyEditorialContentTests
         Assert.DoesNotContain(publicA, x => x.Id == galleryB!.Id);
         Assert.Contains(postsA, x => x.Id == postA.Id);
         Assert.DoesNotContain(postsA, x => x.Id == postB!.Id);
+        var publicPostA = await service.GetPublicPostAsync(a.Id, postA.Slug);
+        Assert.NotNull(publicPostA);
+        Assert.Contains("<p>A</p>", publicPostA!.BodyHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("script", publicPostA.BodyHtml, StringComparison.OrdinalIgnoreCase);
 
         var showcase = new GlobalEditorialShowcaseService(db, service);
         var (settings, saveError) = await showcase.SaveAsync(new SaveGlobalEditorialShowcaseRequest

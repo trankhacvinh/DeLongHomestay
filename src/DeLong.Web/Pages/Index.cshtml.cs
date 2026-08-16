@@ -1,5 +1,4 @@
 using System.Text.Json.Nodes;
-using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Site;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +9,6 @@ namespace DeLong.Web.Pages;
 public sealed record PublicHomeSectionVm(Guid Id, string Type, string Name, string Variant, JsonObject Content);
 
 public sealed class IndexModel(
-    PublicBookingService publicBookingService,
     PublicRoomContentService publicRoomContentService,
     PublicPropertyResolver publicPropertyResolver,
     SiteContentService siteContentService,
@@ -28,7 +26,7 @@ public sealed class IndexModel(
     public GlobalEditorialPublicDto? GlobalEditorial { get; private set; }
     public IReadOnlyList<GalleryItemDto> PropertyGallery { get; private set; } = [];
     public string PropertyGalleryLayout { get; private set; } = "mosaic";
-    public IReadOnlyList<BlogPostDto> PropertyPosts { get; private set; } = [];
+    public IReadOnlyList<BlogPostSummaryDto> PropertyPosts { get; private set; } = [];
 
     public async Task<IActionResult> OnGetAsync(string? siteSlug, CancellationToken cancellationToken)
     {
@@ -50,13 +48,9 @@ public sealed class IndexModel(
         SiteSlug = property.SiteSlug;
 
         Catalog = await publicRoomContentService.GetCatalogAsync(property.Id, cancellationToken);
-        var bookingCatalog = await publicBookingService.GetCatalogAsync(SiteSlug, null, cancellationToken);
-        if (bookingCatalog is not null)
-        {
-            var timeZone = TimeZoneInfo.FindSystemTimeZoneById(bookingCatalog.TimeZoneId);
-            var localNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
-            DefaultDate = DateOnly.FromDateTime(localNow).ToString("yyyy-MM-dd");
-        }
+        var propertyTimeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
+        var propertyLocalNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, propertyTimeZone);
+        DefaultDate = DateOnly.FromDateTime(propertyLocalNow).ToString("yyyy-MM-dd");
 
         var site = await siteContentService.GetPublicAsync(SiteSlug, cancellationToken);
         SiteSettings = site?.Settings;
