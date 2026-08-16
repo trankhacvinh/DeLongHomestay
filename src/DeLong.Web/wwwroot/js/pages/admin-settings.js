@@ -10,6 +10,9 @@
             return {
                 propertyId: initial.propertyId,
                 rooms: initial.rooms || [],
+                notification: { ...(initial.notificationSettings || {}), smtpPassword: '', clearSmtpPassword: false },
+                savingNotifications: false,
+                testingEmail: false,
                 saving: false,
                 editor: { open: false, mode: 'create', rateId: null },
                 archiveEditor: { open: false, room: null, rate: null },
@@ -23,6 +26,55 @@
             }
         },
         methods: {
+            notificationDate(value) {
+                if (!value) return '';
+                return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+            },
+            async saveNotificationSettings() {
+                this.savingNotifications = true;
+                try {
+                    const payload = {
+                        inAppBookingEnabled: this.notification.inAppBookingEnabled === true,
+                        emailBookingEnabled: this.notification.emailBookingEnabled === true,
+                        emailRecipients: this.notification.emailRecipients || null,
+                        smtpHost: this.notification.smtpHost || null,
+                        smtpPort: Number(this.notification.smtpPort || 587),
+                        smtpUseSsl: this.notification.smtpUseSsl === true,
+                        smtpUsername: this.notification.smtpUsername || null,
+                        smtpPassword: this.notification.smtpPassword || null,
+                        clearSmtpPassword: this.notification.clearSmtpPassword === true,
+                        smtpFromEmail: this.notification.smtpFromEmail || null,
+                        smtpFromName: this.notification.smtpFromName || null
+                    };
+                    const saved = await DeLongApi.put(`/api/admin/properties/${this.propertyId}/notifications/settings`, payload);
+                    this.notification = { ...saved, smtpPassword: '', clearSmtpPassword: false };
+                    this.notify('Đã lưu cấu hình thông báo.', 'success');
+                } catch (error) {
+                    this.notify(error.message || 'Không thể lưu cấu hình thông báo.', 'error');
+                } finally {
+                    this.savingNotifications = false;
+                }
+            },
+            async sendTestEmail() {
+                if (this.notification.smtpPassword) {
+                    this.notify('Hãy lưu cấu hình trước khi gửi email thử.', 'error');
+                    return;
+                }
+                this.testingEmail = true;
+                try {
+                    await DeLongApi.post(`/api/admin/properties/${this.propertyId}/notifications/settings/test-email`, {});
+                    this.notification.lastEmailError = null;
+                    this.notification.lastEmailErrorAtUtc = null;
+                    this.notification.lastEmailSentAtUtc = new Date().toISOString();
+                    this.notify('Đã gửi email thử.', 'success');
+                } catch (error) {
+                    this.notification.lastEmailError = error.message || 'Không gửi được email thử.';
+                    this.notification.lastEmailErrorAtUtc = new Date().toISOString();
+                    this.notify(this.notification.lastEmailError, 'error');
+                } finally {
+                    this.testingEmail = false;
+                }
+            },
             money(value) {
                 return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
             },

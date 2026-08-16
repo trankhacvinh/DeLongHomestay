@@ -33,6 +33,10 @@ public sealed class AppDbContext
     public DbSet<PropertyGalleryItem> PropertyGalleryItems => Set<PropertyGalleryItem>();
     public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
     public DbSet<GlobalEditorialShowcase> GlobalEditorialShowcases => Set<GlobalEditorialShowcase>();
+    public DbSet<PropertyNotification> PropertyNotifications => Set<PropertyNotification>();
+    public DbSet<PropertyNotificationRead> PropertyNotificationReads => Set<PropertyNotificationRead>();
+    public DbSet<PropertyNotificationSettings> PropertyNotificationSettings => Set<PropertyNotificationSettings>();
+    public DbSet<NotificationEmailOutbox> NotificationEmailOutbox => Set<NotificationEmailOutbox>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -181,6 +185,50 @@ public sealed class AppDbContext
             entity.Property(x => x.BlogPropertyIdsJson).HasColumnType("jsonb").IsRequired();
             entity.Property(x => x.BlogPostIdsJson).HasColumnType("jsonb").IsRequired();
             entity.Property(x => x.BlogTitle).HasMaxLength(240).IsRequired();
+        });
+
+        modelBuilder.Entity<PropertyNotification>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.CreatedAtUtc });
+            entity.HasIndex(x => new { x.PropertyId, x.Type, x.BookingId }).IsUnique().HasFilter("\"booking_id\" IS NOT NULL");
+            entity.Property(x => x.Type).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Message).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.ActionUrl).HasMaxLength(1000);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Booking).WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PropertyNotificationRead>(entity =>
+        {
+            entity.HasKey(x => new { x.NotificationId, x.UserId });
+            entity.HasIndex(x => new { x.UserId, x.ReadAtUtc });
+            entity.HasOne(x => x.Notification).WithMany(x => x.Reads).HasForeignKey(x => x.NotificationId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PropertyNotificationSettings>(entity =>
+        {
+            entity.HasIndex(x => x.PropertyId).IsUnique();
+            entity.Property(x => x.EmailRecipients).HasMaxLength(2000);
+            entity.Property(x => x.SmtpHost).HasMaxLength(300);
+            entity.Property(x => x.SmtpUsername).HasMaxLength(300);
+            entity.Property(x => x.SmtpFromEmail).HasMaxLength(320);
+            entity.Property(x => x.SmtpFromName).HasMaxLength(240);
+            entity.Property(x => x.LastEmailError).HasMaxLength(2000);
+            entity.HasOne(x => x.Property).WithOne().HasForeignKey<PropertyNotificationSettings>(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotificationEmailOutbox>(entity =>
+        {
+            entity.HasIndex(x => x.NotificationId).IsUnique();
+            entity.HasIndex(x => new { x.SentAtUtc, x.NextAttemptAtUtc });
+            entity.Property(x => x.ToRecipients).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.Subject).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.BodyText).HasColumnType("text").IsRequired();
+            entity.Property(x => x.LastError).HasMaxLength(2000);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Notification).WithMany().HasForeignKey(x => x.NotificationId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ApplicationUser>(entity => entity.Property(x => x.DisplayName).HasMaxLength(200));

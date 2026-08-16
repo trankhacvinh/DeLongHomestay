@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DeLong.Web.Common.Security;
+using DeLong.Web.Features.Notifications;
 using DeLong.Web.Features.Rooms;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +11,7 @@ namespace DeLong.Web.Pages.Admin.Settings;
 [Authorize(Policy = "ManageRooms")]
 public sealed class IndexModel(
     RoomService roomService,
+    NotificationSettingsService notificationSettingsService,
     CurrentPropertyService currentPropertyService) : PageModel
 {
     public Guid PropertyId { get; private set; }
@@ -22,12 +24,14 @@ public sealed class IndexModel(
 
         PropertyId = property.Id;
         var rooms = await roomService.GetAllAsync(PropertyId, cancellationToken);
+        var notificationSettings = await notificationSettingsService.GetAsync(PropertyId, cancellationToken);
         PageDataJson = JsonSerializer.Serialize(
             new
             {
                 propertyId = PropertyId,
                 propertyName = property.Name,
-                rooms
+                rooms,
+                notificationSettings
             },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return Page();
