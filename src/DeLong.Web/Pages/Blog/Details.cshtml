@@ -3,6 +3,24 @@
 @{
     ViewData["Title"] = Model.Post.Title;
     ViewData["MetaDescription"] = Model.Post.Excerpt;
+    ViewData["CanonicalPath"] = $"/h/{Model.Post.PropertySiteSlug}/blog/{Model.Post.Slug}";
+    ViewData["OgTitle"] = Model.Post.Title;
+    ViewData["OgDescription"] = Model.Post.Excerpt;
+    ViewData["OgImage"] = Model.Post.CoverImageUrl;
+    ViewData["OgType"] = "article";
+    var articleStructuredData = new Dictionary<string, object?>
+    {
+        ["@context"] = "https://schema.org",
+        ["@type"] = "Article",
+        ["headline"] = Model.Post.Title,
+        ["description"] = Model.Post.Excerpt,
+        ["image"] = string.IsNullOrWhiteSpace(Model.Post.CoverImageUrl) ? null : Model.Post.CoverImageUrl,
+        ["datePublished"] = Model.Post.PublishedAtUtc?.ToUniversalTime().ToString("O"),
+        ["dateModified"] = Model.Post.PublishedAtUtc?.ToUniversalTime().ToString("O"),
+        ["author"] = new Dictionary<string, object?> { ["@type"] = "Organization", ["name"] = Model.Post.PropertyName },
+        ["publisher"] = new Dictionary<string, object?> { ["@type"] = "Organization", ["name"] = "De Long Homestay" }
+    };
+    ViewData["StructuredData"] = System.Text.Json.JsonSerializer.Serialize(articleStructuredData);
 }
 @section Head {
     <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />

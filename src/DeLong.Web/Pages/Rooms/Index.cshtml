@@ -6,6 +6,8 @@
     var hasMultipleProperties = Model.IsGlobal && activePropertyCount > 1;
     var singlePropertyName = Model.IsGlobal && activePropertyCount == 1 ? Model.GlobalCatalog.Properties[0].SiteName : null;
     ViewData["Title"] = Model.IsGlobal ? "Tất cả phòng" : $"Phòng · {Model.PropertyName}";
+    ViewData["MetaDescription"] = Model.IsGlobal ? "Khám phá các phòng đang mở tại De Long Homestay, so sánh không gian, tiện nghi và mức giá." : $"Khám phá các phòng đang mở tại {Model.PropertyName}, xem tiện nghi và chọn cách lưu trú phù hợp.";
+    ViewData["CanonicalPath"] = Model.IsGlobal ? "/rooms" : PublicUrlBuilder.Rooms(Model.SiteSlug);
 }
 
 @section Head {

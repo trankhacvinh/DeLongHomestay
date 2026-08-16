@@ -2,11 +2,13 @@
 @model DeLong.Web.Pages.Booking.IndexModel
 @{
     ViewData["Title"] = "Đặt phòng";
+    ViewData["Robots"] = "noindex,follow";
 }
 
 @section Head {
     <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/booking-v2.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/booking-conversion.css" asp-append-version="true" />
 }
 
 @if (Model.RequiresPropertySelection)
@@ -33,10 +35,10 @@ else
     <section class="public-booking-journey-wrap">
         <div class="public-container">
             <div class="public-booking-journey" aria-label="Quy trình đặt phòng">
-                <span class="active"><b>01</b>{{ bookingType === 0 ? 'Chọn ngày' : 'Ngày nhận / trả' }}</span>
-                <span><b>02</b>Chọn phòng</span>
-                <span><b>03</b>{{ bookingType === 0 ? 'Chọn giờ' : 'Xem giá lưu trú' }}</span>
-                <span><b>04</b>Gửi yêu cầu</span>
+                <span v-bind:class="{ active: bookingStep === 1, done: bookingStep > 1 }"><b>01</b>{{ bookingType === 0 ? 'Chọn ngày' : 'Ngày nhận / trả' }}</span>
+                <span v-bind:class="{ active: bookingStep === 2, done: bookingStep > 2 }"><b>02</b>Chọn phòng</span>
+                <span v-bind:class="{ active: bookingStep === 3, done: bookingStep > 3 }"><b>03</b>{{ bookingType === 0 ? 'Chọn giờ' : 'Xem giá lưu trú' }}</span>
+                <span v-bind:class="{ active: bookingStep === 4 }"><b>04</b>Gửi yêu cầu</span>
             </div>
         </div>
     </section>
@@ -79,7 +81,7 @@ else
                     </div>
                 </div>
 
-                <div class="public-step-card">
+                <div id="booking-room-step" class="public-step-card">
                     <div class="public-step-head">
                         <span>02</span>
                         <div>
@@ -87,7 +89,9 @@ else
                             <p>{{ bookingType === 0 ? 'Nhấn một phòng để xem các khung còn trống.' : 'Chỉ các phòng đã cấu hình giá theo đêm mới xuất hiện ở đây.' }}</p>
                         </div>
                     </div>
-                    <div class="public-booking-room-list" v-if="roomList.length">
+                    <div class="public-conversion-loading" v-if="loading" role="status" aria-live="polite"><span class="public-loading-dot"></span><span>Đang kiểm tra phòng trống…</span></div>
+                    <div class="public-inline-status error" v-else-if="availabilityError" role="alert"><div><strong>Chưa kiểm tra được phòng trống</strong><p>{{ availabilityError }}</p></div><button class="public-btn public-btn-ghost" type="button" v-on:click="reloadAvailability">Thử lại</button></div>
+                    <div class="public-booking-room-list" v-else-if="roomList.length">
                         <button v-for="room in roomList" v-bind:key="room.id" type="button" class="public-booking-room"
                                 v-bind:class="{ active: selectedRoomId === room.id, disabled: !roomSelectable(room) }"
                                 v-bind:disabled="!roomSelectable(room)" v-on:click="chooseRoom(room)">
@@ -110,13 +114,15 @@ else
                             </template>
                         </button>
                     </div>
-                    <div v-else-if="bookingType === 1 && !loading" class="public-stay-empty">
+                    <div v-if="!loading && !availabilityError && roomList.length && selectableRoomCount === 0" class="public-inline-status empty"><div><strong>{{ bookingType === 0 ? 'Ngày này đã hết khung phù hợp' : 'Khoảng ngày này chưa còn phòng' }}</strong><p>Đổi ngày để kiểm tra lại hoặc xem mô tả các phòng khác trước khi chọn.</p></div><button class="public-btn public-btn-ghost" type="button" v-on:click="focusDateInput">Đổi ngày</button></div>
+                    <div v-else-if="bookingType === 1 && !loading && !availabilityError && !roomList.length" class="public-stay-empty">
                         <strong>Chưa mở đặt nhiều ngày online</strong>
                         Hiện chưa có phòng nào được cấu hình giá lưu trú theo đêm. Bạn có thể chọn “Theo khung giờ” hoặc liên hệ {{ propertyName }} để được tư vấn.
                     </div>
+                    <div v-else-if="bookingType === 0 && !loading && !availabilityError && !roomList.length" class="public-inline-status empty"><div><strong>Chưa có phòng để đặt online</strong><p>Hãy thử tải lại hoặc xem danh sách phòng của {{ propertyName }}.</p></div><button class="public-btn public-btn-ghost" type="button" v-on:click="reloadAvailability">Tải lại</button></div>
                 </div>
 
-                <div class="public-step-card" v-if="selectedRoom">
+                <div id="booking-rate-step" class="public-step-card" v-if="selectedRoom">
                     <div class="public-step-head">
                         <span>03</span>
                         <div>
@@ -145,16 +151,16 @@ else
                     </div>
                 </div>
 
-                <div class="public-step-card public-contact-step" v-if="selectedRate">
+                <div id="booking-contact-step" class="public-step-card public-contact-step" v-if="selectedRate">
                     <div class="public-step-head"><span>04</span><div><h2>Thông tin liên hệ</h2><p>Nhân viên sẽ gọi lại để xác nhận phòng và tiền cọc.</p></div></div>
                     <div class="public-form-grid">
-                        <label><span>Tên khách *</span><input v-model.trim="form.customerName" maxlength="200" autocomplete="name" placeholder="Nguyễn Minh Anh" /></label>
-                        <label><span>Số điện thoại *</span><input v-model.trim="form.customerPhone" maxlength="30" inputmode="tel" autocomplete="tel" placeholder="09xx xxx xxx" /></label>
+                        <label v-bind:class="{ invalid: fieldErrors.customerName }"><span>Tên khách *</span><input ref="customerName" v-model.trim="form.customerName" v-on:input="clearFieldError('customerName')" v-bind:aria-invalid="!!fieldErrors.customerName" maxlength="200" autocomplete="name" placeholder="Nguyễn Minh Anh" /><small class="public-field-error" v-if="fieldErrors.customerName">{{ fieldErrors.customerName }}</small></label>
+                        <label v-bind:class="{ invalid: fieldErrors.customerPhone }"><span>Số điện thoại *</span><input ref="customerPhone" v-model.trim="form.customerPhone" v-on:input="clearFieldError('customerPhone')" v-bind:aria-invalid="!!fieldErrors.customerPhone" maxlength="30" inputmode="tel" autocomplete="tel" placeholder="09xx xxx xxx" /><small class="public-field-error" v-if="fieldErrors.customerPhone">{{ fieldErrors.customerPhone }}</small></label>
                         <label class="public-form-full"><span>Ghi chú</span><textarea v-model.trim="form.note" maxlength="1000" placeholder="Ví dụ: muốn nhận phòng trễ hơn 30 phút..."></textarea></label>
                         <label class="public-honeypot" aria-hidden="true"><span>Website</span><input v-model="form.website" tabindex="-1" autocomplete="off" /></label>
                     </div>
                     <div class="public-booking-notice">Yêu cầu này <strong>chưa tự động giữ phòng</strong>. {{ propertyName }} sẽ liên hệ xác nhận trước khi lượt đặt chuyển sang trạng thái giữ/xác nhận.</div>
-                    <button class="public-btn public-btn-primary public-submit-booking" type="button" v-bind:disabled="submitting || !canSubmit" v-on:click="submitRequest">{{ submitting ? 'Đang gửi...' : 'Gửi yêu cầu đặt phòng' }}</button>
+                    <button class="public-btn public-btn-primary public-submit-booking" type="button" v-bind:disabled="submitting" v-on:click="submitRequest">{{ submitting ? 'Đang gửi...' : 'Gửi yêu cầu đặt phòng' }}</button>
                     <p class="public-form-error" v-if="errorMessage">{{ errorMessage }}</p>
                 </div>
             </div>
@@ -188,6 +194,11 @@ else
             </aside>
         </div>
     </section>
+
+    <div class="public-booking-mobile-bar" v-if="selectedRoom && selectedRate" aria-live="polite">
+        <div><small>{{ selectedRoom.name }} · {{ bookingType === 0 ? dateText : stayNights + ' đêm' }}</small><strong>{{ bookingTotalText }}</strong></div>
+        <button class="public-btn public-btn-primary" type="button" v-bind:disabled="submitting" v-on:click="mobilePrimaryAction">{{ submitting ? 'Đang gửi…' : (canSubmit ? 'Gửi yêu cầu' : 'Nhập thông tin') }}</button>
+    </div>
 </div>
 }
 

@@ -10,7 +10,8 @@
     ViewData["Title"] = Model.IsGlobalHome
         ? "De Long Homestay"
         : (string.IsNullOrWhiteSpace(Model.SiteSettings?.MetaTitle) ? siteName : Model.SiteSettings.MetaTitle);
-    ViewData["MetaDescription"] = Model.SiteSettings?.MetaDescription;
+    ViewData["MetaDescription"] = Model.IsGlobalHome ? "Khám phá các cơ sở, phòng nghỉ và câu chuyện từ De Long Homestay." : Model.SiteSettings?.MetaDescription;
+    ViewData["CanonicalPath"] = Model.IsGlobalHome ? "/" : PublicUrlBuilder.PropertyHome(Model.SiteSlug!);
     var roomCount = Model.IsGlobalHome ? Model.GlobalCatalog.Rooms.Count : Model.Catalog.Rooms.Count;
     var fromPrice = (Model.IsGlobalHome ? Model.GlobalCatalog.Rooms.Select(x => x.Room) : Model.Catalog.Rooms)
         .Where(x => x.QuickFromPrice > 0).Select(x => x.QuickFromPrice).DefaultIfEmpty(0).Min();

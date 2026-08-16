@@ -213,6 +213,19 @@ builder.Services.AddScoped<PublicRequestInboxService>();
 var app = builder.Build();
 
 app.UseForwardedHeaders();
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        var headers = context.Response.Headers;
+        headers.TryAdd("X-Content-Type-Options", "nosniff");
+        headers.TryAdd("X-Frame-Options", "SAMEORIGIN");
+        headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
+        headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+        return Task.CompletedTask;
+    });
+    await next();
+});
 app.UseMiddleware<RequestLoggingMiddleware>();
 
 if (!app.Environment.IsDevelopment())
@@ -222,6 +235,10 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseWhen(
+    context => !context.Request.Path.StartsWithSegments("/api") &&
+               !context.Request.Path.StartsWithSegments("/health"),
+    branch => branch.UseStatusCodePagesWithReExecute("/not-found"));
 app.UseStaticFiles();
 
 var defaultMediaRoot = Path.GetFullPath(Path.Combine(

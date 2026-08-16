@@ -1,0 +1,21 @@
+@page "/not-found"
+@{
+    ViewData["Title"] = "Không tìm thấy trang";
+    ViewData["MetaDescription"] = "Trang bạn đang tìm không tồn tại hoặc đã được chuyển sang địa chỉ khác.";
+    ViewData["Robots"] = "noindex,follow";
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/not-found.css" asp-append-version="true" />
+}
+<main id="main-content" class="public-not-found">
+    <div class="public-container public-not-found-shell">
+        <span class="public-eyebrow">404 · DE LONG HOMESTAY</span>
+        <h1>Trang này không còn ở đây.</h1>
+        <p>Có thể đường dẫn đã thay đổi. Bạn có thể quay về trang chủ, xem danh sách phòng hoặc bắt đầu một lượt đặt phòng mới.</p>
+        <div class="public-not-found-actions">
+            <a class="public-btn public-btn-primary" href="/">Về trang chủ</a>
+            <a class="public-btn public-btn-ghost" href="/rooms">Xem phòng</a>
+        </div>
+    </div>
+</main>
