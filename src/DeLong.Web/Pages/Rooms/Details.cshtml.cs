@@ -17,6 +17,7 @@ public sealed class DetailsModel(
     public PublicRoomDetailDto Room { get; private set; } = null!;
     public string PropertyName { get; private set; } = string.Empty;
     public string? SiteSlug { get; private set; }
+    public string Today { get; private set; } = string.Empty;
     public IReadOnlyList<PublicRoomCardDto> SimilarRooms { get; private set; } = [];
 
     public async Task<IActionResult> OnGetAsync(string code, string? siteSlug, CancellationToken cancellationToken)
@@ -25,6 +26,8 @@ public sealed class DetailsModel(
         if (property is null) return NotFound();
         PropertyName = property.Name;
         SiteSlug = property.SiteSlug;
+        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
+        Today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone)).ToString("yyyy-MM-dd");
         var requested = code.Trim();
 
         // Root /rooms/{code} was the old DELONG-only route. Keep it as a canonical redirect,
