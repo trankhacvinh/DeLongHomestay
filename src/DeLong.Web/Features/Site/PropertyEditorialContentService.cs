@@ -1,10 +1,12 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using DeLong.Web.Common.Caching;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using Ganss.Xss;
 using Microsoft.EntityFrameworkCore;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace DeLong.Web.Features.Site;
 
@@ -58,8 +60,9 @@ public sealed class SaveBlogPostRequest
     public bool IsPublished { get; init; }
 }
 
-public sealed class PropertyEditorialContentService(AppDbContext db)
+public sealed class PropertyEditorialContentService(AppDbContext db, IFusionCache? fusionCache = null)
 {
+    private readonly IFusionCache? cache = fusionCache;
     private static readonly Regex InvalidSlugCharacters = new("[^a-z0-9]+", RegexOptions.Compiled);
 
     public async Task<PropertyEditorialAdminDto?> GetAdminAsync(Guid propertyId, CancellationToken ct = default)
@@ -71,26 +74,33 @@ public sealed class PropertyEditorialContentService(AppDbContext db)
             await GetGalleryLayoutAsync(propertyId, ct));
     }
 
-    public Task<List<GalleryItemDto>> GetPublicGalleryAsync(Guid propertyId, CancellationToken ct = default) =>
-        GetGalleryQuery(propertyId, includeUnpublished: false).ToListAsync(ct);
+    public async Task<List<GalleryItemDto>> GetPublicGalleryAsync(Guid propertyId, CancellationToken ct = default) =>
+        cache is null ? await GetGalleryQuery(propertyId, false).ToListAsync(ct) :
+        await cache.GetOrSetAsync<List<GalleryItemDto>>(PublicCacheKeys.Gallery(propertyId), async (_, token) => await GetGalleryQuery(propertyId, false).ToListAsync(token), tags: [PublicCacheKeys.Tag], token: ct);
 
-    public Task<List<BlogPostDto>> GetPublicPostsAsync(Guid propertyId, CancellationToken ct = default) =>
-        GetBlogQuery(propertyId, includeUnpublished: false).ToListAsync(ct);
+    public async Task<List<BlogPostDto>> GetPublicPostsAsync(Guid propertyId, CancellationToken ct = default) =>
+        cache is null ? await GetBlogQuery(propertyId, false).ToListAsync(ct) :
+        await cache.GetOrSetAsync<List<BlogPostDto>>(PublicCacheKeys.Posts(propertyId), async (_, token) => await GetBlogQuery(propertyId, false).ToListAsync(token), tags: [PublicCacheKeys.Tag], token: ct);
 
-    public Task<List<GalleryItemDto>> GetGlobalPublicGalleryAsync(CancellationToken ct = default) =>
-        GetGalleryQuery(null, includeUnpublished: false).ToListAsync(ct);
+    public async Task<List<GalleryItemDto>> GetGlobalPublicGalleryAsync(CancellationToken ct = default) =>
+        cache is null ? await GetGalleryQuery(null, false).ToListAsync(ct) :
+        await cache.GetOrSetAsync<List<GalleryItemDto>>(PublicCacheKeys.GlobalGallery, async (_, token) => await GetGalleryQuery(null, false).ToListAsync(token), tags: [PublicCacheKeys.Tag], token: ct);
 
-    public Task<List<BlogPostDto>> GetGlobalPublicPostsAsync(CancellationToken ct = default) =>
-        GetBlogQuery(null, includeUnpublished: false).ToListAsync(ct);
+    public async Task<List<BlogPostDto>> GetGlobalPublicPostsAsync(CancellationToken ct = default) =>
+        cache is null ? await GetBlogQuery(null, false).ToListAsync(ct) :
+        await cache.GetOrSetAsync<List<BlogPostDto>>(PublicCacheKeys.GlobalPosts, async (_, token) => await GetBlogQuery(null, false).ToListAsync(token), tags: [PublicCacheKeys.Tag], token: ct);
 
 
     public async Task<string> GetGalleryLayoutAsync(Guid propertyId, CancellationToken ct = default)
     {
-        var layout = await db.Set<PropertySiteSettings>().AsNoTracking()
-            .Where(x => x.PropertyId == propertyId)
-            .Select(x => x.GalleryLayout)
-            .SingleOrDefaultAsync(ct);
-        return NormalizeGalleryLayout(layout);
+        async Task<string> LoadAsync(CancellationToken token) => NormalizeGalleryLayout(await db.Set<PropertySiteSettings>().AsNoTracking()
+            .Where(x => x.PropertyId == propertyId).Select(x => x.GalleryLayout).SingleOrDefaultAsync(token));
+        if (cache is null) return await LoadAsync(ct);
+        return await cache.GetOrSetAsync<string>(
+            PublicCacheKeys.GalleryLayout(propertyId),
+            async (_, token) => await LoadAsync(token),
+            tags: [PublicCacheKeys.Tag],
+            token: ct);
     }
 
     public async Task<SiteContentError?> SaveGalleryLayoutAsync(Guid propertyId, string? layout, CancellationToken ct = default)
@@ -113,7 +123,7 @@ public sealed class PropertyEditorialContentService(AppDbContext db)
     public async Task<BlogPostDto?> GetPublicPostAsync(Guid propertyId, string slug, CancellationToken ct = default)
     {
         var normalized = NormalizeSlug(slug);
-        var posts = await GetBlogQuery(propertyId, includeUnpublished: false).ToListAsync(ct);
+        var posts = await GetPublicPostsAsync(propertyId, ct);
         return posts.SingleOrDefault(x => x.Slug == normalized);
     }
 

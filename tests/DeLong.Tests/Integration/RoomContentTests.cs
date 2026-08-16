@@ -1,3 +1,4 @@
+using DeLong.Web.Common.Caching;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Features.PublicRooms;
@@ -5,6 +6,7 @@ using DeLong.Web.Features.Rooms;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace DeLong.Tests.Integration;
 
@@ -121,6 +123,47 @@ public sealed class RoomContentTests
 
         var hiddenCatalog = await publicService.GetCatalogAsync();
         Assert.DoesNotContain(hiddenCatalog.Rooms, x => x.Id == room.Id);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Public_room_cache_is_invalidated_after_successful_content_write()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var cache = new FusionCache(new FusionCacheOptions());
+        var interceptor = new PublicCacheInvalidationInterceptor(cache);
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(connectionString)
+            .AddInterceptors(interceptor)
+            .Options;
+
+        await using var db = new AppDbContext(options);
+        await db.Database.MigrateAsync();
+        var property = await db.Properties.SingleAsync(x => x.Code == "DELONG");
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var room = new Room
+        {
+            PropertyId = property.Id,
+            Code = $"CACHE-{suffix}",
+            Name = $"Cache Test {suffix}",
+            Capacity = 2,
+            IsActive = true,
+            IsPublished = true
+        };
+        db.Rooms.Add(room);
+        await db.SaveChangesAsync();
+
+        var publicService = new PublicRoomContentService(db, cache);
+        var warmCatalog = await publicService.GetCatalogAsync(property.Id);
+        Assert.Contains(warmCatalog.Rooms, x => x.Id == room.Id);
+
+        room.IsPublished = false;
+        await db.SaveChangesAsync();
+
+        var refreshedCatalog = await publicService.GetCatalogAsync(property.Id);
+        Assert.DoesNotContain(refreshedCatalog.Rooms, x => x.Id == room.Id);
     }
 
     private sealed class NoopRoomImageStorage : IRoomImageStorage
