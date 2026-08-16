@@ -60,15 +60,24 @@ builder.Services
     .SetApplicationName("DeLongHomestay")
     .PersistKeysToFileSystem(new DirectoryInfo(storagePaths.DataProtectionRoot));
 
+var publicCacheEnabled = builder.Configuration.GetValue<bool?>("Performance:PublicCacheEnabled") ?? true;
 var publicCacheSeconds = Math.Clamp(builder.Configuration.GetValue<int?>("Performance:PublicCacheSeconds") ?? 30, 1, 3600);
-builder.Services.AddScoped<PublicCacheInvalidationInterceptor>();
-builder.Services.AddFusionCache()
-    .WithDefaultEntryOptions(new FusionCacheEntryOptions()
-        .SetDuration(TimeSpan.FromSeconds(publicCacheSeconds))
-        .SetFailSafe(true, TimeSpan.FromMinutes(2)));
-builder.Services.AddDbContext<AppDbContext>((services, options) =>
-    options.UseNpgsql(connectionString)
-        .AddInterceptors(services.GetRequiredService<PublicCacheInvalidationInterceptor>()));
+if (publicCacheEnabled)
+{
+    builder.Services.AddScoped<PublicCacheInvalidationInterceptor>();
+    builder.Services.AddFusionCache()
+        .WithDefaultEntryOptions(new FusionCacheEntryOptions()
+            .SetDuration(TimeSpan.FromSeconds(publicCacheSeconds))
+            .SetFailSafe(true, TimeSpan.FromMinutes(2)));
+    builder.Services.AddDbContext<AppDbContext>((services, options) =>
+        options.UseNpgsql(connectionString)
+            .AddInterceptors(services.GetRequiredService<PublicCacheInvalidationInterceptor>()));
+}
+else
+{
+    builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+}
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
@@ -233,6 +242,10 @@ builder.Services.AddScoped<PublicRequestInboxService>();
 
 var app = builder.Build();
 foreach (var warning in productionWarnings) app.Logger.LogWarning("Production startup warning: {Warning}", warning);
+if (publicCacheEnabled)
+    app.Logger.LogInformation("FusionCache public read cache enabled with {PublicCacheSeconds}s TTL.", publicCacheSeconds);
+else
+    app.Logger.LogWarning("FusionCache public read cache is disabled; public reads will query the database directly.");
 
 app.UseForwardedHeaders();
 app.Use(async (context, next) =>
