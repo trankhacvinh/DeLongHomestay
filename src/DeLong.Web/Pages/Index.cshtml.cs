@@ -122,7 +122,7 @@ public sealed class IndexModel(
     }
 
     private static IReadOnlyList<PublicHomeSectionVm> ToViewModels(IEnumerable<HomeSectionDto> sections) =>
-        sections.Where(x => x.IsVisible)
+        sections.Where(x => x.IsVisible && x.Type != GlobalSiteBrandingStore.MetadataSectionType)
             .OrderBy(x => x.SortOrder)
             .Select(x => new PublicHomeSectionVm(
                 x.Id,
