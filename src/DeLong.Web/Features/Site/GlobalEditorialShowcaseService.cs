@@ -1,7 +1,9 @@
 using System.Text.Json;
+using DeLong.Web.Common.Caching;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace DeLong.Web.Features.Site;
 
@@ -45,8 +47,10 @@ public sealed record GlobalEditorialPublicDto(
 
 public sealed class GlobalEditorialShowcaseService(
     AppDbContext db,
-    PropertyEditorialContentService editorialContent)
+    PropertyEditorialContentService editorialContent,
+    IFusionCache? fusionCache = null)
 {
+    private readonly IFusionCache? cache = fusionCache;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<GlobalEditorialShowcaseDto> GetAsync(CancellationToken ct = default)
@@ -86,14 +90,19 @@ public sealed class GlobalEditorialShowcaseService(
 
     public async Task<GlobalEditorialPublicDto> GetPublicAsync(CancellationToken ct = default)
     {
-        var settings = await GetAsync(ct);
-        var gallery = settings.GalleryEnabled
-            ? SelectGallery(await editorialContent.GetGlobalPublicGalleryAsync(ct), settings)
-            : [];
-        var posts = settings.BlogEnabled
-            ? SelectPosts(await editorialContent.GetGlobalPublicPostsAsync(ct), settings)
-            : [];
-        return new(settings, gallery, posts);
+        async Task<GlobalEditorialPublicDto> LoadAsync(CancellationToken token)
+        {
+            var settings = await GetAsync(token);
+            var gallery = settings.GalleryEnabled ? SelectGallery(await editorialContent.GetGlobalPublicGalleryAsync(token), settings) : [];
+            var posts = settings.BlogEnabled ? SelectPosts(await editorialContent.GetGlobalPublicPostsAsync(token), settings) : [];
+            return new GlobalEditorialPublicDto(settings, gallery, posts);
+        }
+        if (cache is null) return await LoadAsync(ct);
+        return await cache.GetOrSetAsync<GlobalEditorialPublicDto>(
+            PublicCacheKeys.GlobalShowcase,
+            async (_, token) => await LoadAsync(token),
+            tags: [PublicCacheKeys.Tag],
+            token: ct);
     }
 
     private static IReadOnlyList<GalleryItemDto> SelectGallery(IReadOnlyList<GalleryItemDto> all, GlobalEditorialShowcaseDto settings)
