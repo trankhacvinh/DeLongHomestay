@@ -2,6 +2,8 @@
 @model DeLong.Web.Pages.Blog.IndexModel
 @{
     ViewData["Title"] = Model.Title;
+    ViewData["MetaDescription"] = Model.SiteSlug is null ? "Câu chuyện, gợi ý lưu trú và thông tin hữu ích từ các cơ sở De Long Homestay." : $"Câu chuyện, gợi ý lưu trú và thông tin hữu ích từ {Model.Title.Replace("Blog ", string.Empty)}.";
+    ViewData["CanonicalPath"] = Model.SiteSlug is null ? "/blog" : $"/h/{Model.SiteSlug}/blog";
 }
 @section Head {
     <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
