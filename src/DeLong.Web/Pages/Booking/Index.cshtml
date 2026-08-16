@@ -114,6 +114,10 @@ else
                             </template>
                         </button>
                     </div>
+                    <div class="public-booking-room-mobile-actions" v-if="selectedRoom && !loading">
+                        <button type="button" v-on:click="openRoomPreview(selectedRoom)">Chi tiết phòng</button>
+                        <button type="button" v-if="roomImageCount(selectedRoom) > 0" v-on:click="openRoomGallery(selectedRoom)">Xem ảnh ({{ roomImageCount(selectedRoom) }})</button>
+                    </div>
                     <div v-if="!loading && !availabilityError && roomList.length && selectableRoomCount === 0" class="public-inline-status empty"><div><strong>{{ bookingType === 0 ? 'Ngày này đã hết khung phù hợp' : 'Khoảng ngày này chưa còn phòng' }}</strong><p>Đổi ngày để kiểm tra lại hoặc xem mô tả các phòng khác trước khi chọn.</p></div><button class="public-btn public-btn-ghost" type="button" v-on:click="focusDateInput">Đổi ngày</button></div>
                     <div v-else-if="bookingType === 1 && !loading && !availabilityError && !roomList.length" class="public-stay-empty">
                         <strong>Chưa mở đặt nhiều ngày online</strong>
@@ -176,6 +180,10 @@ else
                 <div class="public-summary-content">
                     <span class="public-eyebrow">Yêu cầu của bạn</span>
                     <h3>{{ selectedRoom.name }}</h3>
+                    <div class="public-summary-room-actions">
+                        <button type="button" v-on:click="openRoomPreview(selectedRoom)">Chi tiết phòng</button>
+                        <button type="button" v-if="roomImageCount(selectedRoom) > 0" v-on:click="openRoomGallery(selectedRoom)">Xem ảnh ({{ roomImageCount(selectedRoom) }})</button>
+                    </div>
                     <dl v-if="bookingType === 0">
                         <div><dt>Ngày</dt><dd>{{ dateText }}</dd></div>
                         <div><dt>Khung giờ</dt><dd>{{ selectedRate.startTime }} → {{ selectedRate.endTime }}</dd></div>
@@ -194,6 +202,38 @@ else
             </aside>
         </div>
     </section>
+
+    <div class="public-booking-room-modal-backdrop" v-if="roomPreview.open" v-on:click.self="closeRoomPreview">
+        <section class="public-booking-room-modal" role="dialog" aria-modal="true" aria-label="Chi tiết phòng">
+            <div class="public-booking-room-modal-head"><div><span class="public-eyebrow">Xem nhanh phòng</span><h2>{{ roomPreview.data?.name || selectedRoom?.name || 'Chi tiết phòng' }}</h2></div><button type="button" aria-label="Đóng" v-on:click="closeRoomPreview">×</button></div>
+            <div class="public-conversion-loading" v-if="roomPreview.loading"><span class="public-loading-dot"></span><span>Đang tải chi tiết phòng…</span></div>
+            <div class="public-inline-status error" v-else-if="roomPreview.error"><div><strong>Chưa xem được phòng</strong><p>{{ roomPreview.error }}</p></div></div>
+            <div class="public-booking-room-preview" v-else-if="roomPreview.data">
+                <img class="public-booking-room-preview-cover" v-if="roomPreview.data.images && roomPreview.data.images.length" v-bind:src="roomPreview.data.images[0].cardUrl || roomPreview.data.images[0].largeUrl" v-bind:alt="roomPreview.data.images[0].altText || roomPreview.data.name" />
+                <div class="public-booking-room-preview-copy">
+                    <p>{{ roomPreview.data.shortDescription || ('Không gian riêng tư dành cho tối đa ' + roomPreview.data.capacity + ' người.') }}</p>
+                    <div class="public-booking-room-preview-facts"><span><strong>{{ roomPreview.data.capacity }}</strong><small>người tối đa</small></span><span><strong>{{ money(roomPreview.data.quickFromPrice) }}</strong><small>giá từ</small></span><span v-if="roomPreview.data.images"><strong>{{ roomPreview.data.images.length }}</strong><small>ảnh</small></span></div>
+                    <div v-if="roomPreview.data.highlights && roomPreview.data.highlights.length"><h3>Điểm nổi bật</h3><div class="public-booking-room-preview-chips"><span v-for="item in roomPreview.data.highlights.slice(0, 5)" v-bind:key="item">✓ {{ item }}</span></div></div>
+                    <div v-if="roomPreview.data.amenities && roomPreview.data.amenities.length"><h3>Tiện nghi</h3><div class="public-booking-room-preview-chips"><span v-for="item in roomPreview.data.amenities.slice(0, 8)" v-bind:key="item">{{ item }}</span></div></div>
+                </div>
+            </div>
+            <div class="public-booking-room-modal-actions" v-if="roomPreview.data"><button class="public-btn public-btn-ghost" type="button" v-if="roomPreview.data.images && roomPreview.data.images.length" v-on:click="openGalleryFromPreview">Xem ảnh ({{ roomPreview.data.images.length }})</button><a class="public-btn public-btn-primary" v-bind:href="roomDetailUrl(roomPreview.data)" target="_blank" rel="noopener">Vào trang chi tiết ↗</a></div>
+        </section>
+    </div>
+
+    <div class="public-booking-gallery-backdrop" v-if="gallery.open" v-on:click.self="closeGallery">
+        <section class="public-booking-gallery" role="dialog" aria-modal="true" v-bind:aria-label="'Thư viện ảnh ' + gallery.roomName">
+            <div class="public-booking-gallery-head"><div><span class="public-eyebrow">Thư viện phòng</span><h2>{{ gallery.roomName }}</h2></div><div><span v-if="gallery.images.length">{{ gallery.index + 1 }} / {{ gallery.images.length }}</span><button type="button" aria-label="Đóng" v-on:click="closeGallery">×</button></div></div>
+            <div class="public-conversion-loading" v-if="gallery.loading"><span class="public-loading-dot"></span><span>Đang tải thư viện ảnh…</span></div>
+            <div class="public-inline-status error" v-else-if="gallery.error"><div><strong>Chưa xem được ảnh</strong><p>{{ gallery.error }}</p></div></div>
+            <div class="public-booking-gallery-stage" v-else-if="galleryImage">
+                <button class="public-booking-gallery-nav previous" type="button" aria-label="Ảnh trước" v-if="gallery.images.length > 1" v-on:click="previousGalleryImage">‹</button>
+                <img v-bind:src="galleryImage.largeUrl" v-bind:alt="galleryImage.altText || gallery.roomName" />
+                <button class="public-booking-gallery-nav next" type="button" aria-label="Ảnh tiếp theo" v-if="gallery.images.length > 1" v-on:click="nextGalleryImage">›</button>
+            </div>
+            <div class="public-booking-gallery-thumbs" v-if="gallery.images.length > 1"><button type="button" v-for="(image, index) in gallery.images" v-bind:key="image.id" v-bind:class="{ active: index === gallery.index }" v-on:click="setGalleryImage(index)"><img v-bind:src="image.thumbnailUrl || image.cardUrl" v-bind:alt="image.altText || gallery.roomName" /></button></div>
+        </section>
+    </div>
 
     <div class="public-booking-mobile-bar" v-if="selectedRoom && selectedRate" aria-live="polite">
         <div><small>{{ selectedRoom.name }} · {{ bookingType === 0 ? dateText : stayNights + ' đêm' }}</small><strong>{{ bookingTotalText }}</strong></div>
