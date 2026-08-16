@@ -21,14 +21,15 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - run: dotnet restore DeLongHomestay.sln
+      - run: dotnet build src/DeLong.Web/DeLong.Web.csproj --configuration Release --no-restore
       - name: Start app with FusionCache disabled
         shell: bash
         run: |
           set -euo pipefail
-          dotnet run --project src/DeLong.Web --no-restore > /tmp/delong-cache-disabled.log 2>&1 &
+          dotnet run --project src/DeLong.Web --configuration Release --no-build --no-launch-profile > /tmp/delong-cache-disabled.log 2>&1 &
           APP_PID=$!
           trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
-          for i in {1..45}; do
+          for i in {1..30}; do
             if curl --fail --silent http://127.0.0.1:5099/health/live >/tmp/health.txt; then
               cat /tmp/health.txt
               exit 0
