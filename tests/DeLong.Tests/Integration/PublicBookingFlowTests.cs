@@ -91,7 +91,7 @@ public sealed class PublicBookingFlowTests
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
         var stayDate = today.AddDays(5);
 
-        var (result, error) = await publicService.CreateRequestAsync(new PublicBookingRequest
+        var firstRequest = new PublicBookingRequest
         {
             Type = BookingType.TimeSlot,
             RoomId = room.Id,
@@ -100,7 +100,9 @@ public sealed class PublicBookingFlowTests
             CustomerName = "Public Guest",
             CustomerPhone = "0901234567",
             Note = "Integration test"
-        });
+        };
+        var idempotencyKey = $"integration-{Guid.NewGuid():N}";
+        var (result, error) = await publicService.CreateRequestAsync(firstRequest, idempotencyKey);
 
         Assert.Null(error);
         Assert.NotNull(result);
@@ -114,6 +116,13 @@ public sealed class PublicBookingFlowTests
         Assert.Equal(123_000m, booking.UnitPrice);
         Assert.Equal(123_000m, booking.RoomAmount);
         Assert.Equal("Website", booking.Source);
+        Assert.Equal(idempotencyKey, booking.PublicRequestKey);
+
+        var (replayedResult, replayedError) = await publicService.CreateRequestAsync(firstRequest, idempotencyKey);
+        Assert.Null(replayedError);
+        Assert.NotNull(replayedResult);
+        Assert.Equal(result.BookingId, replayedResult!.BookingId);
+        Assert.Equal(1, await db.Bookings.CountAsync(x => x.PropertyId == property.Id && x.PublicRequestKey == idempotencyKey));
 
         var (secondResult, secondError) = await publicService.CreateRequestAsync(new PublicBookingRequest
         {

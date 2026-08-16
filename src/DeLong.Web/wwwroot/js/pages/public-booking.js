@@ -275,11 +275,16 @@
                 document.getElementById('booking-contact-step')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 this.validateContact();
             },
+            newRequestKey() {
+                if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+                return `web-${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
+            },
             async submitRequest() {
                 if (this.submitting || !this.selectedRoom || !this.selectedRate) return;
                 if (!this.validateContact()) return;
                 this.submitting = true;
                 this.errorMessage = '';
+                if (!this.requestKey) this.requestKey = this.newRequestKey();
                 try {
                     const payload = {
                         type: this.bookingType,
@@ -293,11 +298,14 @@
                         note: this.form.note,
                         website: this.form.website
                     };
-                    const result = await DeLongApi.post(this.apiUrl('/api/public/booking-requests'), payload);
+                    const result = await DeLongApi.post(this.apiUrl('/api/public/booking-requests'), payload, { 'Idempotency-Key': this.requestKey });
                     const query = new URLSearchParams({ code: result.code, room: result.roomName, amount: String(result.totalAmount) });
                     window.location.assign(`${this.scopePrefix}/booking/success?${query.toString()}`);
                 } catch (error) {
                     this.errorMessage = error.message || 'Không thể gửi yêu cầu lúc này.';
+                    // Keep the same key only for network-level uncertainty. Any HTTP response means
+                    // the server answered definitively and a corrected retry should get a fresh key.
+                    if (error.status) this.requestKey = null;
                     if (error.status === 409) {
                         if (this.bookingType === 1) await this.loadStayAvailability();
                         else await this.loadAvailability();

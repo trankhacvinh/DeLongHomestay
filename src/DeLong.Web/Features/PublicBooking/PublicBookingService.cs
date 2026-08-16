@@ -71,34 +71,49 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
     }
 
     public Task<(PublicBookingResult? Result, PublicBookingError? Error)> CreateRequestAsync(PublicBookingRequest request, CancellationToken cancellationToken = default) =>
-        CreateRequestAsync(null, request, cancellationToken);
+        CreateRequestAsync(null, request, null, cancellationToken);
 
-    public async Task<(PublicBookingResult? Result, PublicBookingError? Error)> CreateRequestAsync(string? siteSlug, PublicBookingRequest request, CancellationToken cancellationToken = default)
+    public Task<(PublicBookingResult? Result, PublicBookingError? Error)> CreateRequestAsync(PublicBookingRequest request, string? idempotencyKey, CancellationToken cancellationToken = default) =>
+        CreateRequestAsync(null, request, idempotencyKey, cancellationToken);
+
+    public Task<(PublicBookingResult? Result, PublicBookingError? Error)> CreateRequestAsync(string? siteSlug, PublicBookingRequest request, CancellationToken cancellationToken = default) =>
+        CreateRequestAsync(siteSlug, request, null, cancellationToken);
+
+    public async Task<(PublicBookingResult? Result, PublicBookingError? Error)> CreateRequestAsync(string? siteSlug, PublicBookingRequest request, string? idempotencyKey, CancellationToken cancellationToken = default)
     {
         if (!string.IsNullOrWhiteSpace(request.Website)) return (null, new("spam", "Không thể gửi yêu cầu."));
+        var key = NormalizeIdempotencyKey(idempotencyKey);
+        if (idempotencyKey is not null && key is null) return (null, new("validation", "Idempotency-Key không hợp lệ."));
         return request.Type == BookingType.MultiDay
-            ? await CreateMultiDayRequestAsync(siteSlug, request, cancellationToken)
-            : await CreateTimeSlotRequestAsync(siteSlug, request, cancellationToken);
+            ? await CreateMultiDayRequestAsync(siteSlug, request, key, cancellationToken)
+            : await CreateTimeSlotRequestAsync(siteSlug, request, key, cancellationToken);
     }
 
-    private async Task<(PublicBookingResult?, PublicBookingError?)> CreateTimeSlotRequestAsync(string? siteSlug, PublicBookingRequest request, CancellationToken ct)
+    private async Task<(PublicBookingResult?, PublicBookingError?)> CreateTimeSlotRequestAsync(string? siteSlug, PublicBookingRequest request, string? idempotencyKey, CancellationToken ct)
     {
         if (!DateOnly.TryParseExact(request.StayDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var stayDate)) return (null, new("validation", "Ngày đặt phòng không hợp lệ."));
         var context = await GetRequestContextAsync(siteSlug, request.CustomerName, request.CustomerPhone, ct); if (context.Error is not null) return (null, context.Error);
+        if (idempotencyKey is not null && await FindIdempotentResultAsync(context.PropertyId, idempotencyKey, ct) is { } replay) return (replay, null);
         if (ValidateDateWindow(stayDate, context.TodayLocal) is { } dateError) return (null, dateError);
         var rate = await db.RoomRates.AsNoTracking().Where(x => x.Id == request.RateId && x.RoomId == request.RoomId && x.IsActive && x.Type != RoomRateType.Nightly && x.Room.IsActive && x.Room.IsPublished && x.Room.PropertyId == context.PropertyId)
             .Select(x => new { x.Id, x.Name, x.StartTime, x.EndTime, x.Type, x.Price, RoomId = x.Room.Id, RoomName = x.Room.Name }).SingleOrDefaultAsync(ct);
         if (rate is null) return (null, new("rate_not_found", "Khung giờ hoặc phòng không còn khả dụng."));
         var (checkInUtc, checkOutUtc) = ToUtcTimeSlotRange(stayDate, rate.StartTime, rate.EndTime, rate.Type == RoomRateType.Overnight, context.TimeZone);
         if (await bookingService.HasConflictAsync(context.PropertyId, rate.RoomId, checkInUtc, checkOutUtc, null, ct)) return (null, new("booking_conflict", "Phòng vừa được giữ hoặc xác nhận trong khung giờ này. Vui lòng chọn khung khác."));
-        var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = rate.RoomId, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.TimeSlot, RoomRateId = rate.Id, RateName = rate.Name, UnitPrice = rate.Price, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Requested, RoomAmount = rate.Price, Source = "Website", Note = Clean(request.Note) }, null, ct);
+        var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = rate.RoomId, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.TimeSlot, RoomRateId = rate.Id, RateName = rate.Name, UnitPrice = rate.Price, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Requested, RoomAmount = rate.Price, Source = "Website", PublicRequestKey = idempotencyKey, Note = Clean(request.Note) }, null, ct);
+        if (booking is null && error?.Code == "public_request_retry" && idempotencyKey is not null)
+        {
+            db.ChangeTracker.Clear();
+            if (await FindIdempotentResultAsync(context.PropertyId, idempotencyKey, ct) is { } idempotentReplay1) return (idempotentReplay1, null);
+        }
         return booking is null ? (null, new(error?.Code ?? "booking_failed", error?.Message ?? "Không thể tạo yêu cầu đặt phòng.")) : (new PublicBookingResult(booking.Id, booking.Code, booking.Type, rate.RoomName, rate.Name, null, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
     }
 
-    private async Task<(PublicBookingResult?, PublicBookingError?)> CreateMultiDayRequestAsync(string? siteSlug, PublicBookingRequest request, CancellationToken ct)
+    private async Task<(PublicBookingResult?, PublicBookingError?)> CreateMultiDayRequestAsync(string? siteSlug, PublicBookingRequest request, string? idempotencyKey, CancellationToken ct)
     {
         if (!DateOnly.TryParseExact(request.CheckInDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var checkInDate) || !DateOnly.TryParseExact(request.CheckOutDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var checkOutDate)) return (null, new("validation", "Ngày nhận hoặc ngày trả không hợp lệ."));
         var context = await GetRequestContextAsync(siteSlug, request.CustomerName, request.CustomerPhone, ct); if (context.Error is not null) return (null, context.Error);
+        if (idempotencyKey is not null && await FindIdempotentResultAsync(context.PropertyId, idempotencyKey, ct) is { } replay) return (replay, null);
         var dateError = ValidateStayDates(checkInDate, checkOutDate, context.TimeZone.Id); if (dateError is not null) return (null, dateError);
         var rate = await db.RoomRates.AsNoTracking().Where(x => x.Id == request.RateId && x.RoomId == request.RoomId && x.IsActive && x.Type == RoomRateType.Nightly && x.Price > 0 && x.Room.IsActive && x.Room.IsPublished && x.Room.PropertyId == context.PropertyId)
             .Select(x => new { x.Id, x.Name, x.StartTime, x.EndTime, x.Price, RoomId = x.Room.Id, RoomName = x.Room.Name }).SingleOrDefaultAsync(ct);
@@ -107,8 +122,31 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var (checkInUtc, checkOutUtc) = ToUtcStayRange(checkInDate, checkOutDate, rate.StartTime, rate.EndTime, context.TimeZone);
         if (await bookingService.HasConflictAsync(context.PropertyId, rate.RoomId, checkInUtc, checkOutUtc, null, ct)) return (null, new("booking_conflict", "Phòng đã có lượt đặt giao với khoảng lưu trú này. Vui lòng chọn ngày hoặc phòng khác."));
         var amount = rate.Price * nights;
-        var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = rate.RoomId, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.MultiDay, RoomRateId = rate.Id, RateName = rate.Name, UnitPrice = rate.Price, NightCount = nights, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Requested, RoomAmount = amount, Source = "Website", Note = Clean(request.Note) }, null, ct);
+        var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = rate.RoomId, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.MultiDay, RoomRateId = rate.Id, RateName = rate.Name, UnitPrice = rate.Price, NightCount = nights, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Requested, RoomAmount = amount, Source = "Website", PublicRequestKey = idempotencyKey, Note = Clean(request.Note) }, null, ct);
+        if (booking is null && error?.Code == "public_request_retry" && idempotencyKey is not null)
+        {
+            db.ChangeTracker.Clear();
+            if (await FindIdempotentResultAsync(context.PropertyId, idempotencyKey, ct) is { } idempotentReplay2) return (idempotentReplay2, null);
+        }
         return booking is null ? (null, new(error?.Code ?? "booking_failed", error?.Message ?? "Không thể tạo yêu cầu lưu trú.")) : (new PublicBookingResult(booking.Id, booking.Code, booking.Type, rate.RoomName, rate.Name, nights, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
+    }
+
+    private async Task<PublicBookingResult?> FindIdempotentResultAsync(Guid propertyId, string key, CancellationToken ct)
+    {
+        return await db.Bookings.AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.PublicRequestKey == key && x.Source == "Website")
+            .Select(x => new PublicBookingResult(
+                x.Id, x.Code, x.Type, x.Room.Name, x.RateName ?? string.Empty, x.NightCount,
+                x.CheckInUtc, x.CheckOutUtc, x.RoomAmount + x.ExtraAmount - x.DiscountAmount))
+            .SingleOrDefaultAsync(ct);
+    }
+
+    private static string? NormalizeIdempotencyKey(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var key = value.Trim();
+        if (key.Length > 100 || key.Any(ch => !(char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.' or ':'))) return null;
+        return key;
     }
 
     private async Task<(Guid PropertyId, TimeZoneInfo TimeZone, DateOnly TodayLocal, string Name, string Phone, PublicBookingError? Error)> GetRequestContextAsync(string? siteSlug, string rawName, string rawPhone, CancellationToken ct)

@@ -48,6 +48,7 @@ public sealed class CreateBookingRequest
     public decimal ExtraAmount { get; init; }
     public decimal DiscountAmount { get; init; }
     public string? Source { get; init; }
+    public string? PublicRequestKey { get; init; }
     public string? Note { get; init; }
 }
 
