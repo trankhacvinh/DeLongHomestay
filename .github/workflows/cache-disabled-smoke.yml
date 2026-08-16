@@ -1,0 +1,43 @@
+name: Cache Disabled Smoke
+
+on:
+  push:
+    branches: [ "agent/pr21-cache-switch" ]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://127.0.0.1:5099
+      ConnectionStrings__DefaultConnection: Host=127.0.0.1;Port=5432;Database=unused;Username=unused;Password=unused
+      Performance__PublicCacheEnabled: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore DeLongHomestay.sln
+      - name: Start app with FusionCache disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project src/DeLong.Web --no-restore > /tmp/delong-cache-disabled.log 2>&1 &
+          APP_PID=$!
+          trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
+          for i in {1..45}; do
+            if curl --fail --silent http://127.0.0.1:5099/health/live >/tmp/health.txt; then
+              cat /tmp/health.txt
+              exit 0
+            fi
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              cat /tmp/delong-cache-disabled.log
+              exit 1
+            fi
+            sleep 1
+          done
+          cat /tmp/delong-cache-disabled.log
+          exit 1
