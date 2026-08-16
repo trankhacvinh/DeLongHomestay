@@ -8,9 +8,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicBooking;
 
-public sealed class PublicBookingService(AppDbContext db, BookingService bookingService)
+public sealed class PublicBookingService(AppDbContext db, BookingService bookingService, PublicPropertyResolver? resolver = null)
 {
-    private readonly PublicPropertyResolver publicPropertyResolver = new(db);
+    private readonly PublicPropertyResolver publicPropertyResolver = resolver ?? new PublicPropertyResolver(db);
     private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
 
     public Task<PublicCatalogDto?> GetCatalogAsync(DateOnly? availabilityDate = null, CancellationToken cancellationToken = default) =>
