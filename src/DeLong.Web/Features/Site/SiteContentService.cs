@@ -90,7 +90,7 @@ public sealed class SiteContentService(AppDbContext db)
     // Kept for compatibility with older tests/callers. New public code resolves by route scope.
     public const string PublicPropertyCode = PublicPropertyResolver.LegacyPropertyCode;
     private static readonly HashSet<string> AllowedSectionTypes =
-        ["Hero", "AvailabilitySearch", "BranchGrid", "RoomGrid", "FeatureGrid", "RichText", "Cta"];
+        ["Hero", "AvailabilitySearch", "BranchGrid", "RoomGrid", "FeatureGrid", "Faq", "Location", "PolicyGrid", "RichText", "Cta"];
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<GlobalSiteAdminDto> GetGlobalAdminAsync(CancellationToken ct = default)
@@ -386,6 +386,13 @@ public sealed class SiteContentService(AppDbContext db)
         try { json = JsonNode.Parse(string.IsNullOrWhiteSpace(request.ContentJson) ? "{}" : request.ContentJson) as JsonObject; }
         catch { return (null, new("validation", "Nội dung khối không phải JSON hợp lệ.")); }
         if (json is null) return (null, new("validation", "Nội dung khối phải là một object."));
+        if (request.Type == "Location")
+        {
+            var mapUrl = json["mapUrl"]?.GetValue<string>();
+            var embedUrl = json["embedUrl"]?.GetValue<string>();
+            if (!IsOptionalHttpUrl(mapUrl) || !IsOptionalHttpUrl(embedUrl))
+                return (null, new("validation", "Đường dẫn bản đồ phải là URL http hoặc https hợp lệ."));
+        }
         if (request.Type == "RichText" && json["html"] is JsonValue value && value.TryGetValue<string>(out var html))
         {
             var sanitizer = new HtmlSanitizer();
@@ -472,6 +479,9 @@ public sealed class SiteContentService(AppDbContext db)
         "BranchGrid" => "Danh sách cơ sở",
         "RoomGrid" => "Danh sách phòng",
         "FeatureGrid" => "Điểm nổi bật",
+        "Faq" => "Câu hỏi thường gặp",
+        "Location" => "Vị trí & chỉ đường",
+        "PolicyGrid" => "Quy định lưu trú",
         "Cta" => "Kêu gọi hành động",
         _ => "Nội dung"
     };

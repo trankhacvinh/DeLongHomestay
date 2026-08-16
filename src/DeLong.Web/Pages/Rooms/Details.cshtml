@@ -31,6 +31,7 @@
     <link rel="stylesheet" href="~/css/public-room-content.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/public-room-richtext-media.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/hospitality-room.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/property-storytelling.css" asp-append-version="true" />
 }
 
 <main class="public-room-page">
@@ -207,6 +208,10 @@
             </aside>
         </div>
     </section>
+    @if (Model.SimilarRooms.Count > 0)
+    {
+        <section class="public-section public-similar-rooms"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">PHÒNG TƯƠNG TỰ</span><h2>Bạn cũng có thể thích</h2></div><a class="public-text-link" href="@PublicUrlBuilder.Rooms(Model.SiteSlug)">Xem tất cả phòng →</a></div><div class="public-room-grid">@foreach (var room in Model.SimilarRooms) { <article class="public-room-card public-room-card-content"><a class="public-room-art" href="@PublicUrlBuilder.Room(Model.SiteSlug!, room.Slug)">@if (!string.IsNullOrWhiteSpace(room.CoverCardUrl)) { <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" loading="lazy" /><span class="public-room-image-scrim"></span> } else { <span class="public-room-poster"><small>@Model.PropertyName · @room.Code</small><strong>@room.Name</strong></span> }<span class="public-room-image-title"><small>@Model.PropertyName</small><strong>@room.Name</strong></span></a><div class="public-room-body"><div><h3><a href="@PublicUrlBuilder.Room(Model.SiteSlug!, room.Slug)">@room.Name</a></h3><p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người" : room.ShortDescription)</p></div><div class="public-room-conversion"><div class="public-room-price"><small>Giá từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div><a class="public-room-book-now" href="@PublicUrlBuilder.Booking(Model.SiteSlug!, room: room.Code)">Đặt ngay →</a></div></div></article> }</div></div></section>
+    }
 </main>
 
 @section Scripts {

@@ -17,6 +17,7 @@ public sealed class DetailsModel(
     public PublicRoomDetailDto Room { get; private set; } = null!;
     public string PropertyName { get; private set; } = string.Empty;
     public string? SiteSlug { get; private set; }
+    public IReadOnlyList<PublicRoomCardDto> SimilarRooms { get; private set; } = [];
 
     public async Task<IActionResult> OnGetAsync(string code, string? siteSlug, CancellationToken cancellationToken)
     {
@@ -45,6 +46,14 @@ public sealed class DetailsModel(
         }
         if (room is null) return NotFound();
         Room = room;
+        var catalog = await publicRoomContentService.GetCatalogAsync(property.Id, cancellationToken);
+        SimilarRooms = catalog.Rooms
+            .Where(x => x.Id != room.Id)
+            .OrderByDescending(x => x.Amenities.Intersect(room.Amenities, StringComparer.OrdinalIgnoreCase).Count())
+            .ThenBy(x => Math.Abs(x.Capacity - room.Capacity))
+            .ThenBy(x => Math.Abs(x.QuickFromPrice - room.QuickFromPrice))
+            .Take(3)
+            .ToList();
         return Page();
     }
 }

@@ -102,6 +102,18 @@ public sealed class SiteCmsAndLookupTests
         Assert.Contains("Nội dung sạch", sanitizedHtml);
         Assert.DoesNotContain("<script", sanitizedHtml, StringComparison.OrdinalIgnoreCase);
 
+        foreach (var request in new[]
+        {
+            new SaveHomeSectionRequest { Type = "Faq", Name = "FAQ", Variant = "accordion", ContentJson = "{\"title\":\"FAQ\",\"items\":[{\"question\":\"Có chỗ đậu xe?\",\"answer\":\"Vui lòng liên hệ cơ sở để xác nhận.\"}]}" },
+            new SaveHomeSectionRequest { Type = "Location", Name = "Vị trí", Variant = "split", ContentJson = "{\"title\":\"Tìm đường\",\"mapUrl\":\"https://maps.google.com/\",\"nearby\":[\"Trung tâm · 5 phút\"]}" },
+            new SaveHomeSectionRequest { Type = "PolicyGrid", Name = "Quy định", Variant = "grid-3", ContentJson = "{\"title\":\"Quy định lưu trú\",\"items\":[{\"title\":\"Nhận phòng\",\"body\":\"Theo giờ đã xác nhận.\"}]}" }
+        })
+        {
+            var (storyBlock, storyError) = await siteService.CreateSectionAsync(created.Id, request);
+            Assert.Null(storyError);
+            Assert.NotNull(storyBlock);
+        }
+
         var (updated, updateError) = await propertyService.UpdateAsync(created.Id, new SavePropertyRequest
         {
             Code = created.Code,
