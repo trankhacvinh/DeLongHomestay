@@ -4,11 +4,39 @@
 @{
     ViewData["Title"] = "Trang chủ chung";
 }
-@section Head { <link rel="stylesheet" href="~/css/site-cms.css" asp-append-version="true" /> }
+@section Head {
+    <link rel="stylesheet" href="~/css/site-cms.css" asp-append-version="true" />
+    <style>
+        .global-branding-panel{margin-bottom:18px;padding:22px}.global-branding-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:18px}.global-branding-head h2{margin:4px 0 6px}.global-branding-head p{margin:0;color:#75827f}.global-branding-preview{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid #dce5e1;border-radius:14px;background:#f8fbf9;margin-bottom:18px}.global-branding-preview img,.global-branding-preview .brand-mark{width:56px;height:56px;object-fit:contain;border-radius:14px}.global-branding-preview strong,.global-branding-preview small{display:block}.global-branding-preview small{margin-top:4px;color:#74817e}.global-branding-note{margin-top:8px;padding:10px 12px;border-radius:11px;background:#eef6f3;color:#47635d;font-size:12px}.global-branding-assets{display:grid;gap:12px}.global-branding-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}@media(max-width:760px){.global-branding-head{display:grid}.global-branding-actions{justify-content:stretch;flex-direction:column}.global-branding-actions .btn{width:100%}}
+    </style>
+}
 
 <div id="global-site-cms" class="site-admin-page" v-cloak>
     <script id="global-site-cms-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
-    <div class="page-title-row site-page-head"><div><div class="page-eyebrow">Website chung</div><h1>Trang chủ toàn hệ thống</h1><p>Cấu hình các section xuất hiện tại <code>/</code>. Trang riêng từng cơ sở tiếp tục cấu hình ở mục Website của cơ sở đó.</p></div><div class="site-head-actions"><a class="btn btn-light" asp-page="/Admin/Site/Index">Trang cơ sở</a><a class="btn btn-light" href="/" target="_blank" rel="noopener">Xem trang chủ ↗</a></div></div>
+    <div class="page-title-row site-page-head"><div><div class="page-eyebrow">Website chung</div><h1>Trang chủ toàn hệ thống</h1><p>Cấu hình thương hiệu và các section xuất hiện tại <code>/</code>. Trang riêng từng cơ sở tiếp tục cấu hình ở mục Website của cơ sở đó.</p></div><div class="site-head-actions"><a class="btn btn-light" asp-page="/Admin/Site/Index">Trang cơ sở</a><a class="btn btn-light" href="/" target="_blank" rel="noopener">Xem trang chủ ↗</a></div></div>
+
+    <section class="panel global-branding-panel">
+        <div class="global-branding-head"><div><span class="page-eyebrow">Thương hiệu chung</span><h2>Logo & nhận diện toàn hệ thống</h2><p>Trường để trống sẽ tự dùng cấu hình của cơ sở duy nhất đang hoạt động. Khi có nhiều cơ sở, chỉ các giá trị ghi đè bên dưới được dùng cho trang chung.</p></div></div>
+        <div class="global-branding-preview">
+            <img v-if="brandPreviewLogo" v-bind:src="brandPreviewLogo" v-bind:alt="brandPreviewName" />
+            <span v-else class="brand-mark">DL</span>
+            <span><strong>{{ brandPreviewName }}</strong><small>{{ brandPreviewTagline }}</small></span>
+        </div>
+        <div class="global-branding-note" v-if="brandingEffective.hasSinglePropertyFallback">Đang có 1 cơ sở: các trường để trống sẽ kế thừa từ <strong>{{ brandingEffective.fallbackPropertyName }}</strong>.</div>
+        <div class="form-grid site-form-grid">
+            <div class="field"><label>Tên thương hiệu chung</label><input v-model.trim="branding.siteName" v-bind:placeholder="brandingEffective.siteName" /><small>Để trống = kế thừa khi chỉ có 1 cơ sở.</small></div>
+            <div class="field"><label>Tagline</label><input v-model.trim="branding.tagline" v-bind:placeholder="brandingEffective.tagline" /></div>
+            <div class="field"><label>Meta title</label><input v-model.trim="branding.metaTitle" v-bind:placeholder="brandingEffective.metaTitle" /></div>
+            <div class="field"><label>Meta description</label><textarea v-model.trim="branding.metaDescription" rows="3" v-bind:placeholder="brandingEffective.metaDescription"></textarea></div>
+        </div>
+        <div class="global-branding-assets">
+            <div class="field"><label>Logo chung</label><div class="asset-input-row"><input v-model.trim="branding.logoUrl" v-bind:placeholder="brandingEffective.logoUrl || 'Để trống = dùng logo cơ sở nếu chỉ có 1 cơ sở'" /><label class="btn btn-light btn-sm file-btn">{{ brandingUploading === 'logo' ? 'Đang tải…' : 'Tải logo' }}<input type="file" accept="image/png,image/jpeg,image/webp" v-bind:disabled="!!brandingUploading" v-on:change="uploadBrandAsset('logo', 'logoUrl', $event)" /></label></div></div>
+            <div class="field"><label>Favicon</label><div class="asset-input-row"><input v-model.trim="branding.faviconUrl" v-bind:placeholder="brandingEffective.faviconUrl || 'Để trống = kế thừa favicon cơ sở'" /><label class="btn btn-light btn-sm file-btn">{{ brandingUploading === 'favicon' ? 'Đang tải…' : 'Tải favicon' }}<input type="file" accept="image/png,image/jpeg,image/webp" v-bind:disabled="!!brandingUploading" v-on:change="uploadBrandAsset('favicon', 'faviconUrl', $event)" /></label></div></div>
+            <div class="field"><label>Ảnh Open Graph</label><div class="asset-input-row"><input v-model.trim="branding.ogImageUrl" v-bind:placeholder="brandingEffective.ogImageUrl || 'Để trống = kế thừa ảnh OG cơ sở'" /><label class="btn btn-light btn-sm file-btn">{{ brandingUploading === 'og' ? 'Đang tải…' : 'Tải ảnh OG' }}<input type="file" accept="image/png,image/jpeg,image/webp" v-bind:disabled="!!brandingUploading" v-on:change="uploadBrandAsset('og', 'ogImageUrl', $event)" /></label></div></div>
+        </div>
+        <div class="global-branding-actions"><button class="btn btn-light" type="button" v-if="brandingEffective.hasSinglePropertyFallback" v-bind:disabled="brandingSaving" v-on:click="useInheritedBranding">Dùng lại cấu hình cơ sở</button><button class="btn btn-primary" type="button" v-bind:disabled="brandingSaving || !!brandingUploading" v-on:click="saveBranding">{{ brandingSaving ? 'Đang lưu…' : 'Lưu thương hiệu chung' }}</button></div>
+    </section>
+
     <section class="site-home-layout"><div class="site-home-toolbar panel"><div><span class="page-eyebrow">Block editor</span><h2>Cấu trúc trang chủ chung</h2><p>RoomGrid có thể lấy tất cả, chia quota theo cơ sở hoặc chọn thủ công từng phòng.</p></div><div class="site-head-actions"><button class="btn btn-light" type="button" v-bind:disabled="applyingPreset" v-on:click="applyHospitalityPreset">{{ applyingPreset ? 'Đang áp dụng…' : 'Áp dụng mẫu khách sạn' }}</button><button class="btn btn-primary" type="button" v-on:click="openCreate"><svg><use href="#i-plus" /></svg>Thêm khối</button></div></div>
         <div id="global-section-list" class="home-section-list"><article class="panel home-section-card" v-for="section in sections" v-bind:key="section.id" v-bind:data-id="section.id" v-bind:class="{ hidden: !section.isVisible }"><button class="home-drag-handle" type="button">⋮⋮</button><div class="home-section-copy"><span class="home-section-type">{{ sectionTypeLabel(section.type) }}</span><strong>{{ section.name }}</strong><small>{{ section.variant }} · {{ section.isVisible ? 'Đang hiển thị' : 'Đang ẩn' }}</small></div><div class="home-section-actions"><button class="btn btn-light btn-sm" type="button" v-on:click="toggleSection(section)">{{ section.isVisible ? 'Ẩn' : 'Hiện' }}</button><button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(section)">Sửa</button></div></article></div>
     </section>
