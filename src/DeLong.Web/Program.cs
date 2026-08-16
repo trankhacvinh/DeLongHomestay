@@ -15,6 +15,7 @@ using DeLong.Web.Features.Imports;
 using DeLong.Web.Features.Payments;
 using DeLong.Web.Features.Properties;
 using DeLong.Web.Features.PublicBooking;
+using DeLong.Web.Features.Notifications;
 using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Reports;
 using DeLong.Web.Features.Rooms;
@@ -138,6 +139,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ManageSiteCode", policy => policy.RequireRole("Admin"));
     options.AddPolicy("ManageImports", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageRooms", policy => policy.RequireRole("Admin", "Manager"));
+    options.AddPolicy("ManageNotifications", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageBookings", policy => policy.RequireRole("Admin", "Manager", "Staff"));
     options.AddPolicy("ManagePayments", policy => policy.RequireRole("Admin", "Manager", "Staff"));
     options.AddPolicy("ManageHousekeeping", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping"));
@@ -239,6 +241,12 @@ builder.Services.AddScoped<PublicBookingService>();
 builder.Services.AddScoped<PublicBookingLookupService>();
 builder.Services.AddScoped<PublicRoomContentService>();
 builder.Services.AddScoped<PublicRequestInboxService>();
+builder.Services.AddSingleton<NotificationRealtimeBroker>();
+builder.Services.AddSingleton<SmtpCredentialProtector>();
+builder.Services.AddScoped<NotificationSettingsService>();
+builder.Services.AddScoped<BookingNotificationService>();
+builder.Services.AddSingleton<NotificationEmailSender>();
+builder.Services.AddHostedService<NotificationEmailWorker>();
 
 var app = builder.Build();
 foreach (var warning in productionWarnings) app.Logger.LogWarning("Production startup warning: {Warning}", warning);
@@ -340,6 +348,7 @@ app.MapStaffAccountEndpoints();
 app.MapPublicRoomMediaEndpoints();
 app.MapPublicBookingEndpoints();
 app.MapPublicBookingLookupEndpoints();
+app.MapNotificationEndpoints();
 
 if (app.Configuration.GetValue<bool>("Database:AutoMigrate") || app.Configuration.GetValue<bool>("Database:SeedOnStartup"))
 {

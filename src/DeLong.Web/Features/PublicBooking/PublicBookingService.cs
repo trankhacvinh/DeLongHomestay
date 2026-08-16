@@ -3,12 +3,13 @@ using DeLong.Web.Data;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Customers;
+using DeLong.Web.Features.Notifications;
 using DeLong.Web.Features.Site;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicBooking;
 
-public sealed class PublicBookingService(AppDbContext db, BookingService bookingService, PublicPropertyResolver? resolver = null)
+public sealed class PublicBookingService(AppDbContext db, BookingService bookingService, PublicPropertyResolver? resolver = null, BookingNotificationService? notificationService = null)
 {
     private readonly PublicPropertyResolver publicPropertyResolver = resolver ?? new PublicPropertyResolver(db);
     private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
@@ -127,7 +128,9 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
             db.ChangeTracker.Clear();
             if (await FindIdempotentResultAsync(context.PropertyId, idempotencyKey, ct) is { } idempotentReplay1) return (idempotentReplay1, null);
         }
-        return booking is null ? (null, new(error?.Code ?? "booking_failed", error?.Message ?? "Không thể tạo yêu cầu đặt phòng.")) : (new PublicBookingResult(booking.Id, booking.Code, booking.Type, rate.RoomName, rate.Name, null, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
+        if (booking is null) return (null, new(error?.Code ?? "booking_failed", error?.Message ?? "Không thể tạo yêu cầu đặt phòng."));
+        if (notificationService is not null) await notificationService.NotifyBookingCreatedAsync(context.PropertyId, booking.Id, ct);
+        return (new PublicBookingResult(booking.Id, booking.Code, booking.Type, rate.RoomName, rate.Name, null, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
     }
 
     private async Task<(PublicBookingResult?, PublicBookingError?)> CreateMultiDayRequestAsync(string? siteSlug, PublicBookingRequest request, string? idempotencyKey, CancellationToken ct)
@@ -149,7 +152,9 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
             db.ChangeTracker.Clear();
             if (await FindIdempotentResultAsync(context.PropertyId, idempotencyKey, ct) is { } idempotentReplay2) return (idempotentReplay2, null);
         }
-        return booking is null ? (null, new(error?.Code ?? "booking_failed", error?.Message ?? "Không thể tạo yêu cầu lưu trú.")) : (new PublicBookingResult(booking.Id, booking.Code, booking.Type, rate.RoomName, rate.Name, nights, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
+        if (booking is null) return (null, new(error?.Code ?? "booking_failed", error?.Message ?? "Không thể tạo yêu cầu lưu trú."));
+        if (notificationService is not null) await notificationService.NotifyBookingCreatedAsync(context.PropertyId, booking.Id, ct);
+        return (new PublicBookingResult(booking.Id, booking.Code, booking.Type, rate.RoomName, rate.Name, nights, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
     }
 
     private async Task<PublicBookingResult?> FindIdempotentResultAsync(Guid propertyId, string key, CancellationToken ct)
