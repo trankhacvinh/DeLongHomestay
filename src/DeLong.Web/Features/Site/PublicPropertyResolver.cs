@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
+using DeLong.Web.Common.Caching;
 using DeLong.Web.Data;
 using Microsoft.EntityFrameworkCore;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace DeLong.Web.Features.Site;
 
@@ -11,13 +13,24 @@ public sealed record PublicPropertyContext(
     string TimeZoneId,
     string SiteSlug);
 
-public sealed class PublicPropertyResolver(AppDbContext db)
+public sealed class PublicPropertyResolver(AppDbContext db, IFusionCache? fusionCache = null)
 {
+    private readonly IFusionCache? cache = fusionCache;
     public const string LegacyPropertyCode = "DELONG";
     private static readonly Regex InvalidSlugCharacters = new("[^a-z0-9]+", RegexOptions.Compiled);
 
     public async Task<IReadOnlyList<PublicPropertyContext>> GetActiveAsync(
         CancellationToken cancellationToken = default)
+    {
+        if (cache is null) return await LoadActiveAsync(cancellationToken);
+        return await cache.GetOrSetAsync<IReadOnlyList<PublicPropertyContext>>(
+            PublicCacheKeys.ActiveProperties,
+            async (_, ct) => await LoadActiveAsync(ct),
+            tags: [PublicCacheKeys.Tag],
+            token: cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<PublicPropertyContext>> LoadActiveAsync(CancellationToken cancellationToken)
     {
         var properties = await db.Properties.AsNoTracking()
             .Where(x => x.IsActive)
@@ -25,10 +38,7 @@ public sealed class PublicPropertyResolver(AppDbContext db)
             .ThenBy(x => x.Name)
             .Select(x => new { x.Id, x.Code, x.Name, x.TimeZoneId, x.SiteSlug })
             .ToListAsync(cancellationToken);
-
-        return properties
-            .Select(x => ToContext(x.Id, x.Code, x.Name, x.TimeZoneId, x.SiteSlug))
-            .ToList();
+        return properties.Select(x => ToContext(x.Id, x.Code, x.Name, x.TimeZoneId, x.SiteSlug)).ToList();
     }
 
     public async Task<PublicPropertyContext?> ResolveAsync(
@@ -53,14 +63,8 @@ public sealed class PublicPropertyResolver(AppDbContext db)
         Guid propertyId,
         CancellationToken cancellationToken = default)
     {
-        var property = await db.Properties.AsNoTracking()
-            .Where(x => x.Id == propertyId && x.IsActive)
-            .Select(x => new { x.Id, x.Code, x.Name, x.TimeZoneId, x.SiteSlug })
-            .SingleOrDefaultAsync(cancellationToken);
-
-        return property is null
-            ? null
-            : ToContext(property.Id, property.Code, property.Name, property.TimeZoneId, property.SiteSlug);
+        var properties = await GetActiveAsync(cancellationToken);
+        return properties.SingleOrDefault(x => x.Id == propertyId);
     }
 
     public static string ToSiteSlug(string code)

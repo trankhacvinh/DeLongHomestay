@@ -1,6 +1,7 @@
 using System.Net;
 using System.Threading.RateLimiting;
 using DeLong.Web.Common.Auditing;
+using DeLong.Web.Common.Caching;
 using DeLong.Web.Common.Operations;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
@@ -25,8 +26,11 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using ZiggyCreatures.Caching.Fusion;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,7 +60,15 @@ builder.Services
     .SetApplicationName("DeLongHomestay")
     .PersistKeysToFileSystem(new DirectoryInfo(storagePaths.DataProtectionRoot));
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+var publicCacheSeconds = Math.Clamp(builder.Configuration.GetValue<int?>("Performance:PublicCacheSeconds") ?? 30, 1, 3600);
+builder.Services.AddScoped<PublicCacheInvalidationInterceptor>();
+builder.Services.AddFusionCache()
+    .WithDefaultEntryOptions(new FusionCacheEntryOptions()
+        .SetDuration(TimeSpan.FromSeconds(publicCacheSeconds))
+        .SetFailSafe(true, TimeSpan.FromMinutes(2)));
+builder.Services.AddDbContext<AppDbContext>((services, options) =>
+    options.UseNpgsql(connectionString)
+        .AddInterceptors(services.GetRequiredService<PublicCacheInvalidationInterceptor>()));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
@@ -153,6 +165,14 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AddPageRoute("/Blog/Index", "h/{siteSlug}/blog");
     options.Conventions.AddPageRoute("/Blog/Details", "h/{siteSlug}/blog/{slug}");
 });
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat([
+        "application/json", "application/problem+json", "application/xml", "image/svg+xml"
+    ]);
+});
+
 builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 builder.Services.AddRateLimiter(options =>
@@ -237,11 +257,23 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseResponseCompression();
 app.UseWhen(
     context => !context.Request.Path.StartsWithSegments("/api") &&
                !context.Request.Path.StartsWithSegments("/health"),
     branch => branch.UseStatusCodePagesWithReExecute("/not-found"));
-app.UseStaticFiles();
+static void PrepareStaticResponse(StaticFileResponseContext context)
+{
+    var request = context.Context.Request;
+    var cacheControl = request.Query.ContainsKey("v")
+        ? "public,max-age=31536000,immutable"
+        : request.Path.StartsWithSegments("/uploads/rooms")
+            ? "public,max-age=2592000"
+            : "public,max-age=3600";
+    context.Context.Response.Headers.CacheControl = cacheControl;
+}
+
+app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = PrepareStaticResponse });
 
 var defaultMediaRoot = Path.GetFullPath(Path.Combine(
     app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"),
@@ -252,7 +284,8 @@ if (!string.Equals(defaultMediaRoot, storagePaths.MediaPublicRoot, StringCompari
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = new PhysicalFileProvider(storagePaths.MediaPublicRoot),
-        RequestPath = storagePaths.MediaRequestPath
+        RequestPath = storagePaths.MediaRequestPath,
+        OnPrepareResponse = PrepareStaticResponse
     });
 }
 

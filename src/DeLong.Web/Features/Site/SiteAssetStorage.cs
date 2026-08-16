@@ -87,7 +87,8 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         await using (var stream = File.Create(Path.Combine(publicRoot, fileName)))
             encoded.SaveTo(stream);
 
-        return (new StoredSiteAsset($"/uploads/site/{safeProperty}/{fileName}", outputWidth, outputHeight), null);
+        var version = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        return (new StoredSiteAsset($"/uploads/site/{safeProperty}/{fileName}?v={version}", outputWidth, outputHeight), null);
     }
 
     private static SKBitmap ResizeMax(SKBitmap source, int maxSize)
@@ -105,7 +106,7 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         var scale = Math.Min((float)width / source.Width, (float)height / source.Height);
         var w = source.Width * scale;
         var h = source.Height * scale;
-        canvas.DrawBitmap(source, SKRect.Create((width - w) / 2, (height - h) / 2, w, h));
+        canvas.DrawBitmap(source, SKRect.Create((width - w) / 2, (height - h) / 2, w, h), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
         canvas.Flush();
         return target;
     }
@@ -117,7 +118,7 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         var scale = Math.Max((float)width / source.Width, (float)height / source.Height);
         var w = source.Width * scale;
         var h = source.Height * scale;
-        canvas.DrawBitmap(source, SKRect.Create((width - w) / 2, (height - h) / 2, w, h));
+        canvas.DrawBitmap(source, SKRect.Create((width - w) / 2, (height - h) / 2, w, h), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
         canvas.Flush();
         return target;
     }
@@ -127,7 +128,7 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         var target = new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul));
         using var canvas = new SKCanvas(target);
         canvas.Clear(SKColors.Transparent);
-        canvas.DrawBitmap(source, SKRect.Create(0, 0, width, height));
+        canvas.DrawBitmap(source, SKRect.Create(0, 0, width, height), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
         canvas.Flush();
         return target;
     }

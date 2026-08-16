@@ -1,9 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using DeLong.Web.Common.Caching;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using Ganss.Xss;
 using Microsoft.EntityFrameworkCore;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace DeLong.Web.Features.Site;
 
@@ -83,9 +85,10 @@ public sealed class SaveHomeSectionRequest
 public sealed record ReorderHomeSectionsRequest(IReadOnlyList<Guid> Ids);
 public sealed record SiteContentError(string Code, string Message);
 
-public sealed class SiteContentService(AppDbContext db)
+public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? resolver = null, IFusionCache? fusionCache = null)
 {
-    private readonly PublicPropertyResolver publicPropertyResolver = new(db);
+    private readonly PublicPropertyResolver publicPropertyResolver = resolver ?? new PublicPropertyResolver(db);
+    private readonly IFusionCache? cache = fusionCache;
 
     // Kept for compatibility with older tests/callers. New public code resolves by route scope.
     public const string PublicPropertyCode = PublicPropertyResolver.LegacyPropertyCode;
@@ -105,13 +108,20 @@ public sealed class SiteContentService(AppDbContext db)
 
     public async Task<IReadOnlyList<HomeSectionDto>> GetGlobalPublicSectionsAsync(CancellationToken ct = default)
     {
-        var sections = await db.Set<HomeSection>().AsNoTracking()
-            .Where(x => x.PropertyId == null)
-            .OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc)
-            .ToListAsync(ct);
-        return sections.Count > 0
-            ? sections.Select(ToDto).ToList()
-            : GlobalDefaultSections().Select(ToDto).ToList();
+        async Task<IReadOnlyList<HomeSectionDto>> LoadAsync(CancellationToken token)
+        {
+            var sections = await db.Set<HomeSection>().AsNoTracking()
+                .Where(x => x.PropertyId == null)
+                .OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc)
+                .ToListAsync(token);
+            return sections.Count > 0 ? sections.Select(ToDto).ToList() : GlobalDefaultSections().Select(ToDto).ToList();
+        }
+        if (cache is null) return await LoadAsync(ct);
+        return await cache.GetOrSetAsync<IReadOnlyList<HomeSectionDto>>(
+            PublicCacheKeys.GlobalSections,
+            async (_, token) => await LoadAsync(token),
+            tags: [PublicCacheKeys.Tag],
+            token: ct);
     }
 
     public async Task<(HomeSectionDto? Section, SiteContentError? Error)> CreateGlobalSectionAsync(
@@ -190,7 +200,13 @@ public sealed class SiteContentService(AppDbContext db)
     public async Task<SiteAdminDto?> GetPublicAsync(string? siteSlug, CancellationToken ct = default)
     {
         var property = await publicPropertyResolver.ResolveAsync(siteSlug, ct);
-        return property is null ? null : await ReadSiteAsync(property.Id, ct);
+        if (property is null) return null;
+        if (cache is null) return await ReadSiteAsync(property.Id, ct);
+        return await cache.GetOrSetAsync<SiteAdminDto?>(
+            PublicCacheKeys.Site(property.Id),
+            async (_, token) => await ReadSiteAsync(property.Id, token),
+            tags: [PublicCacheKeys.Tag],
+            token: ct);
     }
 
     public async Task<(SiteSettingsDto? Settings, SiteContentError? Error)> SaveSettingsAsync(

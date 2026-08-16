@@ -30,9 +30,9 @@ public sealed record PublicBookingLookupDto(
     string PropertyPhone,
     string PropertyAddress);
 
-public sealed class PublicBookingLookupService(AppDbContext db)
+public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyResolver? resolver = null)
 {
-    private readonly PublicPropertyResolver publicPropertyResolver = new(db);
+    private readonly PublicPropertyResolver publicPropertyResolver = resolver ?? new PublicPropertyResolver(db);
 
     public Task<PublicBookingLookupDto?> LookupAsync(string rawCode, string rawPhone, CancellationToken ct = default) =>
         LookupAsync(null, rawCode, rawPhone, ct);
