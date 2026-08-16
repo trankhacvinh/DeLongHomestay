@@ -62,7 +62,21 @@ public static class PublicRoomMediaEndpoints
             var property = await resolver.ResolveAsync(siteSlug, ct);
             if (property is null) return Results.NotFound();
             var room = await roomContentService.GetRoomAsync(property.Id, roomSlug, ct);
-            return room is null ? Results.NotFound() : Results.Ok(room);
+            if (room is null) return Results.NotFound();
+
+            return Results.Ok(new
+            {
+                room.Id,
+                room.Code,
+                room.Name,
+                room.Slug,
+                room.Capacity,
+                room.ShortDescription,
+                room.QuickFromPrice,
+                room.Amenities,
+                room.Highlights,
+                room.Images
+            });
         }).AllowAnonymous();
 
         return app;
