@@ -43,7 +43,11 @@
                 selectedRateId: initial.initialRateId || null,
                 loading: false,
                 submitting: false,
+                availabilityError: '',
                 errorMessage: '',
+                fieldErrors: { customerName: '', customerPhone: '' },
+                deepLinkedRoom: !!initial.initialRoomId,
+                deepLinkedRate: !!initial.initialRateId,
                 form: {
                     customerName: '',
                     customerPhone: '',
@@ -74,10 +78,23 @@
             minimumCheckOut() {
                 return addDays(this.checkInDate || this.today, 1);
             },
+            selectableRoomCount() {
+                return this.roomList.filter(room => this.roomSelectable(room)).length;
+            },
+            bookingStep() {
+                if (this.loading) return 1;
+                if (this.selectedRate) return 4;
+                if (this.selectedRoom) return 3;
+                return 2;
+            },
             canSubmit() {
                 const roomReady = !!this.selectedRoom && (this.bookingType === 0 ? !!this.selectedRate?.available : this.selectedRoom.available === true);
-                return roomReady && !!this.selectedRate &&
-                    this.form.customerName.trim().length >= 2 && this.form.customerPhone.trim().length >= 8;
+                const phoneDigits = this.form.customerPhone.replace(/\D/g, '').length;
+                return roomReady && !!this.selectedRate && this.form.customerName.trim().length >= 2 && phoneDigits >= 8;
+            },
+            bookingTotalText() {
+                if (!this.selectedRoom || !this.selectedRate) return '';
+                return this.money(this.bookingType === 0 ? this.selectedRate.price : this.selectedRoom.totalAmount);
             },
             dateText() {
                 return this.stayDateText(this.date);
@@ -90,6 +107,11 @@
                 if (first) this.chooseRoom(first);
             } else if (this.selectedRoom && !this.selectedRateId) {
                 this.selectedRateId = this.timeSlotRates(this.selectedRoom).find(x => x.available)?.id || null;
+            }
+            await this.$nextTick();
+            if (window.matchMedia('(max-width: 820px)').matches && this.deepLinkedRoom) {
+                const target = document.getElementById(this.deepLinkedRate && this.selectedRate ? 'booking-contact-step' : 'booking-rate-step');
+                target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         },
         methods: {
@@ -132,6 +154,7 @@
                 this.bookingType = type;
                 this.selectedRoomId = null;
                 this.selectedRateId = null;
+                this.availabilityError = '';
                 this.errorMessage = '';
                 if (type === 1) {
                     if (!this.checkInDate) this.checkInDate = this.date || this.today;
@@ -158,6 +181,7 @@
             async loadAvailability() {
                 if (!this.date || this.bookingType !== 0) return;
                 this.loading = true;
+                this.availabilityError = '';
                 this.errorMessage = '';
                 try {
                     const data = await DeLongApi.get(this.apiUrl('/api/public/availability', { date: this.date }));
@@ -172,7 +196,10 @@
                         }
                     }
                 } catch (error) {
-                    this.errorMessage = error.message || 'Không thể kiểm tra phòng trống.';
+                    this.rooms = [];
+                    this.selectedRoomId = null;
+                    this.selectedRateId = null;
+                    this.availabilityError = error.message || 'Không thể kiểm tra phòng trống.';
                 } finally {
                     this.loading = false;
                 }
@@ -189,6 +216,7 @@
                     return;
                 }
                 this.loading = true;
+                this.availabilityError = '';
                 this.errorMessage = '';
                 try {
                     const data = await DeLongApi.get(this.apiUrl('/api/public/stay-availability', { checkIn: this.checkInDate, checkOut: this.checkOutDate }));
@@ -210,13 +238,46 @@
                     this.stayRooms = [];
                     this.selectedRoomId = null;
                     this.selectedRateId = null;
-                    this.errorMessage = error.message || 'Không thể kiểm tra phòng trống cho khoảng lưu trú.';
+                    this.availabilityError = error.message || 'Không thể kiểm tra phòng trống cho khoảng lưu trú.';
                 } finally {
                     this.loading = false;
                 }
             },
+            reloadAvailability() {
+                return this.bookingType === 1 ? this.loadStayAvailability() : this.loadAvailability();
+            },
+            focusDateInput() {
+                const selector = this.bookingType === 1 ? 'input[type="date"][v-model="checkInDate"]' : 'input[type="date"][v-model="date"]';
+                const input = root.querySelector(selector) || root.querySelector('input[type="date"]');
+                input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                input?.focus();
+            },
+            clearFieldError(field) {
+                if (this.fieldErrors[field]) this.fieldErrors[field] = '';
+                if (this.errorMessage) this.errorMessage = '';
+            },
+            validateContact() {
+                this.fieldErrors.customerName = this.form.customerName.trim().length >= 2 ? '' : 'Vui lòng nhập tên khách (ít nhất 2 ký tự).';
+                this.fieldErrors.customerPhone = this.form.customerPhone.replace(/\D/g, '').length >= 8 ? '' : 'Vui lòng nhập số điện thoại hợp lệ.';
+                const firstField = this.fieldErrors.customerName ? 'customerName' : (this.fieldErrors.customerPhone ? 'customerPhone' : null);
+                if (firstField) {
+                    this.$nextTick(() => {
+                        const input = this.$refs[firstField];
+                        input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        input?.focus();
+                    });
+                    return false;
+                }
+                return true;
+            },
+            mobilePrimaryAction() {
+                if (this.canSubmit) return this.submitRequest();
+                document.getElementById('booking-contact-step')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                this.validateContact();
+            },
             async submitRequest() {
-                if (!this.canSubmit || this.submitting) return;
+                if (this.submitting || !this.selectedRoom || !this.selectedRate) return;
+                if (!this.validateContact()) return;
                 this.submitting = true;
                 this.errorMessage = '';
                 try {
