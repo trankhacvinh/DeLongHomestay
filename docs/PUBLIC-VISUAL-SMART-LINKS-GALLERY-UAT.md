@@ -1,8 +1,6 @@
 # Public Visual Smart Links + Gallery Studio UAT
 
-Branch: `feat/smart-links-gallery`
-
-PR này stack trên `feat/visual-content-cards` / PR #32.
+Branch: `fix/visual-editor-consolidated-main`
 
 ## 1. Smart Link Picker
 
@@ -48,16 +46,23 @@ PR này stack trên `feat/visual-content-cards` / PR #32.
 
 1. Mở `/` bằng Admin → `Gallery`.
 2. Checkbox trên thumbnail phải là badge vuông gọn ở góc phải trên; không còn native checkbox/khung trắng lệch kích thước.
-3. Click vào card phải bật/tắt lựa chọn; card được chọn có viền teal và dấu `✓` rõ ràng.
-4. Phía trên phần chọn nguồn có khối `Thêm ảnh mới`.
-5. Nếu có nhiều cơ sở, chọn cơ sở đích trước khi upload; nếu chỉ có một cơ sở thì cơ sở đó được chọn sẵn.
-6. `＋ Tải ảnh` cho phép chọn nhiều PNG/JPG/WebP.
-7. Mỗi file upload qua Site asset pipeline của cơ sở đích rồi tạo Gallery item bằng Editorial API hiện có.
-8. Ảnh mới phải xuất hiện ngay trong lưới thumbnail và được tick sẵn để dùng thuận tiện với mode `Chọn thủ công`.
-9. Alt text tự gợi ý từ tên file nhưng vẫn chỉnh được sau đó tại Gallery của cơ sở.
-10. Nếu nguồn hiện tại là `Tất cả` hoặc `Theo cơ sở`, upload vẫn tạo ảnh bình thường và UI giải thích rằng có thể chuyển sang `Chọn thủ công` nếu muốn chọn chính xác.
-11. Đóng rồi mở lại Gallery trang chung: ảnh mới vẫn xuất hiện, không bị cache dữ liệu cũ.
-12. Ảnh thật vẫn thuộc một cơ sở; không tạo global media store hoặc migration mới.
+3. `Nguồn nội dung = Tất cả`: phần chọn ảnh thủ công phải **ẩn hoàn toàn** và trạng thái phải ghi `Nguồn đang dùng: Tất cả`.
+4. `Nguồn nội dung = Theo cơ sở`: chỉ phần chọn cơ sở xuất hiện; phần chọn ảnh thủ công vẫn ẩn.
+5. `Nguồn nội dung = Chọn thủ công`: lưới thumbnail xuất hiện; click card phải bật/tắt lựa chọn, card được chọn có viền teal và dấu `✓` rõ ràng.
+6. Khi đang ở trạng thái cũ mà lưới thủ công vẫn còn trên DOM, click trực tiếp một checkbox/card phải tự chuyển nguồn sang `Chọn thủ công`, tránh tình trạng tick ảnh nhưng website vẫn dùng `Tất cả`.
+7. Thanh trạng thái phải hiển thị đúng số ảnh đã chọn và giới hạn, ví dụ `2 đã chọn · tối đa 8`.
+8. Với `Chọn thủ công`, chọn 2 ảnh, để giới hạn 8 rồi Lưu: trang public phải chỉ hiện **2 ảnh đã chọn**, không tự bù thêm đến 8.
+9. Với `Chọn thủ công`, chọn nhiều hơn giới hạn: public chỉ hiện tối đa số lượng cấu hình, theo thứ tự danh sách đã chọn.
+10. Với `Chọn thủ công`, bỏ chọn hết: sau khi Lưu khu Gallery không được tự quay về tất cả ảnh.
+11. Phía trên phần chọn nguồn có khối `Thêm ảnh mới`.
+12. Nếu có nhiều cơ sở, chọn cơ sở đích trước khi upload; nếu chỉ có một cơ sở thì cơ sở đó được chọn sẵn.
+13. `＋ Tải ảnh` cho phép chọn nhiều PNG/JPG/WebP.
+14. Mỗi file upload qua Site asset pipeline của cơ sở đích rồi tạo Gallery item bằng Editorial API hiện có.
+15. Ảnh mới phải xuất hiện ngay trong lưới thumbnail và được tick sẵn để dùng thuận tiện với mode `Chọn thủ công`.
+16. Alt text tự gợi ý từ tên file nhưng vẫn chỉnh được sau đó tại Gallery của cơ sở.
+17. Nếu nguồn hiện tại là `Tất cả` hoặc `Theo cơ sở`, upload vẫn tạo ảnh bình thường; chỉ việc click chọn ảnh cụ thể mới chuyển sang `Chọn thủ công`.
+18. Đóng rồi mở lại Gallery trang chung: ảnh mới vẫn xuất hiện, không bị cache dữ liệu cũ.
+19. Ảnh thật vẫn thuộc một cơ sở; không tạo global media store hoặc migration mới.
 
 ## 4. Regression
 
