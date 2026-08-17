@@ -1,4 +1,5 @@
 using DeLong.Web.Common.Security;
+using DeLong.Web.Data;
 
 namespace DeLong.Web.Features.Site;
 
@@ -15,6 +16,19 @@ public static class PropertyEditorialContentEndpoints
             var result = await service.GetAdminAsync(propertyId, ct);
             return result is null ? Results.NotFound() : Results.Ok(result);
         });
+
+        admin.MapGet("/placement", async (Guid propertyId, AppDbContext db, CancellationToken ct) =>
+            Results.Ok(await EditorialPlacementStore.GetAsync(db, propertyId, ct)));
+
+        admin.MapPut("/placement", async (
+            Guid propertyId,
+            SaveEditorialPlacementRequest request,
+            AppDbContext db,
+            CancellationToken ct) =>
+        {
+            var (placement, error) = await EditorialPlacementStore.SaveAsync(db, propertyId, request, ct);
+            return error is null ? Results.Ok(placement) : ToProblem(error);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
         admin.MapPost("/gallery", async (Guid propertyId, SaveGalleryItemRequest request, PropertyEditorialContentService service, CancellationToken ct) =>
         {
@@ -85,6 +99,53 @@ public static class PropertyEditorialContentEndpoints
             var (settings, error) = await showcase.SaveAsync(request, ct);
             return error is null ? Results.Ok(settings) : ToProblem(error);
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        global.MapGet("/placement", async (AppDbContext db, CancellationToken ct) =>
+            Results.Ok(await EditorialPlacementStore.GetAsync(db, null, ct)));
+
+        global.MapPut("/placement", async (
+            SaveEditorialPlacementRequest request,
+            AppDbContext db,
+            CancellationToken ct) =>
+        {
+            var (placement, error) = await EditorialPlacementStore.SaveAsync(db, null, request, ct);
+            return error is null ? Results.Ok(placement) : ToProblem(error);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        app.MapGet("/api/public/site/editorial-placement", async (
+            string? siteSlug,
+            AppDbContext db,
+            SiteContentService siteContentService,
+            PublicPropertyResolver resolver,
+            CancellationToken ct) =>
+        {
+            Guid? propertyId = null;
+            IReadOnlyList<HomeSectionDto> sections;
+
+            if (string.IsNullOrWhiteSpace(siteSlug))
+            {
+                sections = await siteContentService.GetGlobalPublicSectionsAsync(ct);
+            }
+            else
+            {
+                var property = await resolver.ResolveAsync(siteSlug, ct);
+                if (property is null) return Results.NotFound();
+                propertyId = property.Id;
+                var site = await siteContentService.GetPublicAsync(property.SiteSlug, ct);
+                if (site is null) return Results.NotFound();
+                sections = site.Sections;
+            }
+
+            var placement = await EditorialPlacementStore.GetAsync(db, propertyId, ct);
+            return Results.Ok(new
+            {
+                placement,
+                sections = sections
+                    .Where(x => x.IsVisible && x.Type != EditorialPlacementStore.MetadataSectionType && x.Type != GlobalSiteBrandingStore.MetadataSectionType)
+                    .OrderBy(x => x.SortOrder)
+                    .Select(x => new { x.Id, x.Type })
+            });
+        }).AllowAnonymous();
 
         return app;
     }
