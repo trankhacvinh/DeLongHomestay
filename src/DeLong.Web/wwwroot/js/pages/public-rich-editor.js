@@ -71,14 +71,17 @@
         const visual = shell.querySelector('[data-rich-visual]');
         const toolbar = shell.querySelector('[data-rich-toolbar]');
         let mode = 'visual';
+        let syncingFromVisual = false;
 
         function syncVisualFromSource() {
             visual.innerHTML = cleanForVisual(textarea.value);
         }
 
         function syncSourceFromVisual() {
+            syncingFromVisual = true;
             textarea.value = visual.innerHTML;
             dispatchInput(textarea);
+            syncingFromVisual = false;
         }
 
         function setMode(next) {
@@ -116,7 +119,7 @@
             syncSourceFromVisual();
         }, 0));
         textarea.addEventListener('input', () => {
-            if (mode === 'html') return;
+            if (syncingFromVisual || mode === 'html') return;
             syncVisualFromSource();
         });
 
