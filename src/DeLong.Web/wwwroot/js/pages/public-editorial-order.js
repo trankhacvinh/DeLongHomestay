@@ -27,6 +27,7 @@
     let layoutState = { placement: { galleryAfter: 'end', blogAfter: 'end' }, sections: [] };
     let adminPlacementUrl = null;
     let contextPromise = null;
+    let editorContext = null;
 
     function sectionKind(element) {
         if (element?.classList.contains('public-editorial-gallery')) return 'gallery';
@@ -131,10 +132,10 @@
             const contextUrl = `/api/admin/site/visual-context${siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : ''}`;
             contextPromise = DeLongApi.get(contextUrl);
         }
-        const context = await contextPromise;
-        adminPlacementUrl = context?.scope === 'global'
+        editorContext = await contextPromise;
+        adminPlacementUrl = editorContext?.scope === 'global'
             ? '/api/admin/site/global/editorial/placement'
-            : `/api/admin/properties/${context.propertyId}/editorial/placement`;
+            : `/api/admin/properties/${editorContext.propertyId}/editorial/placement`;
         return adminPlacementUrl;
     }
 
@@ -150,6 +151,16 @@
         node.hidden = false;
         clearTimeout(node._editorialTimer);
         node._editorialTimer = setTimeout(() => { node.hidden = true; }, 2800);
+    }
+
+    function reloadPreservingEdit() {
+        if (!editorContext) return window.location.reload();
+        const suffix = editorContext.scope === 'global' ? 'global' : editorContext.propertyId;
+        try {
+            sessionStorage.setItem(`delong:pve:editing:${suffix}`, '1');
+            sessionStorage.setItem(`delong:pve:scroll:${suffix}`, String(Math.max(0, window.scrollY || 0)));
+        } catch { }
+        window.location.reload();
     }
 
     async function moveEditorial(element, delta) {
@@ -175,8 +186,7 @@
             const url = await resolveAdminPlacementUrl();
             const saved = await DeLongApi.put(url, nextPlacement);
             layoutState.placement = saved || nextPlacement;
-            toast('Đã cập nhật vị trí Gallery / Blog.');
-            element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            reloadPreservingEdit();
         } catch (error) {
             layoutState.placement = previousPlacement;
             applyPlacement(layoutState);
