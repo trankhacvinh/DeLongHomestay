@@ -50,7 +50,7 @@
 
     if (document.body?.classList.contains('public-body') && !document.querySelector('script[data-public-visual-editor]')) {
         const script = document.createElement('script');
-        script.src = '/js/pages/public-visual-editor-v2.js?v=20260817-1';
+        script.src = '/js/pages/public-visual-editor-v2.js?v=20260817-4';
         script.defer = true;
         script.dataset.publicVisualEditor = 'true';
         document.head.appendChild(script);
