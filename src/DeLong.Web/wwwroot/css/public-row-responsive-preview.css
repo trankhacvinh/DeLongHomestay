@@ -1,0 +1,28 @@
+/* Keep Row Builder responsive preview independent from the browser's real viewport. */
+.pve-row-preview-canvas.device-desktop .dl-builder-row.dl-hide-tablet,
+.pve-row-preview-canvas.device-desktop .dl-builder-row.dl-hide-mobile,
+.pve-row-preview-canvas.device-tablet .dl-builder-row.dl-hide-desktop,
+.pve-row-preview-canvas.device-tablet .dl-builder-row.dl-hide-mobile,
+.pve-row-preview-canvas.device-mobile .dl-builder-row.dl-hide-desktop,
+.pve-row-preview-canvas.device-mobile .dl-builder-row.dl-hide-tablet{display:grid!important}
+.pve-row-preview-canvas.device-desktop .dl-row-element-shell.dl-hide-tablet,
+.pve-row-preview-canvas.device-desktop .dl-row-element-shell.dl-hide-mobile,
+.pve-row-preview-canvas.device-tablet .dl-row-element-shell.dl-hide-desktop,
+.pve-row-preview-canvas.device-tablet .dl-row-element-shell.dl-hide-mobile,
+.pve-row-preview-canvas.device-mobile .dl-row-element-shell.dl-hide-desktop,
+.pve-row-preview-canvas.device-mobile .dl-row-element-shell.dl-hide-tablet{display:block!important}
+.pve-row-preview-canvas.device-desktop .dl-row-heading,
+.pve-row-preview-canvas.device-tablet .dl-row-heading,
+.pve-row-preview-canvas.device-mobile .dl-row-heading{font-size:20px!important}
+.pve-row-preview-canvas .dl-row-heading.dl-align-left{ text-align:left!important }
+.pve-row-preview-canvas .dl-row-heading.dl-align-center{ text-align:center!important }
+.pve-row-preview-canvas .dl-row-heading.dl-align-right{ text-align:right!important }
+.pve-row-preview-canvas .dl-row-button-wrap.dl-align-left{ justify-content:flex-start!important }
+.pve-row-preview-canvas .dl-row-button-wrap.dl-align-center{ justify-content:center!important }
+.pve-row-preview-canvas .dl-row-button-wrap.dl-align-right{ justify-content:flex-end!important }
+.pve-row-preview-canvas.device-desktop .dl-element-desktop-align-left .dl-row-heading,
+.pve-row-preview-canvas.device-desktop .dl-element-desktop-align-left .dl-row-text,
+.pve-row-preview-canvas.device-tablet .dl-element-tablet-align-left .dl-row-heading,
+.pve-row-preview-canvas.device-tablet .dl-element-tablet-align-left .dl-row-text,
+.pve-row-preview-canvas.device-mobile .dl-element-mobile-align-left .dl-row-heading,
+.pve-row-preview-canvas.device-mobile .dl-element-mobile-align-left .dl-row-text{text-align:left!important}
