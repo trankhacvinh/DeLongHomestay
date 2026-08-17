@@ -69,6 +69,7 @@
         addStyle('data-public-row-responsive-preview', '/css/public-row-responsive-preview.css?v=20260817-1');
         addStyle('data-public-row-templates', '/css/public-row-templates.css?v=20260817-1');
         addStyle('data-public-editor-enhancements', '/css/public-visual-editor-enhancements.css?v=20260817-2');
+        addStyle('data-public-contextual-editor', '/css/public-contextual-editor.css?v=20260817-1');
 
         addScript('data-public-rich-editor', '/js/pages/public-rich-editor.js?v=20260817-3');
         addScript('data-public-editorial-order', '/js/pages/public-editorial-order.js?v=20260817-2');
@@ -76,5 +77,6 @@
         addScript('data-public-editor-enhancements', '/js/pages/public-visual-editor-enhancements.js?v=20260817-3');
         addScript('data-public-row-editor', '/js/pages/public-visual-row-builder-v4.js?v=20260817-1');
         addScript('data-public-row-templates', '/js/pages/public-visual-row-templates.js?v=20260817-1');
+        addScript('data-public-contextual-editor', '/js/pages/public-contextual-editor.js?v=20260817-1');
     }
 })(window);
