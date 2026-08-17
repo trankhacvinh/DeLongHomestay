@@ -47,4 +47,12 @@
         patch: (url, data) => request(url, { method: 'PATCH', body: JSON.stringify(data) }),
         delete: (url) => request(url, { method: 'DELETE' })
     };
+
+    if (document.body?.classList.contains('public-body') && !document.querySelector('script[data-public-visual-editor]')) {
+        const script = document.createElement('script');
+        script.src = '/js/pages/public-visual-editor.js?v=20260817-1';
+        script.defer = true;
+        script.dataset.publicVisualEditor = 'true';
+        document.head.appendChild(script);
+    }
 })(window);
