@@ -66,7 +66,7 @@
                 rich(drawer.querySelector('textarea[name="bodyHtml"]'), 'Soạn bài ở chế độ Trực quan; chuyển sang HTML khi cần tinh chỉnh mã.');
             }
 
-            drawer.querySelectorAll('textarea[name="content.html"], textarea[name="content.column1Html"], textarea[name="content.column2Html"], textarea[name="content.column3Html"]').forEach(textarea => {
+            drawer.querySelectorAll('textarea[name="content.html"], textarea[name="content.column1Html"], textarea[name="content.column2Html"], textarea[name="content.column3Html"], textarea[data-rich-row]').forEach(textarea => {
                 rich(textarea, 'Trực quan phù hợp cho người dùng thường; HTML vẫn có sẵn cho developer.');
             });
 
