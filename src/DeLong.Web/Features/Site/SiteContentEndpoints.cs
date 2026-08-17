@@ -22,7 +22,9 @@ public static class SiteContentEndpoints
                 : Results.Ok(new
                 {
                     settings = result.Settings,
-                    sections = result.Sections.Where(x => x.Type != EditorialPlacementStore.MetadataSectionType)
+                    sections = result.Sections.Where(x =>
+                        x.Type != EditorialPlacementStore.MetadataSectionType &&
+                        x.Type != PublicShellSettingsStore.MetadataSectionType)
                 });
         });
 
@@ -35,6 +37,30 @@ public static class SiteContentEndpoints
         {
             var (settings, error) = await service.SaveSettingsAsync(propertyId, request, http.User.IsInRole("Admin"), ct);
             return error is null ? Results.Ok(settings) : ToProblem(error);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        admin.MapGet("/shell", async (
+            Guid propertyId,
+            AppDbContext db,
+            SiteContentService service,
+            CancellationToken ct) =>
+        {
+            if (await service.GetAdminAsync(propertyId, ct) is null) return Results.NotFound();
+            return Results.Ok(await PublicShellSettingsStore.ReadAsync(db, propertyId, ct));
+        });
+
+        admin.MapPut("/shell", async (
+            Guid propertyId,
+            SavePublicShellSettingsRequest request,
+            AppDbContext db,
+            SiteContentService service,
+            CancellationToken ct) =>
+        {
+            if (await service.GetAdminAsync(propertyId, ct) is null) return Results.NotFound();
+            var (settings, error) = await PublicShellSettingsStore.SaveAsync(db, propertyId, request, ct);
+            return error is null
+                ? Results.Ok(settings)
+                : Results.ValidationProblem(new Dictionary<string, string[]> { ["shell"] = [error] });
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
         admin.MapPost("/assets/{kind}", async (
@@ -89,7 +115,9 @@ public static class SiteContentEndpoints
             CancellationToken ct) =>
         {
             var sections = await db.Set<HomeSection>()
-                .Where(x => x.PropertyId == propertyId && x.Type != EditorialPlacementStore.MetadataSectionType)
+                .Where(x => x.PropertyId == propertyId &&
+                    x.Type != EditorialPlacementStore.MetadataSectionType &&
+                    x.Type != PublicShellSettingsStore.MetadataSectionType)
                 .ToListAsync(ct);
             if (request.Ids.Count != sections.Count || request.Ids.Distinct().Count() != request.Ids.Count || sections.Any(x => !request.Ids.Contains(x.Id)))
                 return ToProblem(new SiteContentError("validation", "Danh sách sắp xếp không khớp các khối hiện tại."));
@@ -110,7 +138,8 @@ public static class SiteContentEndpoints
             {
                 sections = result.Sections.Where(x =>
                     x.Type != GlobalSiteBrandingStore.MetadataSectionType &&
-                    x.Type != EditorialPlacementStore.MetadataSectionType)
+                    x.Type != EditorialPlacementStore.MetadataSectionType &&
+                    x.Type != PublicShellSettingsStore.MetadataSectionType)
             });
         });
 
@@ -138,6 +167,28 @@ public static class SiteContentEndpoints
 
             var properties = await resolver.GetActiveAsync(ct);
             return Results.Ok(await GlobalSiteBrandingStore.ResolveAsync(db, service, properties, ct));
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        global.MapGet("/shell", async (
+            AppDbContext db,
+            SiteContentService service,
+            CancellationToken ct) =>
+        {
+            await service.GetGlobalAdminAsync(ct);
+            return Results.Ok(await PublicShellSettingsStore.ReadAsync(db, null, ct));
+        });
+
+        global.MapPut("/shell", async (
+            SavePublicShellSettingsRequest request,
+            AppDbContext db,
+            SiteContentService service,
+            CancellationToken ct) =>
+        {
+            await service.GetGlobalAdminAsync(ct);
+            var (settings, error) = await PublicShellSettingsStore.SaveAsync(db, null, request, ct);
+            return error is null
+                ? Results.Ok(settings)
+                : Results.ValidationProblem(new Dictionary<string, string[]> { ["shell"] = [error] });
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
         global.MapPost("/assets/{kind}", async (
@@ -186,7 +237,8 @@ public static class SiteContentEndpoints
             var sections = await db.Set<HomeSection>()
                 .Where(x => x.PropertyId == null &&
                     x.Type != GlobalSiteBrandingStore.MetadataSectionType &&
-                    x.Type != EditorialPlacementStore.MetadataSectionType)
+                    x.Type != EditorialPlacementStore.MetadataSectionType &&
+                    x.Type != PublicShellSettingsStore.MetadataSectionType)
                 .ToListAsync(ct);
             if (request.Ids.Count != sections.Count || request.Ids.Distinct().Count() != request.Ids.Count || sections.Any(x => !request.Ids.Contains(x.Id)))
                 return ToProblem(new SiteContentError("validation", "Danh sách sắp xếp không khớp các khối trang chủ chung hiện tại."));
@@ -257,6 +309,22 @@ public static class SiteContentEndpoints
         {
             var properties = await resolver.GetActiveAsync(ct);
             return Results.Ok(await GlobalSiteBrandingStore.ResolveAsync(db, service, properties, ct));
+        }).AllowAnonymous();
+
+        app.MapGet("/api/public/site-shell", async (
+            string? siteSlug,
+            AppDbContext db,
+            PublicPropertyResolver resolver,
+            CancellationToken ct) =>
+        {
+            Guid? propertyId = null;
+            if (!string.IsNullOrWhiteSpace(siteSlug))
+            {
+                var property = await resolver.ResolveAsync(siteSlug, ct);
+                if (property is null) return Results.NotFound();
+                propertyId = property.Id;
+            }
+            return Results.Ok(await PublicShellSettingsStore.ReadAsync(db, propertyId, ct));
         }).AllowAnonymous();
 
         MapCustomCss(app, "/site/custom.css", scoped: false);
