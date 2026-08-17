@@ -17,7 +17,13 @@ public static class SiteContentEndpoints
         admin.MapGet("/", async (Guid propertyId, SiteContentService service, CancellationToken ct) =>
         {
             var result = await service.GetAdminAsync(propertyId, ct);
-            return result is null ? Results.NotFound() : Results.Ok(result);
+            return result is null
+                ? Results.NotFound()
+                : Results.Ok(new
+                {
+                    settings = result.Settings,
+                    sections = result.Sections.Where(x => x.Type != EditorialPlacementStore.MetadataSectionType)
+                });
         });
 
         admin.MapPut("/settings", async (
@@ -79,11 +85,19 @@ public static class SiteContentEndpoints
         admin.MapPut("/sections/reorder", async (
             Guid propertyId,
             ReorderHomeSectionsRequest request,
-            SiteContentService service,
+            AppDbContext db,
             CancellationToken ct) =>
         {
-            var error = await service.ReorderAsync(propertyId, request.Ids, ct);
-            return error is null ? Results.NoContent() : ToProblem(error);
+            var sections = await db.Set<HomeSection>()
+                .Where(x => x.PropertyId == propertyId && x.Type != EditorialPlacementStore.MetadataSectionType)
+                .ToListAsync(ct);
+            if (request.Ids.Count != sections.Count || request.Ids.Distinct().Count() != request.Ids.Count || sections.Any(x => !request.Ids.Contains(x.Id)))
+                return ToProblem(new SiteContentError("validation", "Danh sách sắp xếp không khớp các khối hiện tại."));
+
+            var order = request.Ids.Select((id, index) => new { id, index }).ToDictionary(x => x.id, x => x.index);
+            foreach (var section in sections) section.SortOrder = order[section.Id];
+            await db.SaveChangesAsync(ct);
+            return Results.NoContent();
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
         var global = app.MapGroup("/api/admin/site/global")
@@ -94,7 +108,9 @@ public static class SiteContentEndpoints
             var result = await service.GetGlobalAdminAsync(ct);
             return Results.Ok(new
             {
-                sections = result.Sections.Where(x => x.Type != GlobalSiteBrandingStore.MetadataSectionType)
+                sections = result.Sections.Where(x =>
+                    x.Type != GlobalSiteBrandingStore.MetadataSectionType &&
+                    x.Type != EditorialPlacementStore.MetadataSectionType)
             });
         });
 
@@ -168,7 +184,9 @@ public static class SiteContentEndpoints
             CancellationToken ct) =>
         {
             var sections = await db.Set<HomeSection>()
-                .Where(x => x.PropertyId == null && x.Type != GlobalSiteBrandingStore.MetadataSectionType)
+                .Where(x => x.PropertyId == null &&
+                    x.Type != GlobalSiteBrandingStore.MetadataSectionType &&
+                    x.Type != EditorialPlacementStore.MetadataSectionType)
                 .ToListAsync(ct);
             if (request.Ids.Count != sections.Count || request.Ids.Distinct().Count() != request.Ids.Count || sections.Any(x => !request.Ids.Contains(x.Id)))
                 return ToProblem(new SiteContentError("validation", "Danh sách sắp xếp không khớp các khối trang chủ chung hiện tại."));
