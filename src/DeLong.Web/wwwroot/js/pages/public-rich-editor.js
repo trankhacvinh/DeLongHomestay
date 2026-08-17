@@ -28,6 +28,22 @@
         textarea.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
+    function normalizeFieldContainer(textarea) {
+        const label = textarea.parentElement;
+        if (!label || label.tagName !== 'LABEL') return;
+
+        // A Quill editor cannot live inside a <label> that still contains the hidden
+        // source textarea: clicking Quill triggers the label's default activation and
+        // moves focus back to that hidden textarea. Keep the same field styling but
+        // turn the wrapper into a neutral div before mounting Quill.
+        const container = document.createElement('div');
+        for (const attribute of [...label.attributes]) {
+            container.setAttribute(attribute.name, attribute.value);
+        }
+        while (label.firstChild) container.appendChild(label.firstChild);
+        label.replaceWith(container);
+    }
+
     function ensureQuillStyle() {
         if (document.querySelector(`link[href="${QUILL_STYLE}"], link[data-delong-quill-style]`)) return;
         const link = document.createElement('link');
@@ -101,6 +117,8 @@
         if (textarea._delongRichEditor) return textarea._delongRichEditor;
         textarea.dataset.richEnhanced = '1';
         const opts = options || {};
+
+        normalizeFieldContainer(textarea);
 
         const shell = document.createElement('div');
         shell.className = 'pve-rich-editor is-loading';
@@ -236,6 +254,11 @@
             syncVisualFromSource();
             quill.on('text-change', () => {
                 if (mode === 'visual') syncSourceFromVisual();
+            });
+            quill.root.addEventListener('pointerdown', () => {
+                requestAnimationFrame(() => {
+                    if (mode === 'visual' && document.activeElement !== quill.root) quill.focus();
+                });
             });
             shell.classList.remove('is-loading');
             if (mode === 'html') shell.classList.add('is-html');
