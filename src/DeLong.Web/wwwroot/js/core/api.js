@@ -66,6 +66,7 @@
 
         addStyle('data-public-row-builder', '/css/public-row-builder.css?v=20260817-2');
         addStyle('data-public-row-responsive', '/css/public-row-responsive.css?v=20260817-1');
+        addStyle('data-public-row-responsive-preview', '/css/public-row-responsive-preview.css?v=20260817-1');
         addStyle('data-public-editor-enhancements', '/css/public-visual-editor-enhancements.css?v=20260817-2');
 
         addScript('data-public-rich-editor', '/js/pages/public-rich-editor.js?v=20260817-3');
