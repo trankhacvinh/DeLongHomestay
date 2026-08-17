@@ -19,11 +19,8 @@
         const isJson = contentType.includes('json');
         let payload;
         if (isJson) {
-            try {
-                payload = await response.json();
-            } catch {
-                payload = null;
-            }
+            try { payload = await response.json(); }
+            catch { payload = null; }
         } else {
             payload = await response.text();
         }
@@ -49,36 +46,31 @@
     };
 
     if (document.body?.classList.contains('public-body')) {
-        if (!document.querySelector('link[data-public-row-builder]')) {
-            const rowCss = document.createElement('link');
-            rowCss.rel = 'stylesheet';
-            rowCss.href = '/css/public-row-builder.css?v=20260817-2';
-            rowCss.dataset.publicRowBuilder = 'true';
-            document.head.appendChild(rowCss);
+        function addStyle(marker, href) {
+            if (document.querySelector(`link[${marker}]`)) return;
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = href;
+            link.setAttribute(marker, 'true');
+            document.head.appendChild(link);
         }
 
-        if (!document.querySelector('script[data-public-editorial-order]')) {
-            const orderScript = document.createElement('script');
-            orderScript.src = '/js/pages/public-editorial-order.js?v=20260817-2';
-            orderScript.defer = true;
-            orderScript.dataset.publicEditorialOrder = 'true';
-            document.head.appendChild(orderScript);
-        }
-
-        if (!document.querySelector('script[data-public-visual-editor]')) {
+        function addScript(marker, src) {
+            if (document.querySelector(`script[${marker}]`)) return;
             const script = document.createElement('script');
-            script.src = '/js/pages/public-visual-editor-v2.js?v=20260817-4';
-            script.defer = true;
-            script.dataset.publicVisualEditor = 'true';
+            script.src = src;
+            script.async = false;
+            script.setAttribute(marker, 'true');
             document.head.appendChild(script);
         }
 
-        if (!document.querySelector('script[data-public-row-editor]')) {
-            const rowEditor = document.createElement('script');
-            rowEditor.src = '/js/pages/public-visual-row-builder-v2.js?v=20260817-2';
-            rowEditor.defer = true;
-            rowEditor.dataset.publicRowEditor = 'true';
-            document.head.appendChild(rowEditor);
-        }
+        addStyle('data-public-row-builder', '/css/public-row-builder.css?v=20260817-2');
+        addStyle('data-public-editor-enhancements', '/css/public-visual-editor-enhancements.css?v=20260817-1');
+
+        addScript('data-public-rich-editor', '/js/pages/public-rich-editor.js?v=20260817-1');
+        addScript('data-public-editorial-order', '/js/pages/public-editorial-order.js?v=20260817-2');
+        addScript('data-public-visual-editor', '/js/pages/public-visual-editor-v2.js?v=20260817-4');
+        addScript('data-public-editor-enhancements', '/js/pages/public-visual-editor-enhancements.js?v=20260817-1');
+        addScript('data-public-row-editor', '/js/pages/public-visual-row-builder-v3.js?v=20260817-1');
     }
 })(window);
