@@ -179,6 +179,43 @@ public static class SiteContentEndpoints
             return Results.NoContent();
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        app.MapGet("/api/admin/site/visual-context", async (
+            string? siteSlug,
+            HttpContext http,
+            PublicPropertyResolver resolver,
+            CurrentPropertyService currentPropertyService,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(siteSlug))
+            {
+                if (!http.User.IsInRole("Admin")) return (IResult)Results.Forbid();
+                return (IResult)Results.Ok(new
+                {
+                    canEdit = true,
+                    scope = "global",
+                    propertyId = (Guid?)null,
+                    propertyName = "Trang chủ chung"
+                });
+            }
+
+            if (!http.User.IsInRole("Admin") && !http.User.IsInRole("Manager")) return (IResult)Results.Forbid();
+
+            var property = await resolver.ResolveAsync(siteSlug, ct);
+            if (property is null) return (IResult)Results.NotFound();
+
+            var accessible = await currentPropertyService.GetAccessibleAsync(http.User, ct);
+            if (!accessible.Any(x => x.Id == property.Id)) return (IResult)Results.Forbid();
+
+            return (IResult)Results.Ok(new
+            {
+                canEdit = true,
+                scope = "property",
+                propertyId = property.Id,
+                propertyName = property.Name,
+                siteSlug = property.SiteSlug
+            });
+        }).RequireAuthorization();
+
         app.MapGet("/api/public/global-branding", async (
             AppDbContext db,
             SiteContentService service,
