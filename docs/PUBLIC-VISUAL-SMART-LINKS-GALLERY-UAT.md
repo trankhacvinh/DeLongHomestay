@@ -8,19 +8,23 @@ PR này stack trên `feat/visual-content-cards` / PR #32.
 
 1. Đăng nhập Admin/Manager có quyền và mở `/` hoặc `/h/{siteSlug}`.
 2. Mở `Menu / Footer`.
-3. Dưới mỗi ô Link phải có nút `Chọn link có sẵn`.
-4. Bấm picker: danh sách được chia nhóm `Trang hệ thống`, `Phòng`, `Bài viết`, `Trong trang`.
-5. Các trang hệ thống phải có: Trang chủ, Danh sách phòng, Đặt phòng, Tra cứu, Cơ sở, Blog.
-6. Chọn `Đặt phòng`: URL hiển thị đúng scope hiện tại nhưng khi lưu vẫn giữ token hệ thống nếu không sửa tay.
-7. Với menu hệ thống đã bị đổi sai URL, bấm `Khôi phục mặc định` phải trả về đúng route.
-8. Danh sách `Phòng` phải lấy phòng thật có quyền truy cập; chọn một phòng rồi lưu, guest phải mở đúng room detail.
-9. Danh sách `Bài viết` chỉ đề xuất bài đã publish; chọn một bài rồi lưu, guest phải mở đúng blog detail.
-10. Gõ từ khóa trong picker để lọc theo tên phòng, mã phòng, tên bài, loại link.
-11. `Gallery trên trang chủ` phải trỏ đến `#gallery`; gallery public đầu tiên phải có anchor `gallery`.
-12. `Mở thử` phải mở URL hợp lệ ở tab mới và bị disable với URL không hợp lệ/nguy hiểm.
-13. Link tùy chỉnh vẫn được phép nhập trực tiếp như trước.
-14. CTA Header và link đặt phòng Footer cũng dùng cùng picker.
-15. Picker không tải danh sách phòng/blog cho đến khi người dùng mở picker lần đầu.
+3. Mỗi ô Link chỉ hiển thị một thanh compact gồm trạng thái link + `Chọn liên kết` + `Mặc định` (nếu có) + `Mở thử`; không được tự bung danh sách hay hiện `Đang tải…` trước khi bấm.
+4. Bấm `Chọn liên kết`: mở dialog riêng ở giữa màn hình, không kéo dài từng row của Menu.
+5. Ngay khi dialog mở, các link hệ thống phải dùng được lập tức; phòng/bài viết được tải bổ sung lazy và chỉ hiện một dòng trạng thái nhỏ `Đang tải thêm phòng và bài viết…`.
+6. Dialog có search và filter `Tất cả / Hệ thống / Phòng / Bài viết / Trong trang`.
+7. Danh sách trang hệ thống phải có: Trang chủ, Danh sách phòng, Đặt phòng, Tra cứu, Cơ sở, Blog.
+8. Nút `×` trên dialog phải đóng được; phím `Esc` và click vùng nền tối bên ngoài dialog cũng phải đóng được.
+9. Chọn `Đặt phòng`: URL hiển thị đúng scope hiện tại nhưng khi lưu vẫn giữ token hệ thống nếu không sửa tay.
+10. Với menu hệ thống đã bị đổi sai URL, bấm `Mặc định` phải trả về đúng route.
+11. Danh sách `Phòng` phải lấy phòng thật có quyền truy cập; chọn một phòng rồi lưu, guest phải mở đúng room detail.
+12. Danh sách `Bài viết` chỉ đề xuất bài đã publish; chọn một bài rồi lưu, guest phải mở đúng blog detail.
+13. Gõ từ khóa để lọc theo tên phòng, mã phòng, tên bài hoặc URL; chuyển filter không được làm mất từ khóa tìm kiếm.
+14. Mục đang dùng phải có dấu chọn trong dialog và footer dialog phải hiển thị loại link + URL hiện tại.
+15. `Gallery trên trang chủ` phải trỏ đến `#gallery`; gallery public đầu tiên phải có anchor `gallery`.
+16. `Mở thử` phải mở URL hợp lệ ở tab mới và bị disable với URL không hợp lệ/nguy hiểm.
+17. Bấm `Nhập URL thủ công` phải đóng dialog và focus trở lại ô Link để người dùng gõ URL ngoài hệ thống.
+18. CTA Header và link đặt phòng Footer cũng dùng cùng picker.
+19. Đóng rồi mở lại picker lần hai phải dùng dữ liệu đã cache, không tải lại toàn bộ danh sách từ đầu.
 
 ## 2. Gallery Studio
 
