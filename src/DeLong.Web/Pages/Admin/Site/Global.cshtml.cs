@@ -1,4 +1,3 @@
-
 using System.Text.Json;
 using DeLong.Web.Data;
 using DeLong.Web.Features.PublicRooms;
@@ -26,7 +25,9 @@ public sealed class GlobalModel(
         PageDataJson = JsonSerializer.Serialize(new
         {
             branding,
-            sections = site.Sections.Where(x => x.Type != GlobalSiteBrandingStore.MetadataSectionType),
+            sections = site.Sections.Where(x =>
+                x.Type != GlobalSiteBrandingStore.MetadataSectionType &&
+                x.Type != EditorialPlacementStore.MetadataSectionType),
             properties = catalog.Properties,
             rooms = catalog.Rooms.Select(x => new
             {

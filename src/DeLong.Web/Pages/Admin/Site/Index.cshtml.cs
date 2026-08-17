@@ -30,7 +30,11 @@ public sealed class IndexModel(
             siteSlug,
             publicBasePath = $"/h/{Uri.EscapeDataString(siteSlug)}",
             canEditCode = User.IsInRole("Admin"),
-            site
+            site = new
+            {
+                settings = site.Settings,
+                sections = site.Sections.Where(x => x.Type != EditorialPlacementStore.MetadataSectionType)
+            }
         }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return Page();
     }

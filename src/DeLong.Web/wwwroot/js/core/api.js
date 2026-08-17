@@ -19,11 +19,8 @@
         const isJson = contentType.includes('json');
         let payload;
         if (isJson) {
-            try {
-                payload = await response.json();
-            } catch {
-                payload = null;
-            }
+            try { payload = await response.json(); }
+            catch { payload = null; }
         } else {
             payload = await response.text();
         }
@@ -47,4 +44,33 @@
         patch: (url, data) => request(url, { method: 'PATCH', body: JSON.stringify(data) }),
         delete: (url) => request(url, { method: 'DELETE' })
     };
+
+    if (document.body?.classList.contains('public-body')) {
+        function addStyle(marker, href) {
+            if (document.querySelector(`link[${marker}]`)) return;
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = href;
+            link.setAttribute(marker, 'true');
+            document.head.appendChild(link);
+        }
+
+        function addScript(marker, src) {
+            if (document.querySelector(`script[${marker}]`)) return;
+            const script = document.createElement('script');
+            script.src = src;
+            script.async = false;
+            script.setAttribute(marker, 'true');
+            document.head.appendChild(script);
+        }
+
+        addStyle('data-public-row-builder', '/css/public-row-builder.css?v=20260817-2');
+        addStyle('data-public-editor-enhancements', '/css/public-visual-editor-enhancements.css?v=20260817-2');
+
+        addScript('data-public-rich-editor', '/js/pages/public-rich-editor.js?v=20260817-3');
+        addScript('data-public-editorial-order', '/js/pages/public-editorial-order.js?v=20260817-2');
+        addScript('data-public-visual-editor', '/js/pages/public-visual-editor-v2.js?v=20260817-4');
+        addScript('data-public-editor-enhancements', '/js/pages/public-visual-editor-enhancements.js?v=20260817-3');
+        addScript('data-public-row-editor', '/js/pages/public-visual-row-builder-v3.js?v=20260817-2');
+    }
 })(window);
