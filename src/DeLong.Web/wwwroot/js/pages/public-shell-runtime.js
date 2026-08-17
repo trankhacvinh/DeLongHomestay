@@ -21,39 +21,62 @@
         return null;
     }
 
-    function label(shell, key) {
-        return ({
-            home: shell.homeLabel,
-            rooms: shell.roomsLabel,
-            branches: shell.branchesLabel,
-            booking: shell.bookingLabel,
-            lookup: shell.lookupLabel
-        })[key] || key;
+    function resolveUrl(value) {
+        const url = String(value || '').trim();
+        if (!url.startsWith('@')) return url || '#';
+        const prefix = siteSlug ? `/h/${encodeURIComponent(siteSlug)}` : '';
+        switch (url.toLowerCase()) {
+            case '@home': return prefix || '/';
+            case '@rooms': return prefix ? `${prefix}/rooms` : '/rooms';
+            case '@branches': return '/#co-so';
+            case '@booking': return prefix ? `${prefix}/booking` : '/booking';
+            case '@lookup': return prefix ? `${prefix}/booking/lookup` : '/booking/lookup';
+            default: return '#';
+        }
     }
 
-    function visible(shell, key) {
-        if (key === 'home') return shell.showHome !== false;
-        if (key === 'rooms') return shell.showRooms !== false;
-        if (key === 'branches') return shell.showBranches !== false;
-        return true;
+    function legacyItems(shell) {
+        const order = Array.isArray(shell.navigationOrder) ? shell.navigationOrder : ['home', 'rooms', 'branches', 'booking', 'lookup'];
+        const labels = {
+            home: shell.homeLabel || 'Trang chủ',
+            rooms: shell.roomsLabel || 'Phòng',
+            branches: shell.branchesLabel || 'Cơ sở',
+            booking: shell.bookingLabel || 'Đặt phòng',
+            lookup: shell.lookupLabel || 'Tra cứu'
+        };
+        const urls = { home: '@home', rooms: '@rooms', branches: '@branches', booking: '@booking', lookup: '@lookup' };
+        return order.map(id => ({
+            id,
+            label: labels[id] || id,
+            url: urls[id] || '#',
+            isVisible: id === 'home' ? shell.showHome !== false : id === 'rooms' ? shell.showRooms !== false : id === 'branches' ? shell.showBranches !== false : true,
+            openInNewTab: false,
+            isSystem: true
+        }));
+    }
+
+    function navigationItems(shell) {
+        return Array.isArray(shell.navigationItems) ? shell.navigationItems : legacyItems(shell);
     }
 
     function applyNav(container, shell) {
         if (!container) return;
-        const anchors = [...container.children].filter(x => x.tagName === 'A');
-        const byKey = new Map();
-        anchors.forEach(anchor => {
-            const key = keyForAnchor(anchor);
-            if (!key) return;
-            if (!byKey.has(key)) byKey.set(key, anchor);
-            anchor.textContent = label(shell, key);
-            anchor.hidden = !visible(shell, key);
-        });
+        const existingAnchors = [...container.children].filter(x => x.tagName === 'A');
+        const branchesAvailable = existingAnchors.some(anchor => keyForAnchor(anchor) === 'branches') || !!document.querySelector('#co-so');
+        existingAnchors.forEach(anchor => anchor.remove());
 
-        const order = Array.isArray(shell.navigationOrder) ? shell.navigationOrder : ['home', 'rooms', 'branches', 'booking', 'lookup'];
-        order.forEach(key => {
-            const anchor = byKey.get(key);
-            if (anchor) container.appendChild(anchor);
+        navigationItems(shell).forEach(item => {
+            if (!item || item.isVisible === false) return;
+            if (item.id === 'branches' && String(item.url || '').toLowerCase() === '@branches' && !branchesAvailable) return;
+            const anchor = document.createElement('a');
+            anchor.href = resolveUrl(item.url);
+            anchor.textContent = item.label || 'Liên kết';
+            anchor.dataset.shellNavId = item.id || '';
+            if (item.openInNewTab) {
+                anchor.target = '_blank';
+                anchor.rel = 'noopener noreferrer';
+            }
+            container.appendChild(anchor);
         });
     }
 
@@ -64,7 +87,10 @@
         const intro = footer.querySelector('.public-footer-brand > p');
         if (intro) intro.textContent = shell.footerIntro || intro.textContent;
         const book = footer.querySelector('.public-footer-book');
-        if (book) book.textContent = shell.footerBookingText || book.textContent;
+        if (book) {
+            book.textContent = shell.footerBookingText || book.textContent;
+            book.href = resolveUrl(shell.footerBookingUrl || '@booking');
+        }
 
         const columns = [...footer.querySelectorAll('.public-footer-column:not(.public-footer-contact)')];
         const explore = columns[0];
@@ -97,7 +123,10 @@
         if (!shell) return;
         applyNav(document.querySelector('.public-site-links'), shell);
         const cta = document.querySelector('.public-site-actions .public-btn-primary');
-        if (cta) cta.textContent = shell.headerCtaText || shell.bookingLabel || cta.textContent;
+        if (cta) {
+            cta.textContent = shell.headerCtaText || shell.bookingLabel || cta.textContent;
+            cta.href = resolveUrl(shell.headerCtaUrl || '@booking');
+        }
         applyFooter(shell);
         document.documentElement.dataset.publicShellReady = 'true';
     }
