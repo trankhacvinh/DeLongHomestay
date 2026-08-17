@@ -48,11 +48,43 @@
         delete: (url) => request(url, { method: 'DELETE' })
     };
 
-    if (document.body?.classList.contains('public-body') && !document.querySelector('script[data-public-visual-editor]')) {
-        const script = document.createElement('script');
-        script.src = '/js/pages/public-visual-editor.js?v=20260817-1';
-        script.defer = true;
-        script.dataset.publicVisualEditor = 'true';
-        document.head.appendChild(script);
+    if (document.body?.classList.contains('public-body')) {
+        // The public visual editor intentionally exposes only the common controls for global
+        // BranchGrid/RoomGrid blocks. Preserve their advanced source selections (manual rooms,
+        // per-property quotas and selected branches) when a visual edit updates the common fields.
+        const rawPut = global.DeLongApi.put;
+        global.DeLongApi.put = async (url, data) => {
+            const match = /^\/api\/admin\/site\/global\/sections\/([0-9a-f-]+)$/i.exec(url || '');
+            if (match && data?.contentJson && (data.type === 'BranchGrid' || data.type === 'RoomGrid')) {
+                try {
+                    const current = await global.DeLongApi.get('/api/admin/site/global/');
+                    const section = (current?.sections || []).find(item => String(item.id).toLowerCase() === match[1].toLowerCase());
+                    if (section) {
+                        const previous = JSON.parse(section.contentJson || '{}');
+                        const next = JSON.parse(data.contentJson || '{}');
+                        if (data.type === 'BranchGrid') next.propertyIds = Array.isArray(previous.propertyIds) ? previous.propertyIds : [];
+                        if (data.type === 'RoomGrid') {
+                            next.roomIds = Array.isArray(previous.roomIds) ? previous.roomIds : [];
+                            next.propertyQuotas = previous.propertyQuotas && typeof previous.propertyQuotas === 'object' && !Array.isArray(previous.propertyQuotas)
+                                ? previous.propertyQuotas
+                                : {};
+                        }
+                        data = Object.assign({}, data, { contentJson: JSON.stringify(next) });
+                    }
+                } catch {
+                    // If the preservation lookup fails, let the normal PUT surface the actual
+                    // authorization/validation error rather than breaking all visual edits here.
+                }
+            }
+            return rawPut(url, data);
+        };
+
+        if (!document.querySelector('script[data-public-visual-editor]')) {
+            const script = document.createElement('script');
+            script.src = '/js/pages/public-visual-editor.js?v=20260817-2';
+            script.defer = true;
+            script.dataset.publicVisualEditor = 'true';
+            document.head.appendChild(script);
+        }
     }
 })(window);
