@@ -1,6 +1,7 @@
 using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
+using DeLong.Web.Features.PublicRooms;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.Site;
@@ -114,7 +115,6 @@ public static class SiteContentEndpoints
             PublicPropertyResolver resolver,
             CancellationToken ct) =>
         {
-            // Make sure the normal global homepage blocks exist before the reserved metadata row is created.
             await service.GetGlobalAdminAsync(ct);
             var (success, error) = await GlobalSiteBrandingStore.SaveAsync(db, request, ct);
             if (!success)
@@ -184,17 +184,29 @@ public static class SiteContentEndpoints
             HttpContext http,
             PublicPropertyResolver resolver,
             CurrentPropertyService currentPropertyService,
+            PublicRoomContentService publicRoomContentService,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(siteSlug))
             {
                 if (!http.User.IsInRole("Admin")) return (IResult)Results.Forbid();
+                var catalog = await publicRoomContentService.GetGlobalCatalogAsync(ct);
                 return (IResult)Results.Ok(new
                 {
                     canEdit = true,
                     scope = "global",
                     propertyId = (Guid?)null,
-                    propertyName = "Trang chủ chung"
+                    propertyName = "Trang chủ chung",
+                    properties = catalog.Properties,
+                    rooms = catalog.Rooms.Select(x => new
+                    {
+                        id = x.Room.Id,
+                        name = x.Room.Name,
+                        code = x.Room.Code,
+                        propertyId = x.PropertyId,
+                        propertyName = x.PropertyName,
+                        propertySiteSlug = x.PropertySiteSlug
+                    })
                 });
             }
 
@@ -206,13 +218,16 @@ public static class SiteContentEndpoints
             var accessible = await currentPropertyService.GetAccessibleAsync(http.User, ct);
             if (!accessible.Any(x => x.Id == property.Id)) return (IResult)Results.Forbid();
 
+            var roomCatalog = await publicRoomContentService.GetCatalogAsync(property.Id, ct);
             return (IResult)Results.Ok(new
             {
                 canEdit = true,
                 scope = "property",
                 propertyId = property.Id,
                 propertyName = property.Name,
-                siteSlug = property.SiteSlug
+                siteSlug = property.SiteSlug,
+                properties = new[] { new { id = property.Id, name = property.Name, siteName = property.Name, siteSlug = property.SiteSlug, roomCount = roomCatalog.Rooms.Count } },
+                rooms = roomCatalog.Rooms.Select(x => new { id = x.Id, name = x.Name, code = x.Code, propertyId = property.Id, propertyName = property.Name, propertySiteSlug = property.SiteSlug })
             });
         }).RequireAuthorization();
 
