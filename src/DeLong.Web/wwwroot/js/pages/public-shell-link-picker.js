@@ -71,7 +71,8 @@
     }
 
     function buildPicker(target, input) {
-        if (!target || !input || target.querySelector(':scope > .pve-system-link-picker')) return;
+        if (!target || !input || target.dataset.systemLinkPicker === '1') return;
+        target.dataset.systemLinkPicker = '1';
 
         const picker = document.createElement('div');
         picker.className = 'pve-system-link-picker';
