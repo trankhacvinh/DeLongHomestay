@@ -36,6 +36,9 @@
 3. Property Gallery: thêm ảnh, upload ảnh, sửa alt/caption, bật/tắt published, `↑`/`↓`, xóa, đổi layout rồi lưu.
 4. Global Gallery: chỉnh enabled, title, layout, limit và mode `all/properties/manual` trực tiếp.
 5. Global manual mode cho phép chọn ảnh published cụ thể.
+6. Control nổi của Gallery có thêm `↑` / `↓` để di chuyển **cả section Gallery** lên/xuống giữa các block trang chủ.
+7. Đưa Gallery lên giữa Hero và RoomGrid, reload rồi mở lại bằng tài khoản khách: Gallery vẫn phải nằm đúng vị trí đã lưu.
+8. Di chuyển Gallery qua Blog theo cả hai hướng; không được tạo vòng lặp vị trí hoặc làm mất section.
 
 ## Blog
 
@@ -43,6 +46,9 @@
 2. Property Blog: danh sách bài, thêm bài, sửa title/slug/excerpt/body HTML/cover, draft/published và xóa.
 3. Khi đang ở `/h/{siteSlug}/blog/{slug}`, toolbar có `Sửa bài viết` và mở thẳng bài hiện tại.
 4. Global Blog: chỉnh enabled, title, limit và nguồn `all/properties/manual` trực tiếp; nội dung bài thật vẫn thuộc cơ sở.
+5. Control nổi của Blog có thêm `↑` / `↓` để di chuyển **cả section Blog** lên/xuống giữa các block trang chủ.
+6. Đưa Blog lên trước Gallery hoặc lên giữa hai block CMS, reload và xác nhận cả Admin lẫn khách đều thấy cùng thứ tự.
+7. Sau khi di chuyển Gallery/Blog, editor phải tự bật lại và việc tiếp tục di chuyển một block CMS bình thường vẫn phải lưu được.
 
 ## Block kiểu UX Builder
 
@@ -64,4 +70,5 @@
 1. Desktop: toolbar không che public header; drawer nằm bên phải.
 2. Mobile <= 760px: toolbar cuộn ngang gọn, drawer full-width, controls block vẫn thao tác được.
 3. Nút `↑` / `↓` phải thao tác được trên mobile khi drag handle bị ẩn.
-4. Tắt `Chỉnh sửa trang`: website trở về giao diện khách, không còn outline/control.
+4. Gallery/Blog cũng phải di chuyển được bằng `↑` / `↓` trên mobile.
+5. Tắt `Chỉnh sửa trang`: website trở về giao diện khách, không còn outline/control.
