@@ -34,6 +34,20 @@ Các cải tiến menu tự do tiếp tục được bổ sung trên `feat/visua
 15. Đổi chữ và link CTA Header; lưu rồi xác nhận cả text và href thay đổi.
 16. Mở tab ẩn danh: menu/CTA phải giống tab Admin.
 
+### 1.1. Chọn nhanh link có sẵn của hệ thống
+
+1. Dưới mỗi ô Link phải có khối `Chọn nhanh link có sẵn`.
+2. Có các lựa chọn `Trang chủ`, `Phòng`, `Đặt phòng`, `Tra cứu`, `Cơ sở`, `Blog`.
+3. Bấm `Đặt phòng`: ô Link tự điền route đúng theo scope hiện tại, ví dụ `/h/{siteSlug}/booking` ở site cơ sở.
+4. Lưu rồi mở lại: các link lõi vẫn được giữ bằng token nội bộ như `@booking`, không đóng cứng siteSlug.
+5. Với mục hệ thống, sửa link thành `/abcd`, sau đó bấm `↺ Khôi phục link mặc định`: link phải quay lại route hệ thống đúng mà người dùng không cần nhớ URL.
+6. CTA Header và link đặt phòng Footer phải có cùng picker; `Khôi phục link mặc định` phải trả về Đặt phòng.
+7. Bấm `↗ Mở thử link hiện tại`: link hợp lệ mở ở tab mới; link nguy hiểm không được mở.
+8. Gõ tay URL khác: trạng thái chuyển thành `Đang dùng link tùy chỉnh`.
+9. Chọn lại một link lõi: trạng thái chuyển thành `Đang dùng link hệ thống: ...`.
+10. `Blog` được gợi ý theo scope hiện tại (`/blog` hoặc `/h/{siteSlug}/blog`).
+11. Kiểm tra desktop + mobile: picker không làm vỡ drawer và các nút vẫn bấm được.
+
 ## 2. Footer
 
 1. Bấm `Menu / Footer` → tab `Footer`, hoặc hover dòng cuối Footer → `✎ Footer`.
