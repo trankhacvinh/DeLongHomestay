@@ -126,45 +126,109 @@
                 : '/api/admin/site/global/shell';
         }
 
+        resolveMenuUrl(value) {
+            const url = String(value || '').trim();
+            if (!url.startsWith('@')) return url;
+            const prefix = siteSlug ? `/h/${encodeURIComponent(siteSlug)}` : '';
+            switch (url.toLowerCase()) {
+                case '@home': return prefix || '/';
+                case '@rooms': return prefix ? `${prefix}/rooms` : '/rooms';
+                case '@branches': return '/#co-so';
+                case '@booking': return prefix ? `${prefix}/booking` : '/booking';
+                case '@lookup': return prefix ? `${prefix}/booking/lookup` : '/booking/lookup';
+                default: return url;
+            }
+        }
+
+        keepToken(originalUrl, currentValue) {
+            const source = String(originalUrl || '').trim();
+            const value = String(currentValue || '').trim();
+            return source.startsWith('@') && value === this.resolveMenuUrl(source) ? source : value;
+        }
+
+        legacyNavigation(shell) {
+            const order = Array.isArray(shell.navigationOrder) ? shell.navigationOrder : ['home', 'rooms', 'branches', 'booking', 'lookup'];
+            const labels = {
+                home: shell.homeLabel || 'Trang chủ',
+                rooms: shell.roomsLabel || 'Phòng',
+                branches: shell.branchesLabel || 'Cơ sở',
+                booking: shell.bookingLabel || 'Đặt phòng',
+                lookup: shell.lookupLabel || 'Tra cứu'
+            };
+            const urls = { home: '@home', rooms: '@rooms', branches: '@branches', booking: '@booking', lookup: '@lookup' };
+            return order.map(id => ({
+                id,
+                label: labels[id] || id,
+                url: urls[id] || '/',
+                isVisible: id === 'home' ? shell.showHome !== false : id === 'rooms' ? shell.showRooms !== false : id === 'branches' ? shell.showBranches !== false : true,
+                openInNewTab: false,
+                isSystem: true
+            }));
+        }
+
+        navigationItems(shell) {
+            return Array.isArray(shell.navigationItems) ? shell.navigationItems : this.legacyNavigation(shell);
+        }
+
+        newNavigationId() {
+            const random = globalThis.crypto?.randomUUID?.().replace(/-/g, '') || `${Date.now()}${Math.random().toString(16).slice(2)}`;
+            return `custom-${random}`.slice(0, 64);
+        }
+
+        navRow(item, index, total) {
+            const id = String(item.id || this.newNavigationId());
+            const rawUrl = String(item.url || '/');
+            const typeLabel = item.isSystem ? 'Mục hệ thống · link vẫn có thể sửa' : 'Mục tùy chỉnh';
+            return `<div class="pve-shell-nav-row" data-nav-id="${h(id)}" data-nav-source-url="${h(rawUrl)}">
+                <span class="pve-shell-nav-handle">${index + 1}</span>
+                <div class="pve-shell-nav-fields">
+                    <label><span>Tên menu</span><input data-nav-label value="${h(item.label || '')}" placeholder="Ví dụ: Giới thiệu"></label>
+                    <label><span>Link</span><input data-nav-url value="${h(this.resolveMenuUrl(rawUrl))}" placeholder="/gioi-thieu hoặc https://..."></label>
+                    <div class="pve-shell-nav-meta">
+                        <label class="pve-context-check"><input type="checkbox" data-nav-visible ${item.isVisible !== false ? 'checked' : ''}><span>Hiện</span></label>
+                        <label class="pve-context-check"><input type="checkbox" data-nav-new-tab ${item.openInNewTab ? 'checked' : ''}><span>Mở tab mới</span></label>
+                        <small>${h(typeLabel)}</small>
+                    </div>
+                </div>
+                <div class="pve-shell-nav-actions">
+                    <button type="button" data-nav-up title="Lên" ${index === 0 ? 'disabled' : ''}>↑</button>
+                    <button type="button" data-nav-down title="Xuống" ${index === total - 1 ? 'disabled' : ''}>↓</button>
+                    <button type="button" class="danger" data-nav-delete title="Xóa khỏi menu">×</button>
+                </div>
+            </div>`;
+        }
+
         async openShellEditor(initialTab) {
             try {
                 const shell = await DeLongApi.get(this.shellApi());
-                const order = Array.isArray(shell.navigationOrder) ? [...shell.navigationOrder] : ['home', 'rooms', 'branches', 'booking', 'lookup'];
-                const labels = {
-                    home: shell.homeLabel,
-                    rooms: shell.roomsLabel,
-                    branches: shell.branchesLabel,
-                    booking: shell.bookingLabel,
-                    lookup: shell.lookupLabel
-                };
-                const names = { home: 'Trang chủ', rooms: 'Phòng', branches: 'Cơ sở', booking: 'Đặt phòng', lookup: 'Tra cứu' };
-                const navRows = order.map((key, index) => `<div class="pve-shell-nav-row" data-nav-key="${h(key)}">
-                    <span class="pve-shell-nav-handle">${index + 1}</span>
-                    <label><span>${h(names[key] || key)}</span><input data-nav-label value="${h(labels[key] || '')}"></label>
-                    <div class="pve-shell-nav-actions"><button type="button" data-nav-up ${index === 0 ? 'disabled' : ''}>↑</button><button type="button" data-nav-down ${index === order.length - 1 ? 'disabled' : ''}>↓</button></div>
-                </div>`).join('');
+                const items = this.navigationItems(shell);
+                const navRows = items.map((item, index) => this.navRow(item, index, items.length)).join('');
+                const headerCtaUrl = shell.headerCtaUrl || '@booking';
+                const footerBookingUrl = shell.footerBookingUrl || '@booking';
 
                 const body = `<div class="pve-shell-editor" data-shell-tab="${h(initialTab || 'menu')}">
                     <nav class="pve-room-tabs"><button type="button" data-shell-tab-button="menu" class="${initialTab !== 'footer' ? 'active' : ''}">Menu & CTA</button><button type="button" data-shell-tab-button="footer" class="${initialTab === 'footer' ? 'active' : ''}">Footer</button></nav>
                     <section data-shell-panel="menu" ${initialTab === 'footer' ? 'hidden' : ''}>
                         <div class="pve-context-form">
-                            <p class="pve-context-note">Bạn có thể đổi tên và thứ tự menu. Đường dẫn Đặt phòng / Tra cứu vẫn do hệ thống quản lý để không phá luồng đặt phòng.</p>
-                            <label><span>Chữ nút CTA trên Header</span><input name="headerCtaText" value="${h(shell.headerCtaText)}"></label>
-                            <div class="pve-shell-nav-list">${navRows}</div>
-                            <div class="pve-shell-toggle-grid">
-                                <label class="pve-context-check"><input type="checkbox" name="showHome" ${shell.showHome !== false ? 'checked' : ''}><span>Hiện Trang chủ</span></label>
-                                <label class="pve-context-check"><input type="checkbox" name="showRooms" ${shell.showRooms !== false ? 'checked' : ''}><span>Hiện Phòng</span></label>
-                                <label class="pve-context-check"><input type="checkbox" name="showBranches" ${shell.showBranches !== false ? 'checked' : ''}><span>Hiện Cơ sở khi có nhiều cơ sở</span></label>
+                            <p class="pve-context-note">Menu giờ là danh sách tự do: sửa được cả tên lẫn link, thêm/xóa mục và đổi thứ tự. Có thể dùng đường dẫn nội bộ như <b>/gioi-thieu</b> hoặc URL đầy đủ. Link nguy hiểm như javascript: sẽ bị server từ chối.</p>
+                            <div class="pve-context-grid-2">
+                                <label><span>Chữ nút CTA trên Header</span><input name="headerCtaText" value="${h(shell.headerCtaText)}"></label>
+                                <label data-token-source="${h(headerCtaUrl)}"><span>Link CTA Header</span><input name="headerCtaUrl" value="${h(this.resolveMenuUrl(headerCtaUrl))}" placeholder="/booking"></label>
                             </div>
+                            <div class="pve-shell-nav-toolbar"><div><strong>Menu chính</strong><small>Tối đa 20 mục</small></div><button type="button" data-nav-add>＋ Thêm mục menu</button></div>
+                            <div class="pve-shell-nav-list">${navRows}</div>
+                            <div class="pve-shell-nav-empty" ${items.length ? 'hidden' : ''}>Menu đang trống. Bấm “Thêm mục menu” để tạo liên kết đầu tiên.</div>
                         </div>
                     </section>
                     <section data-shell-panel="footer" ${initialTab !== 'footer' ? 'hidden' : ''}>
                         <div class="pve-context-form">
                             <label><span>Mô tả dưới thương hiệu</span><textarea name="footerIntro" rows="4">${h(shell.footerIntro)}</textarea></label>
-                            <div class="pve-context-grid-2"><label><span>Chữ link đặt phòng</span><input name="footerBookingText" value="${h(shell.footerBookingText)}"></label><label><span>Tiêu đề Khám phá</span><input name="footerExploreTitle" value="${h(shell.footerExploreTitle)}"></label></div>
-                            <div class="pve-context-grid-2"><label><span>Tiêu đề Cơ sở</span><input name="footerBranchesTitle" value="${h(shell.footerBranchesTitle)}"></label><label><span>Tiêu đề Liên hệ</span><input name="footerContactTitle" value="${h(shell.footerContactTitle)}"></label></div>
+                            <div class="pve-context-grid-2"><label><span>Chữ link đặt phòng</span><input name="footerBookingText" value="${h(shell.footerBookingText)}"></label><label data-token-source="${h(footerBookingUrl)}"><span>Link đặt phòng Footer</span><input name="footerBookingUrl" value="${h(this.resolveMenuUrl(footerBookingUrl))}"></label></div>
+                            <div class="pve-context-grid-2"><label><span>Tiêu đề Khám phá</span><input name="footerExploreTitle" value="${h(shell.footerExploreTitle)}"></label><label><span>Tiêu đề Cơ sở</span><input name="footerBranchesTitle" value="${h(shell.footerBranchesTitle)}"></label></div>
+                            <label><span>Tiêu đề Liên hệ</span><input name="footerContactTitle" value="${h(shell.footerContactTitle)}"></label>
                             <label><span>Dòng cuối Footer</span><input name="footerBottomText" value="${h(shell.footerBottomText)}"></label>
                             <label class="pve-context-check"><input type="checkbox" name="showFooterContact" ${shell.showFooterContact !== false ? 'checked' : ''}><span>Hiện cột Liên hệ khi cơ sở có thông tin</span></label>
+                            <p class="pve-context-note">Cột “Khám phá” ở Footer dùng cùng danh sách menu chính ở trên, nên mục tùy chỉnh cũng tự xuất hiện tại Footer.</p>
                         </div>
                     </section>
                 </div>`;
@@ -176,50 +240,83 @@
                     drawer.querySelectorAll('[data-shell-tab-button]').forEach(x => x.classList.toggle('active', x === button));
                     drawer.querySelectorAll('[data-shell-panel]').forEach(panel => { panel.hidden = panel.dataset.shellPanel !== tab; });
                 }));
-                this.bindNavigationOrder(drawer);
+                this.bindNavigationEditor(drawer);
                 drawer.querySelector('[data-shell-save]').addEventListener('click', () => this.saveShell(drawer, shell));
             } catch (error) {
                 toast(error.message || 'Không thể tải cấu hình Menu / Footer.', true);
             }
         }
 
-        bindNavigationOrder(drawer) {
+        bindNavigationEditor(drawer) {
             const list = drawer.querySelector('.pve-shell-nav-list');
+            const empty = drawer.querySelector('.pve-shell-nav-empty');
             const refresh = () => {
-                const rows = [...list.querySelectorAll('[data-nav-key]')];
+                const rows = [...list.querySelectorAll('[data-nav-id]')];
                 rows.forEach((row, index) => {
                     row.querySelector('.pve-shell-nav-handle').textContent = index + 1;
                     row.querySelector('[data-nav-up]').disabled = index === 0;
                     row.querySelector('[data-nav-down]').disabled = index === rows.length - 1;
                 });
+                if (empty) empty.hidden = rows.length > 0;
+                drawer.querySelector('[data-nav-add]').disabled = rows.length >= 20;
             };
+
             list.addEventListener('click', event => {
-                const row = event.target.closest('[data-nav-key]');
+                const row = event.target.closest('[data-nav-id]');
                 if (!row) return;
                 if (event.target.closest('[data-nav-up]') && row.previousElementSibling) list.insertBefore(row, row.previousElementSibling);
                 if (event.target.closest('[data-nav-down]') && row.nextElementSibling) list.insertBefore(row.nextElementSibling, row);
+                if (event.target.closest('[data-nav-delete]')) row.remove();
                 refresh();
             });
+
+            drawer.querySelector('[data-nav-add]').addEventListener('click', () => {
+                const rows = [...list.querySelectorAll('[data-nav-id]')];
+                if (rows.length >= 20) return toast('Menu tối đa 20 mục.', true);
+                const item = { id: this.newNavigationId(), label: 'Mục mới', url: '/', isVisible: true, openInNewTab: false, isSystem: false };
+                list.insertAdjacentHTML('beforeend', this.navRow(item, rows.length, rows.length + 1));
+                refresh();
+                list.lastElementChild?.querySelector('[data-nav-label]')?.select();
+            });
+            refresh();
         }
 
         shellPayload(drawer, original) {
-            const rows = [...drawer.querySelectorAll('[data-nav-key]')];
-            const labels = Object.fromEntries(rows.map(row => [row.dataset.navKey, row.querySelector('[data-nav-label]').value.trim()]));
+            const rows = [...drawer.querySelectorAll('[data-nav-id]')];
+            const navigationItems = rows.map(row => {
+                const displayedUrl = row.querySelector('[data-nav-url]').value.trim();
+                return {
+                    id: row.dataset.navId,
+                    label: row.querySelector('[data-nav-label]').value.trim(),
+                    url: this.keepToken(row.dataset.navSourceUrl, displayedUrl),
+                    isVisible: row.querySelector('[data-nav-visible]').checked,
+                    openInNewTab: row.querySelector('[data-nav-new-tab]').checked
+                };
+            });
+            const byId = id => navigationItems.find(x => x.id === id);
             const value = name => drawer.querySelector(`[name="${name}"]`)?.value.trim() || '';
             const checked = name => !!drawer.querySelector(`[name="${name}"]`)?.checked;
+            const tokenValue = name => {
+                const input = drawer.querySelector(`[name="${name}"]`);
+                const source = input?.closest('[data-token-source]')?.dataset.tokenSource || '';
+                return this.keepToken(source, input?.value || '');
+            };
             return {
-                homeLabel: labels.home || original.homeLabel,
-                roomsLabel: labels.rooms || original.roomsLabel,
-                branchesLabel: labels.branches || original.branchesLabel,
-                bookingLabel: labels.booking || original.bookingLabel,
-                lookupLabel: labels.lookup || original.lookupLabel,
+                homeLabel: byId('home')?.label || original.homeLabel,
+                roomsLabel: byId('rooms')?.label || original.roomsLabel,
+                branchesLabel: byId('branches')?.label || original.branchesLabel,
+                bookingLabel: byId('booking')?.label || original.bookingLabel,
+                lookupLabel: byId('lookup')?.label || original.lookupLabel,
                 headerCtaText: value('headerCtaText') || original.headerCtaText,
-                navigationOrder: rows.map(row => row.dataset.navKey),
-                showHome: checked('showHome'),
-                showRooms: checked('showRooms'),
-                showBranches: checked('showBranches'),
+                headerCtaUrl: tokenValue('headerCtaUrl') || original.headerCtaUrl || '@booking',
+                navigationOrder: navigationItems.map(x => x.id),
+                navigationItems,
+                showHome: byId('home')?.isVisible === true,
+                showRooms: byId('rooms')?.isVisible === true,
+                showBranches: byId('branches')?.isVisible === true,
                 footerIntro: value('footerIntro') || original.footerIntro,
                 footerBookingText: value('footerBookingText') || original.footerBookingText,
+                footerBookingUrl: tokenValue('footerBookingUrl') || original.footerBookingUrl || '@booking',
                 footerExploreTitle: value('footerExploreTitle') || original.footerExploreTitle,
                 footerBranchesTitle: value('footerBranchesTitle') || original.footerBranchesTitle,
                 footerContactTitle: value('footerContactTitle') || original.footerContactTitle,
