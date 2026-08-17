@@ -13,10 +13,12 @@
 1. Bấm `Chỉnh sửa trang`: các CMS block hiển thị viền và nhóm thao tác.
 2. Kéo một block sang vị trí khác, reload trang và xác nhận thứ tự đã lưu.
 3. Bấm `Sửa` Hero, đổi tiêu đề/layout, lưu và xác nhận public cập nhật.
-4. Thêm một block mới bằng `+ Thêm khối` trên toolbar và bằng nút chèn giữa hai block.
+4. Thêm một block mới bằng `+ Thêm khối` trên toolbar; block mới xuất hiện cuối danh sách và có thể kéo tới vị trí mong muốn.
 5. `Nhân bản`, `Ẩn`, `Xóa` phải dùng API CMS hiện có và cập nhật sau reload.
 6. FAQ/Policy cho phép thêm/xóa mục lặp mà không cần nhập JSON.
 7. Hero/FeatureGrid cho phép tải ảnh ngay trong drawer.
+8. Khi trang chung chỉ có một cơ sở active và `BranchGrid` bị public tự ẩn, các control vẫn phải bám đúng block còn lại; kéo thả không được làm sai mapping.
+9. Global `BranchGrid`/`RoomGrid` đã cấu hình nguồn nâng cao phải giữ nguyên propertyIds, roomIds và propertyQuotas sau khi sửa title/layout trong visual editor.
 
 ## Thương hiệu
 
