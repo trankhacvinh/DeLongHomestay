@@ -75,6 +75,7 @@
         addStyle('data-public-shell-link-picker', '/css/public-shell-link-picker.css?v=20260817-3');
         addStyle('data-public-gallery-studio', '/css/public-gallery-studio.css?v=20260817-1');
         addStyle('data-public-contextual-content-cards', '/css/public-contextual-content-cards.css?v=20260817-1');
+        addStyle('data-public-inline-editor', '/css/public-inline-editor.css?v=20260817-1');
 
         addScript('data-public-shell-runtime', '/js/pages/public-shell-runtime.js?v=20260817-2');
         addScript('data-public-rich-editor', '/js/pages/public-rich-editor.js?v=20260817-3');
@@ -89,5 +90,7 @@
         addScript('data-public-shell-link-picker', '/js/pages/public-shell-link-picker.js?v=20260817-5');
         addScript('data-public-gallery-studio', '/js/pages/public-gallery-studio.js?v=20260817-1');
         addScript('data-public-contextual-content-cards', '/js/pages/public-contextual-content-cards.js?v=20260817-1');
+        addScript('data-public-inline-stale-guard', '/js/pages/public-inline-stale-guard.js?v=20260817-1');
+        addScript('data-public-inline-editor', '/js/pages/public-inline-editor.js?v=20260817-1');
     }
 })(window);
