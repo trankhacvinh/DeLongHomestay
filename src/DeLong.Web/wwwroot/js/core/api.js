@@ -65,12 +65,13 @@
         }
 
         addStyle('data-public-row-builder', '/css/public-row-builder.css?v=20260817-2');
+        addStyle('data-public-row-responsive', '/css/public-row-responsive.css?v=20260817-1');
         addStyle('data-public-editor-enhancements', '/css/public-visual-editor-enhancements.css?v=20260817-2');
 
         addScript('data-public-rich-editor', '/js/pages/public-rich-editor.js?v=20260817-3');
         addScript('data-public-editorial-order', '/js/pages/public-editorial-order.js?v=20260817-2');
         addScript('data-public-visual-editor', '/js/pages/public-visual-editor-v2.js?v=20260817-4');
         addScript('data-public-editor-enhancements', '/js/pages/public-visual-editor-enhancements.js?v=20260817-3');
-        addScript('data-public-row-editor', '/js/pages/public-visual-row-builder-v3.js?v=20260817-2');
+        addScript('data-public-row-editor', '/js/pages/public-visual-row-builder-v4.js?v=20260817-1');
     }
 })(window);
