@@ -49,6 +49,14 @@
     };
 
     if (document.body?.classList.contains('public-body')) {
+        if (!document.querySelector('link[data-public-row-builder]')) {
+            const rowCss = document.createElement('link');
+            rowCss.rel = 'stylesheet';
+            rowCss.href = '/css/public-row-builder.css?v=20260817-1';
+            rowCss.dataset.publicRowBuilder = 'true';
+            document.head.appendChild(rowCss);
+        }
+
         if (!document.querySelector('script[data-public-editorial-order]')) {
             const orderScript = document.createElement('script');
             orderScript.src = '/js/pages/public-editorial-order.js?v=20260817-2';
@@ -63,6 +71,14 @@
             script.defer = true;
             script.dataset.publicVisualEditor = 'true';
             document.head.appendChild(script);
+        }
+
+        if (!document.querySelector('script[data-public-row-editor]')) {
+            const rowEditor = document.createElement('script');
+            rowEditor.src = '/js/pages/public-visual-row-builder.js?v=20260817-1';
+            rowEditor.defer = true;
+            rowEditor.dataset.publicRowEditor = 'true';
+            document.head.appendChild(rowEditor);
         }
     }
 })(window);
