@@ -83,7 +83,7 @@
         addScript('data-public-row-templates', '/js/pages/public-visual-row-templates.js?v=20260817-1');
         addScript('data-public-contextual-editor', '/js/pages/public-contextual-editor.js?v=20260817-1');
         addScript('data-public-contextual-shell-rates', '/js/pages/public-contextual-shell-rates.js?v=20260817-2');
-        addScript('data-public-shell-link-picker', '/js/pages/public-shell-link-picker.js?v=20260817-1');
+        addScript('data-public-shell-link-picker', '/js/pages/public-shell-link-picker.js?v=20260817-2');
         addScript('data-public-contextual-content-cards', '/js/pages/public-contextual-content-cards.js?v=20260817-1');
     }
 })(window);
