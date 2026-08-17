@@ -36,46 +36,57 @@
 3. Property Gallery: thêm ảnh, upload ảnh, sửa alt/caption, bật/tắt published, `↑`/`↓`, xóa, đổi layout rồi lưu.
 4. Global Gallery: chỉnh enabled, title, layout, limit và mode `all/properties/manual` trực tiếp.
 5. Global manual mode cho phép chọn ảnh published cụ thể.
-6. Control nổi của Gallery có thêm `↑` / `↓` để di chuyển **cả section Gallery** lên/xuống giữa các block trang chủ.
-7. Đưa Gallery lên giữa Hero và RoomGrid, reload rồi mở lại bằng tài khoản khách: Gallery vẫn phải nằm đúng vị trí đã lưu.
-8. Di chuyển Gallery qua Blog theo cả hai hướng; không được tạo vòng lặp vị trí hoặc làm mất section.
+6. Danh sách chọn ảnh thủ công phải hiển thị **thumbnail + checkbox + caption/cơ sở**, không chỉ có tên ảnh.
+7. Click toàn bộ card ảnh phải tick/bỏ tick checkbox; card được chọn phải có viền nổi rõ.
+8. Control nổi của Gallery có thêm `↑` / `↓` để di chuyển **cả section Gallery** lên/xuống giữa các block trang chủ.
+9. Đưa Gallery lên giữa Hero và RoomGrid, reload rồi mở lại bằng tài khoản khách: Gallery vẫn phải nằm đúng vị trí đã lưu.
+10. Di chuyển Gallery qua Blog theo cả hai hướng; không được tạo vòng lặp vị trí hoặc làm mất section.
 
 ## Blog
 
 1. Trên homepage phải có nút sửa nổi ngay trên section Blog khi edit mode đang bật.
-2. Property Blog: danh sách bài, thêm bài, sửa title/slug/excerpt/body HTML/cover, draft/published và xóa.
-3. Khi đang ở `/h/{siteSlug}/blog/{slug}`, toolbar có `Sửa bài viết` và mở thẳng bài hiện tại.
-4. Global Blog: chỉnh enabled, title, limit và nguồn `all/properties/manual` trực tiếp; nội dung bài thật vẫn thuộc cơ sở.
-5. Control nổi của Blog có thêm `↑` / `↓` để di chuyển **cả section Blog** lên/xuống giữa các block trang chủ.
-6. Đưa Blog lên trước Gallery hoặc lên giữa hai block CMS, reload và xác nhận cả Admin lẫn khách đều thấy cùng thứ tự.
-7. Sau khi di chuyển Gallery/Blog, editor phải tự bật lại và việc tiếp tục di chuyển một block CMS bình thường vẫn phải lưu được.
+2. Property Blog: danh sách bài, thêm bài, sửa title/slug/excerpt/body/cover, draft/published và xóa.
+3. Nội dung bài có hai chế độ `Trực quan` và `HTML`; người dùng thường có thể định dạng mà không cần biết HTML.
+4. Chuyển Trực quan → HTML → Trực quan không được mất nội dung; HTML vẫn được server sanitize khi lưu.
+5. Khi đang ở `/h/{siteSlug}/blog/{slug}`, toolbar có `Sửa bài viết` và mở thẳng bài hiện tại.
+6. Global Blog: chỉnh enabled, title, limit và nguồn `all/properties/manual` trực tiếp; nội dung bài thật vẫn thuộc cơ sở.
+7. Control nổi của Blog có thêm `↑` / `↓` để di chuyển **cả section Blog** lên/xuống giữa các block trang chủ.
+8. Đưa Blog lên trước Gallery hoặc lên giữa hai block CMS, reload và xác nhận cả Admin lẫn khách đều thấy cùng thứ tự.
+9. Sau khi di chuyển Gallery/Blog, editor phải tự bật lại và việc tiếp tục di chuyển một block CMS bình thường vẫn phải lưu được.
 
 ## Primitive kiểu UX Builder
 
 1. `+ Thêm khối` có: `Ảnh`, `Dòng phân cách`, `Khoảng cách`, `2 cột`, `3 cột`, `HTML tùy chỉnh`.
 2. Ảnh có upload/URL, alt, caption và link.
 3. 2/3 cột responsive thành một cột trên mobile.
-4. HTML tùy chỉnh và HTML trong cột phải được server sanitize.
-5. Các primitive này lưu dưới `RichText` có metadata `builderKind` để CMS cũ vẫn đọc được; không có migration/schema mới.
+4. Text/HTML trong RichText, HTML tùy chỉnh và HTML trong cột có toggle `Trực quan / HTML`.
+5. HTML tùy chỉnh và HTML trong cột phải được server sanitize.
+6. Các primitive này lưu dưới `RichText` có metadata `builderKind` để CMS cũ vẫn đọc được; không có migration/schema mới.
 
 ## Row / Column Builder lồng phần tử
 
 1. Khi đang bật edit mode, toolbar có nút `＋ Row / cột`.
 2. Khi mở `+ Thêm khối`, drawer cũng phải có shortcut `Row / Column Builder`.
-3. Tạo được các preset: `1 cột`, `50/50`, `33/67`, `67/33`, `3 cột đều`, `25/50/25`, `4 cột đều`.
-4. Đổi preset phải giữ lại nội dung các cột còn tồn tại; cột mới được tạo rỗng.
-5. Mỗi Row chỉnh được gap, căn dọc, nền `plain/soft/cream/dark`, padding và cách stack mobile.
-6. Trong từng cột thêm được nhiều phần tử: `Tiêu đề`, `Văn bản`, `Ảnh`, `Nút`, `Dòng phân cách`, `Khoảng cách`, `HTML`.
-7. Mỗi phần tử có `↑`, `↓`, `nhân bản`, `xóa`; thao tác không được làm nhảy sang cột khác.
-8. Ảnh trong Row upload được bằng pipeline asset hiện tại và preview cập nhật ngay.
-9. Nút hỗ trợ text, URL, kiểu primary/outline/ghost và căn trái/giữa/phải.
-10. Preview nhanh cập nhật khi đổi nội dung/layout nhưng không được thực thi `script`, event handler hoặc `javascript:` URL.
-11. Lưu Row xong phải reload và tự quay lại edit mode; control ngoài trang hiển thị nhãn `Row / cột`.
-12. Bấm `Sửa` trên một Row đã lưu phải mở lại đúng nested builder, không rơi về textarea RichText thô.
-13. `Nhân bản`, `Ẩn`, `Xóa`, `↑`, `↓` ở control ngoài trang vẫn hoạt động với Row như block bình thường.
-14. Row mới lưu dưới `RichText` với `builderKind=row`; HTML thực tế vẫn đi qua sanitizer server hiện có.
-15. Một Row quá lớn phải bị chặn ở client và hướng dẫn tách thành nhiều Row thay vì vượt giới hạn ContentJson.
-16. Mở tab ẩn danh/khách: Row vẫn hiển thị đúng layout, màu nền, button, ảnh và responsive mà không cần visual-editor JS có quyền quản trị.
+3. Drawer Row phải rộng trên desktop; phần nhập liệu nằm bên trái và **preview sticky nằm bên phải**, không phải kéo xuống cuối form để xem.
+4. Preview có nút `Desktop / Tablet / Mobile`; Mobile phải mô phỏng stack/reverse ngay trong vùng preview.
+5. Tạo được các preset: `1 cột`, `50/50`, `33/67`, `67/33`, `3 cột đều`, `25/50/25`, `4 cột đều`.
+6. Đổi preset phải giữ lại nội dung các cột còn tồn tại; cột mới được tạo rỗng.
+7. Mỗi Row chỉnh được gap, căn dọc, nền `plain/soft/cream/dark`, padding và cách stack mobile.
+8. Trong từng cột thêm được nhiều phần tử: `Tiêu đề`, `Văn bản`, `Ảnh`, `Nút`, `Dòng phân cách`, `Khoảng cách`, `HTML`.
+9. Văn bản và HTML có toggle `Trực quan / HTML`; toolbar WYSIWYG có paragraph/H2/H3, bold, italic, underline, list, quote và link.
+10. Mỗi phần tử có `↑`, `↓`, `←`, `→`, copy, nhân bản, xóa; có thể chuyển phần tử giữa các cột.
+11. Copy một phần tử rồi `Dán` sang cột khác phải giữ đúng nội dung và cấu hình phần tử.
+12. `Copy Row / Dán Row` hoạt động trong session; dán Row có thể hoàn tác.
+13. `↶ / ↷` hoàn tác/làm lại được các thay đổi cấu trúc và nội dung gần nhất trong Row.
+14. Ảnh trong Row upload được bằng pipeline asset hiện tại và preview cập nhật ngay.
+15. Nút hỗ trợ text, URL, kiểu primary/outline/ghost và căn trái/giữa/phải.
+16. Preview nhanh cập nhật khi đổi nội dung/layout nhưng không được thực thi `script`, event handler hoặc `javascript:` URL.
+17. Lưu Row xong phải reload và tự quay lại edit mode; control ngoài trang hiển thị nhãn `Row / cột`.
+18. Bấm `Sửa` trên một Row đã lưu phải mở lại đúng nested builder, không rơi về textarea RichText thô.
+19. `Nhân bản`, `Ẩn`, `Xóa`, `↑`, `↓` ở control ngoài trang vẫn hoạt động với Row như block bình thường.
+20. Row mới lưu dưới `RichText` với `builderKind=row`; HTML thực tế vẫn đi qua sanitizer server hiện có.
+21. Một Row quá lớn phải bị chặn ở client và hướng dẫn tách thành nhiều Row thay vì vượt giới hạn ContentJson.
+22. Mở tab ẩn danh/khách: Row vẫn hiển thị đúng layout, màu nền, button, ảnh và responsive mà không cần visual-editor JS có quyền quản trị.
 
 ## Thương hiệu
 
@@ -87,8 +98,10 @@
 ## Responsive
 
 1. Desktop: toolbar không che public header; drawer nằm bên phải.
-2. Mobile <= 760px: toolbar cuộn ngang gọn, drawer full-width, controls block vẫn thao tác được.
-3. Nút `↑` / `↓` phải thao tác được trên mobile khi drag handle bị ẩn.
-4. Gallery/Blog cũng phải di chuyển được bằng `↑` / `↓` trên mobile.
-5. Row 2/3/4 cột phải stack thành 1 cột trên mobile; tùy chọn `Đảo thứ tự cột` phải hoạt động.
-6. Tắt `Chỉnh sửa trang`: website trở về giao diện khách, không còn outline/control.
+2. Desktop rộng: Row Builder sử dụng gần hết chiều ngang nhưng vẫn chừa một phần website phía sau để giữ ngữ cảnh.
+3. Mobile <= 760px: toolbar cuộn ngang gọn, drawer full-width, controls block vẫn thao tác được.
+4. Nút `↑` / `↓` phải thao tác được trên mobile khi drag handle bị ẩn.
+5. Gallery/Blog cũng phải di chuyển được bằng `↑` / `↓` trên mobile.
+6. Row 2/3/4 cột phải stack thành 1 cột trên mobile; tùy chọn `Đảo thứ tự cột` phải hoạt động.
+7. Rich editor trên mobile cho phép cuộn ngang toolbar định dạng mà không làm tràn trang.
+8. Tắt `Chỉnh sửa trang`: website trở về giao diện khách, không còn outline/control.
