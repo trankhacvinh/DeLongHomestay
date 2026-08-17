@@ -90,6 +90,7 @@
         addScript('data-public-shell-link-picker', '/js/pages/public-shell-link-picker.js?v=20260817-5');
         addScript('data-public-gallery-studio', '/js/pages/public-gallery-studio.js?v=20260817-1');
         addScript('data-public-contextual-content-cards', '/js/pages/public-contextual-content-cards.js?v=20260817-1');
+        addScript('data-public-inline-stale-guard', '/js/pages/public-inline-stale-guard.js?v=20260817-1');
         addScript('data-public-inline-editor', '/js/pages/public-inline-editor.js?v=20260817-1');
     }
 })(window);
