@@ -51,7 +51,7 @@
     if (document.body?.classList.contains('public-body')) {
         if (!document.querySelector('script[data-public-editorial-order]')) {
             const orderScript = document.createElement('script');
-            orderScript.src = '/js/pages/public-editorial-order.js?v=20260817-1';
+            orderScript.src = '/js/pages/public-editorial-order.js?v=20260817-2';
             orderScript.defer = true;
             orderScript.dataset.publicEditorialOrder = 'true';
             document.head.appendChild(orderScript);
