@@ -50,13 +50,32 @@
 6. Đưa Blog lên trước Gallery hoặc lên giữa hai block CMS, reload và xác nhận cả Admin lẫn khách đều thấy cùng thứ tự.
 7. Sau khi di chuyển Gallery/Blog, editor phải tự bật lại và việc tiếp tục di chuyển một block CMS bình thường vẫn phải lưu được.
 
-## Block kiểu UX Builder
+## Primitive kiểu UX Builder
 
-1. `+ Thêm khối` có thêm: `Ảnh`, `Dòng phân cách`, `Khoảng cách`, `2 cột`, `3 cột`, `HTML tùy chỉnh`.
+1. `+ Thêm khối` có: `Ảnh`, `Dòng phân cách`, `Khoảng cách`, `2 cột`, `3 cột`, `HTML tùy chỉnh`.
 2. Ảnh có upload/URL, alt, caption và link.
 3. 2/3 cột responsive thành một cột trên mobile.
 4. HTML tùy chỉnh và HTML trong cột phải được server sanitize.
 5. Các primitive này lưu dưới `RichText` có metadata `builderKind` để CMS cũ vẫn đọc được; không có migration/schema mới.
+
+## Row / Column Builder lồng phần tử
+
+1. Khi đang bật edit mode, toolbar có nút `＋ Row / cột`.
+2. Khi mở `+ Thêm khối`, drawer cũng phải có shortcut `Row / Column Builder`.
+3. Tạo được các preset: `1 cột`, `50/50`, `33/67`, `67/33`, `3 cột đều`, `25/50/25`, `4 cột đều`.
+4. Đổi preset phải giữ lại nội dung các cột còn tồn tại; cột mới được tạo rỗng.
+5. Mỗi Row chỉnh được gap, căn dọc, nền `plain/soft/cream/dark`, padding và cách stack mobile.
+6. Trong từng cột thêm được nhiều phần tử: `Tiêu đề`, `Văn bản`, `Ảnh`, `Nút`, `Dòng phân cách`, `Khoảng cách`, `HTML`.
+7. Mỗi phần tử có `↑`, `↓`, `nhân bản`, `xóa`; thao tác không được làm nhảy sang cột khác.
+8. Ảnh trong Row upload được bằng pipeline asset hiện tại và preview cập nhật ngay.
+9. Nút hỗ trợ text, URL, kiểu primary/outline/ghost và căn trái/giữa/phải.
+10. Preview nhanh cập nhật khi đổi nội dung/layout nhưng không được thực thi `script`, event handler hoặc `javascript:` URL.
+11. Lưu Row xong phải reload và tự quay lại edit mode; control ngoài trang hiển thị nhãn `Row / cột`.
+12. Bấm `Sửa` trên một Row đã lưu phải mở lại đúng nested builder, không rơi về textarea RichText thô.
+13. `Nhân bản`, `Ẩn`, `Xóa`, `↑`, `↓` ở control ngoài trang vẫn hoạt động với Row như block bình thường.
+14. Row mới lưu dưới `RichText` với `builderKind=row`; HTML thực tế vẫn đi qua sanitizer server hiện có.
+15. Một Row quá lớn phải bị chặn ở client và hướng dẫn tách thành nhiều Row thay vì vượt giới hạn ContentJson.
+16. Mở tab ẩn danh/khách: Row vẫn hiển thị đúng layout, màu nền, button, ảnh và responsive mà không cần visual-editor JS có quyền quản trị.
 
 ## Thương hiệu
 
@@ -71,4 +90,5 @@
 2. Mobile <= 760px: toolbar cuộn ngang gọn, drawer full-width, controls block vẫn thao tác được.
 3. Nút `↑` / `↓` phải thao tác được trên mobile khi drag handle bị ẩn.
 4. Gallery/Blog cũng phải di chuyển được bằng `↑` / `↓` trên mobile.
-5. Tắt `Chỉnh sửa trang`: website trở về giao diện khách, không còn outline/control.
+5. Row 2/3/4 cột phải stack thành 1 cột trên mobile; tùy chọn `Đảo thứ tự cột` phải hoạt động.
+6. Tắt `Chỉnh sửa trang`: website trở về giao diện khách, không còn outline/control.
