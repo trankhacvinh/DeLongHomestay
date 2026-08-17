@@ -26,7 +26,7 @@ PR này stack trên `feat/visual-content-cards` / PR #32.
 18. CTA Header và link đặt phòng Footer cũng dùng cùng picker.
 19. Đóng rồi mở lại picker lần hai phải dùng dữ liệu đã cache, không tải lại toàn bộ danh sách từ đầu.
 
-## 2. Gallery Studio
+## 2. Gallery Studio của cơ sở
 
 1. Ở trang cơ sở, bấm `Gallery` trên Visual Editor.
 2. Drawer Gallery phải rộng hơn và chia hai vùng: dữ liệu bên trái, preview bên phải trên desktop.
@@ -44,7 +44,22 @@ PR này stack trên `feat/visual-content-cards` / PR #32.
 14. Refresh trang và kiểm tra thứ tự/layout/caption/publish được giữ đúng.
 15. Trên mobile drawer phải về một cột; preview nằm dưới danh sách và không tràn viewport.
 
-## 3. Regression
+## 3. Gallery trang chủ chung
+
+1. Mở `/` bằng Admin → `Gallery`.
+2. Checkbox trên thumbnail phải là badge vuông gọn ở góc phải trên; không còn native checkbox/khung trắng lệch kích thước.
+3. Click vào card phải bật/tắt lựa chọn; card được chọn có viền teal và dấu `✓` rõ ràng.
+4. Phía trên phần chọn nguồn có khối `Thêm ảnh mới`.
+5. Nếu có nhiều cơ sở, chọn cơ sở đích trước khi upload; nếu chỉ có một cơ sở thì cơ sở đó được chọn sẵn.
+6. `＋ Tải ảnh` cho phép chọn nhiều PNG/JPG/WebP.
+7. Mỗi file upload qua Site asset pipeline của cơ sở đích rồi tạo Gallery item bằng Editorial API hiện có.
+8. Ảnh mới phải xuất hiện ngay trong lưới thumbnail và được tick sẵn để dùng thuận tiện với mode `Chọn thủ công`.
+9. Alt text tự gợi ý từ tên file nhưng vẫn chỉnh được sau đó tại Gallery của cơ sở.
+10. Nếu nguồn hiện tại là `Tất cả` hoặc `Theo cơ sở`, upload vẫn tạo ảnh bình thường và UI giải thích rằng có thể chuyển sang `Chọn thủ công` nếu muốn chọn chính xác.
+11. Đóng rồi mở lại Gallery trang chung: ảnh mới vẫn xuất hiện, không bị cache dữ liệu cũ.
+12. Ảnh thật vẫn thuộc một cơ sở; không tạo global media store hoặc migration mới.
+
+## 4. Regression
 
 - Menu tự do PR #32 vẫn thêm/xóa/ẩn/reorder được.
 - Room Card + Blog editor PR #32 vẫn hoạt động.
