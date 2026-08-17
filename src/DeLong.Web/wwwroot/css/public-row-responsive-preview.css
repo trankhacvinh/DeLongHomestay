@@ -11,6 +11,24 @@
 .pve-row-preview-canvas.device-tablet .dl-row-element-shell.dl-hide-mobile,
 .pve-row-preview-canvas.device-mobile .dl-row-element-shell.dl-hide-desktop,
 .pve-row-preview-canvas.device-mobile .dl-row-element-shell.dl-hide-tablet{display:block!important}
+
+.pve-row-preview-canvas.device-desktop .dl-row-layout-single{display:grid!important;grid-template-columns:minmax(0,1fr)!important}
+.pve-row-preview-canvas.device-desktop .dl-row-layout-2-equal{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.pve-row-preview-canvas.device-desktop .dl-row-layout-2-left{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,2fr)!important}
+.pve-row-preview-canvas.device-desktop .dl-row-layout-2-right{display:grid!important;grid-template-columns:minmax(0,2fr) minmax(0,1fr)!important}
+.pve-row-preview-canvas.device-desktop .dl-row-layout-3-equal{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.pve-row-preview-canvas.device-desktop .dl-row-layout-3-wide-center{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,2fr) minmax(0,1fr)!important}
+.pve-row-preview-canvas.device-desktop .dl-row-layout-4-equal{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.pve-row-preview-canvas.device-tablet .dl-row-layout-single{display:grid!important;grid-template-columns:minmax(0,1fr)!important}
+.pve-row-preview-canvas.device-tablet .dl-row-layout-2-equal{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.pve-row-preview-canvas.device-tablet .dl-row-layout-2-left{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,2fr)!important}
+.pve-row-preview-canvas.device-tablet .dl-row-layout-2-right{display:grid!important;grid-template-columns:minmax(0,2fr) minmax(0,1fr)!important}
+.pve-row-preview-canvas.device-tablet .dl-row-layout-3-equal{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.pve-row-preview-canvas.device-tablet .dl-row-layout-3-wide-center{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,2fr) minmax(0,1fr)!important}
+.pve-row-preview-canvas.device-tablet .dl-row-layout-4-equal{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.pve-row-preview-canvas.device-mobile .dl-builder-row{display:grid!important;grid-template-columns:1fr!important}
+.pve-row-preview-canvas.device-mobile .dl-row-mobile-reverse{display:flex!important;flex-direction:column-reverse!important}
+
 .pve-row-preview-canvas.device-desktop .dl-row-heading,
 .pve-row-preview-canvas.device-tablet .dl-row-heading,
 .pve-row-preview-canvas.device-mobile .dl-row-heading{font-size:20px!important}
