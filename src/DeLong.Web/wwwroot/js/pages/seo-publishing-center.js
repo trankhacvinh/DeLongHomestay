@@ -24,6 +24,25 @@
     const isRoom = item => String(item?.kind || '').toLowerCase() === 'room';
     const imageUrl = item => isRoom(item) ? (item.largeUrl || item.url || '') : (item.url || '');
 
+    function ensurePreviewGuards() {
+        if (document.getElementById('seo-media-preview-guards')) return;
+        const style = document.createElement('style');
+        style.id = 'seo-media-preview-guards';
+        style.textContent = `
+            .seo-media-control{min-width:0;overflow:hidden}
+            .seo-media-control>img[data-seo-media-preview]{
+                width:38px!important;min-width:38px!important;max-width:38px!important;
+                height:38px!important;min-height:38px!important;max-height:38px!important;
+                display:block!important;object-fit:cover!important;object-position:center!important;
+                border:1px solid #d6e2df!important;border-radius:9px!important;background:#f2f6f5!important;
+                margin:0!important;padding:0!important;align-self:center!important;
+            }
+            .seo-media-control>img[data-seo-media-preview][hidden]{display:none!important}
+            .seo-media-control input[data-seo-media-input]{min-width:0!important;max-width:100%!important}
+        `;
+        document.head.appendChild(style);
+    }
+
     function matchesFilter(item) {
         if (activeFilter === 'all') return true;
         if (activeFilter === 'issue') return item.dataset.issue === '1';
@@ -198,6 +217,7 @@
         sync();
     }));
 
+    ensurePreviewGuards();
     root.querySelectorAll('[data-seo-media-input]').forEach(syncMediaField);
     root.addEventListener('click', event => {
         const pick = event.target.closest('[data-seo-media-pick]');
