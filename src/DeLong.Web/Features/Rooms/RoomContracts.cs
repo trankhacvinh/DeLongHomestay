@@ -23,6 +23,8 @@ public sealed record RoomDto(
     bool IsActive,
     HousekeepingStatus HousekeepingStatus,
     DateTime? HousekeepingUpdatedAtUtc,
+    string? CoverThumbnailUrl,
+    int ImageCount,
     IReadOnlyList<RoomRateDto> Rates);
 
 public sealed record CreateRoomRequest(

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using DeLong.Web.Common.Operations;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
+using DeLong.Web.Features.Rooms;
 using Microsoft.EntityFrameworkCore;
 using SkiaSharp;
 
@@ -12,6 +13,7 @@ public sealed record MediaAssetDto(
     Guid? PropertyId,
     string PropertyName,
     bool IsGlobal,
+    string Kind,
     string Url,
     string OriginalFileName,
     string ContentType,
@@ -23,14 +25,24 @@ public sealed record MediaAssetDto(
     string Sha256,
     DateTime CreatedAtUtc,
     int UsageCount,
-    bool CanDelete);
+    bool CanDelete,
+    bool CanEdit,
+    Guid? RoomId = null,
+    string? RoomName = null,
+    string? RoomCode = null,
+    string? LargeUrl = null,
+    string? CardUrl = null,
+    string? ThumbnailUrl = null,
+    bool IsCover = false);
 
 public sealed record MediaLibraryDto(
     IReadOnlyList<MediaAssetDto> Items,
     int TotalCount,
     long TotalBytes,
     int UnusedCount,
-    long UnusedBytes);
+    long UnusedBytes,
+    int RoomImageCount,
+    long RoomImageBytes);
 
 public sealed class SaveMediaAssetMetadataRequest
 {
@@ -43,6 +55,7 @@ public sealed record MediaLibraryError(string Code, string Message);
 public sealed class MediaLibraryService(
     AppDbContext db,
     ISiteAssetStorage storage,
+    IRoomImageStorage roomImageStorage,
     StoragePaths paths)
 {
     public async Task<(MediaAssetDto? Asset, MediaLibraryError? Error)> UploadAsync(
@@ -114,7 +127,7 @@ public sealed class MediaLibraryService(
             .Where(x => x.Id == propertyId)
             .Select(x => new { x.Id, x.Code, x.Name })
             .SingleOrDefaultAsync(ct);
-        if (property is null) return new([], 0, 0, 0, 0);
+        if (property is null) return EmptyLibrary();
 
         await ImportLegacyScopeAsync(property.Id, property.Code, property.Name, ct);
         if (includeGlobal) await ImportLegacyScopeAsync(null, "global", "Dùng chung", ct);
@@ -125,7 +138,13 @@ public sealed class MediaLibraryService(
             .OrderByDescending(x => x.CreatedAtUtc)
             .Take(500)
             .ToListAsync(ct);
-        return await BuildLibraryAsync(assets, propertyId, false, ct);
+        var roomImages = await db.RoomImages.AsNoTracking()
+            .Include(x => x.Room).ThenInclude(x => x.Property)
+            .Where(x => x.Room.PropertyId == propertyId)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Take(500)
+            .ToListAsync(ct);
+        return await BuildLibraryAsync(assets, roomImages, propertyId, false, ct);
     }
 
     public async Task<MediaLibraryDto> ListAllAsync(CancellationToken ct = default)
@@ -142,7 +161,12 @@ public sealed class MediaLibraryService(
             .OrderByDescending(x => x.CreatedAtUtc)
             .Take(1000)
             .ToListAsync(ct);
-        return await BuildLibraryAsync(assets, null, true, ct);
+        var roomImages = await db.RoomImages.AsNoTracking()
+            .Include(x => x.Room).ThenInclude(x => x.Property)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Take(1000)
+            .ToListAsync(ct);
+        return await BuildLibraryAsync(assets, roomImages, null, true, ct);
     }
 
     public async Task<(MediaAssetDto? Asset, MediaLibraryError? Error)> UpdateAsync(
@@ -153,15 +177,29 @@ public sealed class MediaLibraryService(
         CancellationToken ct = default)
     {
         var asset = await db.MediaAssets.Include(x => x.Property).SingleOrDefaultAsync(x => x.Id == assetId, ct);
-        if (asset is null) return (null, new("not_found", "Không tìm thấy media."));
-        if (!allowAll && asset.PropertyId != propertyScope)
-            return (null, new("forbidden", "Bạn không có quyền sửa media này."));
+        if (asset is not null)
+        {
+            if (!allowAll && asset.PropertyId != propertyScope)
+                return (null, new("forbidden", "Bạn không có quyền sửa media này."));
 
-        asset.Title = Clean(request.Title, 300);
-        asset.AltText = Clean(request.AltText, 300);
+            asset.Title = Clean(request.Title, 300);
+            asset.AltText = Clean(request.AltText, 300);
+            await db.SaveChangesAsync(ct);
+            var usage = await GetUsageCountAsync(asset, ct);
+            return (ToDto(asset, asset.Property?.Name ?? "Dùng chung", usage), null);
+        }
+
+        var roomImage = await db.RoomImages
+            .Include(x => x.Room).ThenInclude(x => x.Property)
+            .SingleOrDefaultAsync(x => x.Id == assetId, ct);
+        if (roomImage is null) return (null, new("not_found", "Không tìm thấy media."));
+        if (!allowAll && roomImage.Room.PropertyId != propertyScope)
+            return (null, new("forbidden", "Bạn không có quyền sửa ảnh phòng này."));
+
+        roomImage.AltText = Clean(request.AltText, 300);
         await db.SaveChangesAsync(ct);
-        var usage = await GetUsageCountAsync(asset, ct);
-        return (ToDto(asset, asset.Property?.Name ?? "Dùng chung", usage), null);
+        var roomUsage = await GetRoomImageUsageCountAsync(roomImage, ct);
+        return (ToRoomDto(roomImage, roomUsage, true), null);
     }
 
     public async Task<MediaLibraryError?> DeleteAsync(
@@ -171,28 +209,66 @@ public sealed class MediaLibraryService(
         CancellationToken ct = default)
     {
         var asset = await db.MediaAssets.SingleOrDefaultAsync(x => x.Id == assetId, ct);
-        if (asset is null) return new("not_found", "Không tìm thấy media.");
-        if (!allowAll && asset.PropertyId != propertyScope)
-            return new("forbidden", "Bạn không có quyền xóa media này.");
+        if (asset is not null)
+        {
+            if (!allowAll && asset.PropertyId != propertyScope)
+                return new("forbidden", "Bạn không có quyền xóa media này.");
 
-        var usage = await GetUsageCountAsync(asset, ct);
-        if (usage > 0)
-            return new("in_use", $"Media đang được sử dụng ở {usage} vị trí. Hãy thay ảnh ở các vị trí đó trước khi xóa.");
+            var usage = await GetUsageCountAsync(asset, ct);
+            if (usage > 0)
+                return new("in_use", $"Media đang được sử dụng ở {usage} vị trí. Hãy thay ảnh ở các vị trí đó trước khi xóa.");
 
-        await storage.DeleteAsync(asset.StorageKey, ct);
-        db.MediaAssets.Remove(asset);
+            await storage.DeleteAsync(asset.StorageKey, ct);
+            db.MediaAssets.Remove(asset);
+            await db.SaveChangesAsync(ct);
+            return null;
+        }
+
+        var roomImage = await db.RoomImages
+            .Include(x => x.Room).ThenInclude(x => x.Images)
+            .SingleOrDefaultAsync(x => x.Id == assetId, ct);
+        if (roomImage is null) return new("not_found", "Không tìm thấy media.");
+        if (!allowAll && roomImage.Room.PropertyId != propertyScope)
+            return new("forbidden", "Bạn không có quyền xóa ảnh phòng này.");
+
+        var roomUsage = await GetRoomImageUsageCountAsync(roomImage, ct);
+        if (roomUsage > 0)
+            return new("in_use", $"Ảnh phòng đang được tham chiếu thêm ở {roomUsage} vị trí ngoài gallery phòng. Hãy thay các tham chiếu đó trước khi xóa.");
+
+        var stored = new StoredRoomImage(
+            roomImage.OriginalStoragePath,
+            roomImage.LargePath,
+            roomImage.CardPath,
+            roomImage.ThumbnailPath,
+            roomImage.Width,
+            roomImage.Height,
+            roomImage.OriginalBytes,
+            roomImage.ContentType,
+            roomImage.OriginalFileName);
+        var wasCover = roomImage.IsCover;
+        db.RoomImages.Remove(roomImage);
+        if (wasCover)
+        {
+            var replacement = roomImage.Room.Images
+                .Where(x => x.Id != roomImage.Id)
+                .OrderBy(x => x.SortOrder)
+                .FirstOrDefault();
+            if (replacement is not null) replacement.IsCover = true;
+        }
         await db.SaveChangesAsync(ct);
+        await roomImageStorage.DeleteAsync(stored, ct);
         return null;
     }
 
     private async Task<MediaLibraryDto> BuildLibraryAsync(
         IReadOnlyList<MediaAsset> assets,
+        IReadOnlyList<RoomImage> roomImages,
         Guid? propertyScope,
         bool allowAll,
         CancellationToken ct)
     {
         var corpusByScope = new Dictionary<string, IReadOnlyList<string>>();
-        var result = new List<MediaAssetDto>(assets.Count);
+        var result = new List<MediaAssetDto>(assets.Count + roomImages.Count);
         foreach (var asset in assets)
         {
             var scopeKey = asset.PropertyId?.ToString() ?? "global-all";
@@ -201,20 +277,57 @@ public sealed class MediaLibraryService(
                 corpus = await GetUsageCorpusAsync(asset.PropertyId, ct);
                 corpusByScope[scopeKey] = corpus;
             }
-            var usage = CountUsage(corpus, BaseUrl(asset.Url));
-            var canDelete = allowAll || asset.PropertyId == propertyScope;
-            result.Add(ToDto(asset, asset.Property?.Name ?? "Dùng chung", usage, canDelete));
+            var usage = CountUsage(corpus, [BaseUrl(asset.Url)]);
+            var canManage = allowAll || asset.PropertyId == propertyScope;
+            result.Add(ToDto(asset, asset.Property?.Name ?? "Dùng chung", usage, canManage));
         }
 
+        foreach (var image in roomImages)
+        {
+            var scopeKey = image.Room.PropertyId.ToString();
+            if (!corpusByScope.TryGetValue(scopeKey, out var corpus))
+            {
+                corpus = await GetUsageCorpusAsync(image.Room.PropertyId, ct);
+                corpusByScope[scopeKey] = corpus;
+            }
+            var usage = CountUsage(corpus, [BaseUrl(image.LargePath), BaseUrl(image.CardPath), BaseUrl(image.ThumbnailPath)]);
+            var canManage = allowAll || image.Room.PropertyId == propertyScope;
+            result.Add(ToRoomDto(image, usage, canManage));
+        }
+
+        result = result.OrderByDescending(x => x.CreatedAtUtc).ToList();
         var totalBytes = result.Sum(x => x.ByteSize);
-        var unused = result.Where(x => x.UsageCount == 0).ToArray();
-        return new(result, result.Count, totalBytes, unused.Length, unused.Sum(x => x.ByteSize));
+        var unused = result.Where(x => x.Kind != "room" && x.UsageCount == 0).ToArray();
+        var roomItems = result.Where(x => x.Kind == "room").ToArray();
+        return new(
+            result,
+            result.Count,
+            totalBytes,
+            unused.Length,
+            unused.Sum(x => x.ByteSize),
+            roomItems.Length,
+            roomItems.Sum(x => x.ByteSize));
     }
 
     private async Task<int> GetUsageCountAsync(MediaAsset asset, CancellationToken ct)
     {
         var corpus = await GetUsageCorpusAsync(asset.PropertyId, ct);
-        return CountUsage(corpus, BaseUrl(asset.Url));
+        return CountUsage(corpus, [BaseUrl(asset.Url)]);
+    }
+
+    private async Task<int> GetRoomImageUsageCountAsync(RoomImage image, CancellationToken ct)
+    {
+        var propertyId = image.Room?.PropertyId;
+        if (propertyId is null)
+        {
+            propertyId = await db.Rooms.AsNoTracking()
+                .Where(x => x.Id == image.RoomId)
+                .Select(x => (Guid?)x.PropertyId)
+                .SingleOrDefaultAsync(ct);
+        }
+        if (propertyId is null) return 0;
+        var corpus = await GetUsageCorpusAsync(propertyId, ct);
+        return CountUsage(corpus, [BaseUrl(image.LargePath), BaseUrl(image.CardPath), BaseUrl(image.ThumbnailPath)]);
     }
 
     private async Task<IReadOnlyList<string>> GetUsageCorpusAsync(Guid? propertyId, CancellationToken ct)
@@ -223,7 +336,7 @@ public sealed class MediaLibraryService(
         var texts = new List<string>();
 
         var sectionQuery = db.Set<HomeSection>().AsNoTracking();
-        if (!allScopes) sectionQuery = sectionQuery.Where(x => x.PropertyId == propertyId);
+        if (!allScopes) sectionQuery = sectionQuery.Where(x => x.PropertyId == propertyId || x.PropertyId == null);
         texts.AddRange(await sectionQuery.Select(x => x.ContentJson).ToListAsync(ct));
 
         var galleryQuery = db.PropertyGalleryItems.AsNoTracking();
@@ -249,6 +362,10 @@ public sealed class MediaLibraryService(
             if (!string.IsNullOrWhiteSpace(item.FaviconUrl)) texts.Add(item.FaviconUrl);
             if (!string.IsNullOrWhiteSpace(item.OgImageUrl)) texts.Add(item.OgImageUrl);
         }
+
+        var roomQuery = db.Rooms.AsNoTracking();
+        if (!allScopes) roomQuery = roomQuery.Where(x => x.PropertyId == propertyId);
+        texts.AddRange(await roomQuery.Where(x => x.DescriptionHtml != null).Select(x => x.DescriptionHtml!).ToListAsync(ct));
 
         return texts;
     }
@@ -309,15 +426,92 @@ public sealed class MediaLibraryService(
         if (added) await db.SaveChangesAsync(ct);
     }
 
+    private MediaAssetDto ToRoomDto(RoomImage image, int usage, bool canManage)
+    {
+        var bytes = RoomImagePhysicalBytes(image);
+        var roomName = image.Room?.Name ?? "Phòng";
+        var roomCode = image.Room?.Code ?? string.Empty;
+        var propertyName = image.Room?.Property?.Name ?? "Cơ sở";
+        var title = string.IsNullOrWhiteSpace(roomCode) ? roomName : $"{roomName} · {roomCode}";
+        return new(
+            image.Id,
+            image.Room?.PropertyId,
+            propertyName,
+            false,
+            "room",
+            image.LargePath,
+            image.OriginalFileName,
+            image.ContentType,
+            bytes,
+            image.Width,
+            image.Height,
+            image.AltText ?? string.Empty,
+            title,
+            string.Empty,
+            image.CreatedAtUtc,
+            usage,
+            canManage,
+            canManage,
+            image.RoomId,
+            roomName,
+            roomCode,
+            image.LargePath,
+            image.CardPath,
+            image.ThumbnailPath,
+            image.IsCover);
+    }
+
+    private long RoomImagePhysicalBytes(RoomImage image)
+    {
+        var total = Math.Max(0, image.OriginalBytes);
+        total += PublicFileBytes(image.LargePath);
+        total += PublicFileBytes(image.CardPath);
+        total += PublicFileBytes(image.ThumbnailPath);
+        return total;
+    }
+
+    private long PublicFileBytes(string url)
+    {
+        try
+        {
+            var requestRoot = paths.MediaRequestPath.Value?.TrimEnd('/') ?? "/uploads/rooms";
+            if (!url.StartsWith(requestRoot, StringComparison.OrdinalIgnoreCase)) return 0;
+            var relative = url[requestRoot.Length..].TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            var file = new FileInfo(Path.Combine(paths.MediaPublicRoot, relative));
+            return file.Exists ? file.Length : 0;
+        }
+        catch { return 0; }
+    }
+
     private string UploadsRoot() => Directory.GetParent(paths.MediaPublicRoot)?.FullName ?? paths.MediaPublicRoot;
 
-    private static MediaAssetDto ToDto(MediaAsset asset, string propertyName, int usage, bool canDelete = true) =>
-        new(asset.Id, asset.PropertyId, propertyName, asset.PropertyId is null, asset.Url, asset.OriginalFileName,
-            asset.ContentType, asset.ByteSize, asset.Width, asset.Height, asset.AltText, asset.Title, asset.Sha256,
-            asset.CreatedAtUtc, usage, canDelete);
+    private static MediaAssetDto ToDto(MediaAsset asset, string propertyName, int usage, bool canManage = true) =>
+        new(
+            asset.Id,
+            asset.PropertyId,
+            propertyName,
+            asset.PropertyId is null,
+            asset.Kind,
+            asset.Url,
+            asset.OriginalFileName,
+            asset.ContentType,
+            asset.ByteSize,
+            asset.Width,
+            asset.Height,
+            asset.AltText,
+            asset.Title,
+            asset.Sha256,
+            asset.CreatedAtUtc,
+            usage,
+            canManage,
+            canManage);
 
-    private static int CountUsage(IEnumerable<string> corpus, string path) =>
-        string.IsNullOrWhiteSpace(path) ? 0 : corpus.Count(text => !string.IsNullOrWhiteSpace(text) && text.Contains(path, StringComparison.OrdinalIgnoreCase));
+    private static int CountUsage(IEnumerable<string> corpus, IEnumerable<string> rawPaths)
+    {
+        var paths = rawPaths.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (paths.Length == 0) return 0;
+        return corpus.Count(text => !string.IsNullOrWhiteSpace(text) && paths.Any(path => text.Contains(path, StringComparison.OrdinalIgnoreCase)));
+    }
 
     private static string BaseUrl(string value)
     {
@@ -325,6 +519,8 @@ public sealed class MediaLibraryService(
         var query = url.IndexOf('?');
         return query >= 0 ? url[..query] : url;
     }
+
+    private static MediaLibraryDto EmptyLibrary() => new([], 0, 0, 0, 0, 0, 0);
 
     private static string SafeProperty(string value) =>
         new(value.ToLowerInvariant().Where(ch => char.IsLetterOrDigit(ch) || ch == '-').ToArray());

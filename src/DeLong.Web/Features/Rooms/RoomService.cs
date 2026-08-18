@@ -11,6 +11,8 @@ public sealed class RoomService(AppDbContext db)
         return await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId).OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
             .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive,
                 x.HousekeepingStatus, x.HousekeepingUpdatedAtUtc,
+                x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder).Select(i => i.ThumbnailPath).FirstOrDefault(),
+                x.Images.Count,
                 x.Rates.OrderBy(r => r.SortOrder).Select(r => new RoomRateDto(r.Id, r.Name,
                     r.StartTime.ToString("HH:mm"), r.EndTime.ToString("HH:mm"), r.Type, r.IsOvernight,
                     r.Price, r.IsActive, r.SortOrder)).ToList()))
@@ -22,6 +24,8 @@ public sealed class RoomService(AppDbContext db)
         return await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Id == roomId)
             .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive,
                 x.HousekeepingStatus, x.HousekeepingUpdatedAtUtc,
+                x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder).Select(i => i.ThumbnailPath).FirstOrDefault(),
+                x.Images.Count,
                 x.Rates.OrderBy(r => r.SortOrder).Select(r => new RoomRateDto(r.Id, r.Name,
                     r.StartTime.ToString("HH:mm"), r.EndTime.ToString("HH:mm"), r.Type, r.IsOvernight,
                     r.Price, r.IsActive, r.SortOrder)).ToList()))
