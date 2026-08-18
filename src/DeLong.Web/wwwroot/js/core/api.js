@@ -128,6 +128,7 @@
         addScript('data-public-media-library', '/js/pages/public-media-library.js?v=20260818-2');
         addScript('data-public-inline-editor', '/js/pages/public-inline-editor.js?v=20260818-3');
         addScript('data-public-custom-page-element-style', '/js/pages/public-custom-page-element-style.js?v=20260818-3');
+        addScript('data-public-visual-typography-runtime', '/js/pages/public-visual-typography-runtime.js?v=20260818-1');
         addScript('data-public-toolbar-compact', '/js/pages/public-toolbar-compact.js?v=20260818-1');
         addScript('data-public-header-footer-designer', '/js/pages/public-header-footer-designer.js?v=20260818-1');
         addScript('data-public-footer-inline-editor', '/js/pages/public-footer-inline-editor.js?v=20260818-1');
