@@ -2,37 +2,38 @@
 @model DeLong.Web.Pages.Admin.Site.SeoModel
 @{
     ViewData["Title"] = "SEO & Xuất bản";
-    var healthyPages = Model.Pages.Count(x => x.IssueCount == 0);
-    var warningPages = Model.Pages.Count - healthyPages;
-    var noIndexPages = Model.Pages.Count(x => x.NoIndex);
+    var pageIssues = Model.Pages.Count(x => x.IssueCount > 0);
+    var roomIssues = Model.Rooms.Count(x => x.IssueCount > 0);
+    var blogIssues = Model.BlogPosts.Count(x => x.IssueCount > 0);
+    var totalIssues = pageIssues + roomIssues + blogIssues + (Model.ScopeAudit.IssueCount > 0 ? 1 : 0);
+    var totalContent = Model.Pages.Count + Model.Rooms.Count + Model.BlogPosts.Count;
 }
 @section Head {
     <link rel="stylesheet" href="~/css/seo-publishing-center.css" asp-append-version="true" />
 }
 
 <div class="seo-center" data-seo-center>
-    <div class="page-title-row seo-center-head">
+    <header class="seo-center-head">
         <div>
-            <div class="page-eyebrow">Website & tìm kiếm</div>
+            <div class="page-eyebrow">Website</div>
             <h1>SEO & Xuất bản</h1>
-            <p>Kiểm tra metadata, trạng thái index, canonical, sitemap và các redirect 301 sinh ra khi đổi slug.</p>
+            <p>Xem nhanh nội dung nào còn thiếu trước khi đưa lên Google hoặc chia sẻ link.</p>
         </div>
         <div class="seo-head-actions">
-            <a class="btn btn-light" href="@Model.RobotsUrl" target="_blank" rel="noopener">robots.txt ↗</a>
-            <a class="btn btn-light" href="@Model.SitemapUrl" target="_blank" rel="noopener">sitemap.xml ↗</a>
+            <a class="btn btn-light btn-sm" href="@Model.RobotsUrl" target="_blank" rel="noopener">robots.txt ↗</a>
+            <a class="btn btn-light btn-sm" href="@Model.SitemapUrl" target="_blank" rel="noopener">sitemap.xml ↗</a>
         </div>
-    </div>
+    </header>
 
     @if (!string.IsNullOrWhiteSpace(Model.StatusMessage)) { <div class="seo-flash success">@Model.StatusMessage</div> }
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage)) { <div class="seo-flash error">@Model.ErrorMessage</div> }
 
     <section class="panel seo-scope-card">
-        <div>
-            <span class="seo-kicker">PHẠM VI ĐANG KIỂM TRA</span>
-            <h2>@Model.ScopeName</h2>
-            <p>SEO trang chủ và @Model.Pages.Count trang nội dung trong phạm vi này.</p>
+        <div class="seo-scope-copy">
+            <span class="seo-kicker">ĐANG XEM</span>
+            <strong>@Model.ScopeName</strong>
         </div>
-        <div class="seo-scope-actions">
+        <nav class="seo-scope-actions" aria-label="Chọn phạm vi">
             @if (Model.IsAdmin)
             {
                 <a class="@(Model.IsGlobal ? "active" : string.Empty)" asp-page="/Admin/Site/Seo" asp-route-scope="global">Trang chung</a>
@@ -41,73 +42,189 @@
             {
                 <a class="@(!Model.IsGlobal && Model.PropertyId == property.Id ? "active" : string.Empty)" asp-page="/Admin/Site/Seo" asp-route-propertyId="@property.Id">@property.Name</a>
             }
-        </div>
+        </nav>
     </section>
 
-    <section class="seo-stats">
-        <article><small>Trang nội dung</small><strong>@Model.Pages.Count</strong><span>@healthyPages trang đủ metadata cơ bản</span></article>
-        <article class="@(warningPages > 0 ? "warning" : string.Empty)"><small>Cần bổ sung</small><strong>@warningPages</strong><span>thiếu description hoặc ảnh chia sẻ</span></article>
-        <article class="@(noIndexPages > 0 ? "muted" : string.Empty)"><small>Noindex</small><strong>@noIndexPages</strong><span>không đưa vào sitemap</span></article>
-        <article><small>Redirect 301</small><strong>@Model.Redirects.Count</strong><span>được giữ khi đổi slug</span></article>
+    <section class="seo-stats" aria-label="Tổng quan">
+        <article><small>Trang</small><strong>@Model.Pages.Count</strong><span>trang nội dung</span></article>
+        <article><small>Phòng</small><strong>@Model.Rooms.Count</strong><span>@(Model.IsGlobal ? "chọn cơ sở để xem" : "phòng đang hoạt động")</span></article>
+        <article><small>Blog</small><strong>@Model.BlogPosts.Count</strong><span>@(Model.IsGlobal ? "chọn cơ sở để xem" : "bài viết")</span></article>
+        <article class="@(totalIssues > 0 ? "warning" : string.Empty)"><small>Cần bổ sung</small><strong>@totalIssues</strong><span>mục còn thiếu thông tin</span></article>
     </section>
 
     <section class="panel seo-home-audit">
         <div class="seo-section-head">
-            <div><span class="seo-kicker">TRANG CHỦ / CẤU HÌNH SITE</span><h2>SEO nền của @Model.ScopeName</h2><p>Đây là metadata mặc định cho trang chủ và là nền dùng bởi nhiều trang hệ thống.</p></div>
-            <div class="seo-home-actions"><a class="btn btn-light" href="@Model.HomeUrl" target="_blank" rel="noopener">Xem trang ↗</a><a class="btn btn-primary" href="@Model.SettingsUrl">Sửa cấu hình</a></div>
+            <div>
+                <span class="seo-kicker">TRANG CHỦ</span>
+                <h2>Thông tin tìm kiếm & chia sẻ</h2>
+                <p>Tiêu đề, mô tả và ảnh dùng khi trang chủ xuất hiện trên Google hoặc được chia sẻ.</p>
+            </div>
+            <div class="seo-home-actions">
+                <a class="btn btn-light btn-sm" href="@Model.HomeUrl" target="_blank" rel="noopener">Mở trang ↗</a>
+                <a class="btn btn-light btn-sm" href="@Model.SettingsUrl">Cấu hình đầy đủ</a>
+            </div>
         </div>
+
         <div class="seo-check-grid">
-            <div class="@(Model.ScopeAudit.TitleOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.TitleOk ? "✓" : "!")</span><div><strong>Meta title</strong><small>@(Model.ScopeAudit.TitleOk ? Model.ScopeAudit.MetaTitle : "Chưa có meta title")</small></div></div>
-            <div class="@(Model.ScopeAudit.DescriptionOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.DescriptionOk ? "✓" : "!")</span><div><strong>Meta description</strong><small>@(Model.ScopeAudit.DescriptionOk ? Model.ScopeAudit.MetaDescription : "Chưa có meta description")</small></div></div>
-            <div class="@(Model.ScopeAudit.OgImageOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.OgImageOk ? "✓" : "!")</span><div><strong>Ảnh chia sẻ</strong><small>@(Model.ScopeAudit.OgImageOk ? "Đã có Open Graph image" : "Chưa có Open Graph image")</small></div></div>
-            <div class="@(Model.ScopeAudit.Indexed ? "ok" : "warn")"><span>@(Model.ScopeAudit.Indexed ? "✓" : "!")</span><div><strong>Cho phép index</strong><small>@(Model.ScopeAudit.Indexed ? "Robots đang cho phép index" : "Toàn bộ cơ sở đang noindex")</small></div></div>
+            <div class="@(Model.ScopeAudit.TitleOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.TitleOk ? "✓" : "!")</span><div><strong>Tiêu đề</strong><small>@(Model.ScopeAudit.TitleOk ? Model.ScopeAudit.MetaTitle : "Chưa có tiêu đề")</small></div></div>
+            <div class="@(Model.ScopeAudit.DescriptionOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.DescriptionOk ? "✓" : "!")</span><div><strong>Mô tả</strong><small>@(Model.ScopeAudit.DescriptionOk ? Model.ScopeAudit.MetaDescription : "Chưa có mô tả")</small></div></div>
+            <div class="@(Model.ScopeAudit.OgImageOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.OgImageOk ? "✓" : "!")</span><div><strong>Ảnh chia sẻ</strong><small>@(Model.ScopeAudit.OgImageOk ? Model.ScopeAudit.OgImageUrl : "Chưa chọn ảnh")</small></div></div>
+            <div class="@(Model.ScopeAudit.Indexed ? "ok" : "warn")"><span>@(Model.ScopeAudit.Indexed ? "✓" : "!")</span><div><strong>Hiển thị trên Google</strong><small>@(Model.ScopeAudit.Indexed ? "Đang cho phép index" : "Đang tắt index")</small></div></div>
         </div>
+
+        <details class="seo-quick-edit seo-home-quick-edit">
+            <summary>Sửa nhanh</summary>
+            <form method="post" asp-page-handler="UpdateScope" class="seo-quick-form seo-home-form">
+                <input type="hidden" name="propertyId" value="@Model.PropertyId" />
+                <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
+                <label><span>Tiêu đề</span><input name="metaTitle" maxlength="200" value="@Model.ScopeAudit.MetaTitle" /></label>
+                <label class="wide"><span>Mô tả</span><textarea name="metaDescription" maxlength="500" rows="2">@Model.ScopeAudit.MetaDescription</textarea></label>
+                <label><span>Ảnh chia sẻ</span><input name="ogImageUrl" maxlength="1200" value="@Model.ScopeAudit.OgImageUrl" placeholder="/uploads/... hoặc https://..." /></label>
+                <button class="btn btn-primary btn-sm" type="submit">Lưu</button>
+            </form>
+        </details>
     </section>
 
-    <section class="panel seo-pages-panel">
-        <div class="seo-section-head seo-pages-toolbar">
-            <div><span class="seo-kicker">TRANG NỘI DUNG</span><h2>Kiểm tra từng trang</h2><p>Title có thể dùng tên trang; description và ảnh chia sẻ nên được điền riêng trước khi publish.</p></div>
-            <div class="seo-pages-actions"><input type="search" placeholder="Tìm tên hoặc URL…" data-seo-search /><a class="btn btn-light" href="@Model.PagesUrl">Quản lý trang</a></div>
+    <section class="panel seo-content-panel">
+        <div class="seo-content-toolbar">
+            <div>
+                <span class="seo-kicker">NỘI DUNG</span>
+                <h2>Kiểm tra từng mục</h2>
+            </div>
+            <div class="seo-filter-row">
+                <div class="seo-filter-tabs" role="group" aria-label="Lọc nội dung">
+                    <button type="button" class="active" data-seo-filter="all">Tất cả <b>@totalContent</b></button>
+                    <button type="button" data-seo-filter="page">Trang <b>@Model.Pages.Count</b></button>
+                    <button type="button" data-seo-filter="room">Phòng <b>@Model.Rooms.Count</b></button>
+                    <button type="button" data-seo-filter="blog">Blog <b>@Model.BlogPosts.Count</b></button>
+                    <button type="button" data-seo-filter="issue">Cần bổ sung <b>@(pageIssues + roomIssues + blogIssues)</b></button>
+                </div>
+                <label class="seo-search"><span>⌕</span><input type="search" placeholder="Tìm tên hoặc URL..." data-seo-search /></label>
+            </div>
         </div>
 
-        @if (Model.Pages.Count == 0)
+        @if (Model.IsGlobal)
         {
-            <div class="seo-empty"><strong>Chưa có trang nội dung.</strong><span>Tạo trang trước, sau đó quay lại đây để kiểm tra SEO và xuất bản.</span><a class="btn btn-primary" href="@Model.PagesUrl">Tạo trang nội dung</a></div>
+            <div class="seo-property-note">Phòng và Blog thuộc từng cơ sở. Chọn một cơ sở ở phía trên để kiểm tra hai nhóm này.</div>
         }
-        else
-        {
-            <div class="seo-page-list" data-seo-page-list>
-                @foreach (var item in Model.Pages)
-                {
-                    <article class="seo-page-card" data-seo-page data-search="@($"{item.Title} {item.Url} {item.SeoTitle} {item.SeoDescription}".ToLowerInvariant())">
-                        <div class="seo-page-main">
-                            <div class="seo-page-title-row"><div><h3>@item.Title</h3><code>@item.Url</code></div><div class="seo-badges"><span class="@(item.IsPublished ? "published" : "draft")">@(item.IsPublished ? "Đã xuất bản" : "Bản nháp")</span>@if (item.NoIndex) { <span class="noindex">noindex</span> }@if (item.RedirectCount > 0) { <span>@item.RedirectCount redirect</span> }</div></div>
-                            <div class="seo-page-checks">
-                                <span class="@(item.HasTitle ? "ok" : "warn")">@(item.HasTitle ? "✓" : "!") Title</span>
-                                <span class="@(item.HasDescription ? "ok" : "warn")">@(item.HasDescription ? "✓" : "!") Description</span>
-                                <span class="@(item.HasOgImage ? "ok" : "warn")">@(item.HasOgImage ? "✓" : "!") OG image</span>
-                            </div>
-                            <div class="seo-page-links"><a href="@item.Url" target="_blank" rel="noopener">Xem trang ↗</a><a href="@($"{item.Url}{(item.Url.Contains('?') ? '&' : '?')}edit=1")" target="_blank" rel="noopener">Thiết kế ↗</a><a href="@Model.PagesUrl">Sửa title / description / ảnh</a></div>
+
+        <div class="seo-content-list" data-seo-list>
+            @foreach (var item in Model.Pages)
+            {
+                <article class="seo-content-row" data-seo-item data-type="page" data-issue="@(item.IssueCount > 0 ? "1" : "0")" data-search="@($"{item.Title} {item.Url} {item.SeoTitle} {item.SeoDescription}".ToLowerInvariant())">
+                    <div class="seo-content-main">
+                        <div class="seo-content-title">
+                            <span class="seo-type">Trang</span>
+                            <div><h3>@item.Title</h3><code>@item.Url</code></div>
+                            <span class="seo-status @(item.IsPublished ? "published" : "draft")">@(item.IsPublished ? "Đã xuất bản" : "Bản nháp")</span>
                         </div>
-                        <form method="post" asp-page-handler="UpdatePage" class="seo-page-controls">
-                            <input type="hidden" name="propertyId" value="@Model.PropertyId" />
-                            <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
-                            <input type="hidden" name="pageId" value="@item.Id" />
-                            <label class="seo-switch-row"><input type="checkbox" name="noIndex" value="true" checked="@item.NoIndex" /><span></span><div><strong>Không index trang này</strong><small>Bật noindex và loại trang khỏi sitemap.</small></div></label>
-                            <label class="seo-canonical"><span>Canonical tùy chỉnh</span><input type="text" name="canonicalUrl" value="@item.CanonicalUrl" placeholder="Để trống = URL hiện tại" /><small>Dùng URL tuyệt đối https://… hoặc đường dẫn nội bộ bắt đầu bằng /.</small></label>
-                            <button class="btn btn-primary btn-sm" type="submit">Lưu SEO</button>
+                        <div class="seo-content-meta">
+                            <span class="@(item.HasTitle ? "ok" : "warn")">@(item.HasTitle ? "✓" : "!") Tiêu đề</span>
+                            <span class="@(item.HasDescription ? "ok" : "warn")">@(item.HasDescription ? "✓" : "!") Mô tả</span>
+                            <span class="@(item.HasOgImage ? "ok" : "warn")">@(item.HasOgImage ? "✓" : "!") Ảnh</span>
+                            @if (item.NoIndex) { <span class="warn">! noindex</span> }
+                            @if (item.RedirectCount > 0) { <span>@item.RedirectCount đường dẫn cũ</span> }
+                        </div>
+                    </div>
+                    <div class="seo-content-actions"><a href="@item.Url" target="_blank" rel="noopener">Mở ↗</a><a href="@($"{item.Url}{(item.Url.Contains('?') ? '&' : '?')}edit=1")" target="_blank" rel="noopener">Thiết kế ↗</a></div>
+                    <details class="seo-quick-edit seo-row-edit">
+                        <summary>Sửa nhanh</summary>
+                        <div class="seo-edit-grid">
+                            <form method="post" asp-page-handler="UpdatePageBasic" class="seo-quick-form">
+                                <input type="hidden" name="propertyId" value="@Model.PropertyId" />
+                                <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
+                                <input type="hidden" name="pageId" value="@item.Id" />
+                                <label><span>Tên trang</span><input name="title" maxlength="200" value="@item.Title" required /></label>
+                                <label><span>SEO title</span><input name="seoTitle" maxlength="200" value="@item.SeoTitle" placeholder="Để trống = tên trang" /></label>
+                                <label class="wide"><span>Mô tả</span><textarea name="seoDescription" maxlength="500" rows="2">@item.SeoDescription</textarea></label>
+                                <label><span>Ảnh chia sẻ</span><input name="ogImageUrl" maxlength="1200" value="@item.OgImageUrl" /></label>
+                                <button class="btn btn-primary btn-sm" type="submit">Lưu thông tin</button>
+                            </form>
+                            <form method="post" asp-page-handler="UpdatePage" class="seo-index-form">
+                                <input type="hidden" name="propertyId" value="@Model.PropertyId" />
+                                <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
+                                <input type="hidden" name="pageId" value="@item.Id" />
+                                <label class="seo-switch-row"><input type="checkbox" name="noIndex" value="true" checked="@item.NoIndex" /><span></span><div><strong>Không đưa trang này lên Google</strong><small>Trang vẫn mở được bằng link nhưng không nằm trong sitemap.</small></div></label>
+                                <label><span>Canonical</span><input name="canonicalUrl" value="@item.CanonicalUrl" placeholder="Để trống = URL hiện tại" /></label>
+                                <button class="btn btn-light btn-sm" type="submit">Lưu index</button>
+                            </form>
+                        </div>
+                    </details>
+                </article>
+            }
+
+            @foreach (var room in Model.Rooms)
+            {
+                <article class="seo-content-row" data-seo-item data-type="room" data-issue="@(room.IssueCount > 0 ? "1" : "0")" data-search="@($"{room.Name} {room.Code} {room.Url} {room.ShortDescription}".ToLowerInvariant())">
+                    <div class="seo-content-main">
+                        <div class="seo-content-title">
+                            <span class="seo-type room">Phòng</span>
+                            <div><h3>@room.Name <small>@room.Code</small></h3><code>@room.Url</code></div>
+                            <span class="seo-status @(room.IsPublished ? "published" : "draft")">@(room.IsPublished ? "Đã xuất bản" : "Chưa xuất bản")</span>
+                        </div>
+                        <div class="seo-content-meta">
+                            <span class="@(room.HasDescription ? "ok" : "warn")">@(room.HasDescription ? "✓" : "!") Mô tả</span>
+                            <span class="@(room.HasImage ? "ok" : "warn")">@(room.HasImage ? "✓" : "!") Ảnh</span>
+                            @if (room.HasImage && !room.HasCover) { <span class="warn">! Chưa chọn ảnh bìa</span> }
+                        </div>
+                    </div>
+                    <div class="seo-content-actions"><a href="@room.Url" target="_blank" rel="noopener">Mở ↗</a><a href="@room.EditUrl">Ảnh & nội dung</a></div>
+                    <details class="seo-quick-edit seo-row-edit">
+                        <summary>Sửa nhanh</summary>
+                        <form method="post" asp-page-handler="UpdateRoom" class="seo-quick-form seo-room-form">
+                            <input type="hidden" name="propertyId" value="@Model.PropertyId" /><input type="hidden" name="scope" value="property" /><input type="hidden" name="roomId" value="@room.Id" />
+                            <label><span>Tên phòng</span><input name="name" maxlength="200" value="@room.Name" required /></label>
+                            <label class="wide"><span>Mô tả ngắn</span><textarea name="shortDescription" maxlength="1200" rows="2">@room.ShortDescription</textarea></label>
+                            <button class="btn btn-primary btn-sm" type="submit">Lưu</button>
                         </form>
-                    </article>
-                }
-            </div>
+                    </details>
+                </article>
+            }
+
+            @foreach (var post in Model.BlogPosts)
+            {
+                <article class="seo-content-row" data-seo-item data-type="blog" data-issue="@(post.IssueCount > 0 ? "1" : "0")" data-search="@($"{post.Title} {post.Url} {post.Excerpt}".ToLowerInvariant())">
+                    <div class="seo-content-main">
+                        <div class="seo-content-title">
+                            <span class="seo-type blog">Blog</span>
+                            <div><h3>@post.Title</h3><code>@post.Url</code></div>
+                            <span class="seo-status @(post.IsPublished ? "published" : "draft")">@(post.IsPublished ? "Đã xuất bản" : "Bản nháp")</span>
+                        </div>
+                        <div class="seo-content-meta">
+                            <span class="@(post.HasDescription ? "ok" : "warn")">@(post.HasDescription ? "✓" : "!") Mô tả</span>
+                            <span class="@(post.HasImage ? "ok" : "warn")">@(post.HasImage ? "✓" : "!") Ảnh</span>
+                        </div>
+                    </div>
+                    <div class="seo-content-actions"><a href="@post.Url" target="_blank" rel="noopener">Mở ↗</a><a href="@Model.BlogAdminUrl">Quản lý Blog</a></div>
+                    <details class="seo-quick-edit seo-row-edit">
+                        <summary>Sửa nhanh</summary>
+                        <form method="post" asp-page-handler="UpdateBlog" class="seo-quick-form">
+                            <input type="hidden" name="propertyId" value="@Model.PropertyId" /><input type="hidden" name="scope" value="property" /><input type="hidden" name="postId" value="@post.Id" />
+                            <label><span>Tiêu đề</span><input name="title" maxlength="240" value="@post.Title" required /></label>
+                            <label class="wide"><span>Mô tả</span><textarea name="excerpt" maxlength="800" rows="2">@post.Excerpt</textarea></label>
+                            <label><span>Ảnh bài viết</span><input name="coverImageUrl" maxlength="1000" value="@post.CoverImageUrl" /></label>
+                            <button class="btn btn-primary btn-sm" type="submit">Lưu</button>
+                        </form>
+                    </details>
+                </article>
+            }
+        </div>
+
+        @if (totalContent == 0)
+        {
+            <div class="seo-empty"><strong>Chưa có nội dung để kiểm tra.</strong><span>Tạo trang, phòng hoặc bài Blog trước.</span></div>
         }
+        <div class="seo-no-results" data-seo-no-results hidden>Không có kết quả phù hợp.</div>
     </section>
 
     <section class="panel seo-redirect-panel">
-        <div class="seo-section-head"><div><span class="seo-kicker">REDIRECT 301</span><h2>Lịch sử đổi slug</h2><p>Mỗi lần đổi slug của trang, URL cũ được giữ lại và chuyển vĩnh viễn sang URL mới để tránh link chết.</p></div><span class="seo-count-pill">@Model.Redirects.Count redirect</span></div>
+        <div class="seo-section-head compact">
+            <div><span class="seo-kicker">ĐƯỜNG DẪN CŨ</span><h2>Redirect khi đổi slug</h2><p>Đổi slug của trang nội dung sẽ giữ URL cũ và chuyển sang URL mới.</p></div>
+            <span class="seo-count-pill">@Model.Redirects.Count</span>
+        </div>
         @if (Model.Redirects.Count == 0)
         {
-            <div class="seo-empty compact"><strong>Chưa có redirect.</strong><span>Redirect sẽ tự xuất hiện ở đây sau lần đầu bạn đổi slug một trang.</span></div>
+            <div class="seo-empty compact"><span>Chưa có đường dẫn cũ.</span></div>
         }
         else
         {
@@ -116,11 +233,8 @@
                 {
                     <div class="seo-redirect-row">
                         <div><small>@redirect.PageTitle</small><code>@redirect.FromUrl</code></div><span class="seo-arrow">→</span><code>@redirect.ToUrl</code>
-                        <form method="post" asp-page-handler="RemoveRedirect" onsubmit="return confirm('Gỡ redirect này? URL cũ sau đó sẽ trả về 404.');">
-                            <input type="hidden" name="propertyId" value="@Model.PropertyId" />
-                            <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
-                            <input type="hidden" name="pageId" value="@redirect.PageId" />
-                            <input type="hidden" name="legacySlug" value="@redirect.LegacySlug" />
+                        <form method="post" asp-page-handler="RemoveRedirect" onsubmit="return confirm('Gỡ đường dẫn cũ này? Link cũ sau đó sẽ trả về 404.');">
+                            <input type="hidden" name="propertyId" value="@Model.PropertyId" /><input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" /><input type="hidden" name="pageId" value="@redirect.PageId" /><input type="hidden" name="legacySlug" value="@redirect.LegacySlug" />
                             <button class="btn btn-light btn-sm" type="submit">Gỡ</button>
                         </form>
                     </div>
