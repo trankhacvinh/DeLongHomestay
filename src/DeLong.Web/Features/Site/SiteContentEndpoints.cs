@@ -25,7 +25,8 @@ public static class SiteContentEndpoints
                     sections = result.Sections.Where(x =>
                         x.Type != EditorialPlacementStore.MetadataSectionType &&
                         x.Type != PublicShellSettingsStore.MetadataSectionType &&
-                        x.Type != PublicShellDesignerStore.MetadataSectionType)
+                        x.Type != PublicShellDesignerStore.MetadataSectionType &&
+                        x.Type != CustomPageStore.MetadataSectionType)
                 });
         });
 
@@ -119,7 +120,8 @@ public static class SiteContentEndpoints
                 .Where(x => x.PropertyId == propertyId &&
                     x.Type != EditorialPlacementStore.MetadataSectionType &&
                     x.Type != PublicShellSettingsStore.MetadataSectionType &&
-                    x.Type != PublicShellDesignerStore.MetadataSectionType)
+                    x.Type != PublicShellDesignerStore.MetadataSectionType &&
+                    x.Type != CustomPageStore.MetadataSectionType)
                 .ToListAsync(ct);
             if (request.Ids.Count != sections.Count || request.Ids.Distinct().Count() != request.Ids.Count || sections.Any(x => !request.Ids.Contains(x.Id)))
                 return ToProblem(new SiteContentError("validation", "Danh sách sắp xếp không khớp các khối hiện tại."));
@@ -142,7 +144,8 @@ public static class SiteContentEndpoints
                     x.Type != GlobalSiteBrandingStore.MetadataSectionType &&
                     x.Type != EditorialPlacementStore.MetadataSectionType &&
                     x.Type != PublicShellSettingsStore.MetadataSectionType &&
-                    x.Type != PublicShellDesignerStore.MetadataSectionType)
+                    x.Type != PublicShellDesignerStore.MetadataSectionType &&
+                    x.Type != CustomPageStore.MetadataSectionType)
             });
         });
 
@@ -242,7 +245,8 @@ public static class SiteContentEndpoints
                     x.Type != GlobalSiteBrandingStore.MetadataSectionType &&
                     x.Type != EditorialPlacementStore.MetadataSectionType &&
                     x.Type != PublicShellSettingsStore.MetadataSectionType &&
-                    x.Type != PublicShellDesignerStore.MetadataSectionType)
+                    x.Type != PublicShellDesignerStore.MetadataSectionType &&
+                    x.Type != CustomPageStore.MetadataSectionType)
                 .ToListAsync(ct);
             if (request.Ids.Count != sections.Count || request.Ids.Distinct().Count() != request.Ids.Count || sections.Any(x => !request.Ids.Contains(x.Id)))
                 return ToProblem(new SiteContentError("validation", "Danh sách sắp xếp không khớp các khối trang chủ chung hiện tại."));
@@ -255,22 +259,35 @@ public static class SiteContentEndpoints
 
         app.MapGet("/api/admin/site/visual-context", async (
             string? siteSlug,
+            string? pageSlug,
             HttpContext http,
             PublicPropertyResolver resolver,
             CurrentPropertyService currentPropertyService,
             PublicRoomContentService publicRoomContentService,
+            CustomPageStore customPageStore,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(siteSlug))
             {
                 if (!http.User.IsInRole("Admin")) return (IResult)Results.Forbid();
                 var catalog = await publicRoomContentService.GetGlobalCatalogAsync(ct);
+                CustomPageDto? customPage = null;
+                if (!string.IsNullOrWhiteSpace(pageSlug))
+                {
+                    customPage = await customPageStore.GetBySlugAsync(null, pageSlug, false, ct);
+                    if (customPage is null) return (IResult)Results.NotFound();
+                }
                 return (IResult)Results.Ok(new
                 {
                     canEdit = true,
                     scope = "global",
                     propertyId = (Guid?)null,
-                    propertyName = "Trang chủ chung",
+                    propertyName = customPage?.Title ?? "Trang chủ chung",
+                    pageId = customPage?.Id,
+                    pageSlug = customPage?.Slug,
+                    pageTitle = customPage?.Title,
+                    siteApi = "/api/admin/site/global",
+                    sectionApi = customPage is null ? "/api/admin/site/global" : $"/api/admin/site/global/pages/{customPage.Id}",
                     properties = catalog.Properties,
                     rooms = catalog.Rooms.Select(x => new
                     {
@@ -293,13 +310,25 @@ public static class SiteContentEndpoints
             if (!accessible.Any(x => x.Id == property.Id)) return (IResult)Results.Forbid();
 
             var roomCatalog = await publicRoomContentService.GetCatalogAsync(property.Id, ct);
+            CustomPageDto? propertyPage = null;
+            if (!string.IsNullOrWhiteSpace(pageSlug))
+            {
+                propertyPage = await customPageStore.GetBySlugAsync(property.Id, pageSlug, false, ct);
+                if (propertyPage is null) return (IResult)Results.NotFound();
+            }
+            var siteApi = $"/api/admin/properties/{property.Id}/site";
             return (IResult)Results.Ok(new
             {
                 canEdit = true,
                 scope = "property",
                 propertyId = property.Id,
-                propertyName = property.Name,
+                propertyName = propertyPage?.Title ?? property.Name,
                 siteSlug = property.SiteSlug,
+                pageId = propertyPage?.Id,
+                pageSlug = propertyPage?.Slug,
+                pageTitle = propertyPage?.Title,
+                siteApi,
+                sectionApi = propertyPage is null ? siteApi : $"{siteApi}/pages/{propertyPage.Id}",
                 properties = new[] { new { id = property.Id, name = property.Name, siteName = property.Name, siteSlug = property.SiteSlug, roomCount = roomCatalog.Rooms.Count } },
                 rooms = roomCatalog.Rooms.Select(x => new { id = x.Id, name = x.Name, code = x.Code, propertyId = property.Id, propertyName = property.Name, propertySiteSlug = property.SiteSlug })
             });
