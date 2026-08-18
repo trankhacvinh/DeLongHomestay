@@ -18,20 +18,67 @@
     <section class="custom-pages-summary" data-page-summary></section>
     <section class="custom-pages-list" data-page-list><div class="panel custom-pages-loading">Đang tải danh sách trang…</div></section>
 
-    <div class="modal-backdrop" data-page-modal hidden>
+    <div class="modal-backdrop custom-page-modal-backdrop" data-page-modal hidden>
         <section class="modal-card custom-page-modal" role="dialog" aria-modal="true" aria-labelledby="custom-page-modal-title">
-            <div class="modal-head"><div><div class="page-eyebrow" data-page-modal-eyebrow>TRANG MỚI</div><h2 id="custom-page-modal-title" data-page-modal-title>Tạo trang nội dung</h2></div><button class="icon-btn" type="button" data-page-modal-close aria-label="Đóng">×</button></div>
-            <form data-page-form>
-                <div class="custom-page-form-body">
-                    <div class="form-grid">
-                        <div class="field form-full"><label>Tên trang</label><input name="title" maxlength="200" required placeholder="Ví dụ: Giới thiệu De Long Homestay" /></div>
-                        <div class="field"><label>Slug</label><input name="slug" maxlength="120" placeholder="de-trong-de-tu-sinh" /><small>Chỉ chữ thường, số và dấu gạch ngang.</small></div>
-                        <div class="field" data-template-field><label>Mẫu khởi tạo</label><select name="template"><option value="blank">Trang trống</option><option value="about">Giới thiệu</option><option value="contact">Liên hệ</option><option value="promo">Landing ưu đãi</option></select></div>
-                    </div>
-                    <div class="custom-page-flags"><label class="site-toggle"><input type="checkbox" name="published" /><span><strong>Xuất bản</strong><small>Tắt để giữ bản nháp; người ngoài sẽ không truy cập được.</small></span></label><label class="site-toggle"><input type="checkbox" name="hideNavigation" /><span><strong>Ẩn khỏi danh sách điều hướng</strong><small>Trang vẫn có URL public nếu đã xuất bản.</small></span></label></div>
-                    <section class="custom-page-seo"><div><span class="page-eyebrow">SEO</span><h3>Thông tin tìm kiếm & chia sẻ</h3></div><div class="field"><label>SEO title</label><input name="seoTitle" maxlength="200" /></div><div class="field"><label>Meta description</label><textarea name="seoDescription" rows="3" maxlength="500"></textarea></div><div class="field"><label>Ảnh Open Graph</label><div class="custom-page-media-row"><input name="ogImageUrl" placeholder="URL ảnh hoặc tải ảnh mới" /><label class="btn btn-light btn-sm file-btn">Tải ảnh<input type="file" accept="image/png,image/jpeg,image/webp" data-page-og-upload /></label></div><small>Ảnh upload sẽ đi qua storage website và được Media Library nhận diện.</small></div></section>
+            <div class="modal-head custom-page-modal-head">
+                <div class="custom-page-modal-heading">
+                    <div class="page-eyebrow" data-page-modal-eyebrow>TRANG MỚI</div>
+                    <h2 id="custom-page-modal-title" data-page-modal-title>Tạo trang nội dung</h2>
+                    <p>Tạo một trang riêng rồi dùng Visual Editor để thiết kế nội dung trực tiếp trên website.</p>
                 </div>
-                <div class="modal-actions"><button class="btn btn-light" type="button" data-page-modal-close>Hủy</button><button class="btn btn-primary" type="submit" data-page-save>Lưu trang</button></div>
+                <button class="icon-btn custom-page-modal-close" type="button" data-page-modal-close aria-label="Đóng">×</button>
+            </div>
+
+            <form data-page-form class="custom-page-modal-form">
+                <div class="custom-page-form-body">
+                    <section class="custom-page-form-section">
+                        <div class="custom-page-section-head">
+                            <span class="custom-page-section-index">01</span>
+                            <div><h3>Thông tin cơ bản</h3><p>Tên hiển thị, địa chỉ URL và mẫu nội dung ban đầu.</p></div>
+                        </div>
+                        <div class="custom-page-basic-grid">
+                            <div class="field"><label>Tên trang</label><input name="title" maxlength="200" required placeholder="Ví dụ: Giới thiệu De Long Homestay" /></div>
+                            <div class="field"><label>Slug</label><input name="slug" maxlength="120" placeholder="de-trong-de-tu-sinh" /><small>Để trống để tự sinh từ tên trang. Chỉ dùng chữ thường, số và dấu gạch ngang.</small></div>
+                            <div class="field custom-page-template-field" data-template-field><label>Mẫu khởi tạo</label><select name="template"><option value="blank">Trang trống</option><option value="about">Giới thiệu</option><option value="contact">Liên hệ</option><option value="promo">Landing ưu đãi</option></select><small>Mẫu chỉ tạo nội dung ban đầu; sau đó vẫn chỉnh tự do bằng Visual Editor.</small></div>
+                        </div>
+                    </section>
+
+                    <section class="custom-page-form-section">
+                        <div class="custom-page-section-head">
+                            <span class="custom-page-section-index">02</span>
+                            <div><h3>Trạng thái & hiển thị</h3><p>Kiểm soát khi nào khách có thể truy cập và trang có xuất hiện trong bộ chọn liên kết hay không.</p></div>
+                        </div>
+                        <div class="custom-page-flags">
+                            <label class="custom-page-option">
+                                <input type="checkbox" name="published" />
+                                <span class="custom-page-option-switch" aria-hidden="true"><i></i></span>
+                                <span class="custom-page-option-copy"><strong>Xuất bản</strong><small>Tắt để giữ bản nháp; khách ngoài sẽ không truy cập được.</small></span>
+                            </label>
+                            <label class="custom-page-option">
+                                <input type="checkbox" name="hideNavigation" />
+                                <span class="custom-page-option-switch" aria-hidden="true"><i></i></span>
+                                <span class="custom-page-option-copy"><strong>Ẩn khỏi danh sách điều hướng</strong><small>Trang vẫn có URL public nếu đã xuất bản, nhưng không xuất hiện trong Smart Link Picker.</small></span>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="custom-page-form-section custom-page-seo">
+                        <div class="custom-page-section-head">
+                            <span class="custom-page-section-index">03</span>
+                            <div><h3>SEO & chia sẻ</h3><p>Không bắt buộc. Có thể bổ sung sau khi nội dung trang đã hoàn thiện.</p></div>
+                        </div>
+                        <div class="custom-page-seo-fields">
+                            <div class="field"><label>SEO title</label><input name="seoTitle" maxlength="200" placeholder="Để trống sẽ dùng tên trang" /></div>
+                            <div class="field"><label>Meta description</label><textarea name="seoDescription" rows="3" maxlength="500" placeholder="Mô tả ngắn khoảng 140–160 ký tự cho kết quả tìm kiếm."></textarea></div>
+                            <div class="field"><label>Ảnh Open Graph</label><div class="custom-page-media-row"><input name="ogImageUrl" placeholder="URL ảnh hoặc tải ảnh mới" /><label class="btn btn-light btn-sm file-btn">Tải ảnh<input type="file" accept="image/png,image/jpeg,image/webp" data-page-og-upload /></label></div><small>Ảnh upload đi qua storage website và được Media Library nhận diện.</small></div>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="modal-actions custom-page-modal-actions">
+                    <p>Sau khi tạo trang, bấm <strong>Thiết kế</strong> để mở Visual Editor và chỉnh trực tiếp.</p>
+                    <div><button class="btn btn-light" type="button" data-page-modal-close>Hủy</button><button class="btn btn-primary" type="submit" data-page-save>Lưu trang</button></div>
+                </div>
             </form>
         </section>
     </div>
