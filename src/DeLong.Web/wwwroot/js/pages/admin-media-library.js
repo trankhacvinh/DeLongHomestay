@@ -6,7 +6,7 @@
     let config = {};
     try { config = JSON.parse(dataNode.textContent || '{}'); } catch { config = {}; }
 
-    const state = { items: [], selectedId: '', query: '', propertyFilter: 'all', unusedOnly: false, loading: false };
+    const state = { items: [], selectedId: '', query: '', propertyFilter: 'all', unusedOnly: false, loading: false, cleaning: false };
     const h = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
     const fmtBytes = value => {
         const n = Number(value) || 0;
@@ -25,7 +25,7 @@
         if (!node) { node = document.createElement('div'); node.className = 'media-admin-toast'; document.body.appendChild(node); }
         node.className = `media-admin-toast${error ? ' error' : ''}`;
         node.textContent = message; node.hidden = false;
-        clearTimeout(node._timer); node._timer = setTimeout(() => { node.hidden = true; }, 3400);
+        clearTimeout(node._timer); node._timer = setTimeout(() => { node.hidden = true; }, 4200);
     }
 
     function propertyOptions() {
@@ -65,19 +65,45 @@
         }
     }
 
+    function matchesPropertyFilter(item) {
+        if (config.isAdmin) {
+            if (state.propertyFilter === 'global') return !!item.isGlobal;
+            if (state.propertyFilter !== 'all') return String(item.propertyId || '') === state.propertyFilter;
+            return true;
+        }
+        if (state.propertyFilter === 'global') return !!item.isGlobal;
+        if (state.propertyFilter === 'property') return !item.isGlobal;
+        return true;
+    }
+
     function filtered() {
         return state.items.filter(item => {
             if (state.unusedOnly && Number(item.usageCount) > 0) return false;
-            if (config.isAdmin) {
-                if (state.propertyFilter === 'global' && !item.isGlobal) return false;
-                if (state.propertyFilter !== 'all' && state.propertyFilter !== 'global' && String(item.propertyId || '') !== state.propertyFilter) return false;
-            } else {
-                if (state.propertyFilter === 'global' && !item.isGlobal) return false;
-                if (state.propertyFilter === 'property' && item.isGlobal) return false;
-            }
+            if (!matchesPropertyFilter(item)) return false;
             if (!state.query) return true;
             return [item.title, item.altText, item.originalFileName, item.propertyName].some(value => String(value || '').toLowerCase().includes(state.query));
         });
+    }
+
+    function cleanupCandidates() {
+        return state.items.filter(item =>
+            !!item.canDelete &&
+            Number(item.usageCount) === 0 &&
+            matchesPropertyFilter(item));
+    }
+
+    function syncCleanupButton() {
+        const button = root.querySelector('[data-media-show-unused]');
+        if (!button) return;
+        if (state.cleaning) return;
+        const candidates = cleanupCandidates();
+        button.disabled = candidates.length === 0;
+        button.textContent = candidates.length
+            ? `Dọn ${candidates.length.toLocaleString('vi-VN')} media chưa dùng`
+            : 'Không có media cần dọn';
+        button.title = candidates.length
+            ? `Xóa vĩnh viễn ${candidates.length} file chưa được sử dụng trong phạm vi đang chọn`
+            : 'Không có file chưa dùng có quyền xóa trong phạm vi đang chọn';
     }
 
     function render() {
@@ -87,6 +113,7 @@
         root.querySelector('[data-media-empty]').hidden = items.length > 0 || state.loading;
         grid.innerHTML = items.map(item => `<button type="button" class="media-admin-card${String(item.id) === state.selectedId ? ' selected' : ''}" data-media-id="${h(item.id)}"><span class="media-admin-thumb"><img src="${h(item.url)}" alt="${h(item.altText || '')}" loading="lazy"><em>${item.isGlobal ? 'Dùng chung' : h(item.propertyName || 'Cơ sở')}</em>${Number(item.usageCount) > 0 ? `<b>${item.usageCount} nơi dùng</b>` : '<b class="unused">Chưa dùng</b>'}</span><span class="media-admin-card-copy"><strong>${h(item.title || item.originalFileName || 'Ảnh')}</strong><small>${Number(item.width) || 0}×${Number(item.height) || 0} · ${fmtBytes(item.byteSize)}</small></span></button>`).join('');
         renderDetail();
+        syncCleanupButton();
     }
 
     function selected() { return state.items.find(x => String(x.id) === state.selectedId); }
@@ -151,6 +178,44 @@
         } catch (error) { toast(error.message || 'Không thể xóa media.', true); }
     }
 
+    async function cleanupUnused() {
+        if (state.cleaning) return;
+        const candidates = cleanupCandidates();
+        if (!candidates.length) return toast('Không có media chưa dùng nào có thể dọn trong phạm vi đang chọn.');
+
+        const bytes = candidates.reduce((sum, item) => sum + (Number(item.byteSize) || 0), 0);
+        const scopeText = root.querySelector('[data-media-property-filter]')?.selectedOptions?.[0]?.textContent?.trim() || 'phạm vi hiện tại';
+        if (!confirm(`Dọn ${candidates.length.toLocaleString('vi-VN')} media chưa dùng (${fmtBytes(bytes)})?\n\nPhạm vi: ${scopeText}.\nHệ thống sẽ xóa vĩnh viễn file vật lý khỏi storage và metadata tương ứng. Server sẽ kiểm tra usage lại trước từng lần xóa.`)) return;
+
+        const button = root.querySelector('[data-media-show-unused]');
+        state.cleaning = true;
+        button.disabled = true;
+        let removed = 0;
+        let skipped = 0;
+        let failed = 0;
+        try {
+            for (let index = 0; index < candidates.length; index++) {
+                const item = candidates[index];
+                button.textContent = `Đang dọn ${index + 1}/${candidates.length}…`;
+                try {
+                    await DeLongApi.delete(`${mutationApi(item)}/${item.id}`);
+                    removed++;
+                } catch (error) {
+                    if (error?.status === 409) skipped++;
+                    else failed++;
+                }
+            }
+            state.selectedId = '';
+            await load();
+            if (failed > 0) toast(`Đã xóa ${removed} media; ${skipped} file được giữ lại vì vừa phát sinh usage; ${failed} file lỗi khi xóa.`, true);
+            else if (skipped > 0) toast(`Đã xóa ${removed} media. ${skipped} file được giữ lại vì đang được sử dụng.`);
+            else toast(`Đã dọn ${removed} media chưa dùng và giải phóng khoảng ${fmtBytes(bytes)}.`);
+        } finally {
+            state.cleaning = false;
+            syncCleanupButton();
+        }
+    }
+
     async function copyUrl() {
         const item = selected(); if (!item) return;
         try { await navigator.clipboard.writeText(item.url); toast('Đã sao chép URL.'); }
@@ -162,7 +227,7 @@
     root.querySelector('[data-media-property-filter]').addEventListener('change', event => { state.propertyFilter = event.currentTarget.value; render(); });
     root.querySelector('[data-media-unused]').addEventListener('change', event => { state.unusedOnly = event.currentTarget.checked; render(); });
     root.querySelector('[data-media-refresh]').addEventListener('click', load);
-    root.querySelector('[data-media-show-unused]').addEventListener('click', () => { const checkbox = root.querySelector('[data-media-unused]'); checkbox.checked = true; state.unusedOnly = true; render(); });
+    root.querySelector('[data-media-show-unused]').addEventListener('click', cleanupUnused);
     root.querySelector('[data-media-upload]').addEventListener('change', event => { const files = event.currentTarget.files; event.currentTarget.value = ''; if (files?.length) upload(files); });
     root.querySelector('[data-media-grid]').addEventListener('click', event => { const card = event.target.closest('[data-media-id]'); if (!card) return; state.selectedId = card.dataset.mediaId || ''; render(); });
     root.querySelector('[data-media-detail]').addEventListener('click', event => {
