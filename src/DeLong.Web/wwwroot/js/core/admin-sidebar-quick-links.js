@@ -27,6 +27,7 @@
         if (websiteGroup) {
             const link = document.createElement('a');
             link.className = 'side-link';
+            if (location.pathname.toLowerCase() === '/admin/site/pages') link.classList.add('active');
             link.href = '/Admin/Site/Pages';
             link.dataset.sidebarCustomPages = '1';
             const icon = siteLink.querySelector('svg')?.outerHTML || '<svg><use href="#i-site"></use></svg>';
