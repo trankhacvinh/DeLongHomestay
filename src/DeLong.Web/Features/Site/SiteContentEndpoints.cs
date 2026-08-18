@@ -24,7 +24,8 @@ public static class SiteContentEndpoints
                     settings = result.Settings,
                     sections = result.Sections.Where(x =>
                         x.Type != EditorialPlacementStore.MetadataSectionType &&
-                        x.Type != PublicShellSettingsStore.MetadataSectionType)
+                        x.Type != PublicShellSettingsStore.MetadataSectionType &&
+                        x.Type != PublicShellDesignerStore.MetadataSectionType)
                 });
         });
 
@@ -117,7 +118,8 @@ public static class SiteContentEndpoints
             var sections = await db.Set<HomeSection>()
                 .Where(x => x.PropertyId == propertyId &&
                     x.Type != EditorialPlacementStore.MetadataSectionType &&
-                    x.Type != PublicShellSettingsStore.MetadataSectionType)
+                    x.Type != PublicShellSettingsStore.MetadataSectionType &&
+                    x.Type != PublicShellDesignerStore.MetadataSectionType)
                 .ToListAsync(ct);
             if (request.Ids.Count != sections.Count || request.Ids.Distinct().Count() != request.Ids.Count || sections.Any(x => !request.Ids.Contains(x.Id)))
                 return ToProblem(new SiteContentError("validation", "Danh sách sắp xếp không khớp các khối hiện tại."));
@@ -139,7 +141,8 @@ public static class SiteContentEndpoints
                 sections = result.Sections.Where(x =>
                     x.Type != GlobalSiteBrandingStore.MetadataSectionType &&
                     x.Type != EditorialPlacementStore.MetadataSectionType &&
-                    x.Type != PublicShellSettingsStore.MetadataSectionType)
+                    x.Type != PublicShellSettingsStore.MetadataSectionType &&
+                    x.Type != PublicShellDesignerStore.MetadataSectionType)
             });
         });
 
@@ -166,7 +169,7 @@ public static class SiteContentEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["branding"] = [error ?? "Cấu hình thương hiệu không hợp lệ."] });
 
             var properties = await resolver.GetActiveAsync(ct);
-            return Results.Ok(await GlobalSiteBrandingStore.ResolveAsync(db, service, properties, ct));
+            return Results.Ok(await GlobalSiteBrandingStore.ResolveAsync(db, siteContentService: service, properties, ct));
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
         global.MapGet("/shell", async (
@@ -238,7 +241,8 @@ public static class SiteContentEndpoints
                 .Where(x => x.PropertyId == null &&
                     x.Type != GlobalSiteBrandingStore.MetadataSectionType &&
                     x.Type != EditorialPlacementStore.MetadataSectionType &&
-                    x.Type != PublicShellSettingsStore.MetadataSectionType)
+                    x.Type != PublicShellSettingsStore.MetadataSectionType &&
+                    x.Type != PublicShellDesignerStore.MetadataSectionType)
                 .ToListAsync(ct);
             if (request.Ids.Count != sections.Count || request.Ids.Distinct().Count() != request.Ids.Count || sections.Any(x => !request.Ids.Contains(x.Id)))
                 return ToProblem(new SiteContentError("validation", "Danh sách sắp xếp không khớp các khối trang chủ chung hiện tại."));
