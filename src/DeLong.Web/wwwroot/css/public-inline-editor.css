@@ -1,7 +1,7 @@
-body.pve-editing .pve-inline-field{position:relative;cursor:text;outline:1px dashed transparent;outline-offset:5px;border-radius:4px;transition:outline-color .14s ease,background .14s ease,box-shadow .14s ease}
-body.pve-editing .pve-inline-field:hover{outline-color:rgba(15,100,104,.48);background:rgba(236,249,246,.2);box-shadow:0 0 0 4px rgba(255,255,255,.3)}
+body.pve-editing .pve-inline-field{position:relative;cursor:text;outline:1px dashed transparent;outline-offset:5px;border-radius:4px;transition:outline-color .14s ease,box-shadow .14s ease}
+body.pve-editing .pve-inline-field:hover{outline-color:rgba(15,100,104,.48);box-shadow:0 0 0 4px rgba(22,128,133,.08)}
 body.pve-editing a.pve-inline-field{cursor:text}
-body.pve-editing .pve-inline-field.pve-inline-active{z-index:86;outline:2px solid #168085;outline-offset:5px;background:rgba(248,255,253,.78);box-shadow:0 0 0 5px rgba(22,128,133,.12)}
+body.pve-editing .pve-inline-field.pve-inline-active{z-index:86;outline:2px solid #168085;outline-offset:5px;box-shadow:0 0 0 5px rgba(22,128,133,.12)}
 body.pve-editing .pve-inline-field.pve-inline-saving{opacity:.68}
 body.pve-editing .pve-inline-field[contenteditable]{min-width:1ch}
 body.pve-editing .public-faq-list summary>[data-pie-generated-question]{display:inline}
