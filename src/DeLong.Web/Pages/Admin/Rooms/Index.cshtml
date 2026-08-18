@@ -3,14 +3,17 @@
 @{
     ViewData["Title"] = "Phòng";
 }
-<div id="rooms-page" v-cloak>
+@section Head {
+    <link rel="stylesheet" href="~/css/admin-rooms-list.css" asp-append-version="true" />
+}
+<div id="rooms-page" class="rooms-admin-page" v-cloak>
     <script id="rooms-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
-    <div class="page-title-row">
+    <div class="page-title-row rooms-page-head">
         <div>
             <div class="page-eyebrow">Quản lý phòng</div>
             <h1>Phòng</h1>
-            <p>Đang quản lý phòng của <strong>{{ propertyName }}</strong>. Quản lý danh mục phòng, sức chứa, nội dung website và trạng thái hoạt động. Ngừng phòng không xóa lịch sử booking.</p>
+            <p>Đang quản lý phòng của <strong>{{ propertyName }}</strong>. Ảnh đại diện lấy từ ảnh bìa trong Nội dung phòng.</p>
         </div>
         @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
         {
@@ -18,41 +21,45 @@
         }
     </div>
 
-    <section class="panel">
-        <div class="management-toolbar">
-            <div class="management-toolbar-main">
-                <input class="search-input" v-model.trim="search" aria-label="Tìm phòng theo tên hoặc mã" placeholder="Tìm tên hoặc mã phòng..." autocomplete="off" />
-                <label class="check-row"><input type="checkbox" v-model="showInactive" /> Hiện phòng ngừng hoạt động</label>
-            </div>
+    <section class="panel rooms-list-panel">
+        <div class="rooms-toolbar">
+            <label class="rooms-search"><span>⌕</span><input v-model.trim="search" aria-label="Tìm phòng theo tên hoặc mã" placeholder="Tìm tên hoặc mã phòng..." autocomplete="off" /></label>
+            <label class="rooms-inactive-toggle"><input type="checkbox" v-model="showInactive" /><span>Hiện phòng ngừng hoạt động</span></label>
             <span class="entity-count">{{ filteredRooms.length }} phòng</span>
         </div>
-        <div class="table-wrap">
-            <table class="data-table">
+
+        <div class="table-wrap rooms-table-wrap">
+            <table class="data-table rooms-table">
                 <thead>
-                    <tr><th>Thứ tự</th><th>Phòng</th><th>Sức chứa</th><th>Khung giá</th><th>Trạng thái</th><th></th></tr>
+                    <tr><th class="col-order">#</th><th>Phòng</th><th class="col-capacity">Sức chứa</th><th>Khung giá</th><th class="col-status">Trạng thái</th><th class="col-actions"></th></tr>
                 </thead>
                 <tbody>
-                    <tr v-for="room in filteredRooms" v-bind:key="room.id">
-                        <td><span class="room-order">{{ room.sortOrder }}</span></td>
+                    <tr v-for="room in filteredRooms" v-bind:key="room.id" v-bind:class="{ 'room-row-inactive': !room.isActive }">
+                        <td class="col-order"><span class="room-order">{{ room.sortOrder }}</span></td>
                         <td>
-                            <div class="room-cell">
-                                <span class="room-cell-icon" aria-hidden="true"><svg><use href="#i-bed" /></svg></span>
+                            <div class="room-cell room-cell-with-media">
+                                <a class="room-cover" v-bind:href="'/Admin/Rooms/' + room.id + '/Content?propertyId=' + propertyId" v-bind:aria-label="'Mở nội dung ' + room.name">
+                                    <img v-if="room.coverThumbnailUrl" v-bind:src="room.coverThumbnailUrl" v-bind:alt="room.name" loading="lazy" />
+                                    <span v-else class="room-cover-placeholder" aria-hidden="true"><svg><use href="#i-bed" /></svg></span>
+                                    <em v-if="room.imageCount">{{ room.imageCount }} ảnh</em>
+                                </a>
                                 <div class="room-cell-copy"><strong>{{ room.name }}</strong><span>{{ room.code }}</span></div>
                             </div>
                         </td>
-                        <td>{{ room.capacity }} người</td>
+                        <td class="col-capacity"><span class="room-capacity">{{ room.capacity }} <small>người</small></span></td>
                         <td>
-                            <div class="rate-inline" v-if="room.rates.length">
-                                <span v-for="rate in room.rates" v-bind:key="rate.id" class="pill">{{ rate.startTime }}–{{ rate.endTime }} · {{ money(rate.price) }}</span>
+                            <div class="rate-inline room-rate-compact" v-if="room.rates.length">
+                                <span v-for="rate in room.rates.slice(0, 3)" v-bind:key="rate.id" class="pill">{{ rate.startTime }}–{{ rate.endTime }} · {{ money(rate.price) }}</span>
+                                <span v-if="room.rates.length > 3" class="pill room-rate-more">+{{ room.rates.length - 3 }} khung</span>
                             </div>
                             <span v-else class="muted small">Chưa cấu hình</span>
                         </td>
-                        <td><span class="pill" v-bind:class="room.isActive ? 'success' : 'danger'">{{ room.isActive ? 'Hoạt động' : 'Ngừng' }}</span></td>
-                        <td>
+                        <td class="col-status"><span class="pill room-status" v-bind:class="room.isActive ? 'success' : 'danger'">{{ room.isActive ? 'Hoạt động' : 'Ngừng' }}</span></td>
+                        <td class="col-actions">
                             @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                             {
-                                <div class="table-actions">
-                                    <a class="btn btn-light btn-sm" v-bind:href="'/Admin/Rooms/' + room.id + '/Content?propertyId=' + propertyId">Nội dung</a>
+                                <div class="room-actions">
+                                    <a class="btn btn-light btn-sm room-content-action" v-bind:href="'/Admin/Rooms/' + room.id + '/Content?propertyId=' + propertyId">Nội dung</a>
                                     <button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(room)">Sửa</button>
                                     <button v-if="room.isActive" class="btn btn-danger btn-sm" type="button" v-on:click="confirmArchive(room)">Ngừng</button>
                                 </div>
