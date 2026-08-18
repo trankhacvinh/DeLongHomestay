@@ -1,0 +1,135 @@
+@page
+@model DeLong.Web.Pages.Admin.Site.SeoModel
+@{
+    ViewData["Title"] = "SEO & Xuất bản";
+    var healthyPages = Model.Pages.Count(x => x.IssueCount == 0);
+    var warningPages = Model.Pages.Count - healthyPages;
+    var noIndexPages = Model.Pages.Count(x => x.NoIndex);
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/seo-publishing-center.css" asp-append-version="true" />
+}
+
+<div class="seo-center" data-seo-center>
+    <div class="page-title-row seo-center-head">
+        <div>
+            <div class="page-eyebrow">Website & tìm kiếm</div>
+            <h1>SEO & Xuất bản</h1>
+            <p>Kiểm tra metadata, trạng thái index, canonical, sitemap và các redirect 301 sinh ra khi đổi slug.</p>
+        </div>
+        <div class="seo-head-actions">
+            <a class="btn btn-light" href="@Model.RobotsUrl" target="_blank" rel="noopener">robots.txt ↗</a>
+            <a class="btn btn-light" href="@Model.SitemapUrl" target="_blank" rel="noopener">sitemap.xml ↗</a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage)) { <div class="seo-flash success">@Model.StatusMessage</div> }
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage)) { <div class="seo-flash error">@Model.ErrorMessage</div> }
+
+    <section class="panel seo-scope-card">
+        <div>
+            <span class="seo-kicker">PHẠM VI ĐANG KIỂM TRA</span>
+            <h2>@Model.ScopeName</h2>
+            <p>SEO trang chủ và @Model.Pages.Count trang nội dung trong phạm vi này.</p>
+        </div>
+        <div class="seo-scope-actions">
+            @if (Model.IsAdmin)
+            {
+                <a class="@(Model.IsGlobal ? "active" : string.Empty)" asp-page="/Admin/Site/Seo" asp-route-scope="global">Trang chung</a>
+            }
+            @foreach (var property in Model.Properties)
+            {
+                <a class="@(!Model.IsGlobal && Model.PropertyId == property.Id ? "active" : string.Empty)" asp-page="/Admin/Site/Seo" asp-route-propertyId="@property.Id">@property.Name</a>
+            }
+        </div>
+    </section>
+
+    <section class="seo-stats">
+        <article><small>Trang nội dung</small><strong>@Model.Pages.Count</strong><span>@healthyPages trang đủ metadata cơ bản</span></article>
+        <article class="@(warningPages > 0 ? "warning" : string.Empty)"><small>Cần bổ sung</small><strong>@warningPages</strong><span>thiếu description hoặc ảnh chia sẻ</span></article>
+        <article class="@(noIndexPages > 0 ? "muted" : string.Empty)"><small>Noindex</small><strong>@noIndexPages</strong><span>không đưa vào sitemap</span></article>
+        <article><small>Redirect 301</small><strong>@Model.Redirects.Count</strong><span>được giữ khi đổi slug</span></article>
+    </section>
+
+    <section class="panel seo-home-audit">
+        <div class="seo-section-head">
+            <div><span class="seo-kicker">TRANG CHỦ / CẤU HÌNH SITE</span><h2>SEO nền của @Model.ScopeName</h2><p>Đây là metadata mặc định cho trang chủ và là nền dùng bởi nhiều trang hệ thống.</p></div>
+            <div class="seo-home-actions"><a class="btn btn-light" href="@Model.HomeUrl" target="_blank" rel="noopener">Xem trang ↗</a><a class="btn btn-primary" href="@Model.SettingsUrl">Sửa cấu hình</a></div>
+        </div>
+        <div class="seo-check-grid">
+            <div class="@(Model.ScopeAudit.TitleOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.TitleOk ? "✓" : "!")</span><div><strong>Meta title</strong><small>@(Model.ScopeAudit.TitleOk ? Model.ScopeAudit.MetaTitle : "Chưa có meta title")</small></div></div>
+            <div class="@(Model.ScopeAudit.DescriptionOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.DescriptionOk ? "✓" : "!")</span><div><strong>Meta description</strong><small>@(Model.ScopeAudit.DescriptionOk ? Model.ScopeAudit.MetaDescription : "Chưa có meta description")</small></div></div>
+            <div class="@(Model.ScopeAudit.OgImageOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.OgImageOk ? "✓" : "!")</span><div><strong>Ảnh chia sẻ</strong><small>@(Model.ScopeAudit.OgImageOk ? "Đã có Open Graph image" : "Chưa có Open Graph image")</small></div></div>
+            <div class="@(Model.ScopeAudit.Indexed ? "ok" : "warn")"><span>@(Model.ScopeAudit.Indexed ? "✓" : "!")</span><div><strong>Cho phép index</strong><small>@(Model.ScopeAudit.Indexed ? "Robots đang cho phép index" : "Toàn bộ cơ sở đang noindex")</small></div></div>
+        </div>
+    </section>
+
+    <section class="panel seo-pages-panel">
+        <div class="seo-section-head seo-pages-toolbar">
+            <div><span class="seo-kicker">TRANG NỘI DUNG</span><h2>Kiểm tra từng trang</h2><p>Title có thể dùng tên trang; description và ảnh chia sẻ nên được điền riêng trước khi publish.</p></div>
+            <div class="seo-pages-actions"><input type="search" placeholder="Tìm tên hoặc URL…" data-seo-search /><a class="btn btn-light" href="@Model.PagesUrl">Quản lý trang</a></div>
+        </div>
+
+        @if (Model.Pages.Count == 0)
+        {
+            <div class="seo-empty"><strong>Chưa có trang nội dung.</strong><span>Tạo trang trước, sau đó quay lại đây để kiểm tra SEO và xuất bản.</span><a class="btn btn-primary" href="@Model.PagesUrl">Tạo trang nội dung</a></div>
+        }
+        else
+        {
+            <div class="seo-page-list" data-seo-page-list>
+                @foreach (var page in Model.Pages)
+                {
+                    <article class="seo-page-card" data-seo-page data-search="@($"{page.Title} {page.Url} {page.SeoTitle} {page.SeoDescription}".ToLowerInvariant())">
+                        <div class="seo-page-main">
+                            <div class="seo-page-title-row"><div><h3>@page.Title</h3><code>@page.Url</code></div><div class="seo-badges"><span class="@(page.IsPublished ? "published" : "draft")">@(page.IsPublished ? "Đã xuất bản" : "Bản nháp")</span>@if (page.NoIndex) { <span class="noindex">noindex</span> }@if (page.RedirectCount > 0) { <span>@page.RedirectCount redirect</span> }</div></div>
+                            <div class="seo-page-checks">
+                                <span class="@(page.HasTitle ? "ok" : "warn")">@(page.HasTitle ? "✓" : "!") Title</span>
+                                <span class="@(page.HasDescription ? "ok" : "warn")">@(page.HasDescription ? "✓" : "!") Description</span>
+                                <span class="@(page.HasOgImage ? "ok" : "warn")">@(page.HasOgImage ? "✓" : "!") OG image</span>
+                            </div>
+                            <div class="seo-page-links"><a href="@page.Url" target="_blank" rel="noopener">Xem trang ↗</a><a href="@($"{page.Url}{(page.Url.Contains('?') ? '&' : '?')}edit=1")" target="_blank" rel="noopener">Thiết kế ↗</a><a href="@Model.PagesUrl">Sửa title / description / ảnh</a></div>
+                        </div>
+                        <form method="post" asp-page-handler="UpdatePage" class="seo-page-controls">
+                            <input type="hidden" name="propertyId" value="@Model.PropertyId" />
+                            <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
+                            <input type="hidden" name="pageId" value="@page.Id" />
+                            <label class="seo-switch-row"><input type="checkbox" name="noIndex" value="true" checked="@page.NoIndex" /><span></span><div><strong>Không index trang này</strong><small>Bật noindex và loại trang khỏi sitemap.</small></div></label>
+                            <label class="seo-canonical"><span>Canonical tùy chỉnh</span><input type="text" name="canonicalUrl" value="@page.CanonicalUrl" placeholder="Để trống = URL hiện tại" /><small>Dùng URL tuyệt đối https://… hoặc đường dẫn nội bộ bắt đầu bằng /.</small></label>
+                            <button class="btn btn-primary btn-sm" type="submit">Lưu SEO</button>
+                        </form>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="panel seo-redirect-panel">
+        <div class="seo-section-head"><div><span class="seo-kicker">REDIRECT 301</span><h2>Lịch sử đổi slug</h2><p>Mỗi lần đổi slug của trang, URL cũ được giữ lại và chuyển vĩnh viễn sang URL mới để tránh link chết.</p></div><span class="seo-count-pill">@Model.Redirects.Count redirect</span></div>
+        @if (Model.Redirects.Count == 0)
+        {
+            <div class="seo-empty compact"><strong>Chưa có redirect.</strong><span>Redirect sẽ tự xuất hiện ở đây sau lần đầu bạn đổi slug một trang.</span></div>
+        }
+        else
+        {
+            <div class="seo-redirect-list">
+                @foreach (var redirect in Model.Redirects)
+                {
+                    <div class="seo-redirect-row">
+                        <div><small>@redirect.PageTitle</small><code>@redirect.FromUrl</code></div><span class="seo-arrow">→</span><code>@redirect.ToUrl</code>
+                        <form method="post" asp-page-handler="RemoveRedirect" onsubmit="return confirm('Gỡ redirect này? URL cũ sau đó sẽ trả về 404.');">
+                            <input type="hidden" name="propertyId" value="@Model.PropertyId" />
+                            <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
+                            <input type="hidden" name="pageId" value="@redirect.PageId" />
+                            <input type="hidden" name="legacySlug" value="@redirect.LegacySlug" />
+                            <button class="btn btn-light btn-sm" type="submit">Gỡ</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/seo-publishing-center.js" asp-append-version="true"></script>
+}
