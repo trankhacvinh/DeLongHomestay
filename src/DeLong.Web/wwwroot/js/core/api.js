@@ -77,6 +77,7 @@
         addStyle('data-public-contextual-content-cards', '/css/public-contextual-content-cards.css?v=20260817-1');
         addStyle('data-public-inline-editor', '/css/public-inline-editor.css?v=20260818-2');
         addStyle('data-public-row-inline', '/css/public-row-inline-editor.css?v=20260818-2');
+        addStyle('data-public-row-basic-elements-fix', '/css/public-row-basic-elements-fix.css?v=20260818-1');
         addStyle('data-public-row-advanced-elements', '/css/public-row-advanced-elements.css?v=20260818-1');
 
         addScript('data-public-shell-runtime', '/js/pages/public-shell-runtime.js?v=20260817-2');
@@ -95,6 +96,7 @@
         addScript('data-public-inline-stale-guard', '/js/pages/public-inline-stale-guard.js?v=20260817-1');
         addScript('data-public-row-inline-core', '/js/pages/public-row-inline-core.js?v=20260818-1');
         addScript('data-public-row-inline-ui', '/js/pages/public-row-inline-ui.js?v=20260818-1');
+        addScript('data-public-row-basic-elements-fix', '/js/pages/public-row-basic-elements-fix.js?v=20260818-1');
         addScript('data-public-row-inline-bindings', '/js/pages/public-row-inline-bindings.js?v=20260818-1');
         addScript('data-public-row-advanced-elements', '/js/pages/public-row-advanced-elements.js?v=20260818-1');
         addScript('data-public-row-advanced-runtime', '/js/pages/public-row-advanced-runtime.js?v=20260818-1');
