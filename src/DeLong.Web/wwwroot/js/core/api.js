@@ -45,6 +45,23 @@
         delete: (url) => request(url, { method: 'DELETE' })
     };
 
+    if (document.body?.classList.contains('admin-body')) {
+        if (!document.querySelector('link[data-admin-sidebar-quick-links]')) {
+            const style = document.createElement('link');
+            style.rel = 'stylesheet';
+            style.href = '/css/admin-sidebar-quick-links.css?v=20260818-1';
+            style.dataset.adminSidebarQuickLinks = 'true';
+            document.head.appendChild(style);
+        }
+        if (!document.querySelector('script[data-admin-sidebar-quick-links]')) {
+            const script = document.createElement('script');
+            script.src = '/js/core/admin-sidebar-quick-links.js?v=20260818-1';
+            script.async = false;
+            script.dataset.adminSidebarQuickLinks = 'true';
+            document.head.appendChild(script);
+        }
+    }
+
     if (document.body?.classList.contains('public-body')) {
         function addStyle(marker, href) {
             if (document.querySelector(`link[${marker}]`)) return;
