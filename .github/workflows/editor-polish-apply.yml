@@ -16,58 +16,36 @@ jobs:
         with:
           ref: feat/editor-polish-stabilization
           fetch-depth: 0
-      - name: Apply homepage visual style hooks
+      - name: Apply repeated homepage visual hooks
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           path = Path('src/DeLong.Web/Pages/Index.cshtml')
           text = path.read_text(encoding='utf-8')
           original = text
 
-          helper = '    string Text(JsonObject content, string key, string fallback = "") => content[key]?.GetValue<string>() ?? fallback;\n'
-          helper_new = helper + '    string V(JsonObject content, string path, bool image = false) => CustomPageModel.VisualClass(content, path, image);\n'
-          if helper in text and 'string V(JsonObject content' not in text:
-              text = text.replace(helper, helper_new, 1)
+          feature_old = '@foreach (var item in items) { if (!string.IsNullOrWhiteSpace(item?.ToString())) { <span>@item</span> } }'
+          feature_new = '@foreach (var pair in items.Select((item, index) => new { Item = item, Index = index })) { if (!string.IsNullOrWhiteSpace(pair.Item?.ToString())) { <span class="@(V(block.Content, $"items.{pair.Index}"))">@pair.Item</span> } }'
+          text = text.replace(feature_old, feature_new)
 
-          replacements = {
-              '<span class="public-eyebrow">@eyebrow</span>': '<span class="public-eyebrow @(V(block.Content, "eyebrow"))">@eyebrow</span>',
-              '<h1>@title</h1>': '<h1 class="@(V(block.Content, "title"))">@title</h1>',
-              '<p>@body</p>': '<p class="@(V(block.Content, "body"))">@body</p>',
-              '<h2>@title</h2>': '<h2 class="@(V(block.Content, "title"))">@title</h2>',
-              '<a class="public-btn public-btn-primary" href="@primaryUrl">@primaryText</a>': '<a class="public-btn public-btn-primary @(V(block.Content, "primaryText"))" href="@primaryUrl">@primaryText</a>',
-              '<a class="public-btn public-btn-ghost" href="@secondaryUrl">@secondaryText</a>': '<a class="public-btn public-btn-ghost @(V(block.Content, "secondaryText"))" href="@secondaryUrl">@secondaryText</a>',
-              '<a class="public-btn public-btn-primary" href="@ScopedUrl(Text(block.Content, "primaryUrl", "/booking"))">@Text(block.Content, "primaryText", "Đặt phòng")</a>': '<a class="public-btn public-btn-primary @(V(block.Content, "primaryText"))" href="@ScopedUrl(Text(block.Content, "primaryUrl", "/booking"))">@Text(block.Content, "primaryText", "Đặt phòng")</a>',
-              '<a class="public-btn public-btn-ghost" href="@ScopedUrl(Text(block.Content, "secondaryUrl", "/rooms"))">@Text(block.Content, "secondaryText", "Xem phòng")</a>': '<a class="public-btn public-btn-ghost @(V(block.Content, "secondaryText"))" href="@ScopedUrl(Text(block.Content, "secondaryUrl", "/rooms"))">@Text(block.Content, "secondaryText", "Xem phòng")</a>',
-              'class="public-cms-hero-image public-hotel-hero-media"': 'class="public-cms-hero-image public-hotel-hero-media @(V(block.Content, "imageUrl", true))"',
-              'class="public-story-media"': 'class="public-story-media @(V(block.Content, "imageUrl", true))"',
-              'class="public-cms-rich-inner"': 'class="public-cms-rich-inner @(V(block.Content, "html"))"',
-              '<address>@address</address>': '<address class="@(V(block.Content, "address"))">@address</address>',
-              '<a class="public-btn public-btn-primary" href="@Text(block.Content, "buttonUrl", "/booking")">@Text(block.Content, "buttonText", "Đặt phòng")</a>': '<a class="public-btn public-btn-primary @(V(block.Content, "buttonText"))" href="@Text(block.Content, "buttonUrl", "/booking")">@Text(block.Content, "buttonText", "Đặt phòng")</a>',
-              '<a class="public-btn public-btn-primary" href="@ScopedUrl(Text(block.Content, "buttonUrl", "/booking"))">@Text(block.Content, "buttonText", "Đặt phòng")</a>': '<a class="public-btn public-btn-primary @(V(block.Content, "buttonText"))" href="@ScopedUrl(Text(block.Content, "buttonUrl", "/booking"))">@Text(block.Content, "buttonText", "Đặt phòng")</a>'
-          }
-          for old, new in replacements.items():
-              text = text.replace(old, new)
+          nearby_old = '@foreach (var item in nearby) { if (!string.IsNullOrWhiteSpace(item?.ToString())) { <span>@item</span> } }'
+          nearby_new = '@foreach (var pair in nearby.Select((item, index) => new { Item = item, Index = index })) { if (!string.IsNullOrWhiteSpace(pair.Item?.ToString())) { <span class="@(V(block.Content, $"nearby.{pair.Index}"))">@pair.Item</span> } }'
+          text = text.replace(nearby_old, nearby_new)
 
-          text = re.sub(
-              r'<span class="public-eyebrow">(@Text\(block\.Content, "eyebrow"[^<]*\))</span>',
-              r'<span class="public-eyebrow @(V(block.Content, "eyebrow"))">\1</span>', text)
-          text = re.sub(
-              r'<h2>(@Text\(block\.Content, "title"[^<]*\))</h2>',
-              r'<h2 class="@(V(block.Content, "title"))">\1</h2>', text)
-          text = re.sub(
-              r'<p>(@Text\(block\.Content, "body"[^<]*\))</p>',
-              r'<p class="@(V(block.Content, "body"))">\1</p>', text)
+          faq_old = '@foreach (var item in faqItems.OfType<JsonObject>()) { var question = Text(item, "question"); var answer = Text(item, "answer"); if (!string.IsNullOrWhiteSpace(question) && !string.IsNullOrWhiteSpace(answer)) { <details><summary>@question<span>+</span></summary><p>@answer</p></details> } }'
+          faq_new = '@foreach (var pair in faqItems.OfType<JsonObject>().Select((item, index) => new { Item = item, Index = index })) { var question = Text(pair.Item, "question"); var answer = Text(pair.Item, "answer"); if (!string.IsNullOrWhiteSpace(question) && !string.IsNullOrWhiteSpace(answer)) { <details><summary class="@(V(block.Content, $"items.{pair.Index}.question"))">@question<span>+</span></summary><p class="@(V(block.Content, $"items.{pair.Index}.answer"))">@answer</p></details> } }'
+          text = text.replace(faq_old, faq_new)
+
+          policy_old = '@foreach (var item in policies.OfType<JsonObject>()) { var policyTitle = Text(item, "title"); var policyBody = Text(item, "body"); if (!string.IsNullOrWhiteSpace(policyTitle) || !string.IsNullOrWhiteSpace(policyBody)) { policyIndex++; <article><span>@policyIndex.ToString("00")</span><h3>@policyTitle</h3><p>@policyBody</p></article> } }'
+          policy_new = '@foreach (var pair in policies.OfType<JsonObject>().Select((item, index) => new { Item = item, Index = index })) { var policyTitle = Text(pair.Item, "title"); var policyBody = Text(pair.Item, "body"); if (!string.IsNullOrWhiteSpace(policyTitle) || !string.IsNullOrWhiteSpace(policyBody)) { policyIndex++; <article><span>@policyIndex.ToString("00")</span><h3 class="@(V(block.Content, $"items.{pair.Index}.title"))">@policyTitle</h3><p class="@(V(block.Content, $"items.{pair.Index}.body"))">@policyBody</p></article> } }'
+          text = text.replace(policy_old, policy_new)
 
           if text == original:
-              raise SystemExit('Index.cshtml transformer made no changes')
-          if 'string V(JsonObject content' not in text:
-              raise SystemExit('Visual class helper was not added')
-          if text.count('V(block.Content') < 20:
-              raise SystemExit(f'Expected at least 20 visual hooks, got {text.count("V(block.Content")}')
-
+              raise SystemExit('No repeated homepage hooks changed')
+          if text.count('V(block.Content') < 30:
+              raise SystemExit(f'Expected broader visual hooks, got {text.count("V(block.Content")}')
           path.write_text(text, encoding='utf-8')
           PY
       - name: Commit transformed page
@@ -77,5 +55,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/DeLong.Web/Pages/Index.cshtml
-          git commit -m "feat(editor): render visual styles on homepage"
+          git commit -m "feat(editor): persist repeated item styles on homepage"
           git push origin HEAD:feat/editor-polish-stabilization
