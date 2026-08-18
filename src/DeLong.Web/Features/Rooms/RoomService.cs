@@ -9,7 +9,7 @@ public sealed class RoomService(AppDbContext db)
     public async Task<IReadOnlyList<RoomDto>> GetAllAsync(Guid propertyId, CancellationToken cancellationToken = default)
     {
         return await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId).OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
-            .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive,
+            .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive, x.IsPublished,
                 x.HousekeepingStatus, x.HousekeepingUpdatedAtUtc,
                 x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder).Select(i => i.ThumbnailPath).FirstOrDefault(),
                 x.Images.Count,
@@ -22,7 +22,7 @@ public sealed class RoomService(AppDbContext db)
     public async Task<RoomDto?> GetAsync(Guid propertyId, Guid roomId, CancellationToken cancellationToken = default)
     {
         return await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Id == roomId)
-            .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive,
+            .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive, x.IsPublished,
                 x.HousekeepingStatus, x.HousekeepingUpdatedAtUtc,
                 x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder).Select(i => i.ThumbnailPath).FirstOrDefault(),
                 x.Images.Count,
@@ -50,7 +50,8 @@ public sealed class RoomService(AppDbContext db)
             Slug = slug,
             Capacity = request.Capacity,
             SortOrder = request.SortOrder,
-            IsActive = true
+            IsActive = true,
+            IsPublished = false
         };
         db.Rooms.Add(room);
         await db.SaveChangesAsync(cancellationToken);
@@ -75,6 +76,7 @@ public sealed class RoomService(AppDbContext db)
         room.Capacity = request.Capacity;
         room.SortOrder = request.SortOrder;
         room.IsActive = request.IsActive;
+        if (request.IsPublished.HasValue) room.IsPublished = request.IsPublished.Value;
         await db.SaveChangesAsync(cancellationToken);
         return (await GetAsync(propertyId, roomId, cancellationToken), null);
     }
