@@ -6,9 +6,16 @@
     const siteSlug = scopedMatch ? decodeURIComponent(scopedMatch[1]) : '';
     const scopedHomePath = scopedMatch ? `/h/${scopedMatch[1]}` : '';
     const isHome = normalizedPath === '/' || (scopedHomePath && normalizedPath === scopedHomePath);
+    const customPageId = document.querySelector('meta[name="delong-custom-page-id"]')?.content || '';
+    const customPageSlug = document.querySelector('meta[name="delong-custom-page-slug"]')?.content || '';
+    const isCustomPage = !!customPageId && !!customPageSlug;
+    const isEditablePage = isHome || isCustomPage;
     const propertyBlogMatch = normalizedPath.match(/^\/h\/[^/]+\/blog(?:\/([^/]+))?$/i);
     const isGlobalBlog = normalizedPath === '/blog';
-    const contextUrl = `/api/admin/site/visual-context${siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : ''}`;
+    const contextParams = new URLSearchParams();
+    if (siteSlug) contextParams.set('siteSlug', siteSlug);
+    if (isCustomPage) contextParams.set('pageSlug', customPageSlug);
+    const contextUrl = `/api/admin/site/visual-context${contextParams.size ? `?${contextParams}` : ''}`;
 
     const BASE_TYPES = {
         global: [
@@ -235,9 +242,12 @@
             this.context = context;
             this.scope = context.scope;
             this.propertyId = context.propertyId || '';
-            this.api = this.scope === 'global' ? '/api/admin/site/global' : `/api/admin/properties/${this.propertyId}/site`;
+            this.siteApi = context.siteApi || (this.scope === 'global' ? '/api/admin/site/global' : `/api/admin/properties/${this.propertyId}/site`);
+            this.api = context.sectionApi || this.siteApi;
             this.editorialApi = this.scope === 'global' ? '/api/admin/site/global/editorial' : `/api/admin/properties/${this.propertyId}/editorial`;
-            this.adminUrl = this.scope === 'global' ? '/Admin/Site/Global' : `/Admin/Site?propertyId=${encodeURIComponent(this.propertyId)}`;
+            this.adminUrl = isCustomPage
+                ? (this.scope === 'global' ? '/Admin/Site/Pages?scope=global' : `/Admin/Site/Pages?propertyId=${encodeURIComponent(this.propertyId)}`)
+                : (this.scope === 'global' ? '/Admin/Site/Global' : `/Admin/Site?propertyId=${encodeURIComponent(this.propertyId)}`);
             this.sections = [];
             this.editing = false;
             this.drawer = null;
@@ -245,7 +255,7 @@
             this.insertAfterId = null;
             this.dragged = null;
             this.galleryDeleted = [];
-            const keySuffix = this.scope === 'global' ? 'global' : this.propertyId;
+            const keySuffix = isCustomPage ? `page:${customPageId}` : (this.scope === 'global' ? 'global' : this.propertyId);
             this.editStateKey = `delong:pve:editing:${keySuffix}`;
             this.scrollKey = `delong:pve:scroll:${keySuffix}`;
         }
@@ -260,18 +270,18 @@
             const savedScroll = Number(getStore(this.scrollKey) || 0);
             removeStore(this.scrollKey);
             if (savedScroll > 0) requestAnimationFrame(() => window.scrollTo({ top: savedScroll, behavior: 'auto' }));
-            if (isHome && getStore(this.editStateKey) === '1') setTimeout(() => this.toggleEdit({ silent: true }), 30);
+            if (isEditablePage && (getStore(this.editStateKey) === '1' || new URLSearchParams(location.search).get('edit') === '1')) setTimeout(() => this.toggleEdit({ silent: true }), 30);
         }
 
         toolbar() {
             document.body.classList.add('pve-authorized');
-            const label = this.scope === 'global' ? 'Trang chủ chung' : (this.context.propertyName || 'Trang cơ sở');
+            const label = this.context.pageTitle || (this.scope === 'global' ? 'Trang chủ chung' : (this.context.propertyName || 'Trang cơ sở'));
             const bar = document.createElement('aside');
             bar.className = 'pve-toolbar'; bar.setAttribute('aria-label', 'Công cụ chỉnh sửa website');
             const editorialButtons = this.scope === 'global'
                 ? `${isHome ? '<button type="button" data-gallery>Gallery</button><button type="button" data-blog>Blog</button>' : (isGlobalBlog ? '<button type="button" data-blog>Thiết lập Blog</button>' : '')}`
                 : `${isHome ? '<button type="button" data-gallery>Gallery</button><button type="button" data-blog>Blog</button>' : (propertyBlogMatch ? `<button type="button" data-blog>${propertyBlogMatch[1] ? 'Sửa bài viết' : 'Quản lý Blog'}</button>` : '')}`;
-            bar.innerHTML = `<div class="pve-toolbar-brand"><span>DL</span><strong>Chỉnh website</strong><small>${h(label)}</small></div><div class="pve-toolbar-actions">${isHome ? '<button type="button" class="pve-primary" data-edit-toggle>✦ Chỉnh sửa trang</button><button type="button" data-add hidden>＋ Thêm khối</button>' : ''}${editorialButtons}<button type="button" data-brand>Thương hiệu</button><a href="${this.adminUrl}">Cấu hình đầy đủ</a><a href="/Admin">Quản trị</a><button type="button" data-hide aria-label="Ẩn thanh chỉnh sửa">×</button></div>`;
+            bar.innerHTML = `<div class="pve-toolbar-brand"><span>DL</span><strong>Chỉnh website</strong><small>${h(label)}</small></div><div class="pve-toolbar-actions">${isEditablePage ? '<button type="button" class="pve-primary" data-edit-toggle>✦ Chỉnh sửa trang</button><button type="button" data-add hidden>＋ Thêm khối</button>' : ''}${editorialButtons}<button type="button" data-brand>Thương hiệu</button><a href="${this.adminUrl}">${isCustomPage ? 'Quản lý trang' : 'Cấu hình đầy đủ'}</a><a href="/Admin">Quản trị</a><button type="button" data-hide aria-label="Ẩn thanh chỉnh sửa">×</button></div>`;
             document.body.prepend(bar);
             bar.querySelector('[data-edit-toggle]')?.addEventListener('click', () => this.toggleEdit());
             bar.querySelector('[data-add]')?.addEventListener('click', () => this.openCreate(null));
@@ -356,7 +366,7 @@
                     await this.saveOrder();
                 });
             });
-            this.decorateEditorial();
+            if (!isCustomPage) this.decorateEditorial();
         }
 
         decorateEditorial() {
@@ -499,7 +509,7 @@
         async uploadSectionImage(event) {
             const file = event.target.files?.[0]; event.target.value = ''; if (!file) return;
             const label = event.target.closest('.pve-upload'); const text = label.childNodes[0]; const old = text?.textContent || 'Tải ảnh'; if (text) text.textContent = 'Đang tải…';
-            try { const form = new FormData(); form.append('file', file); const asset = await DeLongApi.postForm(`${this.api}/assets/section`, form); const targetName = event.target.dataset.targetField || 'content.imageUrl'; const target = this.drawer.querySelector(`[name="${targetName}"]`); if (target) target.value = asset.url || ''; this.toast('Đã tải ảnh. Bấm Lưu thay đổi để áp dụng.'); }
+            try { const form = new FormData(); form.append('file', file); const asset = await DeLongApi.postForm(`${this.siteApi}/assets/section`, form); const targetName = event.target.dataset.targetField || 'content.imageUrl'; const target = this.drawer.querySelector(`[name="${targetName}"]`); if (target) target.value = asset.url || ''; this.toast('Đã tải ảnh. Bấm Lưu thay đổi để áp dụng.'); }
             catch (error) { this.toast(error.message || 'Không thể tải ảnh.', 'error'); } finally { if (text) text.textContent = old; }
         }
 
@@ -613,7 +623,7 @@
         async uploadGalleryRow(event, row) {
             const file = event.target.files?.[0]; event.target.value = ''; if (!file) return;
             const label = event.target.closest('.pve-upload'); const text = label.childNodes[0]; const old = text?.textContent || 'Tải ảnh'; if (text) text.textContent = 'Đang tải…';
-            try { const form = new FormData(); form.append('file', file); const asset = await DeLongApi.postForm(`${this.api}/assets/section`, form); row.querySelector('[name="gallery.imageUrl"]').value = asset.url || ''; const thumb = row.querySelector('.pve-gallery-thumb'); thumb.innerHTML = `<img src="${h(asset.url || '')}" alt="">`; }
+            try { const form = new FormData(); form.append('file', file); const asset = await DeLongApi.postForm(`${this.siteApi}/assets/section`, form); row.querySelector('[name="gallery.imageUrl"]').value = asset.url || ''; const thumb = row.querySelector('.pve-gallery-thumb'); thumb.innerHTML = `<img src="${h(asset.url || '')}" alt="">`; }
             catch (error) { this.toast(error.message || 'Không thể tải ảnh.', 'error'); } finally { if (text) text.textContent = old; }
         }
 
@@ -674,7 +684,7 @@
 
         async openBranding() {
             try {
-                const data = await DeLongApi.get(this.scope === 'global' ? '/api/admin/site/global/branding' : `${this.api}/`);
+                const data = await DeLongApi.get(this.scope === 'global' ? '/api/admin/site/global/branding' : `${this.siteApi}/`);
                 const settings = this.scope === 'global' ? data : (data?.settings || data?.site?.settings || {});
                 this.closeDrawer();
                 const get = key => this.scope === 'global' ? (settings?.[`override${key[0].toUpperCase()}${key.slice(1)}`] || '') : (settings?.[key] || '');
@@ -688,7 +698,7 @@
                     try {
                         const changed = { siteName: form.elements.siteName.value.trim(), tagline: form.elements.tagline.value.trim(), logoUrl: form.elements.logoUrl.value.trim(), faviconUrl: form.elements.faviconUrl.value.trim(), ogImageUrl: form.elements.ogImageUrl.value.trim(), metaTitle: form.elements.metaTitle.value.trim(), metaDescription: form.elements.metaDescription.value.trim() };
                         if (this.scope === 'global') await DeLongApi.put('/api/admin/site/global/branding', changed);
-                        else await DeLongApi.put(`${this.api}/settings`, Object.assign({}, settings, changed));
+                        else await DeLongApi.put(`${this.siteApi}/settings`, Object.assign({}, settings, changed));
                         this.toast('Đã lưu thương hiệu.'); this.reloadPreservingEdit();
                     } catch (error) { submit.disabled = false; submit.textContent = 'Lưu thương hiệu'; this.toast(error.message || 'Không thể lưu thương hiệu.', 'error'); }
                 });
@@ -698,7 +708,7 @@
         async uploadBrandImage(event) {
             const file = event.target.files?.[0]; event.target.value = ''; if (!file || !this.drawer) return;
             const label = event.target.closest('.pve-upload'); const text = label.childNodes[0]; const old = text?.textContent || 'Tải ảnh'; if (text) text.textContent = 'Đang tải…';
-            try { const form = new FormData(); form.append('file', file); const asset = await DeLongApi.postForm(`${this.api}/assets/${event.target.dataset.brandUpload}`, form); const target = this.drawer.querySelector(`[name="${event.target.dataset.targetField}"]`); if (target) target.value = asset.url || ''; this.toast('Đã tải ảnh. Bấm Lưu thương hiệu để áp dụng.'); }
+            try { const form = new FormData(); form.append('file', file); const asset = await DeLongApi.postForm(`${this.siteApi}/assets/${event.target.dataset.brandUpload}`, form); const target = this.drawer.querySelector(`[name="${event.target.dataset.targetField}"]`); if (target) target.value = asset.url || ''; this.toast('Đã tải ảnh. Bấm Lưu thương hiệu để áp dụng.'); }
             catch (error) { this.toast(error.message || 'Không thể tải ảnh.', 'error'); } finally { if (text) text.textContent = old; }
         }
 
