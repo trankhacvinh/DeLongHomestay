@@ -1,0 +1,155 @@
+@page
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@model DeLong.Web.Pages.CustomPageModel
+@{
+    var page = Model.PageContent;
+    var siteName = Model.IsGlobal ? "De Long Homestay" : (string.IsNullOrWhiteSpace(Model.SiteSettings?.SiteName) ? "De Long Homestay" : Model.SiteSettings.SiteName);
+    ViewData["Title"] = string.IsNullOrWhiteSpace(page.SeoTitle) ? page.Title : page.SeoTitle;
+    ViewData["MetaDescription"] = page.SeoDescription;
+    ViewData["CanonicalPath"] = page.Url;
+    ViewData["OgTitle"] = string.IsNullOrWhiteSpace(page.SeoTitle) ? page.Title : page.SeoTitle;
+    ViewData["OgDescription"] = page.SeoDescription;
+    ViewData["OgImage"] = page.OgImageUrl;
+    if (!page.IsPublished) ViewData["Robots"] = "noindex,nofollow";
+    var roomCount = Model.IsGlobal ? Model.GlobalCatalog.Rooms.Count : Model.Catalog.Rooms.Count;
+    var fromPrice = (Model.IsGlobal ? Model.GlobalCatalog.Rooms.Select(x => x.Room) : Model.Catalog.Rooms)
+        .Where(x => x.QuickFromPrice > 0).Select(x => x.QuickFromPrice).DefaultIfEmpty(0).Min();
+    string ScopedUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || Model.IsGlobal || string.IsNullOrWhiteSpace(Model.SiteSlug)) return url;
+        if (url.StartsWith("/h/", StringComparison.OrdinalIgnoreCase)) return url;
+        if (url == "/") return Model.ScopePrefix;
+        if (url.StartsWith("/#", StringComparison.Ordinal)) return $"{Model.ScopePrefix}{url[1..]}";
+        if (url.StartsWith('/') && !url.StartsWith("//")) return $"{Model.ScopePrefix}{url}";
+        return url;
+    }
+}
+@section Head {
+    <meta name="delong-custom-page-id" content="@page.Id" />
+    <meta name="delong-custom-page-slug" content="@page.Slug" />
+    <meta name="delong-custom-page-title" content="@page.Title" />
+    <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/public-room-content.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/homepage-cms.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hospitality-home.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/property-storytelling.css" asp-append-version="true" />
+}
+
+@if (!page.IsPublished)
+{
+    <div class="public-container"><div class="public-custom-page-draft"><strong>Bản nháp</strong><span>Trang này chỉ hiển thị cho người có quyền chỉnh sửa.</span></div></div>
+}
+
+@foreach (var section in page.Sections.Where(x => x.IsVisible).OrderBy(x => x.SortOrder))
+{
+    var content = CustomPageModel.Content(section);
+    switch (section.Type)
+    {
+        case "Hero":
+        {
+            var title = CustomPageModel.Text(content, "title", page.Title);
+            var imageUrl = CustomPageModel.Text(content, "imageUrl");
+            if (string.IsNullOrWhiteSpace(imageUrl) && !Model.IsGlobal) imageUrl = Model.SiteSettings?.CoverImageUrl ?? string.Empty;
+            <section class="public-hero public-cms-hero public-hotel-hero variant-@(section.Variant)">
+                <div class="public-container public-hero-grid public-hotel-hero-grid">
+                    <div class="public-hero-copy public-hotel-hero-copy">
+                        <span class="public-eyebrow">@CustomPageModel.Text(content, "eyebrow", siteName)</span>
+                        <h1>@title</h1>
+                        <p>@CustomPageModel.Text(content, "body")</p>
+                        <div class="public-hero-actions">
+                            @if (!string.IsNullOrWhiteSpace(CustomPageModel.Text(content, "primaryText"))) { <a class="public-btn public-btn-primary" href="@ScopedUrl(CustomPageModel.Text(content, "primaryUrl", "/booking"))">@CustomPageModel.Text(content, "primaryText")</a> }
+                            @if (!string.IsNullOrWhiteSpace(CustomPageModel.Text(content, "secondaryText"))) { <a class="public-btn public-btn-ghost" href="@ScopedUrl(CustomPageModel.Text(content, "secondaryUrl", "/rooms"))">@CustomPageModel.Text(content, "secondaryText")</a> }
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(imageUrl)) { <div class="public-cms-hero-image public-hotel-hero-media"><img class="public-hotel-hero-main-image" src="@imageUrl" alt="@title" fetchpriority="high" decoding="async" /></div> }
+                </div>
+            </section>
+            break;
+        }
+        case "BranchGrid" when Model.IsGlobal:
+        {
+            var properties = Model.SelectGlobalProperties(content);
+            <section id="co-so" class="public-section public-branch-section variant-@(section.Variant)"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">@CustomPageModel.Text(content, "eyebrow", "CƠ SỞ")</span><h2>@CustomPageModel.Text(content, "title", "Chọn nơi bạn muốn ghé")</h2></div></div><div class="public-branch-grid">
+                @foreach (var property in properties)
+                {
+                    <article class="public-branch-card">@if (!string.IsNullOrWhiteSpace(property.CoverCardUrl)) { <a class="public-branch-media" href="@PublicUrlBuilder.PropertyHome(property.SiteSlug)"><img src="@property.CoverCardUrl" alt="@property.SiteName" loading="lazy" /></a> }<div class="public-branch-copy"><span class="public-eyebrow">@property.RoomCount phòng</span><h3><a href="@PublicUrlBuilder.PropertyHome(property.SiteSlug)">@property.SiteName</a></h3><p>@property.Tagline</p><div class="public-branch-actions"><a class="public-text-link" href="@PublicUrlBuilder.PropertyHome(property.SiteSlug)">Xem cơ sở →</a></div></div></article>
+                }
+            </div></div></section>
+            break;
+        }
+        case "RoomGrid":
+        {
+            var eyebrow = CustomPageModel.Text(content, "eyebrow", "PHÒNG");
+            var title = CustomPageModel.Text(content, "title", "Chọn không gian phù hợp");
+            <section class="public-section public-home-rooms public-cms-room-grid variant-@(section.Variant)"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">@eyebrow</span><h2>@title</h2></div><a class="public-text-link" href="@ScopedUrl("/rooms")">Xem tất cả phòng →</a></div><div class="public-room-grid">
+                @if (Model.IsGlobal)
+                {
+                    @foreach (var item in Model.SelectGlobalRooms(content))
+                    {
+                        var room = item.Room;
+                        <article class="public-room-card public-room-card-content"><a class="public-room-art" href="@PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug)">@if (!string.IsNullOrWhiteSpace(room.CoverCardUrl)) { <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" loading="lazy" /> }<span class="public-room-image-title"><small>@item.PropertyName</small><strong>@room.Name</strong></span></a><div class="public-room-body"><div><h3>@room.Name</h3><p>@room.ShortDescription</p></div><div class="public-room-conversion"><div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div><a class="public-room-book-now" href="@PublicUrlBuilder.Booking(item.PropertySiteSlug, room: room.Code)">Đặt ngay →</a></div></div></article>
+                    }
+                }
+                else
+                {
+                    var limit = Math.Clamp(int.TryParse(content["limit"]?.ToString(), out var parsed) ? parsed : 6, 1, 12);
+                    @foreach (var room in Model.Catalog.Rooms.Take(limit))
+                    {
+                        <article class="public-room-card public-room-card-content"><a class="public-room-art" href="@PublicUrlBuilder.Room(Model.SiteSlug!, room.Slug)">@if (!string.IsNullOrWhiteSpace(room.CoverCardUrl)) { <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" loading="lazy" /> }<span class="public-room-image-title"><small>@siteName</small><strong>@room.Name</strong></span></a><div class="public-room-body"><div><h3>@room.Name</h3><p>@room.ShortDescription</p></div><div class="public-room-conversion"><div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div><a class="public-room-book-now" href="@PublicUrlBuilder.Booking(Model.SiteSlug!, room: room.Code)">Đặt ngay →</a></div></div></article>
+                    }
+                }
+            </div></div></section>
+            break;
+        }
+        case "AvailabilitySearch":
+        {
+            <section class="public-check-section public-cms-availability variant-@(section.Variant)"><div class="public-container"><form class="public-check-card" method="get" action="@(Model.IsGlobal ? "/booking" : PublicUrlBuilder.Booking(Model.SiteSlug!))"><div><span class="public-eyebrow">Đặt phòng nhanh</span><h2>@CustomPageModel.Text(content, "title", "Chọn ngày bạn muốn ghé")</h2></div>@if (Model.IsGlobal && Model.GlobalCatalog.Properties.Count > 1) { <label class="public-date-field"><span>Cơ sở</span><select name="site" required><option value="">Chọn cơ sở</option>@foreach (var property in Model.GlobalCatalog.Properties) { <option value="@property.SiteSlug">@property.SiteName</option> }</select></label> }<label class="public-date-field"><span>Ngày sử dụng</span><input type="date" name="date" value="@Model.DefaultDate" required /></label><button class="public-btn public-btn-primary" type="submit">Tìm phòng</button></form></div></section>
+            break;
+        }
+        case "FeatureGrid":
+        {
+            var items = content["items"] as JsonArray;
+            var imageUrl = CustomPageModel.Text(content, "imageUrl");
+            <section class="public-section public-section-soft public-cms-feature variant-@(section.Variant)"><div class="public-container public-story-shell @(!string.IsNullOrWhiteSpace(imageUrl) ? "has-media" : string.Empty)">@if (!string.IsNullOrWhiteSpace(imageUrl)) { <figure class="public-story-media"><img src="@imageUrl" alt="@CustomPageModel.Text(content, "title")" loading="lazy" /></figure> }<div class="public-story-grid"><div><span class="public-eyebrow">@CustomPageModel.Text(content, "eyebrow", siteName)</span><h2>@CustomPageModel.Text(content, "title")</h2></div><div class="public-story-copy"><p>@CustomPageModel.Text(content, "body")</p>@if (items is not null) { <div class="public-benefits">@foreach (var item in items) { if (!string.IsNullOrWhiteSpace(item?.ToString())) { <span>@item</span> } }</div> }</div></div></div></section>
+            break;
+        }
+        case "Faq":
+        {
+            var items = content["items"] as JsonArray;
+            <section class="public-section public-story-faq variant-@(section.Variant)"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">@CustomPageModel.Text(content, "eyebrow", "THÔNG TIN")</span><h2>@CustomPageModel.Text(content, "title", "Câu hỏi thường gặp")</h2></div></div>@if (items is not null) { <div class="public-faq-list">@foreach (var item in items.OfType<JsonObject>()) { var q = CustomPageModel.Text(item, "question"); var a = CustomPageModel.Text(item, "answer"); if (!string.IsNullOrWhiteSpace(q)) { <details><summary>@q<span>+</span></summary><p>@a</p></details> } }</div> }</div></section>
+            break;
+        }
+        case "Location":
+        {
+            var nearby = content["nearby"] as JsonArray;
+            var address = CustomPageModel.Text(content, "address", Model.SiteSettings?.Address ?? string.Empty);
+            var mapUrl = CustomPageModel.Text(content, "mapUrl", Model.SiteSettings?.GoogleMapsUrl ?? string.Empty);
+            var embedUrl = CustomPageModel.Text(content, "embedUrl");
+            <section class="public-section public-story-location variant-@(section.Variant)"><div class="public-container"><div class="public-location-shell"><div class="public-location-copy"><span class="public-eyebrow">@CustomPageModel.Text(content, "eyebrow", "VỊ TRÍ")</span><h2>@CustomPageModel.Text(content, "title", "Tìm đường đến chúng tôi")</h2><p>@CustomPageModel.Text(content, "body")</p>@if (!string.IsNullOrWhiteSpace(address)) { <address>@address</address> }@if (nearby is not null) { <div class="public-location-nearby">@foreach (var item in nearby) { if (!string.IsNullOrWhiteSpace(item?.ToString())) { <span>@item</span> } }</div> }@if (!string.IsNullOrWhiteSpace(mapUrl)) { <a class="public-btn public-btn-primary" href="@mapUrl" target="_blank" rel="noopener">Mở Google Maps ↗</a> }</div><div class="public-location-map">@if (!string.IsNullOrWhiteSpace(embedUrl)) { <iframe src="@embedUrl" loading="lazy" title="Bản đồ"></iframe> } else { <div class="public-location-map-fallback"><span>VỊ TRÍ</span><strong>@siteName</strong><small>@address</small></div> }</div></div></div></section>
+            break;
+        }
+        case "PolicyGrid":
+        {
+            var items = content["items"] as JsonArray;
+            var index = 0;
+            <section class="public-section public-story-policies variant-@(section.Variant)"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">@CustomPageModel.Text(content, "eyebrow", "THÔNG TIN")</span><h2>@CustomPageModel.Text(content, "title", "Thông tin cần biết")</h2></div></div>@if (items is not null) { <div class="public-policy-grid">@foreach (var item in items.OfType<JsonObject>()) { index++; <article><span>@index.ToString("00")</span><h3>@CustomPageModel.Text(item, "title")</h3><p>@CustomPageModel.Text(item, "body")</p></article> }</div> }</div></section>
+            break;
+        }
+        case "RichText":
+        {
+            <section class="public-section public-cms-rich variant-@(section.Variant)"><div class="public-container"><div class="public-cms-rich-inner">@Html.Raw(CustomPageModel.Text(content, "html"))</div></div></section>
+            break;
+        }
+        case "Cta":
+        {
+            <section class="public-section public-cms-cta variant-@(section.Variant)"><div class="public-container"><div class="public-cms-cta-card"><div><span class="public-eyebrow">@siteName</span><h2>@CustomPageModel.Text(content, "title")</h2><p>@CustomPageModel.Text(content, "body")</p></div><a class="public-btn public-btn-primary" href="@ScopedUrl(CustomPageModel.Text(content, "buttonUrl", "/booking"))">@CustomPageModel.Text(content, "buttonText", "Xem thêm")</a></div></div></section>
+            break;
+        }
+    }
+}
+
+@if (page.Sections.Count == 0)
+{
+    <div class="public-container public-custom-page-empty"><span>TRANG NỘI DUNG</span><h1>@page.Title</h1>@if (User.Identity?.IsAuthenticated == true) { <p>Bật “Chỉnh sửa trang” để thêm khối đầu tiên.</p> }</div>
+}
