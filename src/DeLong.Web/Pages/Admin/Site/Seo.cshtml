@@ -5,13 +5,18 @@
     var pageIssues = Model.Pages.Count(x => x.IssueCount > 0);
     var roomIssues = Model.Rooms.Count(x => x.IssueCount > 0);
     var blogIssues = Model.BlogPosts.Count(x => x.IssueCount > 0);
-    var totalIssues = pageIssues + roomIssues + blogIssues + (Model.ScopeAudit.IssueCount > 0 ? 1 : 0);
+    var contentIssues = pageIssues + roomIssues + blogIssues;
+    var totalIssues = contentIssues + (Model.ScopeAudit.IssueCount > 0 ? 1 : 0);
     var totalContent = Model.Pages.Count + Model.Rooms.Count + Model.BlogPosts.Count;
     var mediaApi = Model.IsGlobal ? "/api/admin/site/global/media" : $"/api/admin/properties/{Model.PropertyId}/media";
     var mediaAdminUrl = Model.IsGlobal ? "/Admin/Site/Media" : $"/Admin/Site/Media?propertyId={Model.PropertyId}";
+    var pageFrom = Math.Max(1, Model.PageNumber - 2);
+    var pageTo = Math.Min(Model.TotalPages, pageFrom + 4);
+    pageFrom = Math.Max(1, pageTo - 4);
 }
 @section Head {
     <link rel="stylesheet" href="~/css/seo-publishing-center.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/seo-publishing-center-ux.css" asp-append-version="true" />
 }
 
 <div class="seo-center" data-seo-center data-media-api="@mediaApi" data-media-admin-url="@mediaAdminUrl">
@@ -79,15 +84,24 @@
             <form method="post" asp-page-handler="UpdateScope" class="seo-quick-form seo-home-form">
                 <input type="hidden" name="propertyId" value="@Model.PropertyId" />
                 <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
+                <input type="hidden" name="returnUrl" value="@Model.CurrentListUrl" />
                 <label><span>Tiêu đề</span><input name="metaTitle" maxlength="200" value="@Model.ScopeAudit.MetaTitle" /></label>
                 <label class="wide"><span>Mô tả</span><textarea name="metaDescription" maxlength="500" rows="2">@Model.ScopeAudit.MetaDescription</textarea></label>
                 <div class="seo-media-field">
                     <span>Ảnh chia sẻ</span>
-                    <div class="seo-media-control">
-                        <img data-seo-media-preview alt="" hidden />
-                        <input name="ogImageUrl" maxlength="1200" value="@Model.ScopeAudit.OgImageUrl" readonly data-seo-media-input placeholder="Chưa chọn ảnh" />
-                        <button type="button" class="btn btn-light btn-sm" data-seo-media-pick>Chọn ảnh</button>
-                        <button type="button" class="seo-media-clear" data-seo-media-clear aria-label="Gỡ ảnh" title="Gỡ ảnh">×</button>
+                    <div class="seo-image-picker">
+                        <input type="hidden" name="ogImageUrl" maxlength="1200" value="@Model.ScopeAudit.OgImageUrl" data-seo-media-input />
+                        <button type="button" class="seo-image-tile" data-seo-media-pick aria-label="Chọn ảnh chia sẻ">
+                            <img data-seo-media-preview alt="Ảnh chia sẻ" hidden />
+                            <span class="seo-image-empty" aria-hidden="true">
+                                <svg viewBox="0 0 48 48"><rect x="7" y="9" width="27" height="25" rx="4"/><path d="m10 30 8-8 6 6 4-4 6 6"/><circle cx="27" cy="17" r="3"/><circle cx="36" cy="35" r="8"/><path d="M36 31v8M32 35h8"/></svg>
+                                <strong>Chọn ảnh</strong><small>Từ Media Library</small>
+                            </span>
+                            <span class="seo-image-change">Đổi ảnh</span>
+                        </button>
+                        <button type="button" class="seo-image-remove" data-seo-media-clear aria-label="Bỏ ảnh" title="Bỏ ảnh">
+                            <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>
+                        </button>
                     </div>
                 </div>
                 <button class="btn btn-primary btn-sm" type="submit">Lưu</button>
@@ -102,14 +116,21 @@
                 <h2>Kiểm tra từng mục</h2>
             </div>
             <div class="seo-filter-row">
-                <div class="seo-filter-tabs" role="group" aria-label="Lọc nội dung">
-                    <button type="button" class="active" data-seo-filter="all">Tất cả <b>@totalContent</b></button>
-                    <button type="button" data-seo-filter="page">Trang <b>@Model.Pages.Count</b></button>
-                    <button type="button" data-seo-filter="room">Phòng <b>@Model.Rooms.Count</b></button>
-                    <button type="button" data-seo-filter="blog">Blog <b>@Model.BlogPosts.Count</b></button>
-                    <button type="button" data-seo-filter="issue">Cần bổ sung <b>@(pageIssues + roomIssues + blogIssues)</b></button>
-                </div>
-                <label class="seo-search"><span>⌕</span><input type="search" placeholder="Tìm tên hoặc URL..." data-seo-search /></label>
+                <nav class="seo-filter-tabs" aria-label="Lọc nội dung">
+                    <a class="@(Model.ContentFilter == "all" ? "active" : string.Empty)" href="@Model.FilterUrl("all")">Tất cả <b>@totalContent</b></a>
+                    <a class="@(Model.ContentFilter == "page" ? "active" : string.Empty)" href="@Model.FilterUrl("page")">Trang <b>@Model.Pages.Count</b></a>
+                    <a class="@(Model.ContentFilter == "room" ? "active" : string.Empty)" href="@Model.FilterUrl("room")">Phòng <b>@Model.Rooms.Count</b></a>
+                    <a class="@(Model.ContentFilter == "blog" ? "active" : string.Empty)" href="@Model.FilterUrl("blog")">Blog <b>@Model.BlogPosts.Count</b></a>
+                    <a class="@(Model.ContentFilter == "issue" ? "active" : string.Empty)" href="@Model.FilterUrl("issue")">Cần bổ sung <b>@contentIssues</b></a>
+                </nav>
+                <form method="get" class="seo-search-form">
+                    @if (Model.IsGlobal) { <input type="hidden" name="scope" value="global" /> }
+                    else { <input type="hidden" name="propertyId" value="@Model.PropertyId" /> }
+                    @if (Model.ContentFilter != "all") { <input type="hidden" name="type" value="@Model.ContentFilter" /> }
+                    @if (Model.PageSize != 20) { <input type="hidden" name="pageSize" value="@Model.PageSize" /> }
+                    <label class="seo-search"><span>⌕</span><input type="search" name="q" value="@Model.SearchQuery" placeholder="Tìm tên hoặc URL..." /></label>
+                    @if (!string.IsNullOrWhiteSpace(Model.SearchQuery)) { <a class="seo-search-clear" href="@Model.FilterUrl(Model.ContentFilter)" aria-label="Xóa tìm kiếm">×</a> }
+                </form>
             </div>
         </div>
 
@@ -118,10 +139,10 @@
             <div class="seo-property-note">Phòng và Blog thuộc từng cơ sở. Chọn một cơ sở ở phía trên để kiểm tra hai nhóm này.</div>
         }
 
-        <div class="seo-content-list" data-seo-list>
-            @foreach (var item in Model.Pages)
+        <div class="seo-content-list">
+            @foreach (var item in Model.VisiblePages)
             {
-                <article class="seo-content-row" data-seo-item data-type="page" data-issue="@(item.IssueCount > 0 ? "1" : "0")" data-search="@($"{item.Title} {item.Url} {item.SeoTitle} {item.SeoDescription}".ToLowerInvariant())">
+                <article class="seo-content-row">
                     <div class="seo-content-main">
                         <div class="seo-content-title">
                             <span class="seo-type">Trang</span>
@@ -144,16 +165,25 @@
                                 <input type="hidden" name="propertyId" value="@Model.PropertyId" />
                                 <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
                                 <input type="hidden" name="pageId" value="@item.Id" />
+                                <input type="hidden" name="returnUrl" value="@Model.CurrentListUrl" />
                                 <label><span>Tên trang</span><input name="title" maxlength="200" value="@item.Title" required /></label>
                                 <label><span>SEO title</span><input name="seoTitle" maxlength="200" value="@item.SeoTitle" placeholder="Để trống = tên trang" /></label>
                                 <label class="wide"><span>Mô tả</span><textarea name="seoDescription" maxlength="500" rows="2">@item.SeoDescription</textarea></label>
                                 <div class="seo-media-field">
                                     <span>Ảnh chia sẻ</span>
-                                    <div class="seo-media-control">
-                                        <img data-seo-media-preview alt="" hidden />
-                                        <input name="ogImageUrl" maxlength="1200" value="@item.OgImageUrl" readonly data-seo-media-input placeholder="Chưa chọn ảnh" />
-                                        <button type="button" class="btn btn-light btn-sm" data-seo-media-pick>Chọn ảnh</button>
-                                        <button type="button" class="seo-media-clear" data-seo-media-clear aria-label="Gỡ ảnh" title="Gỡ ảnh">×</button>
+                                    <div class="seo-image-picker">
+                                        <input type="hidden" name="ogImageUrl" maxlength="1200" value="@item.OgImageUrl" data-seo-media-input />
+                                        <button type="button" class="seo-image-tile" data-seo-media-pick aria-label="Chọn ảnh chia sẻ">
+                                            <img data-seo-media-preview alt="Ảnh chia sẻ" hidden />
+                                            <span class="seo-image-empty" aria-hidden="true">
+                                                <svg viewBox="0 0 48 48"><rect x="7" y="9" width="27" height="25" rx="4"/><path d="m10 30 8-8 6 6 4-4 6 6"/><circle cx="27" cy="17" r="3"/><circle cx="36" cy="35" r="8"/><path d="M36 31v8M32 35h8"/></svg>
+                                                <strong>Chọn ảnh</strong><small>Từ Media Library</small>
+                                            </span>
+                                            <span class="seo-image-change">Đổi ảnh</span>
+                                        </button>
+                                        <button type="button" class="seo-image-remove" data-seo-media-clear aria-label="Bỏ ảnh" title="Bỏ ảnh">
+                                            <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>
+                                        </button>
                                     </div>
                                 </div>
                                 <button class="btn btn-primary btn-sm" type="submit">Lưu thông tin</button>
@@ -162,6 +192,7 @@
                                 <input type="hidden" name="propertyId" value="@Model.PropertyId" />
                                 <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
                                 <input type="hidden" name="pageId" value="@item.Id" />
+                                <input type="hidden" name="returnUrl" value="@Model.CurrentListUrl" />
                                 <label class="seo-switch-row"><input type="checkbox" name="noIndex" value="true" checked="@item.NoIndex" /><span></span><div><strong>Không đưa trang này lên Google</strong><small>Trang vẫn mở được bằng link nhưng không nằm trong sitemap.</small></div></label>
                                 <label><span>Canonical</span><input name="canonicalUrl" value="@item.CanonicalUrl" placeholder="Để trống = URL hiện tại" /></label>
                                 <button class="btn btn-light btn-sm" type="submit">Lưu index</button>
@@ -171,9 +202,9 @@
                 </article>
             }
 
-            @foreach (var room in Model.Rooms)
+            @foreach (var room in Model.VisibleRooms)
             {
-                <article class="seo-content-row" data-seo-item data-type="room" data-issue="@(room.IssueCount > 0 ? "1" : "0")" data-search="@($"{room.Name} {room.Code} {room.Url} {room.ShortDescription}".ToLowerInvariant())">
+                <article class="seo-content-row">
                     <div class="seo-content-main">
                         <div class="seo-content-title">
                             <span class="seo-type room">Phòng</span>
@@ -190,7 +221,10 @@
                     <details class="seo-quick-edit seo-row-edit">
                         <summary>Sửa nhanh</summary>
                         <form method="post" asp-page-handler="UpdateRoom" class="seo-quick-form seo-room-form">
-                            <input type="hidden" name="propertyId" value="@Model.PropertyId" /><input type="hidden" name="scope" value="property" /><input type="hidden" name="roomId" value="@room.Id" />
+                            <input type="hidden" name="propertyId" value="@Model.PropertyId" />
+                            <input type="hidden" name="scope" value="property" />
+                            <input type="hidden" name="roomId" value="@room.Id" />
+                            <input type="hidden" name="returnUrl" value="@Model.CurrentListUrl" />
                             <label><span>Tên phòng</span><input name="name" maxlength="200" value="@room.Name" required /></label>
                             <label class="wide"><span>Mô tả ngắn</span><textarea name="shortDescription" maxlength="1200" rows="2">@room.ShortDescription</textarea></label>
                             <button class="btn btn-primary btn-sm" type="submit">Lưu</button>
@@ -199,9 +233,9 @@
                 </article>
             }
 
-            @foreach (var post in Model.BlogPosts)
+            @foreach (var post in Model.VisibleBlogPosts)
             {
-                <article class="seo-content-row" data-seo-item data-type="blog" data-issue="@(post.IssueCount > 0 ? "1" : "0")" data-search="@($"{post.Title} {post.Url} {post.Excerpt}".ToLowerInvariant())">
+                <article class="seo-content-row">
                     <div class="seo-content-main">
                         <div class="seo-content-title">
                             <span class="seo-type blog">Blog</span>
@@ -216,17 +250,28 @@
                     <div class="seo-content-actions"><a href="@post.Url" target="_blank" rel="noopener">Mở ↗</a><a href="@Model.BlogAdminUrl">Quản lý Blog</a></div>
                     <details class="seo-quick-edit seo-row-edit">
                         <summary>Sửa nhanh</summary>
-                        <form method="post" asp-page-handler="UpdateBlog" class="seo-quick-form">
-                            <input type="hidden" name="propertyId" value="@Model.PropertyId" /><input type="hidden" name="scope" value="property" /><input type="hidden" name="postId" value="@post.Id" />
+                        <form method="post" asp-page-handler="UpdateBlog" class="seo-quick-form seo-blog-form">
+                            <input type="hidden" name="propertyId" value="@Model.PropertyId" />
+                            <input type="hidden" name="scope" value="property" />
+                            <input type="hidden" name="postId" value="@post.Id" />
+                            <input type="hidden" name="returnUrl" value="@Model.CurrentListUrl" />
                             <label><span>Tiêu đề</span><input name="title" maxlength="240" value="@post.Title" required /></label>
                             <label class="wide"><span>Mô tả</span><textarea name="excerpt" maxlength="800" rows="2">@post.Excerpt</textarea></label>
                             <div class="seo-media-field">
                                 <span>Ảnh bài viết</span>
-                                <div class="seo-media-control">
-                                    <img data-seo-media-preview alt="" hidden />
-                                    <input name="coverImageUrl" maxlength="1000" value="@post.CoverImageUrl" readonly data-seo-media-input placeholder="Chưa chọn ảnh" />
-                                    <button type="button" class="btn btn-light btn-sm" data-seo-media-pick>Chọn ảnh</button>
-                                    <button type="button" class="seo-media-clear" data-seo-media-clear aria-label="Gỡ ảnh" title="Gỡ ảnh">×</button>
+                                <div class="seo-image-picker">
+                                    <input type="hidden" name="coverImageUrl" maxlength="1000" value="@post.CoverImageUrl" data-seo-media-input />
+                                    <button type="button" class="seo-image-tile" data-seo-media-pick aria-label="Chọn ảnh bài viết">
+                                        <img data-seo-media-preview alt="Ảnh bài viết" hidden />
+                                        <span class="seo-image-empty" aria-hidden="true">
+                                            <svg viewBox="0 0 48 48"><rect x="7" y="9" width="27" height="25" rx="4"/><path d="m10 30 8-8 6 6 4-4 6 6"/><circle cx="27" cy="17" r="3"/><circle cx="36" cy="35" r="8"/><path d="M36 31v8M32 35h8"/></svg>
+                                            <strong>Chọn ảnh</strong><small>Từ Media Library</small>
+                                        </span>
+                                        <span class="seo-image-change">Đổi ảnh</span>
+                                    </button>
+                                    <button type="button" class="seo-image-remove" data-seo-media-clear aria-label="Bỏ ảnh" title="Bỏ ảnh">
+                                        <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>
+                                    </button>
                                 </div>
                             </div>
                             <button class="btn btn-primary btn-sm" type="submit">Lưu</button>
@@ -240,7 +285,37 @@
         {
             <div class="seo-empty"><strong>Chưa có nội dung để kiểm tra.</strong><span>Tạo trang, phòng hoặc bài Blog trước.</span></div>
         }
-        <div class="seo-no-results" data-seo-no-results hidden>Không có kết quả phù hợp.</div>
+        else if (Model.TotalItems == 0)
+        {
+            <div class="seo-empty"><strong>Không có kết quả phù hợp.</strong><span>Thử đổi bộ lọc hoặc từ khóa tìm kiếm.</span></div>
+        }
+
+        @if (Model.TotalItems > 0)
+        {
+            <footer class="seo-pagination-bar">
+                <div class="seo-page-summary">Hiển thị <strong>@Model.FirstItemNumber–@Model.LastItemNumber</strong> / @Model.TotalItems mục</div>
+                <nav class="seo-pagination" aria-label="Phân trang">
+                    @if (Model.PageNumber > 1) { <a class="nav" href="@Model.PageUrl(Model.PageNumber - 1)">← Trước</a> }
+                    @for (var p = pageFrom; p <= pageTo; p++)
+                    {
+                        <a class="@(p == Model.PageNumber ? "active" : string.Empty)" href="@Model.PageUrl(p)">@p</a>
+                    }
+                    @if (Model.PageNumber < Model.TotalPages) { <a class="nav" href="@Model.PageUrl(Model.PageNumber + 1)">Sau →</a> }
+                </nav>
+                <form method="get" class="seo-page-size">
+                    @if (Model.IsGlobal) { <input type="hidden" name="scope" value="global" /> }
+                    else { <input type="hidden" name="propertyId" value="@Model.PropertyId" /> }
+                    @if (Model.ContentFilter != "all") { <input type="hidden" name="type" value="@Model.ContentFilter" /> }
+                    @if (!string.IsNullOrWhiteSpace(Model.SearchQuery)) { <input type="hidden" name="q" value="@Model.SearchQuery" /> }
+                    <span>Mỗi trang</span>
+                    <select name="pageSize" onchange="this.form.submit()">
+                        <option value="20" selected="@(Model.PageSize == 20)">20</option>
+                        <option value="50" selected="@(Model.PageSize == 50)">50</option>
+                        <option value="100" selected="@(Model.PageSize == 100)">100</option>
+                    </select>
+                </form>
+            </footer>
+        }
     </section>
 
     <section class="panel seo-redirect-panel">
@@ -260,7 +335,11 @@
                     <div class="seo-redirect-row">
                         <div><small>@redirect.PageTitle</small><code>@redirect.FromUrl</code></div><span class="seo-arrow">→</span><code>@redirect.ToUrl</code>
                         <form method="post" asp-page-handler="RemoveRedirect" onsubmit="return confirm('Gỡ đường dẫn cũ này? Link cũ sau đó sẽ trả về 404.');">
-                            <input type="hidden" name="propertyId" value="@Model.PropertyId" /><input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" /><input type="hidden" name="pageId" value="@redirect.PageId" /><input type="hidden" name="legacySlug" value="@redirect.LegacySlug" />
+                            <input type="hidden" name="propertyId" value="@Model.PropertyId" />
+                            <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
+                            <input type="hidden" name="pageId" value="@redirect.PageId" />
+                            <input type="hidden" name="legacySlug" value="@redirect.LegacySlug" />
+                            <input type="hidden" name="returnUrl" value="@Model.CurrentListUrl" />
                             <button class="btn btn-light btn-sm" type="submit">Gỡ</button>
                         </form>
                     </div>
