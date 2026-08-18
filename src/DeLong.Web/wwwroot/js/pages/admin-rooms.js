@@ -14,8 +14,8 @@
                 search: '',
                 showInactive: false,
                 saving: false,
+                statusSavingId: null,
                 editor: { open: false, mode: 'create', roomId: null },
-                archiveModal: { open: false, room: null },
                 form: { code: '', name: '', capacity: 2, sortOrder: 1, isActive: true, isPublished: false },
                 toast: { show: false, message: '', type: 'success', timer: null }
             };
@@ -77,38 +77,38 @@
                     this.notify(error.message || 'Không thể lưu phòng.', 'error');
                 } finally { this.saving = false; }
             },
-            async publishRoom(room) {
-                if (!room || this.saving || room.isPublished) return;
-                this.saving = true;
+            async updateRoomStatus(room, changes, successMessage) {
+                if (!room || this.statusSavingId) return;
+                this.statusSavingId = room.id;
                 try {
                     const updated = await DeLongApi.put(`/api/admin/properties/${this.propertyId}/rooms/${room.id}`, {
                         code: room.code,
                         name: room.name,
                         capacity: room.capacity,
                         sortOrder: room.sortOrder,
-                        isActive: room.isActive,
-                        isPublished: true
+                        isActive: changes.isActive ?? room.isActive,
+                        isPublished: changes.isPublished ?? room.isPublished
                     });
                     const index = this.rooms.findIndex(x => x.id === updated.id);
                     if (index >= 0) this.rooms.splice(index, 1, updated);
-                    this.notify('Đã đưa phòng lên website và luồng đặt phòng.', 'success');
+                    this.notify(successMessage, 'success');
                 } catch (error) {
-                    this.notify(error.message || 'Không thể xuất bản phòng.', 'error');
-                } finally { this.saving = false; }
+                    this.notify(error.message || 'Không thể cập nhật trạng thái phòng.', 'error');
+                } finally {
+                    this.statusSavingId = null;
+                }
             },
-            confirmArchive(room) { this.archiveModal = { open: true, room }; },
-            async archiveRoom() {
-                const room = this.archiveModal.room;
-                if (!room) return;
-                this.saving = true;
-                try {
-                    await DeLongApi.delete(`/api/admin/properties/${this.propertyId}/rooms/${room.id}`);
-                    room.isActive = false;
-                    this.archiveModal.open = false;
-                    this.notify('Đã chuyển phòng sang ngừng hoạt động.', 'success');
-                } catch (error) {
-                    this.notify(error.message || 'Không thể cập nhật phòng.', 'error');
-                } finally { this.saving = false; }
+            toggleActive(room) {
+                const next = !room.isActive;
+                return this.updateRoomStatus(room, { isActive: next }, next ? 'Đã bật hoạt động phòng.' : 'Đã ngừng hoạt động phòng.');
+            },
+            togglePublished(room) {
+                if (!room.isActive && !room.isPublished) {
+                    this.notify('Hãy bật hoạt động phòng trước khi đưa lên website.', 'error');
+                    return;
+                }
+                const next = !room.isPublished;
+                return this.updateRoomStatus(room, { isPublished: next }, next ? 'Đã hiển thị phòng trên website và trang đặt phòng.' : 'Đã ẩn phòng khỏi website và trang đặt phòng.');
             },
             notify(message, type) {
                 if (this.toast.timer) clearTimeout(this.toast.timer);
