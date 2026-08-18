@@ -7,12 +7,14 @@
     var blogIssues = Model.BlogPosts.Count(x => x.IssueCount > 0);
     var totalIssues = pageIssues + roomIssues + blogIssues + (Model.ScopeAudit.IssueCount > 0 ? 1 : 0);
     var totalContent = Model.Pages.Count + Model.Rooms.Count + Model.BlogPosts.Count;
+    var mediaApi = Model.IsGlobal ? "/api/admin/site/global/media" : $"/api/admin/properties/{Model.PropertyId}/media";
+    var mediaAdminUrl = Model.IsGlobal ? "/Admin/Site/Media" : $"/Admin/Site/Media?propertyId={Model.PropertyId}";
 }
 @section Head {
     <link rel="stylesheet" href="~/css/seo-publishing-center.css" asp-append-version="true" />
 }
 
-<div class="seo-center" data-seo-center>
+<div class="seo-center" data-seo-center data-media-api="@mediaApi" data-media-admin-url="@mediaAdminUrl">
     <header class="seo-center-head">
         <div>
             <div class="page-eyebrow">Website</div>
@@ -68,7 +70,7 @@
         <div class="seo-check-grid">
             <div class="@(Model.ScopeAudit.TitleOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.TitleOk ? "✓" : "!")</span><div><strong>Tiêu đề</strong><small>@(Model.ScopeAudit.TitleOk ? Model.ScopeAudit.MetaTitle : "Chưa có tiêu đề")</small></div></div>
             <div class="@(Model.ScopeAudit.DescriptionOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.DescriptionOk ? "✓" : "!")</span><div><strong>Mô tả</strong><small>@(Model.ScopeAudit.DescriptionOk ? Model.ScopeAudit.MetaDescription : "Chưa có mô tả")</small></div></div>
-            <div class="@(Model.ScopeAudit.OgImageOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.OgImageOk ? "✓" : "!")</span><div><strong>Ảnh chia sẻ</strong><small>@(Model.ScopeAudit.OgImageOk ? Model.ScopeAudit.OgImageUrl : "Chưa chọn ảnh")</small></div></div>
+            <div class="@(Model.ScopeAudit.OgImageOk ? "ok" : "warn")"><span>@(Model.ScopeAudit.OgImageOk ? "✓" : "!")</span><div><strong>Ảnh chia sẻ</strong><small>@(Model.ScopeAudit.OgImageOk ? "Đã chọn ảnh" : "Chưa chọn ảnh")</small></div></div>
             <div class="@(Model.ScopeAudit.Indexed ? "ok" : "warn")"><span>@(Model.ScopeAudit.Indexed ? "✓" : "!")</span><div><strong>Hiển thị trên Google</strong><small>@(Model.ScopeAudit.Indexed ? "Đang cho phép index" : "Đang tắt index")</small></div></div>
         </div>
 
@@ -79,7 +81,15 @@
                 <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
                 <label><span>Tiêu đề</span><input name="metaTitle" maxlength="200" value="@Model.ScopeAudit.MetaTitle" /></label>
                 <label class="wide"><span>Mô tả</span><textarea name="metaDescription" maxlength="500" rows="2">@Model.ScopeAudit.MetaDescription</textarea></label>
-                <label><span>Ảnh chia sẻ</span><input name="ogImageUrl" maxlength="1200" value="@Model.ScopeAudit.OgImageUrl" placeholder="/uploads/... hoặc https://..." /></label>
+                <div class="seo-media-field">
+                    <span>Ảnh chia sẻ</span>
+                    <div class="seo-media-control">
+                        <img data-seo-media-preview alt="" hidden />
+                        <input name="ogImageUrl" maxlength="1200" value="@Model.ScopeAudit.OgImageUrl" readonly data-seo-media-input placeholder="Chưa chọn ảnh" />
+                        <button type="button" class="btn btn-light btn-sm" data-seo-media-pick>Chọn ảnh</button>
+                        <button type="button" class="seo-media-clear" data-seo-media-clear aria-label="Gỡ ảnh" title="Gỡ ảnh">×</button>
+                    </div>
+                </div>
                 <button class="btn btn-primary btn-sm" type="submit">Lưu</button>
             </form>
         </details>
@@ -137,7 +147,15 @@
                                 <label><span>Tên trang</span><input name="title" maxlength="200" value="@item.Title" required /></label>
                                 <label><span>SEO title</span><input name="seoTitle" maxlength="200" value="@item.SeoTitle" placeholder="Để trống = tên trang" /></label>
                                 <label class="wide"><span>Mô tả</span><textarea name="seoDescription" maxlength="500" rows="2">@item.SeoDescription</textarea></label>
-                                <label><span>Ảnh chia sẻ</span><input name="ogImageUrl" maxlength="1200" value="@item.OgImageUrl" /></label>
+                                <div class="seo-media-field">
+                                    <span>Ảnh chia sẻ</span>
+                                    <div class="seo-media-control">
+                                        <img data-seo-media-preview alt="" hidden />
+                                        <input name="ogImageUrl" maxlength="1200" value="@item.OgImageUrl" readonly data-seo-media-input placeholder="Chưa chọn ảnh" />
+                                        <button type="button" class="btn btn-light btn-sm" data-seo-media-pick>Chọn ảnh</button>
+                                        <button type="button" class="seo-media-clear" data-seo-media-clear aria-label="Gỡ ảnh" title="Gỡ ảnh">×</button>
+                                    </div>
+                                </div>
                                 <button class="btn btn-primary btn-sm" type="submit">Lưu thông tin</button>
                             </form>
                             <form method="post" asp-page-handler="UpdatePage" class="seo-index-form">
@@ -202,7 +220,15 @@
                             <input type="hidden" name="propertyId" value="@Model.PropertyId" /><input type="hidden" name="scope" value="property" /><input type="hidden" name="postId" value="@post.Id" />
                             <label><span>Tiêu đề</span><input name="title" maxlength="240" value="@post.Title" required /></label>
                             <label class="wide"><span>Mô tả</span><textarea name="excerpt" maxlength="800" rows="2">@post.Excerpt</textarea></label>
-                            <label><span>Ảnh bài viết</span><input name="coverImageUrl" maxlength="1000" value="@post.CoverImageUrl" /></label>
+                            <div class="seo-media-field">
+                                <span>Ảnh bài viết</span>
+                                <div class="seo-media-control">
+                                    <img data-seo-media-preview alt="" hidden />
+                                    <input name="coverImageUrl" maxlength="1000" value="@post.CoverImageUrl" readonly data-seo-media-input placeholder="Chưa chọn ảnh" />
+                                    <button type="button" class="btn btn-light btn-sm" data-seo-media-pick>Chọn ảnh</button>
+                                    <button type="button" class="seo-media-clear" data-seo-media-clear aria-label="Gỡ ảnh" title="Gỡ ảnh">×</button>
+                                </div>
+                            </div>
                             <button class="btn btn-primary btn-sm" type="submit">Lưu</button>
                         </form>
                     </details>
