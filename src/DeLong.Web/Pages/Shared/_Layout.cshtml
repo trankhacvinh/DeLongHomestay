@@ -227,6 +227,7 @@
                         }
                         <a class="@(path.StartsWith("/Admin/Site/Editorial", StringComparison.OrdinalIgnoreCase) && editorialTab == "gallery" ? "side-link active" : "side-link")" asp-page="/Admin/Site/Editorial" asp-route-propertyId="@propertyId" asp-route-tab="gallery"><svg><use href="#i-image" /></svg><span>Gallery</span></a>
                         <a class="@(path.StartsWith("/Admin/Site/Editorial", StringComparison.OrdinalIgnoreCase) && editorialTab == "blog" ? "side-link active" : "side-link")" asp-page="/Admin/Site/Editorial" asp-route-propertyId="@propertyId" asp-route-tab="blog"><svg><use href="#i-article" /></svg><span>Blog</span></a>
+                        <a class="@NavClass("/Admin/Site/Media")" asp-page="/Admin/Site/Media" asp-route-propertyId="@propertyId"><svg><use href="#i-image" /></svg><span>Media Library</span></a>
                         <a class="side-link" href="/" target="_blank" rel="noopener"><svg><use href="#i-external" /></svg><span>Xem website</span></a>
                     </div>
                 }
