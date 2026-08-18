@@ -86,11 +86,18 @@ Chọn một ảnh có sẵn, lưu section, refresh và xác nhận URL vẫn đ
 - Sau xóa file không còn trong thư viện/storage.
 - Filter `Chưa dùng` chỉ hiện media usage = 0.
 
-## 10. Storage dashboard
+## 10. Storage dashboard và dọn media chưa dùng
 
 - Tổng số media đúng với danh sách hiện tại.
 - Tổng dung lượng hiển thị B/KB/MB hợp lý.
 - Số file chưa dùng và dung lượng có thể dọn được cập nhật sau upload/xóa.
+- Nút cleanup phải hiện rõ số lượng, ví dụ `Dọn 7 media chưa dùng`.
+- Nếu scope hiện tại không có file có quyền xóa, nút phải disabled và ghi `Không có media cần dọn`.
+- Bấm cleanup → hiện confirm có **số file, dung lượng, scope** và nói rõ xóa là vĩnh viễn.
+- Xác nhận → nút phải chạy tiến độ `Đang dọn x/y…`.
+- Cleanup chỉ lấy media `usage = 0`, `canDelete = true` và đúng filter cơ sở/scope đang chọn; search text không làm thay đổi phạm vi cleanup.
+- Server kiểm tra usage lại từng file. File vừa phát sinh usage phải bị giữ lại thay vì xóa nhầm.
+- Sau cleanup, Media Library reload; số file và dung lượng phải giảm.
 
 ## 11. Trang quản trị Media trong Admin
 
@@ -101,10 +108,16 @@ Chọn một ảnh có sẵn, lưu section, refresh và xác nhận URL vẫn đ
 - Admin xem toàn hệ thống và chọn nơi upload: `Dùng chung` hoặc một cơ sở mình có quyền.
 - Manager chỉ thấy cơ sở hiện tại + media dùng chung; không sửa/xóa media dùng chung.
 - Click thumbnail mở detail: preview, scope, kích thước, dung lượng, ngày, title, alt, usage.
-- `Dọn media chưa dùng` bật nhanh filter usage = 0; không tự xóa hàng loạt.
 - Xóa media chưa dùng phải xóa file vật lý và sau reload số dung lượng giảm.
 
-## 12. Toolbar Visual Editor gọn hơn
+## 12. Admin sidebar — Xem website nhanh
+
+- Link `Xem website` cũ không còn nằm cuối nhóm `Website`.
+- Có một link `Xem website` riêng **trên nhóm Vận hành**.
+- Bên dưới `Hệ thống đang hoạt động` có thêm card `Xem website · Mở trang khách trong tab mới`.
+- Cả hai mở `/` ở tab mới, không làm mất trang Admin đang thao tác.
+
+## 13. Toolbar Visual Editor gọn hơn
 
 - Toolbar không còn trải toàn bộ Gallery / Blog / Thương hiệu / Header / Footer / Menu / Quản trị thành một dãy dài.
 - `Chỉnh sửa trang` và `Media` vẫn là action trực tiếp.
@@ -115,7 +128,7 @@ Chọn một ảnh có sẵn, lưu section, refresh và xác nhận URL vẫn đ
 - Header/Footer/Menu enhancements tải chậm hơn vẫn phải xuất hiện đúng group, không gây lỗi `insertBefore`.
 - Màn hình hẹp toolbar vẫn dùng được và không tạo thanh kéo ngang quá dài.
 
-## 13. Regression
+## 14. Regression
 
 - Upload ảnh trực tiếp cũ (nếu vẫn dùng ở một form chưa chuyển) không làm hỏng form.
 - Khi mở Media Library lần sau, `section-*` legacy mới phải được import vào thư viện.
@@ -123,7 +136,7 @@ Chọn một ảnh có sẵn, lưu section, refresh và xác nhận URL vẫn đ
 - Branding cover/logo/favicon/OG vẫn hoạt động.
 - Không có Media toolbar khi guest/staff/viewer không có quyền chỉnh website.
 
-## 14. Migration
+## 15. Migration
 
 - Migration `AddMediaLibrary` tạo bảng `media_assets` và index cần thiết.
 - Database cũ migrate lên không làm đổi URL/file hiện tại.
