@@ -13,7 +13,7 @@
         <div>
             <div class="page-eyebrow">Quản lý phòng</div>
             <h1>Phòng</h1>
-            <p>Đang quản lý phòng của <strong>{{ propertyName }}</strong>. Ảnh đại diện lấy từ ảnh bìa trong Nội dung phòng.</p>
+            <p>Đang quản lý phòng của <strong>{{ propertyName }}</strong>. “Hoạt động” là trạng thái vận hành; phòng chỉ xuất hiện trên website và trang đặt phòng khi đã xuất bản.</p>
         </div>
         @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
         {
@@ -53,7 +53,16 @@
                             </div>
                             <span v-else class="muted small">Chưa cấu hình</span>
                         </td>
-                        <td class="col-status" data-label="Trạng thái"><span class="pill room-status" v-bind:class="room.isActive ? 'success' : 'danger'">{{ room.isActive ? 'Hoạt động' : 'Ngừng' }}</span></td>
+                        <td class="col-status" data-label="Trạng thái">
+                            <div class="room-status-stack">
+                                <span class="pill room-status" v-bind:class="room.isActive ? 'success' : 'danger'">{{ room.isActive ? 'Hoạt động' : 'Ngừng' }}</span>
+                                <span class="pill room-web-status" v-bind:class="room.isPublished ? 'is-live' : 'is-hidden'">{{ room.isPublished ? 'Trên website' : 'Ẩn khỏi web' }}</span>
+                                @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                                {
+                                    <button v-if="room.isActive && !room.isPublished" class="room-publish-link" type="button" v-bind:disabled="saving" v-on:click="publishRoom(room)">Đăng web</button>
+                                }
+                            </div>
+                        </td>
                         <td class="col-actions" data-label="Thao tác">
                             @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                             {
@@ -83,6 +92,8 @@
                 <div class="field"><label for="room-capacity">Sức chứa</label><input id="room-capacity" v-model.number="form.capacity" type="number" inputmode="numeric" min="1" max="50" /></div>
                 <div class="field"><label for="room-sort-order">Thứ tự hiển thị</label><input id="room-sort-order" v-model.number="form.sortOrder" type="number" inputmode="numeric" min="0" /></div>
                 <label v-if="editor.mode === 'edit'" class="check-row full"><input type="checkbox" v-model="form.isActive" /> Phòng đang hoạt động</label>
+                <label v-if="editor.mode === 'edit'" class="check-row full"><input type="checkbox" v-model="form.isPublished" /> Hiển thị phòng trên website và trang đặt phòng</label>
+                <p v-if="editor.mode === 'edit' && form.isActive && !form.isPublished" class="room-publish-help full">Phòng vẫn dùng được trong quản trị nhưng khách sẽ không thấy phòng này cho tới khi bật hiển thị.</p>
             </div>
             <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveRoom">{{ saving ? 'Đang lưu...' : 'Lưu' }}</button></div>
         </section>
