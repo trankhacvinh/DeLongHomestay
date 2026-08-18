@@ -3,11 +3,13 @@ using SkiaSharp;
 
 namespace DeLong.Web.Features.Site;
 
-public sealed record StoredSiteAsset(string Url, int Width, int Height);
+public sealed record StoredSiteAsset(string Url, int Width, int Height, long ByteSize, string StorageKey);
 
 public interface ISiteAssetStorage
 {
     Task<(StoredSiteAsset? Asset, string? Error)> SaveAsync(string propertyCode, string kind, IFormFile file, CancellationToken ct = default);
+    Task<bool> DeleteAsync(string storageKey, CancellationToken ct = default);
+    bool Exists(string storageKey);
 }
 
 public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorage
@@ -35,10 +37,8 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         using var decoded = SKBitmap.Decode(codec);
         if (decoded is null || decoded.Width <= 0 || decoded.Height <= 0) return (null, "File tải lên không phải ảnh hợp lệ.");
 
-        var safeProperty = new string(propertyCode.ToLowerInvariant().Where(ch => char.IsLetterOrDigit(ch) || ch == '-').ToArray());
-        var roomsRoot = paths.MediaPublicRoot;
-        var uploadsRoot = Directory.GetParent(roomsRoot)?.FullName ?? roomsRoot;
-        var publicRoot = Path.Combine(uploadsRoot, "site", safeProperty);
+        var safeProperty = SafeProperty(propertyCode);
+        var publicRoot = Path.Combine(UploadsRoot(), "site", safeProperty);
         Directory.CreateDirectory(publicRoot);
 
         string fileName;
@@ -81,15 +81,50 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
 
         var outputWidth = output.Width;
         var outputHeight = output.Height;
+        byte[] bytes;
         using (output)
         using (var image = SKImage.FromBitmap(output))
         using (var encoded = image.Encode(format, quality))
-        await using (var stream = File.Create(Path.Combine(publicRoot, fileName)))
-            encoded.SaveTo(stream);
+            bytes = encoded.ToArray();
+
+        await File.WriteAllBytesAsync(Path.Combine(publicRoot, fileName), bytes, ct);
 
         var version = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        return (new StoredSiteAsset($"/uploads/site/{safeProperty}/{fileName}?v={version}", outputWidth, outputHeight), null);
+        var storageKey = $"site/{safeProperty}/{fileName}";
+        return (new StoredSiteAsset($"/uploads/{storageKey}?v={version}", outputWidth, outputHeight, bytes.LongLength, storageKey), null);
     }
+
+    public bool Exists(string storageKey)
+    {
+        var path = ResolveStoragePath(storageKey);
+        return path is not null && File.Exists(path);
+    }
+
+    public Task<bool> DeleteAsync(string storageKey, CancellationToken ct = default)
+    {
+        var path = ResolveStoragePath(storageKey);
+        if (path is null || !File.Exists(path)) return Task.FromResult(false);
+        File.Delete(path);
+        return Task.FromResult(true);
+    }
+
+    private string? ResolveStoragePath(string storageKey)
+    {
+        var key = (storageKey ?? string.Empty).Replace('\\', '/').TrimStart('/');
+        if (!key.StartsWith("site/", StringComparison.OrdinalIgnoreCase) || key.Contains("..", StringComparison.Ordinal)) return null;
+        var root = Path.GetFullPath(UploadsRoot());
+        var full = Path.GetFullPath(Path.Combine(root, key.Replace('/', Path.DirectorySeparatorChar)));
+        return full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ? full : null;
+    }
+
+    private string UploadsRoot()
+    {
+        var roomsRoot = paths.MediaPublicRoot;
+        return Directory.GetParent(roomsRoot)?.FullName ?? roomsRoot;
+    }
+
+    private static string SafeProperty(string propertyCode) =>
+        new(propertyCode.ToLowerInvariant().Where(ch => char.IsLetterOrDigit(ch) || ch == '-').ToArray());
 
     private static SKBitmap ResizeMax(SKBitmap source, int maxSize)
     {
