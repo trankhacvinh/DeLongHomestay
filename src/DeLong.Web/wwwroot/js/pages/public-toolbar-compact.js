@@ -1,7 +1,11 @@
 (function () {
     if (!document.body?.classList.contains('public-body')) return;
 
-    const state = { queued: false };
+    const pagePath = location.pathname.replace(/\/+$/, '') || '/';
+    const scoped = pagePath.match(/^\/h\/([^/]+)(?:\/|$)/i);
+    const siteSlug = scoped ? decodeURIComponent(scoped[1]) : '';
+    const contextUrl = `/api/admin/site/visual-context${siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : ''}`;
+    const state = { queued: false, mediaAdminQueued: false };
 
     function createGroup(actions, key, label) {
         let group = actions.querySelector(`:scope > [data-toolbar-group="${key}"]`);
@@ -54,6 +58,19 @@
         menu.appendChild(node);
     }
 
+    function ensureMediaAdminLink(menu) {
+        if (menu.querySelector('[data-toolbar-media-admin]') || state.mediaAdminQueued || !window.DeLongApi) return;
+        state.mediaAdminQueued = true;
+        DeLongApi.get(contextUrl).then(ctx => {
+            if (!ctx?.canEdit || menu.querySelector('[data-toolbar-media-admin]')) return;
+            const link = document.createElement('a');
+            link.dataset.toolbarMediaAdmin = '1';
+            link.textContent = 'Quản lý Media Library';
+            link.href = ctx.propertyId ? `/Admin/Site/Media?propertyId=${encodeURIComponent(ctx.propertyId)}` : '/Admin/Site/Media';
+            menu.insertBefore(link, menu.firstChild);
+        }).catch(() => {}).finally(() => { state.mediaAdminQueued = false; });
+    }
+
     function sync() {
         const bar = document.querySelector('.pve-toolbar');
         const actions = bar?.querySelector('.pve-toolbar-actions');
@@ -84,6 +101,7 @@
             clone.dataset.toolbarAdminClone = '1';
             adminMenu.appendChild(clone);
         }
+        ensureMediaAdminLink(adminMenu);
 
         content.hidden = !contentMenu.querySelector('button,a');
         design.hidden = !designMenu.querySelector('button,a');
