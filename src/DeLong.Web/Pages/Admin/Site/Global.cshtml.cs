@@ -27,7 +27,9 @@ public sealed class GlobalModel(
             branding,
             sections = site.Sections.Where(x =>
                 x.Type != GlobalSiteBrandingStore.MetadataSectionType &&
-                x.Type != EditorialPlacementStore.MetadataSectionType),
+                x.Type != EditorialPlacementStore.MetadataSectionType &&
+                x.Type != PublicShellSettingsStore.MetadataSectionType &&
+                x.Type != PublicShellDesignerStore.MetadataSectionType),
             properties = catalog.Properties,
             rooms = catalog.Rooms.Select(x => new
             {
