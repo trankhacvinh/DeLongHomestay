@@ -34,7 +34,7 @@
         } else {
             const embed = youtube(url) || vimeo(url);
             if (embed) {
-                media = document.createElement('iframe'); media.className = 'dl-advanced-video-player'; media.src = embed; media.loading = 'lazy'; media.title = link.querySelector('.dl-advanced-video-copy strong')?.textContent?.trim() || 'Video'; media.allowFullscreen = true; media.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+                media = document.createElement('iframe'); media.className = 'dl-advanced-video-player'; media.src = embed; media.loading = 'lazy'; media.title = link.querySelector('.dl-advanced-video-copy strong')?.textContent?.trim() || 'Video'; media.allowFullscreen = true; media.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'; media.style.aspectRatio = '16 / 9'; media.style.minHeight = '220px';
             }
         }
         if (media) { link.replaceWith(media); root.dataset.advancedRuntime = '1'; }
