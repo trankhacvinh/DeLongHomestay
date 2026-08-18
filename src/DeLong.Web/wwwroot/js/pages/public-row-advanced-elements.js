@@ -199,7 +199,9 @@
             const found = advancedFromShell(shell); if (!found) return;
             shell.classList.add('pve-ae-inline-element'); shell.dataset.aeType = found.type;
             const tools = shell.querySelector(':scope > [data-row-inline-tools]'); if (!tools) return;
-            const label = tools.querySelector('[data-ri-kind]'); if (label) label.textContent = TYPES[found.type].label;
+            const label = tools.querySelector('[data-ri-kind]'); if (label) label.hidden = true;
+            let advancedLabel = tools.querySelector('[data-ae-kind]'); if (!advancedLabel) { advancedLabel = document.createElement('span'); advancedLabel.dataset.aeKind = '1'; tools.prepend(advancedLabel); }
+            if (advancedLabel.textContent !== TYPES[found.type].label) advancedLabel.textContent = TYPES[found.type].label;
             const edit = tools.querySelector('[data-ri-action="edit"]');
             if (edit) { edit.removeAttribute('data-ri-action'); edit.dataset.aeEdit = '1'; edit.textContent = 'Sửa'; }
         });
@@ -215,7 +217,7 @@
             const textarea = card.querySelector('textarea[data-element-field="html"]'); if (!textarea) return;
             const found = detect(textarea.value); if (!found) { card.querySelector(':scope > [data-ae-builder-editor]')?.remove(); return; }
             card.classList.add('pve-ae-builder-card');
-            const small = card.querySelector('.pve-row-element-head small'); if (small) small.textContent = TYPES[found.type].label;
+            const small = card.querySelector('.pve-row-element-head small'); if (small && small.textContent !== TYPES[found.type].label) small.textContent = TYPES[found.type].label;
             let panel = card.querySelector(':scope > [data-ae-builder-editor]');
             if (!panel) { panel = document.createElement('div'); panel.dataset.aeBuilderEditor = '1'; textarea.closest('.pve-field')?.after(panel); }
             if (panel.dataset.aeSource === textarea.value) return;
