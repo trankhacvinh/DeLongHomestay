@@ -17,6 +17,7 @@
         currentUrl: '',
         loading: false,
         filter: 'all',
+        kindFilter: 'all',
         query: '',
         unusedOnly: false,
         queued: false
@@ -24,6 +25,7 @@
 
     const h = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
     const baseUrl = value => String(value || '').split('?')[0];
+    const isRoom = item => String(item?.kind || '').toLowerCase() === 'room';
     const fmtBytes = bytes => {
         const n = Number(bytes) || 0;
         if (n < 1024) return `${n} B`;
@@ -64,11 +66,12 @@
         const root = document.createElement('div');
         root.className = 'pml-modal';
         root.hidden = true;
-        root.innerHTML = `<div class="pml-backdrop" data-pml-close></div><section class="pml-dialog" role="dialog" aria-modal="true" aria-label="Media Library"><header><div><small>MEDIA LIBRARY</small><h2>Ảnh đã tải lên</h2></div><button type="button" data-pml-close aria-label="Đóng">×</button></header><div class="pml-toolbar"><label class="pml-search"><span>⌕</span><input type="search" placeholder="Tìm theo tên ảnh, cơ sở…" data-pml-search></label><select data-pml-scope><option value="all">Tất cả</option><option value="property">Cơ sở này</option><option value="global">Dùng chung</option></select><label class="pml-unused"><input type="checkbox" data-pml-unused> Chưa dùng</label><label class="pml-upload">＋ Tải ảnh mới<input type="file" accept="image/png,image/jpeg,image/webp" multiple data-pml-upload hidden></label></div><div class="pml-stats" data-pml-stats></div><div class="pml-body"><main><div class="pml-loading" data-pml-loading hidden>Đang tải Media Library…</div><div class="pml-empty" data-pml-empty hidden>Không có media phù hợp.</div><div class="pml-grid" data-pml-grid></div></main><aside class="pml-detail" data-pml-detail><div class="pml-detail-empty">Chọn một ảnh để xem thông tin.</div></aside></div><footer><span data-pml-selection></span><div><button type="button" data-pml-close>Đóng</button><button type="button" class="primary" data-pml-use hidden>Dùng ảnh này</button></div></footer></section>`;
+        root.innerHTML = `<div class="pml-backdrop" data-pml-close></div><section class="pml-dialog" role="dialog" aria-modal="true" aria-label="Media Library"><header><div><small>MEDIA LIBRARY</small><h2>Ảnh đã tải lên</h2></div><button type="button" data-pml-close aria-label="Đóng">×</button></header><div class="pml-toolbar"><label class="pml-search"><span>⌕</span><input type="search" placeholder="Tìm tên ảnh, phòng, cơ sở…" data-pml-search></label><select data-pml-scope><option value="all">Tất cả phạm vi</option><option value="property">Cơ sở này</option><option value="global">Dùng chung</option></select><select data-pml-kind><option value="all">Tất cả loại</option><option value="section">Ảnh website</option><option value="room">Ảnh phòng</option></select><label class="pml-unused"><input type="checkbox" data-pml-unused> Chưa dùng</label><label class="pml-upload">＋ Tải ảnh mới<input type="file" accept="image/png,image/jpeg,image/webp" multiple data-pml-upload hidden></label></div><div class="pml-stats" data-pml-stats></div><div class="pml-body"><main><div class="pml-loading" data-pml-loading hidden>Đang tải Media Library…</div><div class="pml-empty" data-pml-empty hidden>Không có media phù hợp.</div><div class="pml-grid" data-pml-grid></div></main><aside class="pml-detail" data-pml-detail><div class="pml-detail-empty">Chọn một ảnh để xem thông tin.</div></aside></div><footer><span data-pml-selection></span><div><button type="button" data-pml-close>Đóng</button><button type="button" class="primary" data-pml-use hidden>Dùng ảnh này</button></div></footer></section>`;
         document.body.appendChild(root);
         root.querySelectorAll('[data-pml-close]').forEach(button => button.addEventListener('click', close));
         root.querySelector('[data-pml-search]').addEventListener('input', event => { state.query = event.currentTarget.value.trim().toLowerCase(); renderGrid(); });
         root.querySelector('[data-pml-scope]').addEventListener('change', event => { state.filter = event.currentTarget.value; renderGrid(); });
+        root.querySelector('[data-pml-kind]').addEventListener('change', event => { state.kindFilter = event.currentTarget.value; renderGrid(); });
         root.querySelector('[data-pml-unused]').addEventListener('change', event => { state.unusedOnly = event.currentTarget.checked; renderGrid(); });
         root.querySelector('[data-pml-upload]').addEventListener('change', async event => {
             const files = [...(event.currentTarget.files || [])]; event.currentTarget.value = '';
@@ -101,9 +104,11 @@
         state.selectedId = '';
         state.query = '';
         state.filter = 'all';
+        state.kindFilter = 'all';
         state.unusedOnly = false;
         modal.querySelector('[data-pml-search]').value = '';
         modal.querySelector('[data-pml-unused]').checked = false;
+        modal.querySelector('[data-pml-kind]').value = 'all';
         const scope = modal.querySelector('[data-pml-scope]');
         scope.value = 'all';
         scope.hidden = ctx.scope === 'global';
@@ -111,7 +116,7 @@
         modal.hidden = false;
         document.body.classList.add('pml-open');
         await load();
-        const same = state.items.find(item => baseUrl(item.url) === baseUrl(state.currentUrl));
+        const same = state.items.find(item => [item.url, item.largeUrl, item.cardUrl, item.thumbnailUrl].some(url => baseUrl(url) === baseUrl(state.currentUrl)));
         if (same) select(String(same.id));
     }
 
@@ -129,7 +134,7 @@
         try {
             const data = await DeLongApi.get(`${state.api}/`);
             state.items = Array.isArray(data?.items) ? data.items : [];
-            modal.querySelector('[data-pml-stats]').innerHTML = `<span><strong>${Number(data?.totalCount || state.items.length)}</strong> media</span><span><strong>${fmtBytes(data?.totalBytes)}</strong> đang lưu</span><span><strong>${Number(data?.unusedCount || 0)}</strong> chưa dùng · ${fmtBytes(data?.unusedBytes)}</span>`;
+            modal.querySelector('[data-pml-stats]').innerHTML = `<span><strong>${Number(data?.totalCount || state.items.length)}</strong> media</span><span><strong>${fmtBytes(data?.totalBytes)}</strong> đang lưu</span><span><strong>${Number(data?.roomImageCount || 0)}</strong> ảnh phòng · ${fmtBytes(data?.roomImageBytes)}</span><span><strong>${Number(data?.unusedCount || 0)}</strong> website chưa dùng · ${fmtBytes(data?.unusedBytes)}</span>`;
             renderGrid();
             renderDetail();
         } catch (error) {
@@ -145,16 +150,24 @@
         return state.items.filter(item => {
             if (state.filter === 'global' && !item.isGlobal) return false;
             if (state.filter === 'property' && item.isGlobal) return false;
-            if (state.unusedOnly && Number(item.usageCount) > 0) return false;
+            if (state.kindFilter !== 'all' && String(item.kind || 'section') !== state.kindFilter) return false;
+            if (state.unusedOnly && (isRoom(item) || Number(item.usageCount) > 0)) return false;
             if (!query) return true;
-            return [item.title, item.altText, item.originalFileName, item.propertyName].some(value => String(value || '').toLowerCase().includes(query));
+            return [item.title, item.altText, item.originalFileName, item.propertyName, item.roomName, item.roomCode]
+                .some(value => String(value || '').toLowerCase().includes(query));
         });
     }
 
     function renderGrid() {
         const modal = ensureModal(), grid = modal.querySelector('[data-pml-grid]'), items = filteredItems();
         modal.querySelector('[data-pml-empty]').hidden = items.length > 0 || state.loading;
-        grid.innerHTML = items.map(item => `<button type="button" class="pml-card${String(item.id) === state.selectedId ? ' selected' : ''}" data-pml-id="${h(item.id)}"><span class="pml-thumb"><img src="${h(item.url)}" alt="${h(item.altText || '')}" loading="lazy"><em>${item.isGlobal ? 'Dùng chung' : h(item.propertyName || 'Cơ sở')}</em>${Number(item.usageCount) > 0 ? `<b>${item.usageCount} nơi dùng</b>` : '<b class="unused">Chưa dùng</b>'}</span><span class="pml-card-copy"><strong>${h(item.title || item.originalFileName || 'Ảnh')}</strong><small>${item.width}×${item.height} · ${fmtBytes(item.byteSize)}</small></span></button>`).join('');
+        grid.innerHTML = items.map(item => {
+            const room = isRoom(item);
+            const badge = room
+                ? (Number(item.usageCount) > 0 ? `<b>${item.usageCount} tham chiếu thêm</b>` : '<b class="room-source">Ảnh phòng</b>')
+                : (Number(item.usageCount) > 0 ? `<b>${item.usageCount} nơi dùng</b>` : '<b class="unused">Chưa dùng</b>');
+            return `<button type="button" class="pml-card${room ? ' room-media' : ''}${String(item.id) === state.selectedId ? ' selected' : ''}" data-pml-id="${h(item.id)}"><span class="pml-thumb"><img src="${h(item.thumbnailUrl || item.url)}" alt="${h(item.altText || '')}" loading="lazy"><em>${item.isGlobal ? 'Dùng chung' : h(item.propertyName || 'Cơ sở')}</em>${badge}${room && item.isCover ? '<i>★ Bìa phòng</i>' : ''}</span><span class="pml-card-copy"><strong>${h(item.title || item.originalFileName || 'Ảnh')}</strong><small>${item.width}×${item.height} · ${fmtBytes(item.byteSize)}${room ? ' · original + 3 bản' : ''}</small></span></button>`;
+        }).join('');
         const selected = state.items.find(item => String(item.id) === state.selectedId);
         modal.querySelector('[data-pml-selection]').textContent = selected ? `Đã chọn: ${selected.title || selected.originalFileName}` : `${items.length} kết quả`;
     }
@@ -169,7 +182,12 @@
         const detail = ensureModal().querySelector('[data-pml-detail]');
         const item = state.items.find(x => String(x.id) === state.selectedId);
         if (!item) { detail.innerHTML = '<div class="pml-detail-empty">Chọn một ảnh để xem thông tin.</div>'; return; }
-        const editable = !!item.canDelete;
+        if (isRoom(item)) {
+            const usage = Number(item.usageCount) || 0;
+            detail.innerHTML = `<img class="pml-detail-preview" src="${h(item.largeUrl || item.url)}" alt="${h(item.altText || '')}"><div class="pml-detail-meta"><span>Ảnh phòng</span><span>${h(item.propertyName || 'Cơ sở')}</span><span>${h(item.roomName || item.roomCode || 'Phòng')}</span><span>${item.width}×${item.height}</span><span>${fmtBytes(item.byteSize)}</span><span>${dateText(item.createdAtUtc)}</span></div><label><span>Alt text</span><textarea rows="2" disabled>${h(item.altText || '')}</textarea></label><div class="pml-usage used">Ảnh này thuộc gallery phòng${item.isCover ? ' và đang là ảnh bìa' : ''}.${usage ? ` Ngoài ra còn ${usage} tham chiếu khác trên website.` : ''} Bạn có thể dùng lại bản Large cho section hiện tại mà không upload thêm file.</div><div class="pml-detail-actions"><button type="button" data-pml-copy>Sao chép Large URL</button>${item.roomId ? `<a href="/Admin/Rooms/${h(item.roomId)}/Content" target="_blank" rel="noopener">Quản lý ảnh phòng ↗</a>` : ''}<small>Xóa/đổi alt ảnh phòng thực hiện trong Admin Media hoặc Nội dung phòng để tránh thao tác nhầm khi đang chọn ảnh.</small></div><small class="pml-file-name">${h(item.originalFileName || '')}</small>`;
+            return;
+        }
+        const editable = !!item.canEdit;
         detail.innerHTML = `<img class="pml-detail-preview" src="${h(item.url)}" alt="${h(item.altText || '')}"><div class="pml-detail-meta"><span>${h(item.propertyName || 'Dùng chung')}</span><span>${item.width}×${item.height}</span><span>${fmtBytes(item.byteSize)}</span><span>${dateText(item.createdAtUtc)}</span></div><label><span>Tiêu đề nội bộ</span><input name="mediaTitle" value="${h(item.title || '')}"${editable ? '' : ' disabled'}></label><label><span>Alt text</span><textarea name="mediaAlt" rows="2"${editable ? '' : ' disabled'}>${h(item.altText || '')}</textarea></label><div class="pml-usage ${Number(item.usageCount) ? 'used' : 'unused'}">${Number(item.usageCount) ? `Đang được dùng ở ${item.usageCount} vị trí.` : 'Chưa được sử dụng — có thể xóa để giải phóng dung lượng.'}</div><div class="pml-detail-actions"><button type="button" data-pml-copy>Sao chép URL</button>${editable ? '<button type="button" data-pml-save-meta>Lưu thông tin</button><button type="button" class="danger" data-pml-delete>Xóa</button>' : '<small>Media dùng chung chỉ Admin mới quản lý được.</small>'}</div><small class="pml-file-name">${h(item.originalFileName || '')}</small>`;
     }
 
@@ -198,7 +216,7 @@
     }
 
     async function saveMetadata() {
-        const item = state.items.find(x => String(x.id) === state.selectedId); if (!item) return;
+        const item = state.items.find(x => String(x.id) === state.selectedId); if (!item || isRoom(item)) return;
         const detail = ensureModal().querySelector('[data-pml-detail]');
         try {
             const saved = await DeLongApi.put(`${state.api}/${item.id}`, {
@@ -211,6 +229,7 @@
 
     async function deleteSelected() {
         const item = state.items.find(x => String(x.id) === state.selectedId); if (!item) return;
+        if (isRoom(item)) return toast('Hãy xóa ảnh phòng từ Admin Media Library hoặc Nội dung phòng.', true);
         if (Number(item.usageCount) > 0) return toast(`Ảnh đang được dùng ở ${item.usageCount} vị trí nên chưa thể xóa.`, true);
         if (!confirm(`Xóa “${item.title || item.originalFileName}” khỏi storage? Thao tác này không thể hoàn tác.`)) return;
         try { await DeLongApi.delete(`${state.api}/${item.id}`); state.selectedId = ''; await load(); toast('Đã xóa media không sử dụng.'); }
@@ -219,7 +238,7 @@
 
     async function copyUrl() {
         const item = state.items.find(x => String(x.id) === state.selectedId); if (!item) return;
-        try { await navigator.clipboard.writeText(item.url); toast('Đã sao chép URL.'); }
+        try { await navigator.clipboard.writeText(item.url); toast(isRoom(item) ? 'Đã sao chép Large URL.' : 'Đã sao chép URL.'); }
         catch { toast('Không thể sao chép URL tự động.', true); }
     }
 
@@ -251,7 +270,7 @@
             });
             const image = button.parentElement?.querySelector(`[data-pie-image="${CSS.escape(key)}"]`) || button.parentElement?.querySelector('img');
             if (image) image.src = item.url;
-            toast('Đã chọn ảnh từ Media Library.');
+            toast(isRoom(item) ? 'Đã dùng lại ảnh phòng từ Media Library.' : 'Đã chọn ảnh từ Media Library.');
         } catch (error) { toast(error.message || 'Không thể áp dụng ảnh.', true); }
     }
 
@@ -320,9 +339,7 @@
         });
     }
 
-    function enhance() {
-        enhanceToolbar(); enhanceImageRows(); enhanceGalleryStudio();
-    }
+    function enhance() { enhanceToolbar(); enhanceImageRows(); enhanceGalleryStudio(); }
     function queue() { if (state.queued) return; state.queued = true; requestAnimationFrame(() => { state.queued = false; enhance(); }); }
 
     document.addEventListener('click', event => {
