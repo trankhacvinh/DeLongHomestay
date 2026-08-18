@@ -37,6 +37,7 @@ public sealed class AppDbContext
     public DbSet<PropertyNotificationRead> PropertyNotificationReads => Set<PropertyNotificationRead>();
     public DbSet<PropertyNotificationSettings> PropertyNotificationSettings => Set<PropertyNotificationSettings>();
     public DbSet<NotificationEmailOutbox> NotificationEmailOutbox => Set<NotificationEmailOutbox>();
+    public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -229,6 +230,22 @@ public sealed class AppDbContext
             entity.Property(x => x.LastError).HasMaxLength(2000);
             entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Notification).WithMany().HasForeignKey(x => x.NotificationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MediaAsset>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.CreatedAtUtc });
+            entity.HasIndex(x => new { x.PropertyId, x.Sha256 });
+            entity.HasIndex(x => x.StorageKey).IsUnique();
+            entity.Property(x => x.Kind).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Url).HasMaxLength(1200).IsRequired();
+            entity.Property(x => x.StorageKey).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.OriginalFileName).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Sha256).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.AltText).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ApplicationUser>(entity => entity.Property(x => x.DisplayName).HasMaxLength(200));
