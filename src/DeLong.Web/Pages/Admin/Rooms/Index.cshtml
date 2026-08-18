@@ -31,12 +31,12 @@
         <div class="table-wrap rooms-table-wrap">
             <table class="data-table rooms-table">
                 <thead>
-                    <tr><th class="col-order">#</th><th>Phòng</th><th class="col-capacity">Sức chứa</th><th>Khung giá</th><th class="col-status">Trạng thái</th><th class="col-actions"></th></tr>
+                    <tr><th class="col-order">#</th><th class="col-room">Phòng</th><th class="col-capacity">Sức chứa</th><th class="col-rates">Khung giá</th><th class="col-status">Trạng thái</th><th class="col-actions"></th></tr>
                 </thead>
                 <tbody>
                     <tr v-for="room in filteredRooms" v-bind:key="room.id" v-bind:class="{ 'room-row-inactive': !room.isActive }">
-                        <td class="col-order"><span class="room-order">{{ room.sortOrder }}</span></td>
-                        <td>
+                        <td class="col-order" data-label="#"><span class="room-order">{{ room.sortOrder }}</span></td>
+                        <td class="col-room" data-label="Phòng">
                             <div class="room-cell room-cell-with-media">
                                 <a class="room-cover" v-bind:href="'/Admin/Rooms/' + room.id + '/Content?propertyId=' + propertyId" v-bind:aria-label="'Mở nội dung ' + room.name">
                                     <img v-if="room.coverThumbnailUrl" v-bind:src="room.coverThumbnailUrl" v-bind:alt="room.name" loading="lazy" />
@@ -46,16 +46,15 @@
                                 <div class="room-cell-copy"><strong>{{ room.name }}</strong><span>{{ room.code }}</span></div>
                             </div>
                         </td>
-                        <td class="col-capacity"><span class="room-capacity">{{ room.capacity }} <small>người</small></span></td>
-                        <td>
+                        <td class="col-capacity" data-label="Sức chứa"><span class="room-capacity">{{ room.capacity }} <small>người</small></span></td>
+                        <td class="col-rates" data-label="Khung giá">
                             <div class="rate-inline room-rate-compact" v-if="room.rates.length">
-                                <span v-for="rate in room.rates.slice(0, 3)" v-bind:key="rate.id" class="pill">{{ rate.startTime }}–{{ rate.endTime }} · {{ money(rate.price) }}</span>
-                                <span v-if="room.rates.length > 3" class="pill room-rate-more">+{{ room.rates.length - 3 }} khung</span>
+                                <span v-for="rate in room.rates" v-bind:key="rate.id" class="pill">{{ rate.startTime }}–{{ rate.endTime }} · {{ money(rate.price) }}</span>
                             </div>
                             <span v-else class="muted small">Chưa cấu hình</span>
                         </td>
-                        <td class="col-status"><span class="pill room-status" v-bind:class="room.isActive ? 'success' : 'danger'">{{ room.isActive ? 'Hoạt động' : 'Ngừng' }}</span></td>
-                        <td class="col-actions">
+                        <td class="col-status" data-label="Trạng thái"><span class="pill room-status" v-bind:class="room.isActive ? 'success' : 'danger'">{{ room.isActive ? 'Hoạt động' : 'Ngừng' }}</span></td>
+                        <td class="col-actions" data-label="Thao tác">
                             @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                             {
                                 <div class="room-actions">
