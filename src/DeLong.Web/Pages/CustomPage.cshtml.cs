@@ -94,6 +94,42 @@ public sealed class CustomPageModel(
 
     public static string Text(JsonObject content, string key, string fallback = "") => content[key]?.ToString() ?? fallback;
 
+    public static string VisualClass(JsonObject content, string path, bool image = false)
+    {
+        var style = ReadVisualStyle(content, path);
+        if (style is null) return string.Empty;
+
+        var classes = new List<string>();
+        var align = Allowed(ReadString(style["align"], "auto"), ["auto", "left", "center", "right"], "auto");
+        if (align != "auto") classes.Add($"{(image ? "cp-image-align" : "cp-align")}-{align}");
+
+        if (image)
+        {
+            var width = Allowed(ReadString(style["width"], "auto"), ["auto", "sm", "md", "lg", "full"], "auto");
+            if (width != "auto") classes.Add($"cp-image-width-{width}");
+        }
+        else
+        {
+            var size = Allowed(ReadString(style["size"], "auto"), ["auto", "xs", "sm", "md", "lg", "xl", "hero"], "auto");
+            var width = Allowed(ReadString(style["width"], "auto"), ["auto", "narrow", "content", "wide", "full"], "auto");
+            if (size != "auto") classes.Add($"cp-size-{size}");
+            if (width != "auto") classes.Add($"cp-width-{width}");
+        }
+
+        return string.Join(' ', classes);
+    }
+
+    private static JsonObject? ReadVisualStyle(JsonObject content, string path)
+    {
+        JsonNode? cursor = content["_visual"];
+        foreach (var part in path.Split('.', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (cursor is not JsonObject obj || obj[part] is null) return null;
+            cursor = obj[part];
+        }
+        return cursor as JsonObject;
+    }
+
     private static IReadOnlyList<Guid> ReadGuidArray(JsonNode? node)
     {
         if (node is not JsonArray array) return [];
@@ -103,4 +139,5 @@ public sealed class CustomPageModel(
     }
     private static int ReadInt(JsonNode? node, int fallback) => int.TryParse(node?.ToString(), out var value) ? value : fallback;
     private static string ReadString(JsonNode? node, string fallback) => string.IsNullOrWhiteSpace(node?.ToString()) ? fallback : node!.ToString();
+    private static string Allowed(string value, IReadOnlyCollection<string> allowed, string fallback) => allowed.Contains(value, StringComparer.OrdinalIgnoreCase) ? value.ToLowerInvariant() : fallback;
 }
