@@ -55,7 +55,7 @@
         }
         if (!document.querySelector('script[data-admin-sidebar-quick-links]')) {
             const script = document.createElement('script');
-            script.src = '/js/core/admin-sidebar-quick-links.js?v=20260818-1';
+            script.src = '/js/core/admin-sidebar-quick-links.js?v=20260818-2';
             script.async = false;
             script.dataset.adminSidebarQuickLinks = 'true';
             document.head.appendChild(script);
@@ -100,30 +100,33 @@
         addStyle('data-public-toolbar-compact', '/css/public-toolbar-compact.css?v=20260818-1');
         addStyle('data-public-header-footer-designer', '/css/public-header-footer-designer.css?v=20260818-1');
         addStyle('data-public-footer-inline-editor', '/css/public-footer-inline-editor.css?v=20260818-2');
+        addStyle('data-public-custom-pages', '/css/public-custom-pages.css?v=20260818-1');
+        addStyle('data-public-custom-page-element-style', '/css/public-custom-page-element-style.css?v=20260818-1');
 
         addScript('data-public-shell-runtime', '/js/pages/public-shell-runtime.js?v=20260817-2');
         addScript('data-public-shell-designer-runtime', '/js/pages/public-shell-designer-runtime.js?v=20260818-1');
         addScript('data-public-rich-editor', '/js/pages/public-rich-editor.js?v=20260817-3');
         addScript('data-public-editorial-order', '/js/pages/public-editorial-order.js?v=20260817-2');
-        addScript('data-public-visual-editor', '/js/pages/public-visual-editor-v2.js?v=20260817-4');
+        addScript('data-public-visual-editor', '/js/pages/public-visual-editor-v2.js?v=20260818-2');
         addScript('data-public-editor-enhancements', '/js/pages/public-visual-editor-enhancements.js?v=20260817-5');
         addScript('data-public-global-editorial-source', '/js/pages/public-global-editorial-source.js?v=20260817-1');
-        addScript('data-public-row-editor', '/js/pages/public-visual-row-builder-v4.js?v=20260817-1');
+        addScript('data-public-row-editor', '/js/pages/public-visual-row-builder-v4.js?v=20260818-2');
         addScript('data-public-row-templates', '/js/pages/public-visual-row-templates.js?v=20260817-1');
         addScript('data-public-contextual-editor', '/js/pages/public-contextual-editor.js?v=20260817-1');
         addScript('data-public-contextual-shell-rates', '/js/pages/public-contextual-shell-rates.js?v=20260817-2');
-        addScript('data-public-shell-link-picker', '/js/pages/public-shell-link-picker.js?v=20260817-5');
+        addScript('data-public-shell-link-picker', '/js/pages/public-shell-link-picker.js?v=20260818-2');
         addScript('data-public-gallery-studio', '/js/pages/public-gallery-studio.js?v=20260817-1');
         addScript('data-public-contextual-content-cards', '/js/pages/public-contextual-content-cards.js?v=20260817-1');
-        addScript('data-public-inline-stale-guard', '/js/pages/public-inline-stale-guard.js?v=20260817-1');
-        addScript('data-public-row-inline-core', '/js/pages/public-row-inline-core.js?v=20260818-1');
+        addScript('data-public-inline-stale-guard', '/js/pages/public-inline-stale-guard.js?v=20260818-2');
+        addScript('data-public-row-inline-core', '/js/pages/public-row-inline-core.js?v=20260818-2');
         addScript('data-public-row-inline-ui', '/js/pages/public-row-inline-ui.js?v=20260818-1');
         addScript('data-public-row-basic-elements-fix', '/js/pages/public-row-basic-elements-fix.js?v=20260818-1');
         addScript('data-public-row-inline-bindings', '/js/pages/public-row-inline-bindings.js?v=20260818-1');
         addScript('data-public-row-advanced-elements', '/js/pages/public-row-advanced-elements.js?v=20260818-1');
         addScript('data-public-row-advanced-runtime', '/js/pages/public-row-advanced-runtime.js?v=20260818-1');
         addScript('data-public-media-library', '/js/pages/public-media-library.js?v=20260818-1');
-        addScript('data-public-inline-editor', '/js/pages/public-inline-editor.js?v=20260817-1');
+        addScript('data-public-inline-editor', '/js/pages/public-inline-editor.js?v=20260818-3');
+        addScript('data-public-custom-page-element-style', '/js/pages/public-custom-page-element-style.js?v=20260818-1');
         addScript('data-public-toolbar-compact', '/js/pages/public-toolbar-compact.js?v=20260818-1');
         addScript('data-public-header-footer-designer', '/js/pages/public-header-footer-designer.js?v=20260818-1');
         addScript('data-public-footer-inline-editor', '/js/pages/public-footer-inline-editor.js?v=20260818-1');

@@ -2,11 +2,19 @@
     if (!document.body?.classList.contains('public-body') || !window.DeLongApi) return;
 
     const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/';
-    const scopedMatch = normalizedPath.match(/^\/h\/([^/]+)$/i);
-    if (!(normalizedPath === '/' || scopedMatch)) return;
-
+    const scopedMatch = normalizedPath.match(/^\/h\/([^/]+)(?:\/|$)/i);
     const siteSlug = scopedMatch ? decodeURIComponent(scopedMatch[1]) : '';
-    const contextUrl = `/api/admin/site/visual-context${siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : ''}`;
+    const scopedHome = siteSlug ? `/h/${encodeURIComponent(siteSlug)}` : '';
+    const customPageId = document.querySelector('meta[name="delong-custom-page-id"]')?.content || '';
+    const customPageSlug = document.querySelector('meta[name="delong-custom-page-slug"]')?.content || '';
+    const isCustomPage = !!customPageId && !!customPageSlug;
+    const isHome = normalizedPath === '/' || (scopedHome && normalizedPath === scopedHome);
+    if (!isHome && !isCustomPage) return;
+
+    const contextParams = new URLSearchParams();
+    if (siteSlug) contextParams.set('siteSlug', siteSlug);
+    if (isCustomPage) contextParams.set('pageSlug', customPageSlug);
+    const contextUrl = `/api/admin/site/visual-context${contextParams.size ? `?${contextParams}` : ''}`;
     const MAX_COLUMNS = 4;
     const MAX_ELEMENTS = 10;
     const ELEMENT_CLIPBOARD = 'delong:pve:elementClipboard';
@@ -225,7 +233,7 @@
     }
 
     function setSession(context) {
-        const suffix = context.scope === 'global' ? 'global' : context.propertyId;
+        const suffix = isCustomPage ? `page:${customPageId}` : (context.scope === 'global' ? 'global' : context.propertyId);
         try {
             sessionStorage.setItem(`delong:pve:editing:${suffix}`, '1');
             sessionStorage.setItem(`delong:pve:scroll:${suffix}`, String(Math.max(0, window.scrollY || 0)));
@@ -235,7 +243,8 @@
     class RowBuilder {
         constructor(context) {
             this.context = context;
-            this.api = context.scope === 'global' ? '/api/admin/site/global' : `/api/admin/properties/${context.propertyId}/site`;
+            this.siteApi = context.siteApi || (context.scope === 'global' ? '/api/admin/site/global' : `/api/admin/properties/${context.propertyId}/site`);
+            this.api = context.sectionApi || this.siteApi;
             this.sections = [];
             this.rows = new Map();
             this.drawer = null;
@@ -602,7 +611,7 @@
             if (!file || !this.state.columns[col]?.elements[index]) return;
             try {
                 const form = new FormData(); form.append('file', file);
-                const asset = await DeLongApi.postForm(`${this.api}/assets/section`, form);
+                const asset = await DeLongApi.postForm(`${this.siteApi}/assets/section`, form);
                 this.state.columns[col].elements[index].imageUrl = asset.url || '';
                 this.pushHistory(); this.renderColumns(); this.updatePreview(); this.updateHistoryButtons(); this.toast('Đã tải ảnh. Bấm Lưu Row để áp dụng.');
             } catch (error) { this.toast(error.message || 'Không thể tải ảnh.', true); }

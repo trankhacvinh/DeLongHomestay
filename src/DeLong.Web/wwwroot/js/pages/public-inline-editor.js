@@ -6,13 +6,22 @@
     const siteSlug = scopedMatch ? decodeURIComponent(scopedMatch[1]) : '';
     const scopedHome = siteSlug ? `/h/${encodeURIComponent(siteSlug)}` : '';
     const isHome = normalizedPath === '/' || (scopedHome && normalizedPath === scopedHome);
-    if (!isHome) return;
+    const customPageId = document.querySelector('meta[name="delong-custom-page-id"]')?.content || '';
+    const customPageSlug = document.querySelector('meta[name="delong-custom-page-slug"]')?.content || '';
+    const isCustomPage = !!customPageId && !!customPageSlug;
+    if (!isHome && !isCustomPage) return;
 
-    const contextUrl = `/api/admin/site/visual-context${siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : ''}`;
-    const pendingAdvancedKey = `delong:inline:advanced:${siteSlug || 'global'}`;
+    const contextParams = new URLSearchParams();
+    if (siteSlug) contextParams.set('siteSlug', siteSlug);
+    if (isCustomPage) contextParams.set('pageSlug', customPageSlug);
+    const contextUrl = `/api/admin/site/visual-context${contextParams.size ? `?${contextParams}` : ''}`;
+    const editScopeKey = isCustomPage ? `page:${customPageId}` : (siteSlug || 'global');
+    const pendingAdvancedKey = `delong:inline:advanced:${editScopeKey}`;
+    const pageBase = isCustomPage ? normalizedPath : (scopedHome || '/');
     const state = {
         context: null,
         api: '',
+        siteApi: '',
         sections: new Map(),
         active: null,
         bar: null,
@@ -69,6 +78,7 @@
     }
 
     function editStateSuffix() {
+        if (isCustomPage) return `page:${customPageId}`;
         return state.context?.scope === 'global' ? 'global' : (state.context?.propertyId || siteSlug || 'property');
     }
 
@@ -76,7 +86,7 @@
         const value = String(raw || '').trim();
         if (!value || /^(javascript|data|vbscript):/i.test(value)) return '';
         if (/^(https?:|mailto:|tel:)/i.test(value)) return value;
-        if (value.startsWith('#')) return `${scopedHome || '/'}${value}`;
+        if (value.startsWith('#')) return `${pageBase}${value}`;
         if (!value.startsWith('/')) return value;
         if (!siteSlug || value.startsWith('/h/')) return value;
         if (value === '/') return scopedHome;
@@ -249,7 +259,8 @@
             if (!state.context) state.context = await DeLongApi.get(contextUrl);
             if (run !== state.activeRun || !document.body.classList.contains('pve-editing')) return;
             if (!state.context?.canEdit) return;
-            state.api = state.context.scope === 'global' ? '/api/admin/site/global' : `/api/admin/properties/${state.context.propertyId}/site`;
+            state.siteApi = state.context.siteApi || (state.context.scope === 'global' ? '/api/admin/site/global' : `/api/admin/properties/${state.context.propertyId}/site`);
+            state.api = state.context.sectionApi || state.siteApi;
             const data = await DeLongApi.get(`${state.api}/`);
             if (run !== state.activeRun || !document.body.classList.contains('pve-editing')) return;
             const sections = data?.sections || data?.site?.sections || [];
@@ -502,7 +513,7 @@
         try {
             const form = new FormData();
             form.append('file', file);
-            const asset = await DeLongApi.postForm(`${state.api}/assets/section`, form);
+            const asset = await DeLongApi.postForm(`${state.siteApi}/assets/section`, form);
             if (!asset?.url) throw new Error('Upload không trả về URL ảnh.');
             const saved = await saveSection(target.sectionId, [{ path: target.key, value: asset.url }]);
             const finalUrl = getAt(sectionContent(saved), target.key) || asset.url;

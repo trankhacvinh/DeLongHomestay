@@ -90,7 +90,6 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
     private readonly PublicPropertyResolver publicPropertyResolver = resolver ?? new PublicPropertyResolver(db);
     private readonly IFusionCache? cache = fusionCache;
 
-    // Kept for compatibility with older tests/callers. New public code resolves by route scope.
     public const string PublicPropertyCode = PublicPropertyResolver.LegacyPropertyCode;
     private static readonly HashSet<string> AllowedSectionTypes =
         ["Hero", "AvailabilitySearch", "BranchGrid", "RoomGrid", "FeatureGrid", "Faq", "Location", "PolicyGrid", "RichText", "Cta"];
@@ -100,7 +99,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
     {
         await EnsureGlobalDefaultSectionsAsync(ct);
         var sections = await db.Set<HomeSection>().AsNoTracking()
-            .Where(x => x.PropertyId == null)
+            .Where(x => x.PropertyId == null && x.Type != CustomPageStore.MetadataSectionType)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc)
             .ToListAsync(ct);
         return new(sections.Select(ToDto).ToList());
@@ -111,7 +110,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         async Task<IReadOnlyList<HomeSectionDto>> LoadAsync(CancellationToken token)
         {
             var sections = await db.Set<HomeSection>().AsNoTracking()
-                .Where(x => x.PropertyId == null)
+                .Where(x => x.PropertyId == null && x.Type != CustomPageStore.MetadataSectionType)
                 .OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc)
                 .ToListAsync(token);
             return sections.Count > 0 ? sections.Select(ToDto).ToList() : GlobalDefaultSections().Select(ToDto).ToList();
@@ -130,7 +129,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
     {
         var (content, error) = ValidateSection(request);
         if (error is not null) return (null, error);
-        var nextOrder = (await db.Set<HomeSection>().Where(x => x.PropertyId == null)
+        var nextOrder = (await db.Set<HomeSection>().Where(x => x.PropertyId == null && x.Type != CustomPageStore.MetadataSectionType)
             .MaxAsync(x => (int?)x.SortOrder, ct) ?? -1) + 1;
         var section = new HomeSection
         {
@@ -153,7 +152,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         CancellationToken ct = default)
     {
         var section = await db.Set<HomeSection>()
-            .SingleOrDefaultAsync(x => x.Id == sectionId && x.PropertyId == null, ct);
+            .SingleOrDefaultAsync(x => x.Id == sectionId && x.PropertyId == null && x.Type != CustomPageStore.MetadataSectionType, ct);
         if (section is null) return (null, new("not_found", "Không tìm thấy khối trang chủ chung."));
         var (content, error) = ValidateSection(request);
         if (error is not null) return (null, error);
@@ -169,7 +168,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
     public async Task<SiteContentError?> DeleteGlobalSectionAsync(Guid sectionId, CancellationToken ct = default)
     {
         var section = await db.Set<HomeSection>()
-            .SingleOrDefaultAsync(x => x.Id == sectionId && x.PropertyId == null, ct);
+            .SingleOrDefaultAsync(x => x.Id == sectionId && x.PropertyId == null && x.Type != CustomPageStore.MetadataSectionType, ct);
         if (section is null) return new("not_found", "Không tìm thấy khối trang chủ chung.");
         db.Set<HomeSection>().Remove(section);
         await db.SaveChangesAsync(ct);
@@ -178,7 +177,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
 
     public async Task<SiteContentError?> ReorderGlobalAsync(IReadOnlyList<Guid> ids, CancellationToken ct = default)
     {
-        var sections = await db.Set<HomeSection>().Where(x => x.PropertyId == null).ToListAsync(ct);
+        var sections = await db.Set<HomeSection>().Where(x => x.PropertyId == null && x.Type != CustomPageStore.MetadataSectionType).ToListAsync(ct);
         if (ids.Count != sections.Count || ids.Distinct().Count() != ids.Count || sections.Any(x => !ids.Contains(x.Id)))
             return new("validation", "Danh sách sắp xếp không khớp các khối trang chủ chung hiện tại.");
         var order = ids.Select((id, index) => new { id, index }).ToDictionary(x => x.id, x => x.index);
@@ -270,7 +269,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
             return (null, new("not_found", "Không tìm thấy cơ sở."));
         var (content, error) = ValidateSection(request);
         if (error is not null) return (null, error);
-        var nextOrder = (await db.Set<HomeSection>().Where(x => x.PropertyId == propertyId).MaxAsync(x => (int?)x.SortOrder, ct) ?? -1) + 1;
+        var nextOrder = (await db.Set<HomeSection>().Where(x => x.PropertyId == propertyId && x.Type != CustomPageStore.MetadataSectionType).MaxAsync(x => (int?)x.SortOrder, ct) ?? -1) + 1;
         var section = new HomeSection
         {
             PropertyId = propertyId,
@@ -292,7 +291,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         SaveHomeSectionRequest request,
         CancellationToken ct = default)
     {
-        var section = await db.Set<HomeSection>().SingleOrDefaultAsync(x => x.Id == sectionId && x.PropertyId == propertyId, ct);
+        var section = await db.Set<HomeSection>().SingleOrDefaultAsync(x => x.Id == sectionId && x.PropertyId == propertyId && x.Type != CustomPageStore.MetadataSectionType, ct);
         if (section is null) return (null, new("not_found", "Không tìm thấy khối trang chủ."));
         var (content, error) = ValidateSection(request);
         if (error is not null) return (null, error);
@@ -307,7 +306,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
 
     public async Task<SiteContentError?> DeleteSectionAsync(Guid propertyId, Guid sectionId, CancellationToken ct = default)
     {
-        var section = await db.Set<HomeSection>().SingleOrDefaultAsync(x => x.Id == sectionId && x.PropertyId == propertyId, ct);
+        var section = await db.Set<HomeSection>().SingleOrDefaultAsync(x => x.Id == sectionId && x.PropertyId == propertyId && x.Type != CustomPageStore.MetadataSectionType, ct);
         if (section is null) return new("not_found", "Không tìm thấy khối trang chủ.");
         db.Set<HomeSection>().Remove(section);
         await db.SaveChangesAsync(ct);
@@ -316,7 +315,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
 
     public async Task<SiteContentError?> ReorderAsync(Guid propertyId, IReadOnlyList<Guid> ids, CancellationToken ct = default)
     {
-        var sections = await db.Set<HomeSection>().Where(x => x.PropertyId == propertyId).ToListAsync(ct);
+        var sections = await db.Set<HomeSection>().Where(x => x.PropertyId == propertyId && x.Type != CustomPageStore.MetadataSectionType).ToListAsync(ct);
         if (ids.Count != sections.Count || ids.Distinct().Count() != ids.Count || sections.Any(x => !ids.Contains(x.Id)))
             return new("validation", "Danh sách sắp xếp không khớp các khối hiện tại.");
         var order = ids.Select((id, index) => new { id, index }).ToDictionary(x => x.id, x => x.index);
@@ -327,7 +326,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
 
     private async Task EnsureGlobalDefaultSectionsAsync(CancellationToken ct)
     {
-        if (await db.Set<HomeSection>().AnyAsync(x => x.PropertyId == null, ct)) return;
+        if (await db.Set<HomeSection>().AnyAsync(x => x.PropertyId == null && AllowedSectionTypes.Contains(x.Type), ct)) return;
         db.Set<HomeSection>().AddRange(GlobalDefaultSections());
         await db.SaveChangesAsync(ct);
     }
@@ -344,7 +343,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
                 RobotsIndex = true
             });
         }
-        if (!await db.Set<HomeSection>().AnyAsync(x => x.PropertyId == property.Id, ct))
+        if (!await db.Set<HomeSection>().AnyAsync(x => x.PropertyId == property.Id && AllowedSectionTypes.Contains(x.Type), ct))
         {
             var defaults = DefaultSections(property);
             db.Set<HomeSection>().AddRange(defaults);
@@ -357,7 +356,8 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         var property = await db.Properties.AsNoTracking().SingleOrDefaultAsync(x => x.Id == propertyId, ct);
         if (property is null) return null;
         var settings = await db.Set<PropertySiteSettings>().AsNoTracking().SingleOrDefaultAsync(x => x.PropertyId == propertyId, ct);
-        var sectionEntities = await db.Set<HomeSection>().AsNoTracking().Where(x => x.PropertyId == propertyId)
+        var sectionEntities = await db.Set<HomeSection>().AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.Type != CustomPageStore.MetadataSectionType)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc).ToListAsync(ct);
         var sections = sectionEntities.Select(ToDto).ToList();
         return new SiteAdminDto(ToDto(property, settings), sections);
@@ -391,6 +391,8 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         settings?.CustomJs ?? string.Empty);
 
     private static HomeSectionDto ToDto(HomeSection x) => new(x.Id, x.Type, x.Name, x.Variant, x.ContentJson, x.SortOrder, x.IsVisible);
+
+    internal static (string? Content, SiteContentError? Error) ValidateSectionForReuse(SaveHomeSectionRequest request) => ValidateSection(request);
 
     private static (string? Content, SiteContentError? Error) ValidateSection(SaveHomeSectionRequest request)
     {

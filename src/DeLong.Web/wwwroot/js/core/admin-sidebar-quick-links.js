@@ -18,6 +18,25 @@
         nav.insertBefore(group, nav.firstElementChild);
     }
 
+    if (!nav.querySelector('a[href="/Admin/Site/Pages"]')) {
+        const siteLink = [...nav.querySelectorAll('a.side-link')].find(link => {
+            const href = (link.getAttribute('href') || '').replace(/\/$/, '');
+            return href === '/Admin/Site' || href === '/Admin/Site/Global' || href === '/Admin/Site/Media';
+        });
+        const websiteGroup = siteLink?.closest('.nav-group');
+        if (websiteGroup) {
+            const link = document.createElement('a');
+            link.className = 'side-link';
+            if (location.pathname.toLowerCase() === '/admin/site/pages') link.classList.add('active');
+            link.href = '/Admin/Site/Pages';
+            link.dataset.sidebarCustomPages = '1';
+            const icon = siteLink.querySelector('svg')?.outerHTML || '<svg><use href="#i-site"></use></svg>';
+            link.innerHTML = `${icon}<span>Trang nội dung</span>`;
+            const mediaLink = [...websiteGroup.querySelectorAll('a.side-link')].find(item => /media library/i.test(item.textContent || ''));
+            if (mediaLink) mediaLink.before(link); else websiteGroup.appendChild(link);
+        }
+    }
+
     if (!foot.querySelector('[data-sidebar-website-foot]')) {
         const link = document.createElement('a');
         link.className = 'sidebar-foot-website';

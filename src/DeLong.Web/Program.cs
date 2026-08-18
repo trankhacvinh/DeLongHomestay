@@ -175,6 +175,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AddPageRoute("/Booking/Success", "h/{siteSlug}/booking/success");
     options.Conventions.AddPageRoute("/Blog/Index", "h/{siteSlug}/blog");
     options.Conventions.AddPageRoute("/Blog/Details", "h/{siteSlug}/blog/{slug}");
+    options.Conventions.AddPageRoute("/CustomPage", "{slug}");
+    options.Conventions.AddPageRoute("/CustomPage", "h/{siteSlug}/{slug}");
 });
 builder.Services.AddResponseCompression(options =>
 {
@@ -219,6 +221,7 @@ builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<PropertyAdminService>();
 builder.Services.AddScoped<PublicPropertyResolver>();
 builder.Services.AddScoped<SiteContentService>();
+builder.Services.AddScoped<CustomPageStore>();
 builder.Services.AddScoped<PropertyEditorialContentService>();
 builder.Services.AddScoped<GlobalEditorialShowcaseService>();
 builder.Services.AddScoped<MediaLibraryService>();
@@ -333,6 +336,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 app.MapRazorPages();
 app.MapPropertyAdminEndpoints();
 app.MapSiteContentEndpoints();
+app.MapCustomPageEndpoints();
 app.MapPublicShellDesignerEndpoints();
 app.MapPropertyEditorialContentEndpoints();
 app.MapMediaLibraryEndpoints();
