@@ -13,7 +13,7 @@
         <div>
             <div class="page-eyebrow">Quản lý phòng</div>
             <h1>Phòng</h1>
-            <p>Đang quản lý phòng của <strong>{{ propertyName }}</strong>. “Hoạt động” là trạng thái vận hành; phòng chỉ xuất hiện trên website và trang đặt phòng khi đã xuất bản.</p>
+            <p>Đang quản lý phòng của <strong>{{ propertyName }}</strong>. Bấm trực tiếp vào trạng thái để bật/tắt vận hành hoặc hiển thị trên website.</p>
         </div>
         @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
         {
@@ -55,11 +55,19 @@
                         </td>
                         <td class="col-status" data-label="Trạng thái">
                             <div class="room-status-stack">
-                                <span class="pill room-status" v-bind:class="room.isActive ? 'success' : 'danger'">{{ room.isActive ? 'Hoạt động' : 'Ngừng' }}</span>
-                                <span class="pill room-web-status" v-bind:class="room.isPublished ? 'is-live' : 'is-hidden'">{{ room.isPublished ? 'Trên website' : 'Ẩn khỏi web' }}</span>
                                 @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                                 {
-                                    <button v-if="room.isActive && !room.isPublished" class="room-publish-link" type="button" v-bind:disabled="saving" v-on:click="publishRoom(room)">Đăng web</button>
+                                    <button class="room-status-toggle" v-bind:class="room.isActive ? 'is-on' : 'is-off'" type="button" v-bind:disabled="statusSavingId === room.id" v-on:click="toggleActive(room)" v-bind:title="room.isActive ? 'Bấm để ngừng hoạt động' : 'Bấm để bật hoạt động'">
+                                        <span class="room-status-dot" aria-hidden="true"></span>{{ room.isActive ? 'Hoạt động' : 'Ngừng' }}
+                                    </button>
+                                    <button class="room-status-toggle room-status-toggle-web" v-bind:class="room.isPublished ? 'is-on' : 'is-off'" type="button" v-bind:disabled="statusSavingId === room.id" v-on:click="togglePublished(room)" v-bind:title="room.isPublished ? 'Bấm để ẩn khỏi website' : (room.isActive ? 'Bấm để hiển thị trên website' : 'Bật hoạt động trước khi đưa lên website')">
+                                        <span class="room-status-dot" aria-hidden="true"></span>{{ room.isPublished ? 'Hiện web' : 'Ẩn web' }}
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="pill room-status" v-bind:class="room.isActive ? 'success' : 'danger'">{{ room.isActive ? 'Hoạt động' : 'Ngừng' }}</span>
+                                    <span class="pill room-web-status" v-bind:class="room.isPublished ? 'is-live' : 'is-hidden'">{{ room.isPublished ? 'Hiện web' : 'Ẩn web' }}</span>
                                 }
                             </div>
                         </td>
@@ -69,7 +77,6 @@
                                 <div class="room-actions">
                                     <a class="btn btn-light btn-sm room-content-action" v-bind:href="'/Admin/Rooms/' + room.id + '/Content?propertyId=' + propertyId">Nội dung</a>
                                     <button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(room)">Sửa</button>
-                                    <button v-if="room.isActive" class="btn btn-danger btn-sm" type="button" v-on:click="confirmArchive(room)">Ngừng</button>
                                 </div>
                             }
                         </td>
@@ -96,14 +103,6 @@
                 <p v-if="editor.mode === 'edit' && form.isActive && !form.isPublished" class="room-publish-help full">Phòng vẫn dùng được trong quản trị nhưng khách sẽ không thấy phòng này cho tới khi bật hiển thị.</p>
             </div>
             <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveRoom">{{ saving ? 'Đang lưu...' : 'Lưu' }}</button></div>
-        </section>
-    </div>
-
-    <div class="modal-backdrop" v-if="archiveModal.open" v-on:click.self="archiveModal.open = false">
-        <section class="modal-card modal-small" role="dialog" aria-modal="true" aria-labelledby="archive-room-title">
-            <div class="modal-head"><div><h2 id="archive-room-title">Ngừng hoạt động phòng?</h2><p class="muted small">Phòng không bị xóa khỏi lịch sử dữ liệu.</p></div></div>
-            <p class="archive-copy">Bạn muốn ngừng <strong>{{ archiveModal.room?.name }}</strong>? Booking cũ và dữ liệu liên quan vẫn được giữ nguyên.</p>
-            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="archiveModal.open = false">Hủy</button><button class="btn btn-danger" type="button" v-bind:disabled="saving" v-on:click="archiveRoom">{{ saving ? 'Đang xử lý...' : 'Xác nhận' }}</button></div>
         </section>
     </div>
 
