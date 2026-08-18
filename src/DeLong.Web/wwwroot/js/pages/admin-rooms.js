@@ -16,7 +16,7 @@
                 saving: false,
                 editor: { open: false, mode: 'create', roomId: null },
                 archiveModal: { open: false, room: null },
-                form: { code: '', name: '', capacity: 2, sortOrder: 1, isActive: true },
+                form: { code: '', name: '', capacity: 2, sortOrder: 1, isActive: true, isPublished: false },
                 toast: { show: false, message: '', type: 'success', timer: null }
             };
         },
@@ -34,11 +34,18 @@
                 return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
             },
             openCreate() {
-                this.form = { code: '', name: '', capacity: 2, sortOrder: this.rooms.length + 1, isActive: true };
+                this.form = { code: '', name: '', capacity: 2, sortOrder: this.rooms.length + 1, isActive: true, isPublished: false };
                 this.editor = { open: true, mode: 'create', roomId: null };
             },
             openEdit(room) {
-                this.form = { code: room.code, name: room.name, capacity: room.capacity, sortOrder: room.sortOrder, isActive: room.isActive };
+                this.form = {
+                    code: room.code,
+                    name: room.name,
+                    capacity: room.capacity,
+                    sortOrder: room.sortOrder,
+                    isActive: room.isActive,
+                    isPublished: room.isPublished === true
+                };
                 this.editor = { open: true, mode: 'edit', roomId: room.id };
             },
             closeEditor() { if (!this.saving) this.editor.open = false; },
@@ -68,6 +75,25 @@
                     this.notify('Đã lưu phòng.', 'success');
                 } catch (error) {
                     this.notify(error.message || 'Không thể lưu phòng.', 'error');
+                } finally { this.saving = false; }
+            },
+            async publishRoom(room) {
+                if (!room || this.saving || room.isPublished) return;
+                this.saving = true;
+                try {
+                    const updated = await DeLongApi.put(`/api/admin/properties/${this.propertyId}/rooms/${room.id}`, {
+                        code: room.code,
+                        name: room.name,
+                        capacity: room.capacity,
+                        sortOrder: room.sortOrder,
+                        isActive: room.isActive,
+                        isPublished: true
+                    });
+                    const index = this.rooms.findIndex(x => x.id === updated.id);
+                    if (index >= 0) this.rooms.splice(index, 1, updated);
+                    this.notify('Đã đưa phòng lên website và luồng đặt phòng.', 'success');
+                } catch (error) {
+                    this.notify(error.message || 'Không thể xuất bản phòng.', 'error');
                 } finally { this.saving = false; }
             },
             confirmArchive(room) { this.archiveModal = { open: true, room }; },
