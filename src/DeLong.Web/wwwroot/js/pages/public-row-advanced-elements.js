@@ -43,9 +43,8 @@
             return `<div class="dl-advanced-icon"><div class="dl-advanced-icon-symbol">${esc(m.icon || '✦')}</div><div class="dl-advanced-icon-copy"><strong>${esc(m.title)}</strong><p>${nl2br(m.body)}</p>${link}</div></div>`;
         }
         if (type === 'video') {
-            const url = safeUrl(m.url), poster = safeUrl(m.posterUrl), direct = /\.(mp4|webm|ogg)(?:[?#].*)?$/i.test(url);
-            const media = direct ? `<video class="dl-advanced-video-player" src="${esc(url)}"${poster ? ` poster="${esc(poster)}"` : ''} controls preload="metadata" playsinline></video>` : `<a class="dl-advanced-video-link" href="${esc(url || '#')}">${poster ? `<img class="dl-advanced-video-poster" src="${esc(poster)}" alt="${esc(m.title || 'Video')}">` : ''}<span class="dl-advanced-video-play">▶</span><span class="dl-advanced-video-copy"><strong>${esc(m.title || 'Video')}</strong><span>${url ? 'Mở video' : 'Thêm đường dẫn video'}</span></span></a>`;
-            return `<div class="dl-advanced-video">${media}${direct ? `<strong class="dl-advanced-video-title">${esc(m.title || 'Video')}</strong>` : ''}${m.caption ? `<p class="dl-advanced-video-caption">${nl2br(m.caption)}</p>` : ''}</div>`;
+            const url = safeUrl(m.url), poster = safeUrl(m.posterUrl);
+            return `<div class="dl-advanced-video"><a class="dl-advanced-video-link" href="${esc(url || '#')}">${poster ? `<img class="dl-advanced-video-poster" src="${esc(poster)}" alt="${esc(m.title || 'Video')}">` : ''}<span class="dl-advanced-video-play">▶</span><span class="dl-advanced-video-copy"><strong>${esc(m.title || 'Video')}</strong><span>${url ? 'Mở video' : 'Thêm đường dẫn video'}</span></span></a>${m.caption ? `<p class="dl-advanced-video-caption">${nl2br(m.caption)}</p>` : ''}</div>`;
         }
         if (type === 'map') {
             const url = safeUrl(m.url);
