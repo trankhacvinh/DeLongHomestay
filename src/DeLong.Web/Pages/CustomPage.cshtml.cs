@@ -100,23 +100,37 @@ public sealed class CustomPageModel(
         if (style is null) return string.Empty;
 
         var classes = new List<string>();
+        AddVisualClasses(classes, style, image, null);
+        if (style["tablet"] is JsonObject tablet) AddVisualClasses(classes, tablet, image, "tablet");
+        if (style["mobile"] is JsonObject mobile) AddVisualClasses(classes, mobile, image, "mobile");
+        return string.Join(' ', classes);
+    }
+
+    private static void AddVisualClasses(List<string> classes, JsonObject style, bool image, string? breakpoint)
+    {
+        var prefix = string.IsNullOrWhiteSpace(breakpoint) ? "cp-" : $"cp-{breakpoint}-";
         var align = Allowed(ReadString(style["align"], "auto"), ["auto", "left", "center", "right"], "auto");
-        if (align != "auto") classes.Add($"{(image ? "cp-image-align" : "cp-align")}-{align}");
+        if (align != "auto") classes.Add($"{prefix}{(image ? "image-align" : "align")}-{align}");
 
         if (image)
         {
             var width = Allowed(ReadString(style["width"], "auto"), ["auto", "sm", "md", "lg", "full"], "auto");
-            if (width != "auto") classes.Add($"cp-image-width-{width}");
+            var radius = Allowed(ReadString(style["radius"], "auto"), ["auto", "none", "sm", "md", "lg", "pill"], "auto");
+            if (width != "auto") classes.Add($"{prefix}image-width-{width}");
+            if (radius != "auto") classes.Add($"{prefix}image-radius-{radius}");
         }
         else
         {
             var size = Allowed(ReadString(style["size"], "auto"), ["auto", "xs", "sm", "md", "lg", "xl", "hero"], "auto");
             var width = Allowed(ReadString(style["width"], "auto"), ["auto", "narrow", "content", "wide", "full"], "auto");
-            if (size != "auto") classes.Add($"cp-size-{size}");
-            if (width != "auto") classes.Add($"cp-width-{width}");
+            var buttonSize = Allowed(ReadString(style["buttonSize"], "auto"), ["auto", "sm", "md", "lg"], "auto");
+            if (size != "auto") classes.Add($"{prefix}size-{size}");
+            if (width != "auto") classes.Add($"{prefix}width-{width}");
+            if (buttonSize != "auto") classes.Add($"{prefix}button-size-{buttonSize}");
         }
 
-        return string.Join(' ', classes);
+        var space = Allowed(ReadString(style["space"], "auto"), ["auto", "none", "xs", "sm", "md", "lg", "xl"], "auto");
+        if (space != "auto") classes.Add($"{prefix}space-{space}");
     }
 
     private static JsonObject? ReadVisualStyle(JsonObject content, string path)
