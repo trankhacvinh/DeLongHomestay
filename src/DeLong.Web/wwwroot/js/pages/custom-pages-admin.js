@@ -74,21 +74,22 @@
 
     async function save(event) {
         event.preventDefault();
+        const editing = state.editing;
         const button = root.querySelector('[data-page-save]'); button.disabled = true; button.textContent = 'Đang lưu…';
         const payload = {
             title: form.elements.title.value.trim(), slug: form.elements.slug.value.trim(),
             isPublished: form.elements.published.checked, hideFromNavigation: form.elements.hideNavigation.checked,
             seoTitle: form.elements.seoTitle.value.trim(), seoDescription: form.elements.seoDescription.value.trim(),
-            ogImageUrl: form.elements.ogImageUrl.value.trim(), template: state.editing ? '' : form.elements.template.value
+            ogImageUrl: form.elements.ogImageUrl.value.trim(), template: editing ? '' : form.elements.template.value
         };
         try {
-            const saved = state.editing
-                ? await DeLongApi.put(`${data.listApi}/${state.editing.id}`, payload)
+            const saved = editing
+                ? await DeLongApi.put(`${data.listApi}/${editing.id}`, payload)
                 : await DeLongApi.post(`${data.listApi}/`, payload);
-            closeModal(); toast(state.editing ? 'Đã lưu cấu hình trang.' : 'Đã tạo trang.'); await load();
-            if (!state.editing && saved?.url && confirm('Trang đã được tạo. Mở Visual Editor để thiết kế ngay?')) window.open(`${saved.url}?edit=1`, '_blank', 'noopener,noreferrer');
+            closeModal(); toast(editing ? 'Đã lưu cấu hình trang.' : 'Đã tạo trang.'); await load();
+            if (!editing && saved?.url && confirm('Trang đã được tạo. Mở Visual Editor để thiết kế ngay?')) window.open(`${saved.url}?edit=1`, '_blank', 'noopener,noreferrer');
         } catch (error) { toast(error.message || 'Không thể lưu trang.', true); }
-        finally { button.disabled = false; button.textContent = state.editing ? 'Lưu cấu hình' : 'Tạo trang'; }
+        finally { button.disabled = false; button.textContent = editing ? 'Lưu cấu hình' : 'Tạo trang'; }
     }
 
     async function duplicate(page) {
