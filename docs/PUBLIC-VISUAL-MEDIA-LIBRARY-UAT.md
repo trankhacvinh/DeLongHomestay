@@ -82,6 +82,7 @@ Chọn một ảnh có sẵn, lưu section, refresh và xác nhận URL vẫn đ
 - Detail phải báo số vị trí sử dụng > 0.
 - Bấm xóa phải bị chặn cả client và server.
 - Chọn một media `Chưa dùng` → có thể xóa.
+- Confirm xóa phải nói rõ sẽ xóa file vật lý khỏi storage và metadata khỏi database.
 - Sau xóa file không còn trong thư viện/storage.
 - Filter `Chưa dùng` chỉ hiện media usage = 0.
 
@@ -91,7 +92,30 @@ Chọn một ảnh có sẵn, lưu section, refresh và xác nhận URL vẫn đ
 - Tổng dung lượng hiển thị B/KB/MB hợp lý.
 - Số file chưa dùng và dung lượng có thể dọn được cập nhật sau upload/xóa.
 
-## 11. Regression
+## 11. Trang quản trị Media trong Admin
+
+- Sidebar `Website` có mục `Media Library`.
+- Mở `/Admin/Site/Media` không cần vào Visual Editor.
+- Có 3 thẻ: tổng media, dung lượng đang lưu, media/dung lượng chưa dùng.
+- Có search, filter cơ sở, filter chưa dùng, refresh và drag/drop upload nhiều file.
+- Admin xem toàn hệ thống và chọn nơi upload: `Dùng chung` hoặc một cơ sở mình có quyền.
+- Manager chỉ thấy cơ sở hiện tại + media dùng chung; không sửa/xóa media dùng chung.
+- Click thumbnail mở detail: preview, scope, kích thước, dung lượng, ngày, title, alt, usage.
+- `Dọn media chưa dùng` bật nhanh filter usage = 0; không tự xóa hàng loạt.
+- Xóa media chưa dùng phải xóa file vật lý và sau reload số dung lượng giảm.
+
+## 12. Toolbar Visual Editor gọn hơn
+
+- Toolbar không còn trải toàn bộ Gallery / Blog / Thương hiệu / Header / Footer / Menu / Quản trị thành một dãy dài.
+- `Chỉnh sửa trang` và `Media` vẫn là action trực tiếp.
+- `Nội dung` chứa Gallery, Blog và action nội dung theo trang hiện tại.
+- `Thiết kế` chứa Thương hiệu, Header, Footer, Menu/Footer.
+- `Quản trị` chứa `Quản lý Media Library`, `Cấu hình đầy đủ`, `Quản trị`.
+- Click ra ngoài hoặc Esc đóng menu.
+- Header/Footer/Menu enhancements tải chậm hơn vẫn phải xuất hiện đúng group, không gây lỗi `insertBefore`.
+- Màn hình hẹp toolbar vẫn dùng được và không tạo thanh kéo ngang quá dài.
+
+## 13. Regression
 
 - Upload ảnh trực tiếp cũ (nếu vẫn dùng ở một form chưa chuyển) không làm hỏng form.
 - Khi mở Media Library lần sau, `section-*` legacy mới phải được import vào thư viện.
@@ -99,7 +123,7 @@ Chọn một ảnh có sẵn, lưu section, refresh và xác nhận URL vẫn đ
 - Branding cover/logo/favicon/OG vẫn hoạt động.
 - Không có Media toolbar khi guest/staff/viewer không có quyền chỉnh website.
 
-## 12. Migration
+## 14. Migration
 
 - Migration `AddMediaLibrary` tạo bảng `media_assets` và index cần thiết.
 - Database cũ migrate lên không làm đổi URL/file hiện tại.
