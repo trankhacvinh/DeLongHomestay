@@ -82,3 +82,13 @@ Với mỗi element nâng cao:
 - Test tab ẩn danh: không có toolbar/editor UI.
 - Dark row theme vẫn đọc được Icon/Map/Accordion/Testimonial/Promo.
 - Không có migration DB mới.
+
+## 11. Regression — Phân cách / Khoảng cách
+
+- Từ `＋ Thêm phần tử` inline, thêm **Phân cách**. Kết quả phải là đường phân cách thật, không được biến thành `Nhập nội dung của bạn`.
+- Click trực tiếp đường phân cách hoặc nút `Sửa`: inspector nhỏ phải mở ngay trên trang.
+- Đổi kiểu `Liền / Nét đứt / Nhẹ`, thêm/bỏ nhãn ở giữa và lưu. Refresh phải giữ đúng kết quả.
+- Thêm **Khoảng cách**. Trong chế độ edit phải thấy vùng trống có viền dashed nhẹ và nhãn `Khoảng cách · ...`; ngoài chế độ edit phần này vẫn chỉ là khoảng trống.
+- Click vùng Khoảng cách hoặc `Sửa`, chọn `20 / 42 / 70 / 108px`, lưu và refresh.
+- Các element tiêu chuẩn khác thêm từ inline (`Tiêu đề`, `Văn bản`, `Ảnh`, `Nút`) phải giữ đúng loại, không biến thành Text.
+- Nếu Row đã từng lưu element lỗi từ bản cũ với trường `k` thay vì `kind`, bật editor phải tự sửa chính xác loại element và lưu lại schema đúng khi có quyền chỉnh sửa.
