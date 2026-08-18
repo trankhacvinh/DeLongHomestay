@@ -77,24 +77,24 @@
         else
         {
             <div class="seo-page-list" data-seo-page-list>
-                @foreach (var page in Model.Pages)
+                @foreach (var item in Model.Pages)
                 {
-                    <article class="seo-page-card" data-seo-page data-search="@($"{page.Title} {page.Url} {page.SeoTitle} {page.SeoDescription}".ToLowerInvariant())">
+                    <article class="seo-page-card" data-seo-page data-search="@($"{item.Title} {item.Url} {item.SeoTitle} {item.SeoDescription}".ToLowerInvariant())">
                         <div class="seo-page-main">
-                            <div class="seo-page-title-row"><div><h3>@page.Title</h3><code>@page.Url</code></div><div class="seo-badges"><span class="@(page.IsPublished ? "published" : "draft")">@(page.IsPublished ? "Đã xuất bản" : "Bản nháp")</span>@if (page.NoIndex) { <span class="noindex">noindex</span> }@if (page.RedirectCount > 0) { <span>@page.RedirectCount redirect</span> }</div></div>
+                            <div class="seo-page-title-row"><div><h3>@item.Title</h3><code>@item.Url</code></div><div class="seo-badges"><span class="@(item.IsPublished ? "published" : "draft")">@(item.IsPublished ? "Đã xuất bản" : "Bản nháp")</span>@if (item.NoIndex) { <span class="noindex">noindex</span> }@if (item.RedirectCount > 0) { <span>@item.RedirectCount redirect</span> }</div></div>
                             <div class="seo-page-checks">
-                                <span class="@(page.HasTitle ? "ok" : "warn")">@(page.HasTitle ? "✓" : "!") Title</span>
-                                <span class="@(page.HasDescription ? "ok" : "warn")">@(page.HasDescription ? "✓" : "!") Description</span>
-                                <span class="@(page.HasOgImage ? "ok" : "warn")">@(page.HasOgImage ? "✓" : "!") OG image</span>
+                                <span class="@(item.HasTitle ? "ok" : "warn")">@(item.HasTitle ? "✓" : "!") Title</span>
+                                <span class="@(item.HasDescription ? "ok" : "warn")">@(item.HasDescription ? "✓" : "!") Description</span>
+                                <span class="@(item.HasOgImage ? "ok" : "warn")">@(item.HasOgImage ? "✓" : "!") OG image</span>
                             </div>
-                            <div class="seo-page-links"><a href="@page.Url" target="_blank" rel="noopener">Xem trang ↗</a><a href="@($"{page.Url}{(page.Url.Contains('?') ? '&' : '?')}edit=1")" target="_blank" rel="noopener">Thiết kế ↗</a><a href="@Model.PagesUrl">Sửa title / description / ảnh</a></div>
+                            <div class="seo-page-links"><a href="@item.Url" target="_blank" rel="noopener">Xem trang ↗</a><a href="@($"{item.Url}{(item.Url.Contains('?') ? '&' : '?')}edit=1")" target="_blank" rel="noopener">Thiết kế ↗</a><a href="@Model.PagesUrl">Sửa title / description / ảnh</a></div>
                         </div>
                         <form method="post" asp-page-handler="UpdatePage" class="seo-page-controls">
                             <input type="hidden" name="propertyId" value="@Model.PropertyId" />
                             <input type="hidden" name="scope" value="@(Model.IsGlobal ? "global" : "property")" />
-                            <input type="hidden" name="pageId" value="@page.Id" />
-                            <label class="seo-switch-row"><input type="checkbox" name="noIndex" value="true" checked="@page.NoIndex" /><span></span><div><strong>Không index trang này</strong><small>Bật noindex và loại trang khỏi sitemap.</small></div></label>
-                            <label class="seo-canonical"><span>Canonical tùy chỉnh</span><input type="text" name="canonicalUrl" value="@page.CanonicalUrl" placeholder="Để trống = URL hiện tại" /><small>Dùng URL tuyệt đối https://… hoặc đường dẫn nội bộ bắt đầu bằng /.</small></label>
+                            <input type="hidden" name="pageId" value="@item.Id" />
+                            <label class="seo-switch-row"><input type="checkbox" name="noIndex" value="true" checked="@item.NoIndex" /><span></span><div><strong>Không index trang này</strong><small>Bật noindex và loại trang khỏi sitemap.</small></div></label>
+                            <label class="seo-canonical"><span>Canonical tùy chỉnh</span><input type="text" name="canonicalUrl" value="@item.CanonicalUrl" placeholder="Để trống = URL hiện tại" /><small>Dùng URL tuyệt đối https://… hoặc đường dẫn nội bộ bắt đầu bằng /.</small></label>
                             <button class="btn btn-primary btn-sm" type="submit">Lưu SEO</button>
                         </form>
                     </article>
