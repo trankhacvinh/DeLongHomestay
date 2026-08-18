@@ -3,8 +3,8 @@
 @{
     ViewData["Title"] = "Cấu hình";
 }
+<script id="settings-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 <div id="settings-page" v-cloak>
-    <script id="settings-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
     <div class="page-title-row">
         <div>
