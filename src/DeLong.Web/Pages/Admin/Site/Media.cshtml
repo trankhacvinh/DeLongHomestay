@@ -14,7 +14,7 @@
         <div>
             <div class="page-eyebrow">Website · Tài nguyên</div>
             <h1>Media Library</h1>
-            <p>Quản lý ảnh website dùng chung, theo cơ sở, dung lượng lưu trữ và các file chưa còn được sử dụng.</p>
+            <p>Quản lý tập trung ảnh website và ảnh phòng, xem dung lượng thật trên storage, nơi đang tham chiếu và dùng lại tài nguyên đã có.</p>
         </div>
         <div class="media-admin-head-actions">
             <a class="btn btn-light" href="/" target="_blank" rel="noopener">Xem website ↗</a>
@@ -22,34 +22,36 @@
     </div>
 
     <section class="media-admin-stats" aria-label="Tình trạng lưu trữ">
-        <article class="panel media-stat"><small>Tổng media</small><strong data-media-total-count>—</strong><span>ảnh website đã đăng ký</span></article>
-        <article class="panel media-stat"><small>Dung lượng</small><strong data-media-total-bytes>—</strong><span>file media đang lưu vật lý</span></article>
-        <article class="panel media-stat media-stat-cleanup"><small>Có thể dọn</small><strong data-media-unused-count>—</strong><span data-media-unused-bytes>— chưa được sử dụng</span></article>
+        <article class="panel media-stat"><small>Tổng media</small><strong data-media-total-count>—</strong><span>website + gallery phòng</span></article>
+        <article class="panel media-stat"><small>Dung lượng</small><strong data-media-total-bytes>—</strong><span>tổng file vật lý đang lưu</span></article>
+        <article class="panel media-stat media-stat-room"><small>Ảnh phòng</small><strong data-media-room-count>—</strong><span data-media-room-bytes>— gồm original + large/card/thumb</span></article>
+        <article class="panel media-stat media-stat-cleanup"><small>Có thể dọn</small><strong data-media-unused-count>—</strong><span data-media-unused-bytes>— media website chưa dùng</span></article>
     </section>
 
     <section class="panel media-admin-toolbar">
         <div class="media-admin-search-row">
-            <label class="media-admin-search"><span>⌕</span><input type="search" placeholder="Tìm theo tên file, alt text, cơ sở…" data-media-search /></label>
+            <label class="media-admin-search"><span>⌕</span><input type="search" placeholder="Tìm theo tên file, phòng, alt text, cơ sở…" data-media-search /></label>
             <select data-media-property-filter aria-label="Lọc theo cơ sở"></select>
+            <select data-media-kind-filter aria-label="Lọc loại media"><option value="all">Tất cả loại</option><option value="section">Ảnh website</option><option value="room">Ảnh phòng</option></select>
             <label class="media-admin-unused"><input type="checkbox" data-media-unused /> Chỉ file chưa dùng</label>
             <button type="button" class="btn btn-light" data-media-refresh>↻ Làm mới</button>
         </div>
         <div class="media-admin-upload-row">
             <div>
-                <strong>Tải ảnh mới</strong>
-                <p>PNG, JPG hoặc WebP · tối đa 12 MB. File sẽ được tối ưu thành WebP trước khi lưu.</p>
+                <strong>Tải ảnh website mới</strong>
+                <p>PNG, JPG hoặc WebP · tối đa 12 MB. Ảnh phòng tiếp tục upload tại Nội dung phòng để tạo đủ original / large / card / thumbnail.</p>
             </div>
             <div class="media-admin-upload-actions">
                 <select data-media-upload-scope aria-label="Nơi lưu ảnh"></select>
                 <label class="btn btn-primary media-upload-button">＋ Chọn ảnh<input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden data-media-upload /></label>
             </div>
         </div>
-        <div class="media-admin-dropzone" data-media-dropzone>Thả nhiều ảnh vào đây để tải lên</div>
+        <div class="media-admin-dropzone" data-media-dropzone>Thả nhiều ảnh website vào đây để tải lên</div>
     </section>
 
     <div class="media-admin-layout">
         <main class="panel media-admin-browser">
-            <div class="media-admin-browser-head"><div><strong data-media-result-count>0 media</strong><small>Chọn một ảnh để xem thông tin và nơi đang sử dụng.</small></div><button type="button" class="btn btn-light btn-sm" data-media-show-unused>Dọn media chưa dùng</button></div>
+            <div class="media-admin-browser-head"><div><strong data-media-result-count>0 media</strong><small>Ảnh phòng có thể được chọn lại cho Hero, Row, Gallery… bằng bản large đã tối ưu.</small></div><button type="button" class="btn btn-light btn-sm" data-media-show-unused>Dọn media chưa dùng</button></div>
             <div class="media-admin-loading" data-media-loading>Đang tải Media Library…</div>
             <div class="media-admin-empty" data-media-empty hidden>Không có media phù hợp với bộ lọc hiện tại.</div>
             <div class="media-admin-grid" data-media-grid></div>
@@ -61,8 +63,8 @@
     </div>
 
     <section class="panel media-admin-storage-note">
-        <div><strong>Xóa Media Library hoạt động thế nào?</strong><p>Media đang được tham chiếu sẽ bị chặn xóa. Với ảnh website dạng section, khi xóa thành công hệ thống xóa file WebP vật lý khỏi storage rồi mới xóa metadata trong database.</p></div>
-        <span>Ảnh phòng vẫn dùng pipeline riêng gồm original / large / card / thumbnail và chưa được gộp vào thư viện này.</span>
+        <div><strong>Xóa Media Library hoạt động thế nào?</strong><p>Ảnh website đang được tham chiếu sẽ bị chặn xóa. Ảnh phòng luôn thuộc gallery của một phòng; nút xóa sẽ gỡ ảnh khỏi gallery và xóa cả ảnh gốc lẫn ba bản tối ưu. Nếu ảnh phòng còn được Hero, Row, Blog, Custom Page hoặc rich text tham chiếu thêm thì hệ thống chặn xóa trước.</p></div>
+        <span>`Dọn media chưa dùng` chỉ dọn ảnh website độc lập. Hệ thống không tự dọn ảnh phòng vì chúng là nội dung gallery có chủ đích.</span>
     </section>
 </div>
 
