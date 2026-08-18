@@ -44,7 +44,7 @@ public static class PublicSeoEndpoints
 
     private static void MapSitemap(IEndpointRouteBuilder app, string pattern, bool scoped)
     {
-        app.MapGet(pattern, async (HttpContext http, AppDbContext db, PublicPropertyResolver resolver, SiteContentService service, CancellationToken ct) =>
+        app.MapGet(pattern, async (HttpContext http, AppDbContext db, PublicPropertyResolver resolver, SiteContentService service, CustomPageStore customPageStore, CancellationToken ct) =>
         {
             if (!scoped)
             {
@@ -59,6 +59,9 @@ public static class PublicSeoEndpoints
                     new("/rooms"),
                     new("/blog")
                 };
+
+                var globalPages = await customPageStore.ListAsync(null, true, ct);
+                urls.AddRange(globalPages.Select(page => new SitemapEntry(page.Url, page.UpdatedAtUtc)));
 
                 foreach (var property in properties)
                 {
@@ -80,6 +83,9 @@ public static class PublicSeoEndpoints
                         .ToListAsync(ct);
                     if (propertyPosts.Count > 0) urls.Add(new($"/h/{Uri.EscapeDataString(siteSlug)}/blog", propertyPosts.Max(x => x.UpdatedAtUtc)));
                     urls.AddRange(propertyPosts.Select(x => new SitemapEntry($"/h/{Uri.EscapeDataString(siteSlug)}/blog/{Uri.EscapeDataString(x.Slug)}", x.UpdatedAtUtc)));
+
+                    var propertyPages = await customPageStore.ListAsync(property.Id, true, ct);
+                    urls.AddRange(propertyPages.Select(page => new SitemapEntry(page.Url, page.UpdatedAtUtc)));
                 }
 
                 return Sitemap(http, baseUrl, urls);
@@ -102,6 +108,7 @@ public static class PublicSeoEndpoints
                 .OrderByDescending(x => x.PublishedAtUtc)
                 .Select(x => new { x.Slug, x.UpdatedAtUtc })
                 .ToListAsync(ct);
+            var pages = await customPageStore.ListAsync(propertyScope.Id, true, ct);
 
             var scopedUrls = new List<SitemapEntry>
             {
@@ -111,6 +118,7 @@ public static class PublicSeoEndpoints
             scopedUrls.AddRange(rooms.Select(x => new SitemapEntry(PublicUrlBuilder.Room(propertyScope.SiteSlug, x.Slug), x.UpdatedAtUtc)));
             if (posts.Count > 0) scopedUrls.Add(new($"/h/{Uri.EscapeDataString(propertyScope.SiteSlug)}/blog", posts.Max(x => x.UpdatedAtUtc)));
             scopedUrls.AddRange(posts.Select(x => new SitemapEntry($"/h/{Uri.EscapeDataString(propertyScope.SiteSlug)}/blog/{Uri.EscapeDataString(x.Slug)}", x.UpdatedAtUtc)));
+            scopedUrls.AddRange(pages.Select(page => new SitemapEntry(page.Url, page.UpdatedAtUtc)));
             return Sitemap(http, scopedBaseUrl, scopedUrls);
         }).AllowAnonymous();
     }
