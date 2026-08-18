@@ -33,7 +33,10 @@ public sealed class IndexModel(
             site = new
             {
                 settings = site.Settings,
-                sections = site.Sections.Where(x => x.Type != EditorialPlacementStore.MetadataSectionType)
+                sections = site.Sections.Where(x =>
+                    x.Type != EditorialPlacementStore.MetadataSectionType &&
+                    x.Type != PublicShellSettingsStore.MetadataSectionType &&
+                    x.Type != PublicShellDesignerStore.MetadataSectionType)
             }
         }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return Page();
