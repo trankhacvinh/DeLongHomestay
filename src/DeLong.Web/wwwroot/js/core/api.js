@@ -101,7 +101,8 @@
         addStyle('data-public-header-footer-designer', '/css/public-header-footer-designer.css?v=20260818-1');
         addStyle('data-public-footer-inline-editor', '/css/public-footer-inline-editor.css?v=20260818-2');
         addStyle('data-public-custom-pages', '/css/public-custom-pages.css?v=20260818-1');
-        addStyle('data-public-custom-page-element-style', '/css/public-custom-page-element-style.css?v=20260818-1');
+        addStyle('data-public-custom-page-element-style', '/css/public-custom-page-element-style.css?v=20260818-3');
+        addStyle('data-public-editor-stabilization', '/css/public-editor-stabilization.css?v=20260818-1');
 
         addScript('data-public-shell-runtime', '/js/pages/public-shell-runtime.js?v=20260817-2');
         addScript('data-public-shell-designer-runtime', '/js/pages/public-shell-designer-runtime.js?v=20260818-1');
@@ -126,7 +127,7 @@
         addScript('data-public-row-advanced-runtime', '/js/pages/public-row-advanced-runtime.js?v=20260818-1');
         addScript('data-public-media-library', '/js/pages/public-media-library.js?v=20260818-2');
         addScript('data-public-inline-editor', '/js/pages/public-inline-editor.js?v=20260818-3');
-        addScript('data-public-custom-page-element-style', '/js/pages/public-custom-page-element-style.js?v=20260818-1');
+        addScript('data-public-custom-page-element-style', '/js/pages/public-custom-page-element-style.js?v=20260818-3');
         addScript('data-public-toolbar-compact', '/js/pages/public-toolbar-compact.js?v=20260818-1');
         addScript('data-public-header-footer-designer', '/js/pages/public-header-footer-designer.js?v=20260818-1');
         addScript('data-public-footer-inline-editor', '/js/pages/public-footer-inline-editor.js?v=20260818-1');
