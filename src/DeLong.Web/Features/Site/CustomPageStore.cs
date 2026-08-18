@@ -31,6 +31,9 @@ public sealed record CustomPageSummaryDto(
     string SeoTitle,
     string SeoDescription,
     string OgImageUrl,
+    bool NoIndex,
+    string CanonicalUrl,
+    IReadOnlyList<string> LegacySlugs,
     int SectionCount,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
@@ -46,6 +49,9 @@ public sealed record CustomPageDto(
     string SeoTitle,
     string SeoDescription,
     string OgImageUrl,
+    bool NoIndex,
+    string CanonicalUrl,
+    IReadOnlyList<string> LegacySlugs,
     IReadOnlyList<HomeSectionDto> Sections,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
@@ -78,6 +84,9 @@ public sealed class CustomPageStore(AppDbContext db)
         public string SeoTitle { get; init; } = string.Empty;
         public string SeoDescription { get; init; } = string.Empty;
         public string OgImageUrl { get; init; } = string.Empty;
+        public bool NoIndex { get; init; }
+        public string CanonicalUrl { get; init; } = string.Empty;
+        public IReadOnlyList<string> LegacySlugs { get; init; } = [];
         public IReadOnlyList<PageSectionPayload> Sections { get; init; } = [];
     }
 
@@ -149,6 +158,9 @@ public sealed class CustomPageStore(AppDbContext db)
             SeoTitle = Limit(Clean(request.SeoTitle), 200),
             SeoDescription = Limit(Clean(request.SeoDescription), 500),
             OgImageUrl = Limit(Clean(request.OgImageUrl), 1200),
+            NoIndex = false,
+            CanonicalUrl = string.Empty,
+            LegacySlugs = [],
             Sections = TemplateSections(request.Template, title)
         };
         var row = new HomeSection
@@ -187,6 +199,9 @@ public sealed class CustomPageStore(AppDbContext db)
             SeoTitle = Limit(Clean(request.SeoTitle), 200),
             SeoDescription = Limit(Clean(request.SeoDescription), 500),
             OgImageUrl = Limit(Clean(request.OgImageUrl), 1200),
+            NoIndex = current.NoIndex,
+            CanonicalUrl = current.CanonicalUrl,
+            LegacySlugs = NextLegacySlugs(current, slug),
             Sections = current.Sections
         };
         row.Name = title;
@@ -223,6 +238,9 @@ public sealed class CustomPageStore(AppDbContext db)
             SeoTitle = sourcePayload.SeoTitle,
             SeoDescription = sourcePayload.SeoDescription,
             OgImageUrl = sourcePayload.OgImageUrl,
+            NoIndex = false,
+            CanonicalUrl = string.Empty,
+            LegacySlugs = [],
             Sections = sections
         };
         var row = new HomeSection
@@ -241,6 +259,63 @@ public sealed class CustomPageStore(AppDbContext db)
             .SingleOrDefaultAsync(x => x.Id == pageId && x.PropertyId == propertyId && x.Type == MetadataSectionType, ct);
         if (row is null) return new("not_found", "Không tìm thấy trang nội dung.");
         db.Set<HomeSection>().Remove(row);
+        await db.SaveChangesAsync(ct);
+        return null;
+    }
+
+    public async Task<CustomPageDto?> GetByLegacySlugAsync(Guid? propertyId, string slug, bool publishedOnly, CancellationToken ct = default)
+    {
+        var normalized = NormalizeSlug(slug);
+        if (string.IsNullOrWhiteSpace(normalized)) return null;
+        var rows = await db.Set<HomeSection>().AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.Type == MetadataSectionType)
+            .ToListAsync(ct);
+        var siteSlug = await ResolveSiteSlugAsync(propertyId, ct);
+        return rows.Select(row => Read(row, siteSlug))
+            .FirstOrDefault(page => page.LegacySlugs.Any(old => string.Equals(old, normalized, StringComparison.OrdinalIgnoreCase)) && (!publishedOnly || page.IsPublished));
+    }
+
+    public async Task<SiteContentError?> UpdateSeoAsync(Guid? propertyId, Guid pageId, bool noIndex, string? canonicalUrl, CancellationToken ct = default)
+    {
+        var row = await FindTrackedRowAsync(propertyId, pageId, ct);
+        if (row is null) return new("not_found", "Không tìm thấy trang nội dung.");
+        var canonical = Clean(canonicalUrl);
+        if (!IsSafeCanonicalUrl(canonical)) return new("validation", "Canonical phải là URL http/https hoặc đường dẫn nội bộ bắt đầu bằng /. ");
+        var payload = ReadPayload(row);
+        var next = new Payload
+        {
+            Title = payload.Title, Slug = payload.Slug, IsPublished = payload.IsPublished,
+            HideFromNavigation = payload.HideFromNavigation, SeoTitle = payload.SeoTitle,
+            SeoDescription = payload.SeoDescription, OgImageUrl = payload.OgImageUrl,
+            NoIndex = noIndex, CanonicalUrl = Limit(canonical, 1200), LegacySlugs = payload.LegacySlugs,
+            Sections = payload.Sections
+        };
+        row.ContentJson = Serialize(next);
+        row.Name = payload.Title;
+        row.IsVisible = false;
+        row.SortOrder = int.MinValue + 20;
+        await db.SaveChangesAsync(ct);
+        return null;
+    }
+
+    public async Task<SiteContentError?> RemoveLegacySlugAsync(Guid? propertyId, Guid pageId, string legacySlug, CancellationToken ct = default)
+    {
+        var row = await FindTrackedRowAsync(propertyId, pageId, ct);
+        if (row is null) return new("not_found", "Không tìm thấy trang nội dung.");
+        var normalized = NormalizeSlug(legacySlug);
+        var payload = ReadPayload(row);
+        if (!payload.LegacySlugs.Any(x => string.Equals(x, normalized, StringComparison.OrdinalIgnoreCase)))
+            return new("not_found", "Không tìm thấy redirect cũ.");
+        var next = new Payload
+        {
+            Title = payload.Title, Slug = payload.Slug, IsPublished = payload.IsPublished,
+            HideFromNavigation = payload.HideFromNavigation, SeoTitle = payload.SeoTitle,
+            SeoDescription = payload.SeoDescription, OgImageUrl = payload.OgImageUrl,
+            NoIndex = payload.NoIndex, CanonicalUrl = payload.CanonicalUrl,
+            LegacySlugs = payload.LegacySlugs.Where(x => !string.Equals(x, normalized, StringComparison.OrdinalIgnoreCase)).ToList(),
+            Sections = payload.Sections
+        };
+        row.ContentJson = Serialize(next);
         await db.SaveChangesAsync(ct);
         return null;
     }
@@ -334,7 +409,9 @@ public sealed class CustomPageStore(AppDbContext db)
             .Where(x => x.PropertyId == propertyId && x.Type == MetadataSectionType && (pageId == null || x.Id != pageId))
             .Select(x => x.ContentJson)
             .ToListAsync(ct);
-        return rows.Select(ReadPayload).Any(x => string.Equals(x.Slug, slug, StringComparison.OrdinalIgnoreCase));
+        return rows.Select(ReadPayload).Any(x =>
+            string.Equals(x.Slug, slug, StringComparison.OrdinalIgnoreCase) ||
+            x.LegacySlugs.Any(old => string.Equals(old, slug, StringComparison.OrdinalIgnoreCase)));
     }
 
     private async Task<HomeSection?> FindTrackedRowAsync(Guid? propertyId, Guid pageId, CancellationToken ct) =>
@@ -346,7 +423,8 @@ public sealed class CustomPageStore(AppDbContext db)
         {
             Title = payload.Title, Slug = payload.Slug, IsPublished = payload.IsPublished,
             HideFromNavigation = payload.HideFromNavigation, SeoTitle = payload.SeoTitle,
-            SeoDescription = payload.SeoDescription, OgImageUrl = payload.OgImageUrl, Sections = sections
+            SeoDescription = payload.SeoDescription, OgImageUrl = payload.OgImageUrl,
+            NoIndex = payload.NoIndex, CanonicalUrl = payload.CanonicalUrl, LegacySlugs = payload.LegacySlugs, Sections = sections
         };
         var json = Serialize(next);
         if (json.Length > MaxPayloadLength) return new("validation", "Trang quá lớn. Hãy tách nội dung thành nhiều trang nhỏ hơn.");
@@ -374,12 +452,14 @@ public sealed class CustomPageStore(AppDbContext db)
         return new CustomPageDto(
             row.Id, row.PropertyId, payload.Title, payload.Slug, Url(siteSlug, payload.Slug), payload.IsPublished,
             payload.HideFromNavigation, payload.SeoTitle, payload.SeoDescription, payload.OgImageUrl,
+            payload.NoIndex, payload.CanonicalUrl, payload.LegacySlugs,
             payload.Sections.OrderBy(x => x.SortOrder).Select(ToDto).ToList(), row.CreatedAtUtc, row.UpdatedAtUtc);
     }
 
     private static CustomPageSummaryDto ToSummary(CustomPageDto page) => new(
         page.Id, page.PropertyId, page.Title, page.Slug, page.Url, page.IsPublished, page.HideFromNavigation,
-        page.SeoTitle, page.SeoDescription, page.OgImageUrl, page.Sections.Count, page.CreatedAtUtc, page.UpdatedAtUtc);
+        page.SeoTitle, page.SeoDescription, page.OgImageUrl, page.NoIndex, page.CanonicalUrl, page.LegacySlugs,
+        page.Sections.Count, page.CreatedAtUtc, page.UpdatedAtUtc);
 
     private static Payload ReadPayload(HomeSection row) => ReadPayload(row.ContentJson);
     private static Payload ReadPayload(string? json)
@@ -431,6 +511,26 @@ public sealed class CustomPageStore(AppDbContext db)
     private static string Slugify(string value) => NormalizeSlug(value);
     private static string Clean(string? value) => (value ?? string.Empty).Trim();
     private static string Limit(string value, int max) => value.Length <= max ? value : value[..max];
+    private static IReadOnlyList<string> NextLegacySlugs(Payload current, string nextSlug)
+    {
+        if (string.Equals(current.Slug, nextSlug, StringComparison.OrdinalIgnoreCase)) return current.LegacySlugs;
+        return current.LegacySlugs
+            .Append(current.Slug)
+            .Select(NormalizeSlug)
+            .Where(x => !string.IsNullOrWhiteSpace(x) && !string.Equals(x, nextSlug, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .TakeLast(20)
+            .ToList();
+    }
+
+    private static bool IsSafeCanonicalUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return true;
+        var url = value.Trim();
+        if (url.StartsWith("/", StringComparison.Ordinal) && !url.StartsWith("//", StringComparison.Ordinal)) return true;
+        return Uri.TryCreate(url, UriKind.Absolute, out var absolute) && absolute.Scheme is "http" or "https";
+    }
+
     private static bool IsSafeImageUrl(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return true;

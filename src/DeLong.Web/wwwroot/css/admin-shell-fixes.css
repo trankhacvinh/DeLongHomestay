@@ -67,6 +67,24 @@
     flex:1 1 auto;
 }
 
+/* Search boxes use one quiet border state instead of the generic input ring + focus outline. */
+.admin-body input[type=search],
+.admin-body .search-input {
+    -webkit-appearance:none;
+}
+.admin-body input[type=search]:focus,
+.admin-body input[type=search]:focus-visible,
+.admin-body .search-input:focus,
+.admin-body .search-input:focus-visible {
+    outline:none!important;
+    outline-offset:0!important;
+    box-shadow:none!important;
+    border-color:#7aa6a4;
+}
+.admin-body label:focus-within > input[type=search] {
+    box-shadow:none!important;
+}
+
 /* Keep the Admin header visually stable: one row, one fixed height. */
 .admin-topbar {
     height:var(--topbar);

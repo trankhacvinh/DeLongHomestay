@@ -61,7 +61,7 @@ public static class PublicSeoEndpoints
                 };
 
                 var globalPages = await customPageStore.ListAsync(null, true, ct);
-                urls.AddRange(globalPages.Select(page => new SitemapEntry(page.Url, page.UpdatedAtUtc)));
+                urls.AddRange(globalPages.Where(page => !page.NoIndex).Select(page => new SitemapEntry(page.Url, page.UpdatedAtUtc)));
 
                 foreach (var property in properties)
                 {
@@ -85,7 +85,7 @@ public static class PublicSeoEndpoints
                     urls.AddRange(propertyPosts.Select(x => new SitemapEntry($"/h/{Uri.EscapeDataString(siteSlug)}/blog/{Uri.EscapeDataString(x.Slug)}", x.UpdatedAtUtc)));
 
                     var propertyPages = await customPageStore.ListAsync(property.Id, true, ct);
-                    urls.AddRange(propertyPages.Select(page => new SitemapEntry(page.Url, page.UpdatedAtUtc)));
+                    urls.AddRange(propertyPages.Where(page => !page.NoIndex).Select(page => new SitemapEntry(page.Url, page.UpdatedAtUtc)));
                 }
 
                 return Sitemap(http, baseUrl, urls);
@@ -118,7 +118,7 @@ public static class PublicSeoEndpoints
             scopedUrls.AddRange(rooms.Select(x => new SitemapEntry(PublicUrlBuilder.Room(propertyScope.SiteSlug, x.Slug), x.UpdatedAtUtc)));
             if (posts.Count > 0) scopedUrls.Add(new($"/h/{Uri.EscapeDataString(propertyScope.SiteSlug)}/blog", posts.Max(x => x.UpdatedAtUtc)));
             scopedUrls.AddRange(posts.Select(x => new SitemapEntry($"/h/{Uri.EscapeDataString(propertyScope.SiteSlug)}/blog/{Uri.EscapeDataString(x.Slug)}", x.UpdatedAtUtc)));
-            scopedUrls.AddRange(pages.Select(page => new SitemapEntry(page.Url, page.UpdatedAtUtc)));
+            scopedUrls.AddRange(pages.Where(page => !page.NoIndex).Select(page => new SitemapEntry(page.Url, page.UpdatedAtUtc)));
             return Sitemap(http, scopedBaseUrl, scopedUrls);
         }).AllowAnonymous();
     }

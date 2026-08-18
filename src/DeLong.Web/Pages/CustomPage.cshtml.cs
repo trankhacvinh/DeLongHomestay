@@ -31,7 +31,14 @@ public sealed class CustomPageModel(
         {
             var allowDraft = User.Identity?.IsAuthenticated == true && User.IsInRole("Admin");
             PageContent = await customPageStore.GetBySlugAsync(null, slug, !allowDraft, ct) ?? null!;
-            if (PageContent is null || (!PageContent.IsPublished && !allowDraft)) return NotFound();
+            if (PageContent is null)
+            {
+                var legacy = await customPageStore.GetByLegacySlugAsync(null, slug, true, ct);
+                if (legacy is not null) return RedirectPermanent(legacy.Url);
+                return NotFound();
+            }
+            if (!PageContent.IsPublished && !allowDraft) return NotFound();
+            ApplySeoOverrides(PageContent);
             GlobalCatalog = await roomContentService.GetGlobalCatalogAsync(ct);
             var timeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
             DefaultDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone)).ToString("yyyy-MM-dd");
@@ -48,12 +55,29 @@ public sealed class CustomPageModel(
             allowPropertyDraft = accessible.Any(x => x.Id == property.Id);
         }
         PageContent = await customPageStore.GetBySlugAsync(property.Id, slug, !allowPropertyDraft, ct) ?? null!;
-        if (PageContent is null || (!PageContent.IsPublished && !allowPropertyDraft)) return NotFound();
+        if (PageContent is null)
+        {
+            var legacy = await customPageStore.GetByLegacySlugAsync(property.Id, slug, true, ct);
+            if (legacy is not null) return RedirectPermanent(legacy.Url);
+            return NotFound();
+        }
+        if (!PageContent.IsPublished && !allowPropertyDraft) return NotFound();
+        ApplySeoOverrides(PageContent);
         SiteSettings = (await siteContentService.GetPublicAsync(property.SiteSlug, ct))?.Settings;
         Catalog = await roomContentService.GetCatalogAsync(property.Id, ct);
         var propertyTimeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
         DefaultDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, propertyTimeZone)).ToString("yyyy-MM-dd");
         return Page();
+    }
+
+    private void ApplySeoOverrides(CustomPageDto page)
+    {
+        if (page.NoIndex) ViewData["Robots"] = "noindex,follow";
+        if (string.IsNullOrWhiteSpace(page.CanonicalUrl)) return;
+        var canonical = page.CanonicalUrl.Trim();
+        ViewData["CanonicalUrl"] = canonical.StartsWith('/')
+            ? $"{Request.Scheme}://{Request.Host}{canonical}"
+            : canonical;
     }
 
     public IReadOnlyList<PublicPropertyCardDto> SelectGlobalProperties(JsonObject content)

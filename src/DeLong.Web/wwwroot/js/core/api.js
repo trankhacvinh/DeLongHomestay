@@ -55,7 +55,7 @@
         }
         if (!document.querySelector('script[data-admin-sidebar-quick-links]')) {
             const script = document.createElement('script');
-            script.src = '/js/core/admin-sidebar-quick-links.js?v=20260818-2';
+            script.src = '/js/core/admin-sidebar-quick-links.js?v=20260818-3';
             script.async = false;
             script.dataset.adminSidebarQuickLinks = 'true';
             document.head.appendChild(script);
