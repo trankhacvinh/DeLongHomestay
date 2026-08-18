@@ -3,7 +3,8 @@
 
     const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/';
     const scoped = normalizedPath.match(/^\/h\/([^/]+)(?:\/|$)/i);
-    const scopeKey = scoped ? decodeURIComponent(scoped[1]) : 'global';
+    const customPageId = document.querySelector('meta[name="delong-custom-page-id"]')?.content || '';
+    const scopeKey = customPageId ? `page:${customPageId}` : (scoped ? decodeURIComponent(scoped[1]) : 'global');
     const pendingKey = `delong:inline:core-action:${scopeKey}`;
     let dirty = false;
 
