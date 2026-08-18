@@ -75,8 +75,8 @@
         addStyle('data-public-shell-link-picker', '/css/public-shell-link-picker.css?v=20260817-3');
         addStyle('data-public-gallery-studio', '/css/public-gallery-studio.css?v=20260817-1');
         addStyle('data-public-contextual-content-cards', '/css/public-contextual-content-cards.css?v=20260817-1');
-        addStyle('data-public-inline-editor', '/css/public-inline-editor.css?v=20260817-1');
-        addStyle('data-public-row-inline', '/css/public-row-inline-editor.css?v=20260818-1');
+        addStyle('data-public-inline-editor', '/css/public-inline-editor.css?v=20260818-2');
+        addStyle('data-public-row-inline', '/css/public-row-inline-editor.css?v=20260818-2');
         addStyle('data-public-row-advanced-elements', '/css/public-row-advanced-elements.css?v=20260818-1');
 
         addScript('data-public-shell-runtime', '/js/pages/public-shell-runtime.js?v=20260817-2');
