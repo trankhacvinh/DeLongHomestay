@@ -1,0 +1,81 @@
+name: Apply Editor Polish Transform
+
+on:
+  push:
+    branches: [feat/editor-polish-stabilization]
+
+permissions:
+  contents: write
+
+jobs:
+  transform:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/editor-polish-stabilization
+          fetch-depth: 0
+      - name: Apply homepage visual style hooks
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('src/DeLong.Web/Pages/Index.cshtml')
+          text = path.read_text(encoding='utf-8')
+          original = text
+
+          helper = '    string Text(JsonObject content, string key, string fallback = "") => content[key]?.GetValue<string>() ?? fallback;\n'
+          helper_new = helper + '    string V(JsonObject content, string path, bool image = false) => CustomPageModel.VisualClass(content, path, image);\n'
+          if helper in text and 'string V(JsonObject content' not in text:
+              text = text.replace(helper, helper_new, 1)
+
+          replacements = {
+              '<span class="public-eyebrow">@eyebrow</span>': '<span class="public-eyebrow @(V(block.Content, "eyebrow"))">@eyebrow</span>',
+              '<h1>@title</h1>': '<h1 class="@(V(block.Content, "title"))">@title</h1>',
+              '<p>@body</p>': '<p class="@(V(block.Content, "body"))">@body</p>',
+              '<h2>@title</h2>': '<h2 class="@(V(block.Content, "title"))">@title</h2>',
+              '<a class="public-btn public-btn-primary" href="@primaryUrl">@primaryText</a>': '<a class="public-btn public-btn-primary @(V(block.Content, "primaryText"))" href="@primaryUrl">@primaryText</a>',
+              '<a class="public-btn public-btn-ghost" href="@secondaryUrl">@secondaryText</a>': '<a class="public-btn public-btn-ghost @(V(block.Content, "secondaryText"))" href="@secondaryUrl">@secondaryText</a>',
+              '<a class="public-btn public-btn-primary" href="@ScopedUrl(Text(block.Content, "primaryUrl", "/booking"))">@Text(block.Content, "primaryText", "Đặt phòng")</a>': '<a class="public-btn public-btn-primary @(V(block.Content, "primaryText"))" href="@ScopedUrl(Text(block.Content, "primaryUrl", "/booking"))">@Text(block.Content, "primaryText", "Đặt phòng")</a>',
+              '<a class="public-btn public-btn-ghost" href="@ScopedUrl(Text(block.Content, "secondaryUrl", "/rooms"))">@Text(block.Content, "secondaryText", "Xem phòng")</a>': '<a class="public-btn public-btn-ghost @(V(block.Content, "secondaryText"))" href="@ScopedUrl(Text(block.Content, "secondaryUrl", "/rooms"))">@Text(block.Content, "secondaryText", "Xem phòng")</a>',
+              'class="public-cms-hero-image public-hotel-hero-media"': 'class="public-cms-hero-image public-hotel-hero-media @(V(block.Content, "imageUrl", true))"',
+              'class="public-story-media"': 'class="public-story-media @(V(block.Content, "imageUrl", true))"',
+              'class="public-cms-rich-inner"': 'class="public-cms-rich-inner @(V(block.Content, "html"))"',
+              '<address>@address</address>': '<address class="@(V(block.Content, "address"))">@address</address>',
+              '<a class="public-btn public-btn-primary" href="@Text(block.Content, "buttonUrl", "/booking")">@Text(block.Content, "buttonText", "Đặt phòng")</a>': '<a class="public-btn public-btn-primary @(V(block.Content, "buttonText"))" href="@Text(block.Content, "buttonUrl", "/booking")">@Text(block.Content, "buttonText", "Đặt phòng")</a>',
+              '<a class="public-btn public-btn-primary" href="@ScopedUrl(Text(block.Content, "buttonUrl", "/booking"))">@Text(block.Content, "buttonText", "Đặt phòng")</a>': '<a class="public-btn public-btn-primary @(V(block.Content, "buttonText"))" href="@ScopedUrl(Text(block.Content, "buttonUrl", "/booking"))">@Text(block.Content, "buttonText", "Đặt phòng")</a>'
+          }
+          for old, new in replacements.items():
+              text = text.replace(old, new)
+
+          text = re.sub(
+              r'<span class="public-eyebrow">(@Text\(block\.Content, "eyebrow"[^<]*\))</span>',
+              r'<span class="public-eyebrow @(V(block.Content, "eyebrow"))">\1</span>', text)
+          text = re.sub(
+              r'<h2>(@Text\(block\.Content, "title"[^<]*\))</h2>',
+              r'<h2 class="@(V(block.Content, "title"))">\1</h2>', text)
+          text = re.sub(
+              r'<p>(@Text\(block\.Content, "body"[^<]*\))</p>',
+              r'<p class="@(V(block.Content, "body"))">\1</p>', text)
+
+          if text == original:
+              raise SystemExit('Index.cshtml transformer made no changes')
+          if 'string V(JsonObject content' not in text:
+              raise SystemExit('Visual class helper was not added')
+          if text.count('V(block.Content') < 20:
+              raise SystemExit(f'Expected at least 20 visual hooks, got {text.count("V(block.Content")}')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit transformed page
+        shell: bash
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/DeLong.Web/Pages/Index.cshtml
+          git commit -m "feat(editor): render visual styles on homepage"
+          git push origin HEAD:feat/editor-polish-stabilization
