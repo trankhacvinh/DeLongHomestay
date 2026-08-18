@@ -99,6 +99,7 @@
         addStyle('data-public-media-library', '/css/public-media-library.css?v=20260818-1');
         addStyle('data-public-toolbar-compact', '/css/public-toolbar-compact.css?v=20260818-1');
         addStyle('data-public-header-footer-designer', '/css/public-header-footer-designer.css?v=20260818-1');
+        addStyle('data-public-footer-inline-editor', '/css/public-footer-inline-editor.css?v=20260818-1');
 
         addScript('data-public-shell-runtime', '/js/pages/public-shell-runtime.js?v=20260817-2');
         addScript('data-public-shell-designer-runtime', '/js/pages/public-shell-designer-runtime.js?v=20260818-1');
@@ -125,5 +126,6 @@
         addScript('data-public-inline-editor', '/js/pages/public-inline-editor.js?v=20260817-1');
         addScript('data-public-toolbar-compact', '/js/pages/public-toolbar-compact.js?v=20260818-1');
         addScript('data-public-header-footer-designer', '/js/pages/public-header-footer-designer.js?v=20260818-1');
+        addScript('data-public-footer-inline-editor', '/js/pages/public-footer-inline-editor.js?v=20260818-1');
     }
 })(window);
