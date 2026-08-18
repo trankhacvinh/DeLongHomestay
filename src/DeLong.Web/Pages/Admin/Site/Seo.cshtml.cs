@@ -4,6 +4,7 @@ using DeLong.Web.Features.Site;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Pages.Admin.Site;
 
@@ -25,8 +26,11 @@ public sealed class SeoModel(
     public string RobotsUrl { get; private set; } = "/robots.txt";
     public string SettingsUrl { get; private set; } = "/Admin/Site/Global";
     public string PagesUrl { get; private set; } = "/Admin/Site/Pages?scope=global";
+    public string BlogAdminUrl { get; private set; } = "/Admin/Site/Editorial?tab=blog";
     public SeoScopeAuditVm ScopeAudit { get; private set; } = new();
     public IReadOnlyList<SeoPageAuditVm> Pages { get; private set; } = [];
+    public IReadOnlyList<SeoRoomAuditVm> Rooms { get; private set; } = [];
+    public IReadOnlyList<SeoBlogAuditVm> BlogPosts { get; private set; } = [];
     public IReadOnlyList<SeoRedirectVm> Redirects { get; private set; } = [];
     public IReadOnlyList<CurrentPropertyDto> Properties { get; private set; } = [];
 
@@ -37,6 +41,110 @@ public sealed class SeoModel(
     {
         if (!await LoadAsync(propertyId, scope, ct)) return IsAdmin ? Page() : Forbid();
         return Page();
+    }
+
+    public async Task<IActionResult> OnPostUpdateScopeAsync(
+        Guid? propertyId,
+        string? scope,
+        string? metaTitle,
+        string? metaDescription,
+        string? ogImageUrl,
+        CancellationToken ct)
+    {
+        var resolved = await ResolveScopeAsync(propertyId, scope, ct);
+        if (!resolved.Allowed) return Forbid();
+        metaTitle = Clean(metaTitle);
+        metaDescription = Clean(metaDescription);
+        ogImageUrl = Clean(ogImageUrl);
+        if (metaTitle.Length > 200 || metaDescription.Length > 500 || ogImageUrl.Length > 1200)
+        {
+            ErrorMessage = "Thông tin SEO vượt quá độ dài cho phép.";
+            return RedirectToPage("/Admin/Site/Seo", ScopeRouteValues(resolved.IsGlobal, resolved.PropertyId));
+        }
+        if (!IsSafeImageUrl(ogImageUrl))
+        {
+            ErrorMessage = "Ảnh chia sẻ phải là URL http/https hoặc đường dẫn nội bộ bắt đầu bằng /.";
+            return RedirectToPage("/Admin/Site/Seo", ScopeRouteValues(resolved.IsGlobal, resolved.PropertyId));
+        }
+
+        if (resolved.IsGlobal)
+        {
+            var activeProperties = await propertyResolver.GetActiveAsync(ct);
+            var current = await GlobalSiteBrandingStore.ResolveAsync(db, siteContentService, activeProperties, ct);
+            var result = await GlobalSiteBrandingStore.SaveAsync(db, new SaveGlobalSiteBrandingRequest
+            {
+                SiteName = current.OverrideSiteName,
+                Tagline = current.OverrideTagline,
+                LogoUrl = current.OverrideLogoUrl,
+                FaviconUrl = current.OverrideFaviconUrl,
+                OgImageUrl = ogImageUrl,
+                MetaTitle = metaTitle,
+                MetaDescription = metaDescription
+            }, ct);
+            if (!result.Success) ErrorMessage = result.Error;
+            else StatusMessage = "Đã lưu thông tin trang chủ.";
+        }
+        else
+        {
+            var site = await siteContentService.GetAdminAsync(resolved.PropertyId!.Value, ct);
+            if (site is null) return NotFound();
+            var s = site.Settings;
+            var (settings, error) = await siteContentService.SaveSettingsAsync(resolved.PropertyId.Value, new SaveSiteSettingsRequest
+            {
+                SiteName = s.SiteName,
+                Tagline = s.Tagline,
+                Address = s.Address,
+                Phone = s.Phone,
+                Email = s.Email,
+                FacebookUrl = s.FacebookUrl,
+                ZaloUrl = s.ZaloUrl,
+                GoogleMapsUrl = s.GoogleMapsUrl,
+                CoverImageUrl = s.CoverImageUrl,
+                LogoUrl = s.LogoUrl,
+                FaviconUrl = s.FaviconUrl,
+                OgImageUrl = ogImageUrl,
+                MetaTitle = metaTitle,
+                MetaDescription = metaDescription,
+                CanonicalBaseUrl = s.CanonicalBaseUrl,
+                OgTitle = s.OgTitle,
+                OgDescription = s.OgDescription,
+                GoogleSiteVerification = s.GoogleSiteVerification,
+                RobotsIndex = s.RobotsIndex
+            }, allowCustomCode: false, ct);
+            _ = settings;
+            if (error is not null) ErrorMessage = error.Message;
+            else StatusMessage = "Đã lưu thông tin trang chủ.";
+        }
+        return RedirectToPage("/Admin/Site/Seo", ScopeRouteValues(resolved.IsGlobal, resolved.PropertyId));
+    }
+
+    public async Task<IActionResult> OnPostUpdatePageBasicAsync(
+        Guid? propertyId,
+        string? scope,
+        Guid pageId,
+        string? title,
+        string? seoTitle,
+        string? seoDescription,
+        string? ogImageUrl,
+        CancellationToken ct)
+    {
+        var resolved = await ResolveScopeAsync(propertyId, scope, ct);
+        if (!resolved.Allowed) return Forbid();
+        var current = await customPageStore.GetAsync(resolved.PropertyId, pageId, ct);
+        if (current is null) return NotFound();
+        var result = await customPageStore.UpdateAsync(resolved.PropertyId, pageId, new SaveCustomPageRequest
+        {
+            Title = title,
+            Slug = current.Slug,
+            IsPublished = current.IsPublished,
+            HideFromNavigation = current.HideFromNavigation,
+            SeoTitle = seoTitle,
+            SeoDescription = seoDescription,
+            OgImageUrl = ogImageUrl
+        }, ct);
+        if (result.Error is not null) ErrorMessage = result.Error.Message;
+        else StatusMessage = $"Đã lưu {result.Page?.Title ?? current.Title}.";
+        return RedirectToPage("/Admin/Site/Seo", ScopeRouteValues(resolved.IsGlobal, resolved.PropertyId));
     }
 
     public async Task<IActionResult> OnPostUpdatePageAsync(
@@ -50,9 +158,69 @@ public sealed class SeoModel(
         var resolved = await ResolveScopeAsync(propertyId, scope, ct);
         if (!resolved.Allowed) return Forbid();
         var error = await customPageStore.UpdateSeoAsync(resolved.PropertyId, pageId, noIndex, canonicalUrl, ct);
-        if (error is null) StatusMessage = "Đã cập nhật SEO của trang.";
+        if (error is null) StatusMessage = "Đã lưu cài đặt index của trang.";
         else ErrorMessage = error.Message;
         return RedirectToPage("/Admin/Site/Seo", ScopeRouteValues(resolved.IsGlobal, resolved.PropertyId));
+    }
+
+    public async Task<IActionResult> OnPostUpdateRoomAsync(
+        Guid? propertyId,
+        string? scope,
+        Guid roomId,
+        string? name,
+        string? shortDescription,
+        CancellationToken ct)
+    {
+        var resolved = await ResolveScopeAsync(propertyId, scope, ct);
+        if (!resolved.Allowed || resolved.IsGlobal || resolved.PropertyId is null) return Forbid();
+        name = Clean(name);
+        shortDescription = Clean(shortDescription);
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 200 || shortDescription.Length > 1200)
+        {
+            ErrorMessage = "Tên phòng hoặc mô tả không hợp lệ.";
+            return RedirectToPage("/Admin/Site/Seo", ScopeRouteValues(false, resolved.PropertyId));
+        }
+        var room = await db.Rooms.SingleOrDefaultAsync(x => x.Id == roomId && x.PropertyId == resolved.PropertyId.Value, ct);
+        if (room is null) return NotFound();
+        room.Name = name;
+        room.ShortDescription = string.IsNullOrWhiteSpace(shortDescription) ? null : shortDescription;
+        await db.SaveChangesAsync(ct);
+        StatusMessage = $"Đã lưu {room.Name}.";
+        return RedirectToPage("/Admin/Site/Seo", ScopeRouteValues(false, resolved.PropertyId));
+    }
+
+    public async Task<IActionResult> OnPostUpdateBlogAsync(
+        Guid? propertyId,
+        string? scope,
+        Guid postId,
+        string? title,
+        string? excerpt,
+        string? coverImageUrl,
+        CancellationToken ct)
+    {
+        var resolved = await ResolveScopeAsync(propertyId, scope, ct);
+        if (!resolved.Allowed || resolved.IsGlobal || resolved.PropertyId is null) return Forbid();
+        title = Clean(title);
+        excerpt = Clean(excerpt);
+        coverImageUrl = Clean(coverImageUrl);
+        if (string.IsNullOrWhiteSpace(title) || title.Length > 240 || excerpt.Length > 800 || coverImageUrl.Length > 1000)
+        {
+            ErrorMessage = "Tiêu đề, mô tả hoặc ảnh bài viết không hợp lệ.";
+            return RedirectToPage("/Admin/Site/Seo", ScopeRouteValues(false, resolved.PropertyId));
+        }
+        if (!IsSafeImageUrl(coverImageUrl))
+        {
+            ErrorMessage = "Ảnh bài viết phải là URL http/https hoặc đường dẫn nội bộ bắt đầu bằng /.";
+            return RedirectToPage("/Admin/Site/Seo", ScopeRouteValues(false, resolved.PropertyId));
+        }
+        var post = await db.BlogPosts.SingleOrDefaultAsync(x => x.Id == postId && x.PropertyId == resolved.PropertyId.Value, ct);
+        if (post is null) return NotFound();
+        post.Title = title;
+        post.Excerpt = excerpt;
+        post.CoverImageUrl = string.IsNullOrWhiteSpace(coverImageUrl) ? null : coverImageUrl;
+        await db.SaveChangesAsync(ct);
+        StatusMessage = $"Đã lưu {post.Title}.";
+        return RedirectToPage("/Admin/Site/Seo", ScopeRouteValues(false, resolved.PropertyId));
     }
 
     public async Task<IActionResult> OnPostRemoveRedirectAsync(
@@ -65,7 +233,7 @@ public sealed class SeoModel(
         var resolved = await ResolveScopeAsync(propertyId, scope, ct);
         if (!resolved.Allowed) return Forbid();
         var error = await customPageStore.RemoveLegacySlugAsync(resolved.PropertyId, pageId, legacySlug, ct);
-        if (error is null) StatusMessage = "Đã gỡ redirect cũ.";
+        if (error is null) StatusMessage = "Đã gỡ đường dẫn cũ.";
         else ErrorMessage = error.Message;
         return RedirectToPage("/Admin/Site/Seo", ScopeRouteValues(resolved.IsGlobal, resolved.PropertyId));
     }
@@ -86,6 +254,7 @@ public sealed class SeoModel(
         RobotsUrl = IsGlobal ? "/robots.txt" : $"{HomeUrl.TrimEnd('/')}/robots.txt";
         SettingsUrl = IsGlobal ? "/Admin/Site/Global" : $"/Admin/Site?propertyId={PropertyId}";
         PagesUrl = IsGlobal ? "/Admin/Site/Pages?scope=global" : $"/Admin/Site/Pages?propertyId={PropertyId}";
+        BlogAdminUrl = IsGlobal ? "/Admin/Site/Editorial?tab=blog" : $"/Admin/Site/Editorial?propertyId={PropertyId}&tab=blog";
 
         string metaTitle;
         string metaDescription;
@@ -147,6 +316,50 @@ public sealed class SeoModel(
             ToUrl = page.Url,
             PageTitle = page.Title
         })).OrderBy(x => x.FromUrl, StringComparer.OrdinalIgnoreCase).ToList();
+
+        if (!IsGlobal && PropertyId.HasValue)
+        {
+            var propertyIdValue = PropertyId.Value;
+            var roomRows = await db.Rooms.AsNoTracking()
+                .Where(x => x.PropertyId == propertyIdValue && x.IsActive)
+                .OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
+                .Select(x => new
+                {
+                    x.Id, x.Name, x.Code, x.Slug, x.ShortDescription, x.IsPublished,
+                    HasImage = x.Images.Any(),
+                    HasCover = x.Images.Any(i => i.IsCover)
+                }).ToListAsync(ct);
+            Rooms = roomRows.Select(room => new SeoRoomAuditVm
+            {
+                Id = room.Id,
+                Name = room.Name,
+                Code = room.Code,
+                Url = PublicUrlBuilder.Room(SiteSlug, string.IsNullOrWhiteSpace(room.Slug) ? room.Code : room.Slug),
+                EditUrl = $"/Admin/Rooms/{room.Id}/Content?propertyId={propertyIdValue}",
+                IsPublished = room.IsPublished,
+                ShortDescription = room.ShortDescription ?? string.Empty,
+                HasDescription = !string.IsNullOrWhiteSpace(room.ShortDescription),
+                HasImage = room.HasImage,
+                HasCover = room.HasCover
+            }).ToList();
+
+            var postRows = await db.BlogPosts.AsNoTracking()
+                .Where(x => x.PropertyId == propertyIdValue)
+                .OrderByDescending(x => x.IsPublished).ThenByDescending(x => x.PublishedAtUtc).ThenBy(x => x.Title)
+                .Select(x => new { x.Id, x.Title, x.Slug, x.Excerpt, x.CoverImageUrl, x.IsPublished })
+                .ToListAsync(ct);
+            BlogPosts = postRows.Select(post => new SeoBlogAuditVm
+            {
+                Id = post.Id,
+                Title = post.Title,
+                Url = $"/h/{Uri.EscapeDataString(SiteSlug)}/blog/{Uri.EscapeDataString(post.Slug)}",
+                IsPublished = post.IsPublished,
+                Excerpt = post.Excerpt,
+                CoverImageUrl = post.CoverImageUrl ?? string.Empty,
+                HasDescription = !string.IsNullOrWhiteSpace(post.Excerpt),
+                HasImage = !string.IsNullOrWhiteSpace(post.CoverImageUrl)
+            }).ToList();
+        }
         return true;
     }
 
@@ -166,6 +379,15 @@ public sealed class SeoModel(
     private static object ScopeRouteValues(bool global, Guid? propertyId) => global
         ? new { scope = "global" }
         : new { propertyId };
+
+    private static string Clean(string? value) => (value ?? string.Empty).Trim();
+    private static bool IsSafeImageUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return true;
+        var url = value.Trim();
+        if (url.StartsWith("/", StringComparison.Ordinal) && !url.StartsWith("//", StringComparison.Ordinal)) return true;
+        return Uri.TryCreate(url, UriKind.Absolute, out var absolute) && absolute.Scheme is "http" or "https";
+    }
 
     private sealed record ScopeResolution(bool Allowed, bool IsGlobal, Guid? PropertyId, string ScopeName, string SiteSlug);
 }
@@ -199,6 +421,34 @@ public sealed class SeoPageAuditVm
     public string OgImageUrl { get; init; } = string.Empty;
     public int RedirectCount { get; init; }
     public int IssueCount => (HasTitle ? 0 : 1) + (HasDescription ? 0 : 1) + (HasOgImage ? 0 : 1);
+}
+
+public sealed class SeoRoomAuditVm
+{
+    public Guid Id { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string Code { get; init; } = string.Empty;
+    public string Url { get; init; } = string.Empty;
+    public string EditUrl { get; init; } = string.Empty;
+    public bool IsPublished { get; init; }
+    public string ShortDescription { get; init; } = string.Empty;
+    public bool HasDescription { get; init; }
+    public bool HasImage { get; init; }
+    public bool HasCover { get; init; }
+    public int IssueCount => (HasDescription ? 0 : 1) + (HasImage ? 0 : 1);
+}
+
+public sealed class SeoBlogAuditVm
+{
+    public Guid Id { get; init; }
+    public string Title { get; init; } = string.Empty;
+    public string Url { get; init; } = string.Empty;
+    public bool IsPublished { get; init; }
+    public string Excerpt { get; init; } = string.Empty;
+    public string CoverImageUrl { get; init; } = string.Empty;
+    public bool HasDescription { get; init; }
+    public bool HasImage { get; init; }
+    public int IssueCount => (HasDescription ? 0 : 1) + (HasImage ? 0 : 1);
 }
 
 public sealed class SeoRedirectVm
