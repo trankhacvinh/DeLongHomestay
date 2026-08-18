@@ -17,6 +17,7 @@
     const categoryLabels = {
         all: 'Tất cả',
         system: 'Trang hệ thống',
+        page: 'Trang nội dung',
         room: 'Phòng',
         post: 'Bài viết',
         anchor: 'Trong trang'
@@ -125,6 +126,21 @@
             const context = await getContext();
             if (!context) return [];
             const extras = [];
+
+            try {
+                const pageResult = await DeLongApi.get(`/api/public/site-pages${siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : ''}`);
+                (Array.isArray(pageResult?.pages) ? pageResult.pages : []).slice(0, 100).forEach(page => {
+                    if (!page?.url || !page?.title) return;
+                    extras.push({
+                        kind: 'page',
+                        label: page.title,
+                        detail: page.url,
+                        url: page.url,
+                        source: page.url,
+                        icon: '▤'
+                    });
+                });
+            } catch { }
 
             const rooms = Array.isArray(context.rooms) ? context.rooms.slice(0, 100) : [];
             const roomResults = await Promise.allSettled(rooms.map(resolveRoomDestination));
@@ -235,7 +251,7 @@
         if (!indexed.length) {
             container.innerHTML = '<div class="pve-link-empty">Không tìm thấy liên kết phù hợp.</div>';
         } else {
-            const groups = activeCategory === 'all' ? ['system', 'room', 'post', 'anchor'] : [activeCategory];
+            const groups = activeCategory === 'all' ? ['system', 'page', 'room', 'post', 'anchor'] : [activeCategory];
             container.innerHTML = groups.map(kind => {
                 const groupItems = indexed.filter(x => x.item.kind === kind);
                 if (!groupItems.length) return '';
@@ -266,11 +282,12 @@
                 <nav class="pve-link-categories" aria-label="Loại liên kết">
                     <button type="button" class="active" data-link-category="all">Tất cả <span>0</span></button>
                     <button type="button" data-link-category="system">Hệ thống <span>0</span></button>
+                    <button type="button" data-link-category="page">Trang <span>0</span></button>
                     <button type="button" data-link-category="room">Phòng <span>0</span></button>
                     <button type="button" data-link-category="post">Bài viết <span>0</span></button>
                     <button type="button" data-link-category="anchor">Trong trang <span>0</span></button>
                 </nav>
-                <div class="pve-link-progress" data-link-loading hidden>Đang tải thêm phòng và bài viết…</div>
+                <div class="pve-link-progress" data-link-loading hidden>Đang tải thêm trang, phòng và bài viết…</div>
                 <div class="pve-link-dialog-results" data-link-destinations></div>
             </div>
             <footer>
