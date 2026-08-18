@@ -333,6 +333,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 app.MapRazorPages();
 app.MapPropertyAdminEndpoints();
 app.MapSiteContentEndpoints();
+app.MapPublicShellDesignerEndpoints();
 app.MapPropertyEditorialContentEndpoints();
 app.MapMediaLibraryEndpoints();
 app.MapPublicSeoEndpoints();
