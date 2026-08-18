@@ -97,6 +97,7 @@
         addScript('data-public-row-inline-ui', '/js/pages/public-row-inline-ui.js?v=20260818-1');
         addScript('data-public-row-inline-bindings', '/js/pages/public-row-inline-bindings.js?v=20260818-1');
         addScript('data-public-row-advanced-elements', '/js/pages/public-row-advanced-elements.js?v=20260818-1');
+        addScript('data-public-row-advanced-runtime', '/js/pages/public-row-advanced-runtime.js?v=20260818-1');
         addScript('data-public-inline-editor', '/js/pages/public-inline-editor.js?v=20260817-1');
     }
 })(window);
