@@ -26,9 +26,9 @@
     }
 }
 @section Head {
-    <meta name="delong-custom-page-id" content="@page.Id" />
-    <meta name="delong-custom-page-slug" content="@page.Slug" />
-    <meta name="delong-custom-page-title" content="@page.Title" />
+    <meta name="delong-custom-page-id" content="@(page.Id)" />
+    <meta name="delong-custom-page-slug" content="@(page.Slug)" />
+    <meta name="delong-custom-page-title" content="@(page.Title)" />
     <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/public-room-content.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/homepage-cms.css" asp-append-version="true" />
@@ -151,5 +151,5 @@
 
 @if (page.Sections.Count == 0)
 {
-    <div class="public-container public-custom-page-empty"><span>TRANG NỘI DUNG</span><h1>@page.Title</h1>@if (User.Identity?.IsAuthenticated == true) { <p>Bật “Chỉnh sửa trang” để thêm khối đầu tiên.</p> }</div>
+    <div class="public-container public-custom-page-empty"><span>TRANG NỘI DUNG</span><h1>@(page.Title)</h1>@if (User.Identity?.IsAuthenticated == true) { <p>Bật “Chỉnh sửa trang” để thêm khối đầu tiên.</p> }</div>
 }
