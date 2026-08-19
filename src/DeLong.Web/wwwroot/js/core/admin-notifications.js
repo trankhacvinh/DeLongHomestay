@@ -2,7 +2,7 @@
     const center = document.querySelector('[data-notification-center]');
     if (!window.DeLongApi) return;
 
-    const pageDataNode = document.getElementById('calendar-page-data') || document.getElementById('bookings-page-data');
+    const pageDataNode = document.getElementById('calendar-page-data') || document.getElementById('bookings-page-data') || document.getElementById('housekeeping-page-data');
     const pageData = (() => {
         try { return JSON.parse(pageDataNode?.textContent || '{}'); }
         catch { return {}; }
