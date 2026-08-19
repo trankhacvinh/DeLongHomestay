@@ -39,11 +39,29 @@
     global.DeLongApi = {
         get: (url) => request(url),
         post: (url, data, headers) => request(url, { method: 'POST', headers: headers || {}, body: JSON.stringify(data) }),
-        postForm: (url, formData) => request(url, { method: 'POST', body: formData }),
+        postForm: (url, formData, headers) => request(url, { method: 'POST', headers: headers || {}, body: formData }),
         put: (url, data) => request(url, { method: 'PUT', body: JSON.stringify(data) }),
         patch: (url, data) => request(url, { method: 'PATCH', body: JSON.stringify(data) }),
         delete: (url) => request(url, { method: 'DELETE' })
     };
+
+    function appendStyle(marker, href) {
+        if (document.querySelector(`link[${marker}]`)) return;
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        link.setAttribute(marker, 'true');
+        document.head.appendChild(link);
+    }
+
+    function appendScript(marker, src) {
+        if (document.querySelector(`script[${marker}]`)) return;
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = false;
+        script.setAttribute(marker, 'true');
+        document.head.appendChild(script);
+    }
 
     if (document.body?.classList.contains('admin-body')) {
         if (!document.querySelector('link[data-admin-sidebar-quick-links]')) {
@@ -60,26 +78,14 @@
             script.dataset.adminSidebarQuickLinks = 'true';
             document.head.appendChild(script);
         }
+        appendStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-1');
+        appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260819-1');
+        appendScript('data-admin-booking-identity', '/js/pages/admin-booking-identity.js?v=20260819-1');
     }
 
     if (document.body?.classList.contains('public-body')) {
-        function addStyle(marker, href) {
-            if (document.querySelector(`link[${marker}]`)) return;
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = href;
-            link.setAttribute(marker, 'true');
-            document.head.appendChild(link);
-        }
-
-        function addScript(marker, src) {
-            if (document.querySelector(`script[${marker}]`)) return;
-            const script = document.createElement('script');
-            script.src = src;
-            script.async = false;
-            script.setAttribute(marker, 'true');
-            document.head.appendChild(script);
-        }
+        function addStyle(marker, href) { appendStyle(marker, href); }
+        function addScript(marker, src) { appendScript(marker, src); }
 
         addStyle('data-public-row-builder', '/css/public-row-builder.css?v=20260817-2');
         addStyle('data-public-row-responsive', '/css/public-row-responsive.css?v=20260817-1');
@@ -103,6 +109,7 @@
         addStyle('data-public-custom-pages', '/css/public-custom-pages.css?v=20260818-1');
         addStyle('data-public-custom-page-element-style', '/css/public-custom-page-element-style.css?v=20260818-3');
         addStyle('data-public-editor-stabilization', '/css/public-editor-stabilization.css?v=20260818-1');
+        addStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-1');
 
         addScript('data-public-shell-runtime', '/js/pages/public-shell-runtime.js?v=20260817-2');
         addScript('data-public-shell-designer-runtime', '/js/pages/public-shell-designer-runtime.js?v=20260818-1');
@@ -132,5 +139,6 @@
         addScript('data-public-toolbar-compact', '/js/pages/public-toolbar-compact.js?v=20260818-1');
         addScript('data-public-header-footer-designer', '/js/pages/public-header-footer-designer.js?v=20260818-1');
         addScript('data-public-footer-inline-editor', '/js/pages/public-footer-inline-editor.js?v=20260818-1');
+        addScript('data-public-booking-core-v2', '/js/pages/public-booking-core-v2.js?v=20260819-1');
     }
 })(window);
