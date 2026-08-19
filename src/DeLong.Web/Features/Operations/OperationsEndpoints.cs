@@ -1,5 +1,8 @@
 using System.Text.Json;
+using DeLong.Web.Common.Operations;
 using DeLong.Web.Common.Security;
+using DeLong.Web.Data;
+using DeLong.Web.Features.Site;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DeLong.Web.Features.Operations;
@@ -20,7 +23,9 @@ public static class OperationsEndpoints
             Guid roomId,
             [FromQuery] string from,
             [FromQuery] int? days,
-            AvailabilityIntervalService service,
+            AppDbContext db,
+            PublicPropertyResolver resolver,
+            StoragePaths storagePaths,
             CancellationToken cancellationToken) =>
         {
             if (!DateOnly.TryParse(from, out var startDate))
@@ -29,6 +34,7 @@ public static class OperationsEndpoints
                     ["from"] = ["Ngày bắt đầu không hợp lệ."]
                 });
 
+            var service = new AvailabilityIntervalService(db, resolver, storagePaths);
             var result = await service.GetAdminAsync(
                 propertyId,
                 roomId,
@@ -43,7 +49,9 @@ public static class OperationsEndpoints
             [FromQuery] string from,
             [FromQuery] int? days,
             [FromQuery] string? siteSlug,
-            AvailabilityIntervalService service,
+            AppDbContext db,
+            PublicPropertyResolver resolver,
+            StoragePaths storagePaths,
             CancellationToken cancellationToken) =>
         {
             if (roomId == Guid.Empty)
@@ -57,6 +65,7 @@ public static class OperationsEndpoints
                     ["from"] = ["Ngày bắt đầu không hợp lệ."]
                 });
 
+            var service = new AvailabilityIntervalService(db, resolver, storagePaths);
             var result = await service.GetPublicAsync(
                 siteSlug,
                 roomId,
@@ -72,7 +81,6 @@ public static class OperationsEndpoints
     private static async Task StreamAsync(
         HttpContext context,
         Guid propertyId,
-        OperationsRealtimeBroker broker,
         CancellationToken cancellationToken)
     {
         context.Response.StatusCode = StatusCodes.Status200OK;
@@ -82,7 +90,7 @@ public static class OperationsEndpoints
         await context.Response.WriteAsync("retry: 2000\n\n", cancellationToken);
         await context.Response.Body.FlushAsync(cancellationToken);
 
-        using var subscription = broker.Subscribe(propertyId);
+        using var subscription = OperationsRealtimeBroker.Shared.Subscribe(propertyId);
         var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         while (!cancellationToken.IsCancellationRequested)
         {
