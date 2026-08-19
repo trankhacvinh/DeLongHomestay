@@ -105,10 +105,10 @@
             document.head.appendChild(script);
         }
         appendStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-5');
-        appendStyle('data-admin-booking-guest-details', '/css/admin-booking-guest-details.css?v=20260819-2');
+        appendStyle('data-admin-booking-guest-details', '/css/admin-booking-guest-details.css?v=20260819-3');
         afterWindowLoad(() => {
             appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260819-5');
-            appendScript('data-admin-booking-identity', '/js/pages/admin-booking-identity.js?v=20260819-5');
+            appendScript('data-admin-booking-identity', '/js/pages/admin-booking-identity.js?v=20260819-6');
             if (document.getElementById('calendar-page'))
                 appendScript('data-admin-calendar-realtime', '/js/pages/admin-calendar-realtime.js?v=20260819-1');
         });
