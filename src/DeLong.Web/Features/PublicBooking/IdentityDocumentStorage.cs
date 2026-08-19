@@ -21,21 +21,34 @@ public sealed class IdentityDocumentStorage
     private const long MaxBytes = 8L * 1024 * 1024;
     private const int NonceSize = 12;
     private const int TagSize = 16;
+    private const int MasterKeyBytes = 32;
     private static readonly byte[] Magic = Encoding.ASCII.GetBytes("DLID1");
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
     private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase) { "image/jpeg", "image/png", "image/webp" };
 
     private readonly string root;
+    private readonly string masterKeyPath;
     private readonly byte[]? key;
 
     public IdentityDocumentStorage(StoragePaths paths, IConfiguration configuration)
     {
         root = Path.Combine(paths.DataRoot, "private", "identity-documents");
-        key = ParseKey(configuration["Security:IdentityDocumentEncryptionKeyBase64"]);
-        Directory.CreateDirectory(root);
+        masterKeyPath = Path.Combine(paths.DataRoot, "security", "identity-master.key");
+        try
+        {
+            Directory.CreateDirectory(root);
+            key = LoadOrCreateMasterKey(
+                masterKeyPath,
+                root,
+                configuration["Security:IdentityDocumentEncryptionKeyBase64"]);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
+        {
+            key = null;
+        }
     }
 
-    public bool IsConfigured => key is { Length: 32 };
+    public bool IsConfigured => key is { Length: MasterKeyBytes };
 
     public async Task<(IdentityDocumentInfo? Document, string? Error)> SaveAsync(
         Guid propertyId,
@@ -44,7 +57,7 @@ public sealed class IdentityDocumentStorage
         IFormFile file,
         CancellationToken cancellationToken = default)
     {
-        if (!IsConfigured) return (null, "Storage CCCD chưa có khóa mã hóa.");
+        if (!IsConfigured) return (null, "Kho CCCD không thể khởi tạo khóa mã hóa. Hãy kiểm tra quyền ghi DataRoot hoặc khôi phục DataRoot đầy đủ từ bản sao lưu.");
         var normalizedSide = NormalizeSide(side);
         if (normalizedSide is null) return (null, "Mặt giấy tờ không hợp lệ.");
         if (file.Length <= 0) return (null, "Ảnh CCCD trống.");
@@ -158,8 +171,83 @@ public sealed class IdentityDocumentStorage
         return Path.Combine(DirectoryFor(propertyId, bookingId), normalizedSide + ".dlid");
     }
 
+    public string GetMasterKeyPathForDiagnostics() => masterKeyPath;
+
     private string DirectoryFor(Guid propertyId, Guid bookingId) =>
         Path.Combine(root, propertyId.ToString("N"), bookingId.ToString("N"));
+
+    private static byte[]? LoadOrCreateMasterKey(string path, string identityRoot, string? legacyConfiguredKey)
+    {
+        var legacyKey = ParseKey(legacyConfiguredKey);
+        var directory = Path.GetDirectoryName(path)!;
+        try
+        {
+            Directory.CreateDirectory(directory);
+            if (File.Exists(path)) return ReadMasterKey(path);
+
+            // Never silently generate a replacement key when encrypted CCCD already exists.
+            // In that situation the operator must restore the missing DataRoot/security key file,
+            // or keep the legacy external key configured long enough for it to be persisted here.
+            if (legacyKey is null && HasEncryptedDocuments(identityRoot)) return null;
+
+            var candidate = legacyKey ?? RandomNumberGenerator.GetBytes(MasterKeyBytes);
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+                {
+                    stream.Write(candidate, 0, candidate.Length);
+                    stream.Flush(true);
+                }
+                RestrictKeyPermissions(path);
+                return candidate;
+            }
+            catch (IOException) when (File.Exists(path))
+            {
+                CryptographicOperations.ZeroMemory(candidate);
+                return ReadMasterKey(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Backward compatibility for a deployment that already supplied the old secret:
+                // continue using it even when this filesystem cannot persist the convenience key.
+                if (legacyKey is not null) return legacyKey;
+                CryptographicOperations.ZeroMemory(candidate);
+                return null;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
+        {
+            return legacyKey;
+        }
+    }
+
+    private static byte[]? ReadMasterKey(string path)
+    {
+        var value = File.ReadAllBytes(path);
+        if (value.Length == MasterKeyBytes) return value;
+        CryptographicOperations.ZeroMemory(value);
+        return null;
+    }
+
+    private static bool HasEncryptedDocuments(string identityRoot)
+    {
+        if (!Directory.Exists(identityRoot)) return false;
+        return Directory.EnumerateFiles(identityRoot, "*.dlid", SearchOption.AllDirectories).Any();
+    }
+
+    private static void RestrictKeyPermissions(string path)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        try
+        {
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            // Some mounted filesystems do not expose Unix chmod semantics. The key remains under
+            // private DataRoot; deployment-level directory permissions still apply.
+        }
+    }
 
     private static byte[]? ParseKey(string? raw)
     {
@@ -167,7 +255,7 @@ public sealed class IdentityDocumentStorage
         try
         {
             var value = Convert.FromBase64String(raw.Trim());
-            return value.Length == 32 ? value : null;
+            return value.Length == MasterKeyBytes ? value : null;
         }
         catch (FormatException)
         {
