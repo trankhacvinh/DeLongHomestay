@@ -31,6 +31,8 @@ public sealed record OperationsRealtimeEvent(
 
 public sealed class OperationsRealtimeBroker
 {
+    public static OperationsRealtimeBroker Shared { get; } = new();
+
     private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<Guid, Channel<OperationsRealtimeEvent>>> subscriptions = new();
 
     public Subscription Subscribe(Guid propertyId)
