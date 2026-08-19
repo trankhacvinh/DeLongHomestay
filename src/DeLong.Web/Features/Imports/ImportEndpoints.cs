@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using DeLong.Web.Common.Security;
+using DeLong.Web.Features.Operations;
 
 namespace DeLong.Web.Features.Imports;
 
@@ -35,7 +36,13 @@ public static class ImportEndpoints
             var file = await ReadFileAsync(request, cancellationToken);
             if (file is null) return Problem("file_empty", "Vui lòng chọn file Excel.", 400);
             var (result, error) = await service.ImportAsync(propertyId, file, GetUserId(user), cancellationToken);
-            if (error is null) return Results.Ok(result);
+            if (error is null)
+            {
+                OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
+                    propertyId,
+                    OperationsEventTypes.BookingBulkChanged));
+                return Results.Ok(result);
+            }
             var status = error.Code is "booking_conflict" ? 409 : 400;
             return Problem(error.Code, error.Message, status);
         })
