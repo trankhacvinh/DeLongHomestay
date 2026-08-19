@@ -12,18 +12,25 @@
 
     function ensureBookingLiveScript() {
         if (!document.getElementById('calendar-page') && !document.getElementById('bookings-page')) return;
-        if (document.querySelector('script[data-admin-booking-live]')) return;
+        if (document.querySelector('script[data-admin-booking-live-v2]')) return;
         const script = document.createElement('script');
-        script.src = '/js/core/admin-booking-live.js?v=20260819-1';
+        script.src = '/js/core/admin-booking-live-v2.js?v=20260819-1';
         script.async = false;
-        script.dataset.adminBookingLive = 'true';
+        script.dataset.adminBookingLiveV2 = 'true';
+        script.addEventListener('error', () => {
+            console.error('Không tải được admin-booking-live-v2.js');
+        });
         document.head.appendChild(script);
     }
 
-    // This file is included directly by the admin layout and is already proven to receive the
-    // notification SSE stream. Load booking live behavior from here instead of relying on the
-    // late asset enhancer used by PR #48.
-    ensureBookingLiveScript();
+    function scheduleBookingLiveScript() {
+        // Calendar/Bookings mount Vue from their own @section Scripts, which is rendered after this file.
+        // Load the booking bridge only after window.load so it always binds to the mounted page app.
+        if (document.readyState === 'complete') setTimeout(ensureBookingLiveScript, 0);
+        else window.addEventListener('load', ensureBookingLiveScript, { once: true });
+    }
+
+    scheduleBookingLiveScript();
 
     if (!center) return;
 
