@@ -9,6 +9,8 @@ namespace DeLong.Web.Features.PublicBooking;
 
 public static class BookingCoreV2Endpoints
 {
+    private const string IdentityStorageUnavailable = "Kho CCCD không thể đọc hoặc tạo khóa mã hóa trong DataRoot. Hãy kiểm tra quyền DataRoot/security hoặc khôi phục DataRoot đầy đủ từ bản sao lưu.";
+
     public static void MapBookingCoreV2Endpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/public/booking-policy", async (
@@ -57,7 +59,7 @@ public static class BookingCoreV2Endpoints
 
             var storage = new IdentityDocumentStorage(paths, configuration);
             if (!storage.IsConfigured)
-                return Problem("identity_storage_unavailable", "Storage CCCD chưa có khóa mã hóa.", StatusCodes.Status503ServiceUnavailable);
+                return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
             var (document, error) = await storage.SaveAsync(property.Id, bookingId, side, file, cancellationToken);
             return error is null
                 ? Results.Ok(document)
@@ -108,7 +110,7 @@ public static class BookingCoreV2Endpoints
                 return Results.NotFound();
             var storage = new IdentityDocumentStorage(paths, configuration);
             if (!storage.IsConfigured)
-                return Problem("identity_storage_unavailable", "Storage CCCD chưa có khóa mã hóa.", StatusCodes.Status503ServiceUnavailable);
+                return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
             var documents = await storage.ListAsync(propertyId, bookingId, cancellationToken);
             return Results.Ok(new { configured = true, documents });
         });
@@ -127,7 +129,7 @@ public static class BookingCoreV2Endpoints
                 return Results.NotFound();
             var storage = new IdentityDocumentStorage(paths, configuration);
             if (!storage.IsConfigured)
-                return Problem("identity_storage_unavailable", "Storage CCCD chưa có khóa mã hóa.", StatusCodes.Status503ServiceUnavailable);
+                return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
             IdentityDocumentReadResult? document;
             try
             {
@@ -135,7 +137,7 @@ public static class BookingCoreV2Endpoints
             }
             catch (System.Security.Cryptography.CryptographicException)
             {
-                return Problem("identity_document_corrupt", "Không thể giải mã ảnh CCCD. Vui lòng kiểm tra khóa mã hóa và file lưu trữ.", StatusCodes.Status500InternalServerError);
+                return Problem("identity_document_corrupt", "Không thể giải mã ảnh CCCD. Vui lòng kiểm tra file lưu trữ và master key trong DataRoot/security.", StatusCodes.Status500InternalServerError);
             }
             if (document is null) return Results.NotFound();
             httpContext.Response.Headers.CacheControl = "private,no-store,max-age=0";
