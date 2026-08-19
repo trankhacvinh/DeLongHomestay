@@ -2,6 +2,7 @@ using System.Text.Json;
 using DeLong.Web.Common.Operations;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Enums;
+using DeLong.Web.Features.Operations;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicBooking;
@@ -69,6 +70,11 @@ public sealed class PublicBookingHoldStore(StoragePaths paths)
             booking.Status = BookingStatus.Requested;
             await db.SaveChangesAsync(cancellationToken);
             TryDelete(path);
+            OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
+                propertyId,
+                OperationsEventTypes.BookingHoldExpired,
+                booking.Id,
+                booking.RoomId));
         }
     }
 
