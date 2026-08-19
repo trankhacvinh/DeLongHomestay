@@ -58,6 +58,12 @@ public sealed class PublicBookingRequest
     public string CheckOutDate { get; init; } = string.Empty;
     public string CustomerName { get; init; } = string.Empty;
     public string CustomerPhone { get; init; } = string.Empty;
+    public string CustomerEmail { get; init; } = string.Empty;
+    public int GuestCount { get; init; } = 1;
+    public bool PolicyAccepted { get; init; }
+    public int PolicyVersion { get; init; }
+    public bool HasIdentityFront { get; init; }
+    public bool HasIdentityBack { get; init; }
     public string? Note { get; init; }
     public string? Website { get; init; }
 }
@@ -71,6 +77,7 @@ public sealed record PublicBookingResult(
     int? NightCount,
     DateTime CheckInUtc,
     DateTime CheckOutUtc,
-    decimal TotalAmount);
+    decimal TotalAmount,
+    DateTime? HoldExpiresAtUtc = null);
 
 public sealed record PublicBookingError(string Code, string Message);
