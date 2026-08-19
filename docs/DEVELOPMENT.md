@@ -43,6 +43,8 @@ Sau khi đặt một lần, cùng browser có thể tiếp tục dùng auth/Data
 
 ## Cache khi phát triển
 
+### Browser/static asset cache
+
 Trong `Development`, toàn bộ static asset do ASP.NET Core phục vụ (JS, CSS, ảnh trong `wwwroot` và room media public) trả:
 
 ```text
@@ -57,6 +59,12 @@ Vì vậy khi sửa JS/CSS local **không cần tăng `?v=...`, đổi trình du
 Có thể kiểm tra trong DevTools → Network → chọn một file `.js`/`.css` → Response Headers. Header `X-DeLong-Cache-Policy: development-no-store` xác nhận app đang chạy cache policy development mới.
 
 Nếu browser đang giữ một asset `immutable` từ một build cũ trước thay đổi này, chỉ cần hard refresh một lần sau khi lấy code mới. Các response static sau đó sẽ không còn được lưu lại ở Development.
+
+### Public read cache phía server
+
+FusionCache cho dữ liệu public **tắt mặc định trong `Development`**. Khi code/UAT, các lần đọc public đi thẳng database nên không có khoảng stale do server cache. Production vẫn bật cache mặc định như trước.
+
+Khi cần test behavior cache ở local có thể chủ động đặt `Performance:PublicCacheEnabled=true` bằng User Secrets. Xóa override đó để quay về mặc định Development.
 
 ## Migration
 
