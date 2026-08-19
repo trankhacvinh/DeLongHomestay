@@ -10,6 +10,83 @@
     const propertyId = center?.dataset.propertyId || pageData.propertyId;
     if (!propertyId) return;
 
+    const calendarRoot = document.getElementById('calendar-page');
+    let calendarRefreshInFlight = false;
+    let calendarRefreshQueued = false;
+    let calendarPollTimer = null;
+    const calendarRetryTimers = new Set();
+
+    function addDays(key, amount) {
+        const [year, month, day] = String(key || '').split('-').map(Number);
+        if (!year || !month || !day) return '';
+        const date = new Date(Date.UTC(year, month - 1, day));
+        date.setUTCDate(date.getUTCDate() + amount);
+        return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+    }
+
+    function calendarVm() {
+        return calendarRoot?.__vue_app__?._instance?.proxy || null;
+    }
+
+    async function refreshCalendarBookings(reason, mountAttempt = 0) {
+        if (!calendarRoot) return;
+        const vm = calendarVm();
+        if (!vm) {
+            if (mountAttempt >= 8) return;
+            const timer = setTimeout(() => {
+                calendarRetryTimers.delete(timer);
+                refreshCalendarBookings(reason, mountAttempt + 1);
+            }, 125 * (mountAttempt + 1));
+            calendarRetryTimers.add(timer);
+            return;
+        }
+        if (calendarRefreshInFlight) {
+            calendarRefreshQueued = true;
+            return;
+        }
+
+        const startDate = vm.startDate || pageData.startDate;
+        const endDate = addDays(startDate, 7);
+        if (!startDate || !endDate) return;
+        const utcOffset = pageData.utcOffset || '+07:00';
+        const query = new URLSearchParams({
+            from: `${startDate}T00:00:00${utcOffset}`,
+            to: `${endDate}T00:00:00${utcOffset}`
+        });
+
+        calendarRefreshInFlight = true;
+        try {
+            const rows = await DeLongApi.get(`/api/admin/properties/${propertyId}/bookings?${query}`);
+            const bookings = Array.isArray(rows) ? rows : [];
+            if (Array.isArray(vm.bookings)) vm.bookings.splice(0, vm.bookings.length, ...bookings);
+            else vm.bookings = bookings;
+
+            if (vm.selectedBooking?.id) {
+                const latest = bookings.find(item => item.id === vm.selectedBooking.id);
+                if (latest) vm.selectedBooking = latest;
+            }
+            document.documentElement.dataset.calendarRealtime = reason || 'reconciled';
+        } catch {
+            // SSE reconnect, focus and fallback polling will reconcile again.
+        } finally {
+            calendarRefreshInFlight = false;
+            if (calendarRefreshQueued) {
+                calendarRefreshQueued = false;
+                setTimeout(() => refreshCalendarBookings('queued'), 0);
+            }
+        }
+    }
+
+    function scheduleCalendarReconcile(reason) {
+        if (!calendarRoot) return;
+        refreshCalendarBookings(reason);
+        const timer = setTimeout(() => {
+            calendarRetryTimers.delete(timer);
+            refreshCalendarBookings(`${reason}-settled`);
+        }, 650);
+        calendarRetryTimers.add(timer);
+    }
+
     function bookingLiveAssetUrl() {
         const base = '/js/core/admin-booking-live-v2.js?v=20260820-1';
         const host = String(window.location.hostname || '').toLowerCase();
@@ -56,6 +133,7 @@
                 document.dispatchEvent(new CustomEvent('delong:booking-notification', {
                     detail: { propertyId, operations: detail }
                 }));
+                scheduleCalendarReconcile('operations');
             }
         });
         source.addEventListener('open', () => {
@@ -63,6 +141,7 @@
             const detail = { propertyId, type: 'stream.reconnected' };
             document.dispatchEvent(new CustomEvent('delong:operations-change', { detail }));
             document.dispatchEvent(new CustomEvent('delong:booking-notification', { detail }));
+            scheduleCalendarReconcile('reconnected');
         });
         source.addEventListener('error', () => {
             document.documentElement.dataset.operationsRealtime = 'reconnecting';
@@ -72,6 +151,20 @@
 
     scheduleBookingLiveScript();
     startOperationsRealtime();
+
+    if (calendarRoot) {
+        window.addEventListener('focus', () => refreshCalendarBookings('focus'));
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) refreshCalendarBookings('visible');
+        });
+        calendarPollTimer = setInterval(() => {
+            if (!document.hidden) refreshCalendarBookings('fallback-poll');
+        }, 15000);
+        window.addEventListener('beforeunload', () => {
+            if (calendarPollTimer) clearInterval(calendarPollTimer);
+            calendarRetryTimers.forEach(clearTimeout);
+        }, { once: true });
+    }
 
     if (!center) return;
 
