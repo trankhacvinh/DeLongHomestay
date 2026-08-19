@@ -1,4 +1,15 @@
 (function (global) {
+    function firstValidationMessage(payload) {
+        if (!payload || typeof payload !== 'object' || !payload.errors || typeof payload.errors !== 'object') return null;
+        for (const value of Object.values(payload.errors)) {
+            const items = Array.isArray(value) ? value : [value];
+            for (const item of items) {
+                if (typeof item === 'string' && item.trim()) return item.trim();
+            }
+        }
+        return null;
+    }
+
     async function request(url, options) {
         const config = Object.assign({ method: 'GET', credentials: 'same-origin' }, options || {});
         config.headers = Object.assign({ Accept: 'application/json' }, config.headers || {});
@@ -27,7 +38,8 @@
 
         if (!response.ok) {
             const objectPayload = payload && typeof payload === 'object' ? payload : null;
-            const message = objectPayload?.detail || objectPayload?.title || payload || `HTTP ${response.status}`;
+            const validationMessage = firstValidationMessage(objectPayload);
+            const message = objectPayload?.detail || validationMessage || objectPayload?.title || payload || `HTTP ${response.status}`;
             const error = new Error(message);
             error.status = response.status;
             error.problem = objectPayload;
@@ -83,7 +95,7 @@
             script.dataset.adminSidebarQuickLinks = 'true';
             document.head.appendChild(script);
         }
-        appendStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-2');
+        appendStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-4');
         afterWindowLoad(() => {
             appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260819-3');
             appendScript('data-admin-booking-identity', '/js/pages/admin-booking-identity.js?v=20260819-3');
@@ -116,7 +128,7 @@
         addStyle('data-public-custom-pages', '/css/public-custom-pages.css?v=20260818-1');
         addStyle('data-public-custom-page-element-style', '/css/public-custom-page-element-style.css?v=20260818-3');
         addStyle('data-public-editor-stabilization', '/css/public-editor-stabilization.css?v=20260818-1');
-        addStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-2');
+        addStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-4');
 
         addScript('data-public-shell-runtime', '/js/pages/public-shell-runtime.js?v=20260817-2');
         addScript('data-public-shell-designer-runtime', '/js/pages/public-shell-designer-runtime.js?v=20260818-1');
@@ -146,6 +158,6 @@
         addScript('data-public-toolbar-compact', '/js/pages/public-toolbar-compact.js?v=20260818-1');
         addScript('data-public-header-footer-designer', '/js/pages/public-header-footer-designer.js?v=20260818-1');
         addScript('data-public-footer-inline-editor', '/js/pages/public-footer-inline-editor.js?v=20260818-1');
-        afterWindowLoad(() => addScript('data-public-booking-core-v2', '/js/pages/public-booking-core-v2.js?v=20260819-2'));
+        afterWindowLoad(() => addScript('data-public-booking-core-v2', '/js/pages/public-booking-core-v2.js?v=20260819-4'));
     }
 })(window);

@@ -16,7 +16,9 @@
         back: null,
         frontUrl: '',
         backUrl: '',
-        restored: false
+        restored: false,
+        selectionSignature: '',
+        baseTotal: 0
     };
 
     function money(value) {
@@ -62,22 +64,90 @@
         state.restored = true;
     }
 
+    function currentCapacity() {
+        const text = root.querySelector('.public-booking-room.active .public-booking-room-copy small')?.textContent || '';
+        const match = text.match(/(\d+)\s*người/i);
+        const capacity = match ? Number(match[1]) : 0;
+        return Number.isFinite(capacity) && capacity > 0 ? capacity : 50;
+    }
+
+    function currentSelectionSignature() {
+        const room = root.querySelector('.public-booking-room.active .public-booking-room-copy strong')?.textContent?.trim() || '';
+        const quickRate = root.querySelector('.public-rate-choice.active span strong')?.textContent?.trim() || '';
+        const nightlyRate = root.querySelector('.public-nightly-summary-copy > strong')?.textContent?.trim() || '';
+        const date = root.querySelector('.public-booking-mobile-bar small')?.textContent?.trim() || '';
+        return [room, quickRate || nightlyRate, date].join('|');
+    }
+
+    function parseMoneyText(value) {
+        const digits = String(value || '').replace(/[^0-9]/g, '');
+        return digits ? Number(digits) : 0;
+    }
+
+    function renderedBaseTotal() {
+        return parseMoneyText(root.querySelector('.public-summary-content dl .total dd')?.textContent || '');
+    }
+
+    function syncSelection() {
+        const signature = currentSelectionSignature();
+        if (signature && signature !== state.selectionSignature) {
+            state.selectionSignature = signature;
+            state.baseTotal = renderedBaseTotal();
+        } else if (!state.baseTotal) {
+            state.baseTotal = renderedBaseTotal();
+        }
+        const capacity = currentCapacity();
+        state.guestCount = Math.max(1, Math.min(state.guestCount, capacity));
+        return capacity;
+    }
+
     function currentSurcharge() {
         if (!state.policy) return 0;
         return Math.max(0, state.guestCount - Number(state.policy.includedGuests || 0)) * Number(state.policy.extraGuestFeePerPerson || 0);
     }
 
+    function currentEstimatedTotal() {
+        return Math.max(0, Number(state.baseTotal || 0)) + currentSurcharge();
+    }
+
+    function setText(node, text) {
+        if (node && node.textContent !== text) node.textContent = text;
+    }
+
+    function syncDisplayedTotal() {
+        if (!state.baseTotal) return;
+        const text = money(currentEstimatedTotal());
+        setText(root.querySelector('.public-summary-content dl .total dd'), text);
+        setText(root.querySelector('.public-booking-mobile-bar strong'), text);
+    }
+
     function updateGuestSummary(container) {
+        if (!container || !state.policy) return;
+        const capacity = syncSelection();
         const count = container.querySelector('[data-booking-guest-count]');
-        if (count) count.textContent = String(state.guestCount);
+        setText(count, String(state.guestCount));
+
+        const minus = container.querySelector('[data-guest-minus]');
+        const plus = container.querySelector('[data-guest-plus]');
+        if (minus) minus.disabled = state.guestCount <= 1;
+        if (plus) {
+            plus.disabled = state.guestCount >= capacity;
+            plus.title = state.guestCount >= capacity ? `Phòng này tối đa ${capacity} khách.` : 'Tăng số khách';
+        }
+
         const summary = container.querySelector('[data-booking-guest-summary]');
-        if (!summary || !state.policy) return;
-        const included = Number(state.policy.includedGuests || 2);
+        const included = Math.min(Number(state.policy.includedGuests || 2), capacity);
         const fee = Number(state.policy.extraGuestFeePerPerson || 0);
         const surcharge = currentSurcharge();
-        summary.textContent = surcharge > 0
-            ? `Phụ thu dự kiến ${money(surcharge)} · ${included} khách đầu đã gồm trong giá.`
-            : `${included} khách đầu đã gồm trong giá${fee > 0 ? `; từ khách tiếp theo +${money(fee)}/người` : ''}.`;
+        const total = currentEstimatedTotal();
+        if (summary) {
+            if (surcharge > 0) {
+                summary.textContent = `Phụ thu ${money(surcharge)} · Tổng dự kiến ${money(total)} · Tối đa ${capacity} khách.`;
+            } else {
+                summary.textContent = `${included} khách đầu đã gồm trong giá${fee > 0 && capacity > included ? `; từ khách tiếp theo +${money(fee)}/người` : ''}. Tối đa ${capacity} khách.`;
+            }
+        }
+        syncDisplayedTotal();
     }
 
     function revokePreview(side) {
@@ -171,14 +241,19 @@
     function injectFields() {
         if (!state.policy) return;
         const grid = root.querySelector('.public-contact-step .public-form-grid');
-        if (!grid || grid.querySelector('[data-booking-v2-fields]')) return;
+        if (!grid) return;
+        const existing = grid.querySelector('[data-booking-v2-fields]');
+        if (existing) {
+            updateGuestSummary(existing);
+            return;
+        }
 
         const wrapper = document.createElement('div');
         wrapper.className = 'public-form-full booking-v2-fields';
         wrapper.dataset.bookingV2Fields = 'true';
         wrapper.innerHTML = `
             <div class="booking-v2-contact-row">
-                <label><span>Email *</span><input data-booking-email type="email" maxlength="254" autocomplete="email" placeholder="ten@email.com" /></label>
+                <label class="booking-email-field"><span>Email *</span><input data-booking-email type="email" maxlength="254" autocomplete="email" placeholder="ten@email.com" /></label>
                 <div class="booking-guest-field">
                     <span>Số lượng khách *</span>
                     <div class="booking-guest-stepper"><button type="button" data-guest-minus aria-label="Giảm số khách">−</button><strong data-booking-guest-count>${state.guestCount}</strong><button type="button" data-guest-plus aria-label="Tăng số khách">+</button></div>
@@ -203,7 +278,8 @@
             updateGuestSummary(wrapper);
         });
         wrapper.querySelector('[data-guest-plus]').addEventListener('click', () => {
-            state.guestCount = Math.min(50, state.guestCount + 1);
+            const capacity = currentCapacity();
+            state.guestCount = Math.min(capacity, state.guestCount + 1);
             updateGuestSummary(wrapper);
         });
         wrapper.querySelector('[data-open-policy]').addEventListener('click', openPolicy);
@@ -222,7 +298,9 @@
         if (!wrapper || !state.policy) return 'Đang tải thông tin đặt phòng. Vui lòng thử lại sau vài giây.';
         const email = wrapper.querySelector('[data-booking-email]');
         if (!email.value.trim() || !email.checkValidity()) return 'Vui lòng nhập email hợp lệ.';
+        const capacity = currentCapacity();
         if (state.guestCount < 1) return 'Vui lòng chọn số lượng khách.';
+        if (state.guestCount > capacity) return `Phòng này tối đa ${capacity} khách.`;
         if (!wrapper.querySelector('[data-policy-accepted]').checked) return `Bạn cần đọc và đồng ý với ${state.policy.policyTitle || 'Nội quy & Chính sách'}.`;
         if (state.policy.requireIdentityDocuments && (!state.front || !state.back)) return 'Vui lòng chọn ảnh CCCD mặt trước và mặt sau.';
         state.email = email.value.trim();
@@ -244,7 +322,10 @@
         let message = 'Không thể tải ảnh CCCD.';
         try {
             const payload = await response.json();
-            message = payload.detail || payload.title || message;
+            const firstValidation = payload?.errors && typeof payload.errors === 'object'
+                ? Object.values(payload.errors).flat().find(value => typeof value === 'string' && value.trim())
+                : null;
+            message = payload.detail || firstValidation || payload.title || message;
         } catch { }
         const error = new Error(`Lượt đặt đã được tạo nhưng ${message} Bấm gửi lại để hệ thống thử tải ảnh lần nữa.`);
         error.identityUploadFailed = true;
@@ -281,8 +362,12 @@
         window.DeLongApi.__bookingCoreV2Wrapped = true;
     }
 
-    const observer = new MutationObserver(injectFields);
-    observer.observe(root, { childList: true, subtree: true });
+    const observer = new MutationObserver(() => {
+        injectFields();
+        const wrapper = root.querySelector('[data-booking-v2-fields]');
+        if (wrapper) updateGuestSummary(wrapper);
+    });
+    observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     document.addEventListener('keydown', event => { if (event.key === 'Escape') closePolicy(); });
     wrapBookingPost();
     DeLongApi.get(policyUrl)
