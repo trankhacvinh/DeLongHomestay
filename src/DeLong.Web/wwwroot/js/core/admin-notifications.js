@@ -10,14 +10,25 @@
     const propertyId = center?.dataset.propertyId || pageData.propertyId;
     if (!propertyId) return;
 
+    function bookingLiveAssetUrl() {
+        const base = '/js/core/admin-booking-live-v2.js?v=20260819-3';
+        const host = String(window.location.hostname || '').toLowerCase();
+        if (!['localhost', '127.0.0.1', '::1'].includes(host)) return base;
+        return `${base}&dev=${Date.now().toString(36)}`;
+    }
+
     function ensureBookingLiveScript() {
         if (!document.getElementById('calendar-page') && !document.getElementById('bookings-page')) return;
         if (document.querySelector('script[data-admin-booking-live-v2]')) return;
         const script = document.createElement('script');
-        script.src = '/js/core/admin-booking-live-v2.js?v=20260819-2';
+        script.src = bookingLiveAssetUrl();
         script.async = false;
         script.dataset.adminBookingLiveV2 = 'true';
+        script.addEventListener('load', () => {
+            document.documentElement.dataset.bookingLiveAsset = 'loaded';
+        });
         script.addEventListener('error', () => {
+            document.documentElement.dataset.bookingLiveAsset = 'error';
             console.error('Không tải được admin-booking-live-v2.js');
         });
         document.head.appendChild(script);
