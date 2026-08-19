@@ -60,7 +60,22 @@ public sealed class PublicBookingHoldStore(StoragePaths paths)
             var booking = await db.Bookings.SingleOrDefaultAsync(
                 x => x.PropertyId == propertyId && x.Id == hold.BookingId,
                 cancellationToken);
-            if (booking is null || booking.Status != BookingStatus.Held)
+            if (booking is null)
+            {
+                TryDelete(path);
+                continue;
+            }
+
+            // StartAsync intentionally writes the expiry marker before Requested -> Held so a crash
+            // cannot leave a Held booking without an expiry marker. A concurrent sweeper may observe
+            // that short transition window; keep the live marker instead of deleting it prematurely.
+            if (booking.Status == BookingStatus.Requested)
+            {
+                if (hold.ExpiresAtUtc <= now) TryDelete(path);
+                continue;
+            }
+
+            if (booking.Status != BookingStatus.Held)
             {
                 TryDelete(path);
                 continue;
