@@ -1,0 +1,110 @@
+using System.Text.Json;
+using DeLong.Web.Common.Security;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DeLong.Web.Features.Operations;
+
+public static class OperationsEndpoints
+{
+    public static IEndpointRouteBuilder MapOperationsEndpoints(this IEndpointRouteBuilder app)
+    {
+        var admin = app.MapGroup("/api/admin/properties/{propertyId:guid}/operations")
+            .RequireAuthorization("ViewOperations")
+            .AddEndpointFilter<PropertyAccessFilter>()
+            .WithTags("Operations");
+
+        admin.MapGet("/stream", StreamAsync);
+
+        admin.MapGet("/availability/rooms/{roomId:guid}", async (
+            Guid propertyId,
+            Guid roomId,
+            [FromQuery] string from,
+            [FromQuery] int? days,
+            AvailabilityIntervalService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (!DateOnly.TryParse(from, out var startDate))
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["from"] = ["Ngày bắt đầu không hợp lệ."]
+                });
+
+            var result = await service.GetAdminAsync(
+                propertyId,
+                roomId,
+                startDate,
+                Math.Clamp(days ?? 10, 1, 31),
+                cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        });
+
+        app.MapGet("/api/public/room-availability", async (
+            [FromQuery] Guid roomId,
+            [FromQuery] string from,
+            [FromQuery] int? days,
+            [FromQuery] string? siteSlug,
+            AvailabilityIntervalService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (roomId == Guid.Empty)
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["roomId"] = ["Phòng không hợp lệ."]
+                });
+            if (!DateOnly.TryParse(from, out var startDate))
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["from"] = ["Ngày bắt đầu không hợp lệ."]
+                });
+
+            var result = await service.GetPublicAsync(
+                siteSlug,
+                roomId,
+                startDate,
+                Math.Clamp(days ?? 10, 1, 14),
+                cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        }).AllowAnonymous().WithTags("Public Availability");
+
+        return app;
+    }
+
+    private static async Task StreamAsync(
+        HttpContext context,
+        Guid propertyId,
+        OperationsRealtimeBroker broker,
+        CancellationToken cancellationToken)
+    {
+        context.Response.StatusCode = StatusCodes.Status200OK;
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers.CacheControl = "no-cache, no-store";
+        context.Response.Headers.Append("X-Accel-Buffering", "no");
+        await context.Response.WriteAsync("retry: 2000\n\n", cancellationToken);
+        await context.Response.Body.FlushAsync(cancellationToken);
+
+        using var subscription = broker.Subscribe(propertyId);
+        var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var waitForEvent = subscription.Reader.WaitToReadAsync(cancellationToken).AsTask();
+            var heartbeat = Task.Delay(TimeSpan.FromSeconds(15), cancellationToken);
+            var completed = await Task.WhenAny(waitForEvent, heartbeat);
+            if (completed == heartbeat)
+            {
+                await context.Response.WriteAsync(": keep-alive\n\n", cancellationToken);
+                await context.Response.Body.FlushAsync(cancellationToken);
+                continue;
+            }
+
+            if (!await waitForEvent) break;
+            while (subscription.Reader.TryRead(out var evt))
+            {
+                var json = JsonSerializer.Serialize(evt, jsonOptions);
+                await context.Response.WriteAsync(
+                    $"id: {evt.EventId}\nevent: operations\ndata: {json}\n\n",
+                    cancellationToken);
+            }
+            await context.Response.Body.FlushAsync(cancellationToken);
+        }
+    }
+}
