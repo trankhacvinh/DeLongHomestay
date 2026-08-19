@@ -146,10 +146,15 @@
         else return;
 
         if (error) {
+            const key = `error:${error}`;
+            if (panel.dataset.renderKey === key) return;
+            panel.dataset.renderKey = key;
             panel.innerHTML = `<div class="admin-booking-details-error"><strong>Không tải được thông tin người đặt.</strong><span>${escapeHtml(error)}</span></div>`;
             return;
         }
         if (!details) {
+            if (panel.dataset.renderKey === 'loading') return;
+            panel.dataset.renderKey = 'loading';
             panel.innerHTML = '<div class="admin-booking-details-loading">Đang tải email, số khách và CCCD…</div>';
             return;
         }
@@ -162,6 +167,18 @@
             : (webBooking
                 ? 'Booking web chưa đồng bộ đủ dữ liệu xác nhận chính sách.'
                 : 'Booking do nhân viên tạo · không yêu cầu xác nhận Nội quy & Chính sách.');
+        const renderKey = JSON.stringify({
+            id: booking.id,
+            name: booking.customerName,
+            phone: booking.customerPhone,
+            email: details.customerEmail,
+            guests: details.guestCount,
+            max: details.maxGuests,
+            policy: policyText,
+            docs: documents.map(item => item.side).sort()
+        });
+        if (panel.dataset.renderKey === renderKey) return;
+        panel.dataset.renderKey = renderKey;
 
         panel.innerHTML = `
             <div class="admin-booking-detail-head">
@@ -263,7 +280,9 @@
         const guestInput = extra.querySelector('[data-booking-v2-guests]');
         guestInput.max = String(max);
         if (Number(guestInput.value || 1) > max) guestInput.value = String(max);
-        extra.querySelector('[data-booking-v2-guest-hint]').textContent = `Tối đa ${max} khách theo sức chứa của phòng.`;
+        const hint = extra.querySelector('[data-booking-v2-guest-hint]');
+        const hintText = `Tối đa ${max} khách theo sức chứa của phòng.`;
+        if (hint.textContent !== hintText) hint.textContent = hintText;
 
         const editKey = `${context.mode}:${context.booking?.id || 'new'}`;
         if (editKey === lastEditKey) return;
@@ -472,8 +491,6 @@
                     if (latest) live.selectedBooking = latest;
                 }
             } else if (reason === 'notification') {
-                // This should never be needed in normal Vue pages, but avoids leaving staff with a stale page
-                // if Vue internals change in a future build.
                 setTimeout(() => window.location.reload(), 150);
                 return;
             }
@@ -573,7 +590,7 @@
         if (pollTimer) clearInterval(pollTimer);
         refreshTimers.forEach(clearTimeout);
         documentRetryTimers.forEach(timers => timers.forEach(clearTimeout));
-        previewUrls.forEach(URL.revokeObjectURL);
+        previewUrls.forEach(url => URL.revokeObjectURL(url));
         observer.disconnect();
     }, { once: true });
 })();
