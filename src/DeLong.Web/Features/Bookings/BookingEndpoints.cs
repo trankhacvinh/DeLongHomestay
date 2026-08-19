@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using DeLong.Web.Common.Security;
+using DeLong.Web.Features.Operations;
 
 namespace DeLong.Web.Features.Bookings;
 
@@ -40,7 +41,8 @@ public static class BookingEndpoints
             var (booking, error) = await service.CreateAsync(
                 propertyId, request, GetUserId(user), cancellationToken);
             if (error is not null) return ToProblem(error);
-            return Results.Created($"/api/admin/properties/{propertyId}/bookings/{booking!.Id}", booking);
+            Publish(propertyId, OperationsEventTypes.BookingCreated, booking!);
+            return Results.Created($"/api/admin/properties/{propertyId}/bookings/{booking.Id}", booking);
         })
         .RequireAuthorization("ManageBookings")
         .AddEndpointFilter<ApiAntiforgeryFilter>();
@@ -56,6 +58,7 @@ public static class BookingEndpoints
             var (booking, error) = await service.UpdateAsync(
                 propertyId, bookingId, request, GetUserId(user), cancellationToken);
             if (error is not null) return ToProblem(error);
+            Publish(propertyId, OperationsEventTypes.BookingUpdated, booking!);
             return Results.Ok(booking);
         })
         .RequireAuthorization("ManageBookings")
@@ -72,6 +75,7 @@ public static class BookingEndpoints
             var (booking, error) = await service.MoveAsync(
                 propertyId, bookingId, request, GetUserId(user), cancellationToken);
             if (error is not null) return ToProblem(error);
+            Publish(propertyId, OperationsEventTypes.BookingMoved, booking!);
             return Results.Ok(booking);
         })
         .RequireAuthorization("ManageBookings")
@@ -88,6 +92,7 @@ public static class BookingEndpoints
             var (booking, error) = await service.ChangeStatusAsync(
                 propertyId, bookingId, request.Status, GetUserId(user), cancellationToken);
             if (error is not null) return ToProblem(error);
+            Publish(propertyId, OperationsEventTypes.BookingStatusChanged, booking!);
             return Results.Ok(booking);
         })
         .RequireAuthorization("ManageBookings")
@@ -95,6 +100,13 @@ public static class BookingEndpoints
 
         return app;
     }
+
+    private static void Publish(Guid propertyId, string type, BookingDto booking) =>
+        OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
+            propertyId,
+            type,
+            booking.Id,
+            booking.RoomId));
 
     private static Guid? GetUserId(ClaimsPrincipal user)
     {
