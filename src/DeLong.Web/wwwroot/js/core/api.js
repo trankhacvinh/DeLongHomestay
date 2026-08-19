@@ -108,6 +108,10 @@
         appendStyle('data-admin-booking-guest-details', '/css/admin-booking-guest-details.css?v=20260819-4');
         afterWindowLoad(() => {
             appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260819-5');
+            if (document.getElementById('calendar-page')) {
+                appendStyle('data-admin-calendar-v2', '/css/admin-calendar-v2.css?v=20260820-1');
+                appendScript('data-admin-calendar-v2', '/js/pages/admin-calendar-v2.js?v=20260820-1');
+            }
         });
     }
 
@@ -167,6 +171,12 @@
         addScript('data-public-toolbar-compact', '/js/pages/public-toolbar-compact.js?v=20260818-1');
         addScript('data-public-header-footer-designer', '/js/pages/public-header-footer-designer.js?v=20260818-1');
         addScript('data-public-footer-inline-editor', '/js/pages/public-footer-inline-editor.js?v=20260818-1');
-        afterWindowLoad(() => addScript('data-public-booking-core-v2', '/js/pages/public-booking-core-v2.js?v=20260819-5'));
+        afterWindowLoad(() => {
+            addScript('data-public-booking-core-v2', '/js/pages/public-booking-core-v2.js?v=20260819-5');
+            if (document.querySelector('.public-room-page')) {
+                addStyle('data-public-room-availability', '/css/public-room-availability.css?v=20260820-1');
+                addScript('data-public-room-availability', '/js/pages/public-room-availability.js?v=20260820-1');
+            }
+        });
     }
 })(window);
