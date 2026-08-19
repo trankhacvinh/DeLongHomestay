@@ -258,6 +258,16 @@ if (publicCacheEnabled)
     app.Logger.LogInformation("FusionCache public read cache enabled with {PublicCacheSeconds}s TTL.", publicCacheSeconds);
 else
     app.Logger.LogWarning("FusionCache public read cache is disabled; public reads will query the database directly.");
+if (app.Environment.IsDevelopment())
+{
+    app.Logger.LogInformation("Development static asset caching is disabled; JS/CSS/media responses use no-store.");
+    if (!storagePaths.DataRootExplicit)
+    {
+        app.Logger.LogWarning(
+            "Development Storage:DataRoot is repo-local at {DataRoot}. Configure a stable absolute Storage:DataRoot with user secrets to keep auth/data-protection keys and private development data stable across checkouts.",
+            storagePaths.DataRoot);
+    }
+}
 
 app.UseForwardedHeaders();
 app.Use(async (context, next) =>
@@ -287,16 +297,8 @@ app.UseWhen(
     context => !context.Request.Path.StartsWithSegments("/api") &&
                !context.Request.Path.StartsWithSegments("/health"),
     branch => branch.UseStatusCodePagesWithReExecute("/not-found"));
-static void PrepareStaticResponse(StaticFileResponseContext context)
-{
-    var request = context.Context.Request;
-    var cacheControl = request.Query.ContainsKey("v")
-        ? "public,max-age=31536000,immutable"
-        : request.Path.StartsWithSegments("/uploads/rooms")
-            ? "public,max-age=2592000"
-            : "public,max-age=3600";
-    context.Context.Response.Headers.CacheControl = cacheControl;
-}
+void PrepareStaticResponse(StaticFileResponseContext context) =>
+    StaticAssetCachePolicy.Apply(context.Context, app.Environment.IsDevelopment());
 
 app.UseStaticFiles(new StaticFileOptions { OnPrepareResponse = PrepareStaticResponse });
 
