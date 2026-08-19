@@ -98,6 +98,7 @@ public static class BookingEndpoints
         .RequireAuthorization("ManageBookings")
         .AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        app.MapOperationsEndpoints();
         return app;
     }
 
