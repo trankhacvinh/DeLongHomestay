@@ -14,9 +14,9 @@
                 search: '',
                 showInactive: false,
                 saving: false,
+                statusSavingId: null,
                 editor: { open: false, mode: 'create', roomId: null },
-                archiveModal: { open: false, room: null },
-                form: { code: '', name: '', capacity: 2, sortOrder: 1, isActive: true },
+                form: { code: '', name: '', capacity: 2, sortOrder: 1, isActive: true, isPublished: false },
                 toast: { show: false, message: '', type: 'success', timer: null }
             };
         },
@@ -34,11 +34,18 @@
                 return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
             },
             openCreate() {
-                this.form = { code: '', name: '', capacity: 2, sortOrder: this.rooms.length + 1, isActive: true };
+                this.form = { code: '', name: '', capacity: 2, sortOrder: this.rooms.length + 1, isActive: true, isPublished: false };
                 this.editor = { open: true, mode: 'create', roomId: null };
             },
             openEdit(room) {
-                this.form = { code: room.code, name: room.name, capacity: room.capacity, sortOrder: room.sortOrder, isActive: room.isActive };
+                this.form = {
+                    code: room.code,
+                    name: room.name,
+                    capacity: room.capacity,
+                    sortOrder: room.sortOrder,
+                    isActive: room.isActive,
+                    isPublished: room.isPublished === true
+                };
                 this.editor = { open: true, mode: 'edit', roomId: room.id };
             },
             closeEditor() { if (!this.saving) this.editor.open = false; },
@@ -70,19 +77,38 @@
                     this.notify(error.message || 'Không thể lưu phòng.', 'error');
                 } finally { this.saving = false; }
             },
-            confirmArchive(room) { this.archiveModal = { open: true, room }; },
-            async archiveRoom() {
-                const room = this.archiveModal.room;
-                if (!room) return;
-                this.saving = true;
+            async updateRoomStatus(room, changes, successMessage) {
+                if (!room || this.statusSavingId) return;
+                this.statusSavingId = room.id;
                 try {
-                    await DeLongApi.delete(`/api/admin/properties/${this.propertyId}/rooms/${room.id}`);
-                    room.isActive = false;
-                    this.archiveModal.open = false;
-                    this.notify('Đã chuyển phòng sang ngừng hoạt động.', 'success');
+                    const updated = await DeLongApi.put(`/api/admin/properties/${this.propertyId}/rooms/${room.id}`, {
+                        code: room.code,
+                        name: room.name,
+                        capacity: room.capacity,
+                        sortOrder: room.sortOrder,
+                        isActive: changes.isActive ?? room.isActive,
+                        isPublished: changes.isPublished ?? room.isPublished
+                    });
+                    const index = this.rooms.findIndex(x => x.id === updated.id);
+                    if (index >= 0) this.rooms.splice(index, 1, updated);
+                    this.notify(successMessage, 'success');
                 } catch (error) {
-                    this.notify(error.message || 'Không thể cập nhật phòng.', 'error');
-                } finally { this.saving = false; }
+                    this.notify(error.message || 'Không thể cập nhật trạng thái phòng.', 'error');
+                } finally {
+                    this.statusSavingId = null;
+                }
+            },
+            toggleActive(room) {
+                const next = !room.isActive;
+                return this.updateRoomStatus(room, { isActive: next }, next ? 'Đã bật hoạt động phòng.' : 'Đã ngừng hoạt động phòng.');
+            },
+            togglePublished(room) {
+                if (!room.isActive && !room.isPublished) {
+                    this.notify('Hãy bật hoạt động phòng trước khi đưa lên website.', 'error');
+                    return;
+                }
+                const next = !room.isPublished;
+                return this.updateRoomStatus(room, { isPublished: next }, next ? 'Đã hiển thị phòng trên website và trang đặt phòng.' : 'Đã ẩn phòng khỏi website và trang đặt phòng.');
             },
             notify(message, type) {
                 if (this.toast.timer) clearTimeout(this.toast.timer);

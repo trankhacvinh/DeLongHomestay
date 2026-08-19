@@ -260,9 +260,10 @@
                             window.location.assign(`/h/${encodeURIComponent(targetSlug)}/booking${suffix ? `?${suffix}` : ''}`);
                         });
 
-                        const roomList = step.querySelector('.public-booking-room-list');
-                        if (roomList) roomList.insertAdjacentElement('beforebegin', choices);
-                        else step.querySelector('.public-step-head')?.insertAdjacentElement('afterend', choices);
+                        // Keep the branch chooser before Vue's loading / error / room-list
+                        // v-if/v-else-if chain. Inserting it directly before the room list breaks
+                        // directive adjacency and causes Vue compiler error 30 when 2+ properties exist.
+                        step.querySelector('.public-step-head')?.insertAdjacentElement('afterend', choices);
                     }
                 }
             } catch {

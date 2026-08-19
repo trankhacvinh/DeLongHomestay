@@ -3,8 +3,8 @@
 @{
     ViewData["Title"] = "Cấu hình";
 }
+<script id="settings-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 <div id="settings-page" v-cloak>
-    <script id="settings-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
     <div class="page-title-row">
         <div>
@@ -12,7 +12,10 @@
             <h1>Cấu hình</h1>
             <p>Cấu hình thông báo đặt phòng, email SMTP và các mức giá của cơ sở.</p>
         </div>
-        <button class="btn btn-primary" type="button" v-on:click="openCreate"><svg><use href="#i-plus" /></svg>Thêm mức giá</button>
+        <div class="settings-title-actions">
+            <button class="btn btn-light" type="button" data-quick-rate-open><svg><use href="#i-plus" /></svg>Tạo nhanh bộ khung giờ</button>
+            <button class="btn btn-primary" type="button" v-on:click="openCreate"><svg><use href="#i-plus" /></svg>Thêm mức giá</button>
+        </div>
     </div>
 
     <section class="panel notification-settings-panel">
@@ -146,4 +149,5 @@
 </div>
 @section Scripts {
     <script src="~/js/pages/admin-settings.js" asp-append-version="true"></script>
+    <script src="~/js/pages/admin-settings-quick-rate.js" asp-append-version="true"></script>
 }

@@ -21,6 +21,7 @@ public sealed record RoomDto(
     int Capacity,
     int SortOrder,
     bool IsActive,
+    bool IsPublished,
     HousekeepingStatus HousekeepingStatus,
     DateTime? HousekeepingUpdatedAtUtc,
     string? CoverThumbnailUrl,
@@ -38,4 +39,5 @@ public sealed record UpdateRoomRequest(
     string Name,
     int Capacity,
     int SortOrder,
-    bool IsActive);
+    bool IsActive,
+    bool? IsPublished = null);
