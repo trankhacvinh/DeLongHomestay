@@ -61,7 +61,8 @@ builder.Services
     .SetApplicationName("DeLongHomestay")
     .PersistKeysToFileSystem(new DirectoryInfo(storagePaths.DataProtectionRoot));
 
-var publicCacheEnabled = builder.Configuration.GetValue<bool?>("Performance:PublicCacheEnabled") ?? true;
+var publicCacheEnabled = builder.Configuration.GetValue<bool?>("Performance:PublicCacheEnabled")
+    ?? !builder.Environment.IsDevelopment();
 var publicCacheSeconds = Math.Clamp(builder.Configuration.GetValue<int?>("Performance:PublicCacheSeconds") ?? 30, 1, 3600);
 if (publicCacheEnabled)
 {
@@ -256,6 +257,8 @@ var app = builder.Build();
 foreach (var warning in productionWarnings) app.Logger.LogWarning("Production startup warning: {Warning}", warning);
 if (publicCacheEnabled)
     app.Logger.LogInformation("FusionCache public read cache enabled with {PublicCacheSeconds}s TTL.", publicCacheSeconds);
+else if (app.Environment.IsDevelopment())
+    app.Logger.LogInformation("FusionCache public read cache is disabled by default in Development; public reads query the database directly.");
 else
     app.Logger.LogWarning("FusionCache public read cache is disabled; public reads will query the database directly.");
 if (app.Environment.IsDevelopment())
