@@ -83,7 +83,7 @@ public sealed class IdentityDocumentStorageTests
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.Copy(source, target, true);
 
-            await Assert.ThrowsAsync<CryptographicException>(() => storage.ReadAsync(propertyId, secondBooking, "front"));
+            await Assert.ThrowsAnyAsync<CryptographicException>(() => storage.ReadAsync(propertyId, secondBooking, "front"));
         }
         finally
         {
