@@ -140,13 +140,10 @@
         const fee = Number(state.policy.extraGuestFeePerPerson || 0);
         const surcharge = currentSurcharge();
         const total = currentEstimatedTotal();
-        if (summary) {
-            if (surcharge > 0) {
-                summary.textContent = `Phụ thu ${money(surcharge)} · Tổng dự kiến ${money(total)} · Tối đa ${capacity} khách.`;
-            } else {
-                summary.textContent = `${included} khách đầu đã gồm trong giá${fee > 0 && capacity > included ? `; từ khách tiếp theo +${money(fee)}/người` : ''}. Tối đa ${capacity} khách.`;
-            }
-        }
+        const summaryText = surcharge > 0
+            ? `Phụ thu ${money(surcharge)} · Tổng dự kiến ${money(total)} · Tối đa ${capacity} khách.`
+            : `${included} khách đầu đã gồm trong giá${fee > 0 && capacity > included ? `; từ khách tiếp theo +${money(fee)}/người` : ''}. Tối đa ${capacity} khách.`;
+        setText(summary, summaryText);
         syncDisplayedTotal();
     }
 
@@ -363,9 +360,12 @@
     }
 
     const observer = new MutationObserver(() => {
-        injectFields();
         const wrapper = root.querySelector('[data-booking-v2-fields]');
-        if (wrapper) updateGuestSummary(wrapper);
+        if (!wrapper) {
+            injectFields();
+            return;
+        }
+        if (currentSelectionSignature() !== state.selectionSignature) updateGuestSummary(wrapper);
     });
     observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     document.addEventListener('keydown', event => { if (event.key === 'Escape') closePolicy(); });
