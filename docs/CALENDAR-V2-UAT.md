@@ -1,6 +1,6 @@
 # Calendar V2 UAT
 
-Calendar V2 giữ nguyên Calendar V1 và bổ sung một góc nhìn theo từng phòng: ngày chạy dọc, các khung giờ/qua đêm chạy ngang. Availability được tính từ interval thời gian thực tế của booking.
+Calendar V2 giữ nguyên Calendar V1 và bổ sung một góc nhìn theo từng phòng: ngày chạy dọc, các khung giờ/qua đêm chạy ngang. Availability được tính từ interval thời gian thực tế của booking. Cột `Lưu trú theo đêm` không hiển thị riêng trong V2; booking nhiều ngày vẫn khóa các khung giờ thực tế mà nó chồng lấn.
 
 ## Admin
 
@@ -25,6 +25,13 @@ Calendar V2 giữ nguyên Calendar V1 và bổ sung một góc nhìn theo từng
 6. Với khung partial, bấm phần còn trống. Không được tự đặt online; block phải ghi rõ khoảng giờ còn trống và hướng khách liên hệ homestay để đặt giờ linh hoạt.
 7. Mở public block ở tab A, tạo booking cho cùng phòng ở Admin/tab B. Block tab A phải đổi tự động qua SSE, không F5.
 8. Public network payload `/api/public/room-availability` và `/api/public/room-availability/stream` không được chứa booking id, tên khách, số điện thoại, email hoặc CCCD.
+
+## Automated coverage
+
+- `AvailabilityIntervalProjectorTests`: empty/full/partial/overlap và free-range chính xác.
+- `OperationsAvailabilityIntegrationTests`: PostgreSQL kiểm tra booking `12:00–14:00` trong slot `12:00–15:00`, slot qua đêm, hold expiry và public payload không lộ PII.
+- `PublicAvailabilityRealtimeContractTests`: public SSE event chỉ được có metadata availability theo phòng, không được có booking id hoặc dữ liệu khách.
+- Workflow `.NET` chạy `node --check` cho toàn bộ JS, bao gồm Admin/Public Calendar V2.
 
 ## Fallback/reconnect
 
