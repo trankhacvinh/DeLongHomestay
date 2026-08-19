@@ -16,6 +16,8 @@
         from: initial.startDate || initial.today,
         days: 10,
         loading: false,
+        queued: false,
+        queuedReason: '',
         data: null,
         requestSerial: 0,
         pollTimer: null
@@ -132,6 +134,10 @@
         return Number(status) === 1 ? 'held' : 'booked';
     }
 
+    function visibleSlots(slots) {
+        return (slots || []).filter(slot => Number(slot.rateType) !== 2);
+    }
+
     function setView(value) {
         state.active = value === 'v2';
         panel.hidden = !state.active;
@@ -231,13 +237,13 @@
         scroll.replaceChildren();
 
         const calendar = Array.isArray(data?.calendar) ? data.calendar : [];
-        if (!calendar.length) {
-            statusBox.textContent = 'Phòng này chưa có khung giá đang hoạt động để hiển thị.';
+        const headerSlots = visibleSlots(calendar[0]?.slots);
+        if (!calendar.length || !headerSlots.length) {
+            statusBox.textContent = 'Phòng này chưa có khung giờ / qua đêm đang hoạt động để hiển thị.';
             statusBox.classList.add('show');
             return;
         }
 
-        const headerSlots = calendar[0]?.slots || [];
         const table = document.createElement('table');
         table.className = 'calendar-v2-table';
         const thead = document.createElement('thead');
@@ -264,7 +270,7 @@
             th.textContent = dateText(day.date);
             if (day.date === initial.today) th.classList.add('today');
             tr.appendChild(th);
-            const byRate = new Map((day.slots || []).map(slot => [slot.rateId, slot]));
+            const byRate = new Map(visibleSlots(day.slots).map(slot => [slot.rateId, slot]));
             headerSlots.forEach(header => {
                 const td = document.createElement('td');
                 const slot = byRate.get(header.rateId);
@@ -279,7 +285,12 @@
     }
 
     async function refresh(reason) {
-        if (!state.active || state.loading) return;
+        if (!state.active) return;
+        if (state.loading) {
+            state.queued = true;
+            state.queuedReason = reason || 'queued';
+            return;
+        }
         const room = currentRoom();
         if (!room) {
             statusBox.textContent = 'Chưa có phòng đang hoạt động.';
@@ -300,6 +311,12 @@
         } finally {
             state.loading = false;
             panel.classList.remove('loading');
+            if (state.queued) {
+                const queuedReason = state.queuedReason || 'queued';
+                state.queued = false;
+                state.queuedReason = '';
+                setTimeout(() => refresh(queuedReason), 0);
+            }
         }
     }
 
