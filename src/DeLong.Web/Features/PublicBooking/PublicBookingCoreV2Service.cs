@@ -49,9 +49,20 @@ public sealed class PublicBookingCoreV2Service(
         DateTime? holdExpiresAtUtc = null;
         if (booking.Status == BookingStatus.Requested)
         {
+            // Write the expiry marker before changing the booking to Held. If the process stops
+            // between these operations, the booking is still Requested and the stale marker is
+            // harmless. If it stops after the status change, the marker still exists so a later
+            // availability request can release the hold instead of leaving it locked forever.
+            holdExpiresAtUtc = await holdStore.StartAsync(
+                property.Id,
+                booking.Id,
+                TimeSpan.FromMinutes(BookingPolicyStore.HoldMinutes),
+                cancellationToken);
+
             var (_, holdError) = await bookingService.ChangeStatusAsync(property.Id, booking.Id, BookingStatus.Held, null, cancellationToken);
             if (holdError is not null)
             {
+                await holdStore.CompleteAsync(property.Id, booking.Id);
                 booking = await db.Bookings.SingleAsync(x => x.Id == booking.Id, cancellationToken);
                 booking.Status = BookingStatus.Cancelled;
                 booking.Note = AppendLine(booking.Note, "Tự hủy vì phòng vừa được giữ bởi một yêu cầu khác.");
@@ -59,12 +70,6 @@ public sealed class PublicBookingCoreV2Service(
                 await RemoveNotificationAsync(property.Id, booking.Id, cancellationToken);
                 return (null, new("booking_conflict", "Phòng vừa được khách khác giữ. Vui lòng chọn khung giờ hoặc phòng khác."));
             }
-
-            holdExpiresAtUtc = await holdStore.StartAsync(
-                property.Id,
-                booking.Id,
-                TimeSpan.FromMinutes(BookingPolicyStore.HoldMinutes),
-                cancellationToken);
         }
 
         return (result with
