@@ -56,7 +56,7 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
         if (request.IncludedGuests is < 1 or > 50) return (null, "Số khách đã gồm trong giá phải từ 1 đến 50.");
         if (request.ExtraGuestFeePerPerson is < 0 or > 10_000_000m) return (null, "Phụ thu mỗi khách không hợp lệ.");
         if (request.RequireIdentityDocuments && !IdentityEncryptionConfigured())
-            return (null, "Chưa cấu hình khóa mã hóa CCCD. Không thể bắt buộc khách tải giấy tờ khi storage bảo mật chưa sẵn sàng.");
+            return (null, "Kho CCCD chưa thể tạo hoặc đọc khóa mã hóa trong DataRoot. Hãy kiểm tra quyền ghi DataRoot/security hoặc khôi phục DataRoot đầy đủ từ bản sao lưu.");
 
         var title = Clean(request.PolicyTitle, 200) ?? "Nội quy & Chính sách";
         var text = Clean(request.PolicyText, 20_000) ?? DefaultPolicyText;
@@ -115,25 +115,21 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
     private BookingPolicyDto Normalize(StoredBookingPolicy? stored)
     {
         if (stored is null) return Defaults();
+        var encryptionReady = IdentityEncryptionConfigured();
         return new BookingPolicyDto(
             Math.Clamp(stored.PublicMaxNights <= 0 ? 3 : stored.PublicMaxNights, 1, 14),
             Math.Clamp(stored.IncludedGuests <= 0 ? 2 : stored.IncludedGuests, 1, 50),
             Math.Clamp(stored.ExtraGuestFeePerPerson, 0m, 10_000_000m),
-            stored.RequireIdentityDocuments && IdentityEncryptionConfigured(),
+            stored.RequireIdentityDocuments && encryptionReady,
             Clean(stored.PolicyTitle, 200) ?? "Nội quy & Chính sách",
             Clean(stored.PolicyText, 20_000) ?? DefaultPolicyText,
             Math.Max(1, stored.PolicyVersion),
             HoldMinutes,
-            IdentityEncryptionConfigured());
+            encryptionReady);
     }
 
-    private bool IdentityEncryptionConfigured()
-    {
-        var raw = configuration["Security:IdentityDocumentEncryptionKeyBase64"]?.Trim();
-        if (string.IsNullOrWhiteSpace(raw)) return false;
-        try { return Convert.FromBase64String(raw).Length == 32; }
-        catch (FormatException) { return false; }
-    }
+    private bool IdentityEncryptionConfigured() =>
+        new IdentityDocumentStorage(paths, configuration).IsConfigured;
 
     private string PathFor(Guid propertyId) => Path.Combine(root, propertyId.ToString("N") + ".json");
 
