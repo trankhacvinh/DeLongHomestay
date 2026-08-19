@@ -85,8 +85,8 @@
         }
         appendStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-2');
         afterWindowLoad(() => {
-            appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260819-2');
-            appendScript('data-admin-booking-identity', '/js/pages/admin-booking-identity.js?v=20260819-2');
+            appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260819-3');
+            appendScript('data-admin-booking-identity', '/js/pages/admin-booking-identity.js?v=20260819-3');
         });
     }
 
