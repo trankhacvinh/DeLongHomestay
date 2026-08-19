@@ -2,6 +2,7 @@ using System.Text.Json;
 using DeLong.Web.Common.Operations;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
+using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.Site;
 using Microsoft.AspNetCore.Mvc;
 
@@ -81,6 +82,8 @@ public static class OperationsEndpoints
     private static async Task StreamAsync(
         HttpContext context,
         Guid propertyId,
+        IServiceScopeFactory scopeFactory,
+        StoragePaths storagePaths,
         CancellationToken cancellationToken)
     {
         context.Response.StatusCode = StatusCodes.Status200OK;
@@ -92,10 +95,20 @@ public static class OperationsEndpoints
 
         using var subscription = OperationsRealtimeBroker.Shared.Subscribe(propertyId);
         var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var nextHoldSweepAtUtc = DateTime.UtcNow;
+
         while (!cancellationToken.IsCancellationRequested)
         {
+            if (DateTime.UtcNow >= nextHoldSweepAtUtc)
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, propertyId, cancellationToken);
+                nextHoldSweepAtUtc = DateTime.UtcNow.AddSeconds(5);
+            }
+
             var waitForEvent = subscription.Reader.WaitToReadAsync(cancellationToken).AsTask();
-            var heartbeat = Task.Delay(TimeSpan.FromSeconds(15), cancellationToken);
+            var heartbeat = Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
             var completed = await Task.WhenAny(waitForEvent, heartbeat);
             if (completed == heartbeat)
             {
