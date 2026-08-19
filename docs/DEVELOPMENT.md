@@ -23,6 +23,41 @@ dotnet user-secrets set "Seed:AdminEmail" "admin@example.local" --project src/De
 dotnet user-secrets set "Seed:AdminPassword" "CHANGE_TO_A_STRONG_LOCAL_PASSWORD" --project src/DeLong.Web
 ```
 
+## DataRoot development ổn định
+
+Mặc định nếu không cấu hình, development dùng `src/DeLong.Web/App_Data`. Cách này tiện lúc bắt đầu nhưng không ổn định nếu đổi thư mục checkout, xóa source hoặc chạy `git clean`: Data Protection keys, dữ liệu private của booking và các khóa lưu trong DataRoot có thể thay đổi trong khi browser vẫn giữ cookie cũ.
+
+Nên cấu hình **một đường dẫn tuyệt đối nằm ngoài repository** bằng User Secrets. Ví dụ Windows:
+
+```bash
+dotnet user-secrets set "Storage:DataRoot" "C:\DeLongHomestayData" --project src/DeLong.Web
+```
+
+Linux/macOS dùng một đường dẫn tuyệt đối thuộc user hiện tại, ví dụ:
+
+```bash
+dotnet user-secrets set "Storage:DataRoot" "/home/YOUR_USER/.local/share/DeLongHomestay" --project src/DeLong.Web
+```
+
+Sau khi đặt một lần, cùng browser có thể tiếp tục dùng auth/Data Protection state qua các lần pull, rebuild và checkout source khác nhau. Không commit DataRoot hoặc master key vào Git.
+
+## Cache khi phát triển
+
+Trong `Development`, toàn bộ static asset do ASP.NET Core phục vụ (JS, CSS, ảnh trong `wwwroot` và room media public) trả:
+
+```text
+Cache-Control: no-store,no-cache,max-age=0,must-revalidate
+Pragma: no-cache
+Expires: 0
+X-DeLong-Cache-Policy: development-no-store
+```
+
+Vì vậy khi sửa JS/CSS local **không cần tăng `?v=...`, đổi trình duyệt, mở ẩn danh hoặc Clear Site Data** chỉ để thấy file mới. `asp-append-version` và các query version hiện có vẫn được giữ cho production, nhưng Development không biến chúng thành immutable cache.
+
+Có thể kiểm tra trong DevTools → Network → chọn một file `.js`/`.css` → Response Headers. Header `X-DeLong-Cache-Policy: development-no-store` xác nhận app đang chạy cache policy development mới.
+
+Nếu browser đang giữ một asset `immutable` từ một build cũ trước thay đổi này, chỉ cần hard refresh một lần sau khi lấy code mới. Các response static sau đó sẽ không còn được lưu lại ở Development.
+
 ## Migration
 
 Foundation commit chưa check-in migration vì migration phải được sinh/kiểm tra bằng .NET SDK thật sau khi model build pass.
