@@ -22,6 +22,7 @@
         timeZone: 'Asia/Ho_Chi_Minh',
         selected: null,
         loading: false,
+        queued: false,
         source: null,
         pollTimer: null
     };
@@ -89,6 +90,10 @@
         return `left:${left.toFixed(3)}%;width:${Math.max(0.8, right - left).toFixed(3)}%`;
     }
 
+    function visibleSlots(slots) {
+        return (slots || []).filter(slot => Number(slot.rateType) !== 2);
+    }
+
     function clearChoice() {
         state.selected = null;
         choice.hidden = true;
@@ -104,6 +109,7 @@
         choiceNote.textContent = `${slot.rateName} · ${Number(slot.price || 0).toLocaleString('vi-VN')}đ`;
         const query = new URLSearchParams({ date: day.date, room: state.roomCode, rate: slot.rateId });
         bookLink.href = `${bookingBase}?${query}`;
+        bookLink.textContent = 'Đặt khung này';
         choice.hidden = false;
     }
 
@@ -169,13 +175,13 @@
         bookLink.textContent = 'Đặt khung này';
 
         const calendar = Array.isArray(data.calendar) ? data.calendar : [];
-        if (!calendar.length || !(calendar[0]?.slots || []).length) {
-            status.textContent = 'Phòng này chưa có khung giờ đang hoạt động để hiển thị.';
+        const headerSlots = visibleSlots(calendar[0]?.slots);
+        if (!calendar.length || !headerSlots.length) {
+            status.textContent = 'Phòng này chưa có khung giờ / qua đêm đang hoạt động để hiển thị.';
             status.classList.add('show');
             return;
         }
 
-        const headerSlots = calendar[0].slots;
         const table = document.createElement('table');
         table.className = 'public-room-availability-table';
         const thead = document.createElement('thead');
@@ -202,7 +208,7 @@
             th.textContent = dateText(day.date);
             if (day.date === today) th.classList.add('today');
             tr.appendChild(th);
-            const byRate = new Map((day.slots || []).map(slot => [slot.rateId, slot]));
+            const byRate = new Map(visibleSlots(day.slots).map(slot => [slot.rateId, slot]));
             headerSlots.forEach(headerSlot => {
                 const td = document.createElement('td');
                 const slot = byRate.get(headerSlot.rateId);
@@ -217,7 +223,10 @@
     }
 
     async function refresh() {
-        if (state.loading) return;
+        if (state.loading) {
+            state.queued = true;
+            return;
+        }
         state.loading = true;
         section.classList.add('loading');
         try {
@@ -232,6 +241,10 @@
         } finally {
             state.loading = false;
             section.classList.remove('loading');
+            if (state.queued) {
+                state.queued = false;
+                setTimeout(refresh, 0);
+            }
         }
     }
 
