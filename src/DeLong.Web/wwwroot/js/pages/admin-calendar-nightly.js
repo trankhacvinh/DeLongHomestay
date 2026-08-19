@@ -1,6 +1,11 @@
 (function () {
     if (!window.Vue?.createApp) return;
 
+    const pageData = (() => {
+        try { return JSON.parse(document.getElementById('calendar-page-data')?.textContent || '{}'); }
+        catch { return {}; }
+    })();
+    const utcOffset = pageData.utcOffset || '+07:00';
     const originalCreateApp = window.Vue.createApp.bind(window.Vue);
 
     function parseDateKey(value) {
@@ -9,6 +14,17 @@
         const [year, month, day] = key.split('-').map(Number);
         if (!year || !month || !day) return null;
         return new Date(Date.UTC(year, month - 1, day));
+    }
+
+    function dateKey(value) {
+        return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
+    }
+
+    function addDays(value, amount) {
+        const date = parseDateKey(value);
+        if (!date) return value?.slice(0, 10) || '';
+        date.setUTCDate(date.getUTCDate() + amount);
+        return dateKey(date);
     }
 
     function dayDistance(fromValue, toValue) {
@@ -43,6 +59,7 @@
 
         const methods = options.methods;
         const originalOpenBooking = methods.openBooking;
+        const originalOpenEditBooking = methods.openEditBooking;
 
         methods.nightlyRateForRoom = function () {
             return this.selectedRoomRates.find(x => Number(x.type) === 2) || null;
@@ -58,35 +75,34 @@
             return Math.max(1, Number(booking.nightCount || 0), distance);
         };
 
-        methods.bookingsToRender = function (roomId, dayKey) {
+        // Calendar occupancy is based on the real interval, not BookingType. A manually-created
+        // flexible booking that crosses dates must still stretch across the occupied days.
+        methods.bookingsToRender = function (roomId, dayKeyValue) {
             return this.activeBookingRows(roomId)
                 .filter(booking => {
                     const checkInKey = this.localDateKey(booking.checkInUtc);
                     const spansDays = this.bookingSpansCalendarDays(booking);
-                    if (!spansDays || Number(booking.status) === 0) return checkInKey === dayKey;
+                    if (!spansDays || Number(booking.status) === 0) return checkInKey === dayKeyValue;
                     const visibleStart = checkInKey < this.startDate ? this.startDate : checkInKey;
                     const lastVisible = this.days[this.days.length - 1].key;
                     const checkOutKey = this.localDateKey(booking.checkOutUtc);
-                    return dayKey === visibleStart && visibleStart <= lastVisible && checkOutKey >= this.startDate;
+                    return dayKeyValue === visibleStart && visibleStart <= lastVisible && checkOutKey >= this.startDate;
                 })
                 .sort((a, b) => new Date(a.checkInUtc) - new Date(b.checkInUtc))
                 .map(booking => {
                     if (!this.bookingSpansCalendarDays(booking)) return booking;
-                    return {
-                        ...booking,
-                        __actualType: booking.type,
-                        type: 1,
-                        nightCount: this.calendarNightCount(booking)
-                    };
+                    // The existing Razor template already knows how to draw a multi-day bar when
+                    // type === 1. Use a render-only clone; the real booking object is never mutated.
+                    return { ...booking, __actualType: booking.type, type: 1, nightCount: this.calendarNightCount(booking) };
                 });
         };
 
-        methods.bookingSpan = function (booking, dayKey) {
+        methods.bookingSpan = function (booking, dayKeyValue) {
             if (!this.bookingSpansCalendarDays(booking) || Number(booking.status) === 0) return 1;
             const lastVisible = this.days[this.days.length - 1].key;
             const checkoutKey = this.localDateKey(booking.checkOutUtc);
             const endKey = checkoutKey > lastVisible ? lastVisible : checkoutKey;
-            return Math.max(1, Math.min(7, dayDistance(dayKey, endKey) + 1));
+            return Math.max(1, Math.min(7, dayDistance(dayKeyValue, endKey) + 1));
         };
 
         methods.openBooking = function (booking) {
@@ -94,54 +110,15 @@
             return originalOpenBooking.call(this, original);
         };
 
-        methods.openEditBooking = function (booking) {
-            if (!this.canEditBooking(booking)) return;
-            const original = this.bookings.find(x => x.id === booking?.id) || booking;
-            const checkInLocal = this.localInputForUtc ? this.localInputForUtc(original.checkInUtc) : null;
-            const actualCheckIn = checkInLocal || (() => {
-                const parts = new Intl.DateTimeFormat('en-CA', {
-                    timeZone: this.timeZoneId || undefined,
-                    year: 'numeric', month: '2-digit', day: '2-digit',
-                    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
-                }).formatToParts(new Date(original.checkInUtc));
-                const get = type => parts.find(part => part.type === type)?.value || '';
-                return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
-            })();
-            const actualCheckOut = (() => {
-                const value = new Date(original.checkOutUtc);
-                const formatter = new Intl.DateTimeFormat('en-CA', {
-                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    year: 'numeric', month: '2-digit', day: '2-digit',
-                    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
-                });
-                const parts = formatter.formatToParts(value);
-                const get = type => parts.find(part => part.type === type)?.value || '';
-                return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
-            })();
-
-            this.selectedDayKey = actualCheckIn.slice(0, 10);
-            this.selectedBooking = original;
-            this.form = {
-                roomId: original.roomId,
-                rateId: original.roomRateId || '',
-                customerId: original.customerId,
-                customerName: original.customerName,
-                customerPhone: original.customerPhone,
-                checkInLocal: actualCheckIn,
-                checkOutLocal: actualCheckOut,
-                status: original.status,
-                roomAmount: Number(original.roomAmount || 0),
-                extraAmount: Number(original.extraAmount || 0),
-                discountAmount: Number(original.discountAmount || 0),
-                source: original.source || '',
-                note: original.note || ''
-            };
-            this.editor = { open: true, mode: 'edit' };
-        };
-
         methods.canEditBooking = function (booking) {
             const original = this.bookings.find(x => x.id === booking?.id) || booking;
             return this.canManage && original && ![4, 5, 6].includes(Number(original.status));
+        };
+
+        methods.openEditBooking = function (booking) {
+            const original = this.bookings.find(x => x.id === booking?.id) || booking;
+            originalOpenEditBooking.call(this, original);
+            if (this.editor.mode === 'edit') this.form.rateId = original.roomRateId || '';
         };
 
         methods.roomChanged = function () {
@@ -164,19 +141,10 @@
                 if (type === 2) {
                     const existingDistance = dayDistance(this.form.checkInLocal, this.form.checkOutLocal);
                     const nights = Math.max(1, existingDistance || 1);
-                    const checkoutDate = (() => {
-                        const base = parseDateKey(this.selectedDayKey);
-                        base.setUTCDate(base.getUTCDate() + nights);
-                        return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`;
-                    })();
-                    this.form.checkOutLocal = `${checkoutDate}T${rate.endTime}`;
+                    this.form.checkOutLocal = `${addDays(this.selectedDayKey, nights)}T${rate.endTime}`;
                     this.form.roomAmount = Number(rate.price || 0) * nights;
                 } else {
-                    const checkoutDay = type === 1 || rate.isOvernight ? (() => {
-                        const base = parseDateKey(this.selectedDayKey);
-                        base.setUTCDate(base.getUTCDate() + 1);
-                        return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`;
-                    })() : this.selectedDayKey;
+                    const checkoutDay = type === 1 || rate.isOvernight ? addDays(this.selectedDayKey, 1) : this.selectedDayKey;
                     this.form.checkOutLocal = `${checkoutDay}T${rate.endTime}`;
                     this.form.roomAmount = Number(rate.price || 0);
                 }
@@ -185,6 +153,8 @@
             }
         };
 
+        // If staff stretches a normal/custom booking over two or more nights, automatically move
+        // it to the room's Nightly rate. One-night Overnight presets remain untouched.
         methods.syncNightlyFromDates = function () {
             if (this.nightlySyncing || !this.form?.checkInLocal || !this.form?.checkOutLocal) return;
             const nights = dayDistance(this.form.checkInLocal, this.form.checkOutLocal);
@@ -198,10 +168,10 @@
 
             this.nightlySyncing = true;
             try {
-                if (this.form.rateId !== nightly.id) this.form.rateId = nightly.id;
+                this.form.rateId = nightly.id;
                 this.form.checkInLocal = withTime(this.form.checkInLocal, nightly.startTime);
                 this.form.checkOutLocal = withTime(this.form.checkOutLocal, nightly.endTime);
-                this.form.roomAmount = Number(nightly.price || 0) * Math.max(1, nights);
+                this.form.roomAmount = Number(nightly.price || 0) * nights;
             } finally {
                 this.nightlySyncing = false;
             }
@@ -214,8 +184,8 @@
 
             const selectedRate = this.selectedRoomRates.find(x => x.id === this.form.rateId) || null;
             const isNightly = Number(selectedRate?.type) === 2;
-            const nights = isNightly ? Math.max(1, dayDistance(this.form.checkInLocal, this.form.checkOutLocal)) : null;
-            if (isNightly && nights < 1) return this.notify('Ngày trả phòng phải sau ngày nhận phòng.', 'error');
+            const nights = isNightly ? dayDistance(this.form.checkInLocal, this.form.checkOutLocal) : null;
+            if (isNightly && (!nights || nights < 1)) return this.notify('Lưu trú theo đêm phải có ngày trả sau ngày nhận.', 'error');
 
             this.saving = true;
             try {
@@ -229,19 +199,14 @@
                     rateName: selectedRate?.name || null,
                     unitPrice: selectedRate ? Number(selectedRate.price || 0) : null,
                     nightCount: isNightly ? nights : null,
-                    checkIn: `${this.form.checkInLocal}${this.$root?.utcOffset || ''}`,
-                    checkOut: `${this.form.checkOutLocal}${this.$root?.utcOffset || ''}`,
+                    checkIn: `${this.form.checkInLocal}${utcOffset}`,
+                    checkOut: `${this.form.checkOutLocal}${utcOffset}`,
                     roomAmount,
                     extraAmount: Number(this.form.extraAmount || 0),
                     discountAmount: Number(this.form.discountAmount || 0),
                     source: this.form.source || null,
                     note: this.form.note || null
                 };
-
-                // The calendar page currently uses +07:00. Keep the existing behavior if the
-                // component does not expose an offset property.
-                if (!common.checkIn.match(/[+-]\d\d:\d\d$/)) common.checkIn = `${this.form.checkInLocal}+07:00`;
-                if (!common.checkOut.match(/[+-]\d\d:\d\d$/)) common.checkOut = `${this.form.checkOutLocal}+07:00`;
 
                 let booking;
                 if (this.editor.mode === 'edit') {
@@ -267,6 +232,8 @@
             }
         };
 
+        // CalendarModel intentionally sends a lean room snapshot. Refresh from the room API so the
+        // editor also receives the Nightly rate instead of only TimeSlot/Overnight presets.
         const originalMounted = options.mounted;
         options.mounted = async function () {
             if (typeof originalMounted === 'function') await originalMounted.call(this);
@@ -274,7 +241,7 @@
                 const rooms = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/rooms`);
                 if (Array.isArray(rooms)) this.rooms = rooms;
             } catch {
-                // Keep the page snapshot if the refresh fails; time-slot booking still works.
+                // Keep the page snapshot if refresh fails; normal time-slot booking still works.
             }
         };
 
