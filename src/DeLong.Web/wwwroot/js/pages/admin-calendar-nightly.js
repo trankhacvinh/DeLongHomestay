@@ -156,10 +156,13 @@
             const currentRate = this.selectedRoomRates.find(x => x.id === this.form.rateId) || null;
             const nightly = this.nightlyRateForRoom();
 
+            // An explicit Overnight preset is a one-off package and must stay TimeSlot.
             if (Number(currentRate?.type) === 1) return;
-            if (Number(currentRate?.type) !== 2 && nights < 2) return;
             if (!nightly) return;
 
+            // Any other booking whose checkout moves to a later calendar date becomes a nightly
+            // stay automatically. This matches the public multi-day model and avoids leaving a
+            // multi-date booking attached to a normal hourly rate.
             this.nightlySyncing = true;
             try {
                 this.form.rateId = nightly.id;
