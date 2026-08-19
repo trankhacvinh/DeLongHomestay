@@ -32,7 +32,7 @@
                     <div class="field"><label>Đặt tối đa</label><input data-policy-field="publicMaxNights" type="number" min="1" max="14" value="${Number(policy.publicMaxNights || 3)}" /><small>đêm / một lượt online</small></div>
                     <div class="field"><label>Đã gồm trong giá</label><input data-policy-field="includedGuests" type="number" min="1" max="50" value="${Number(policy.includedGuests || 2)}" /><small>khách trước khi tính phụ thu</small></div>
                     <div class="field"><label>Phụ thu mỗi khách</label><input data-policy-field="extraGuestFeePerPerson" type="number" min="0" step="1000" value="${Number(policy.extraGuestFeePerPerson || 0)}" /><small>áp dụng tới sức chứa tối đa của phòng</small></div>
-                    <label class="check-row full"><input data-policy-field="requireIdentityDocuments" type="checkbox" ${policy.requireIdentityDocuments ? 'checked' : ''} ${policy.identityEncryptionConfigured ? '' : 'disabled'} /> Bắt buộc CCCD mặt trước và mặt sau khi khách đặt online</label>
+                    <div class="booking-policy-required-identity full"><span>CCCD khách web</span><strong>Bắt buộc mặt trước + mặt sau</strong><small>Nhân viên tạo booking trong Admin có thể bỏ qua email và CCCD; khách tự đặt trên website phải cung cấp đầy đủ.</small></div>
                     <div class="booking-policy-security full ${policy.identityEncryptionConfigured ? '' : 'is-warning'}">
                         <span aria-hidden="true">${policy.identityEncryptionConfigured ? '✓' : '!'}</span>
                         <div><strong>${policy.identityEncryptionConfigured ? 'Khóa mã hóa CCCD được hệ thống tự quản lý' : 'Không thể khởi tạo khóa mã hóa CCCD'}</strong><small>${policy.identityEncryptionConfigured ? 'Ảnh được mã hóa AES-256-GCM. Khi chuyển server, chỉ cần sao lưu và khôi phục toàn bộ DataRoot; khóa master nằm trong DataRoot/security.' : 'Hãy kiểm tra quyền đọc/ghi DataRoot/security hoặc khôi phục toàn bộ DataRoot từ bản sao lưu. Hệ thống không fallback lưu CCCD dạng plaintext.'}</small></div>
@@ -54,12 +54,11 @@
     async function save(panel) {
         if (saving) return;
         const button = panel.querySelector('[data-policy-save]');
-        const requireIdentity = panel.querySelector('[data-policy-field="requireIdentityDocuments"]');
         const payload = {
             publicMaxNights: numberValue(panel, 'publicMaxNights', 3),
             includedGuests: numberValue(panel, 'includedGuests', 2),
             extraGuestFeePerPerson: numberValue(panel, 'extraGuestFeePerPerson', 100000),
-            requireIdentityDocuments: requireIdentity?.checked === true,
+            requireIdentityDocuments: true,
             policyTitle: panel.querySelector('[data-policy-field="policyTitle"]')?.value?.trim() || 'Nội quy & Chính sách',
             policyText: panel.querySelector('[data-policy-field="policyText"]')?.value?.trim() || ''
         };

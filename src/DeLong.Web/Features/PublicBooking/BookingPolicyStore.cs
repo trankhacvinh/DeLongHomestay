@@ -20,7 +20,7 @@ public sealed class UpdateBookingPolicyRequest
     public int PublicMaxNights { get; init; } = 3;
     public int IncludedGuests { get; init; } = 2;
     public decimal ExtraGuestFeePerPerson { get; init; } = 100_000m;
-    public bool RequireIdentityDocuments { get; init; }
+    public bool RequireIdentityDocuments { get; init; } = true;
     public string? PolicyTitle { get; init; }
     public string? PolicyText { get; init; }
 }
@@ -55,7 +55,7 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
         if (request.PublicMaxNights is < 1 or > 14) return (null, "Số đêm tối đa cho khách online phải từ 1 đến 14.");
         if (request.IncludedGuests is < 1 or > 50) return (null, "Số khách đã gồm trong giá phải từ 1 đến 50.");
         if (request.ExtraGuestFeePerPerson is < 0 or > 10_000_000m) return (null, "Phụ thu mỗi khách không hợp lệ.");
-        if (request.RequireIdentityDocuments && !IdentityEncryptionConfigured())
+        if (!IdentityEncryptionConfigured())
             return (null, "Kho CCCD chưa thể tạo hoặc đọc khóa mã hóa trong DataRoot. Hãy kiểm tra quyền ghi DataRoot/security hoặc khôi phục DataRoot đầy đủ từ bản sao lưu.");
 
         var title = Clean(request.PolicyTitle, 200) ?? "Nội quy & Chính sách";
@@ -73,7 +73,7 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
                 PublicMaxNights = request.PublicMaxNights,
                 IncludedGuests = request.IncludedGuests,
                 ExtraGuestFeePerPerson = request.ExtraGuestFeePerPerson,
-                RequireIdentityDocuments = request.RequireIdentityDocuments,
+                RequireIdentityDocuments = true,
                 PolicyTitle = title,
                 PolicyText = text,
                 PolicyVersion = version
@@ -101,16 +101,20 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
         }
     }
 
-    private BookingPolicyDto Defaults() => new(
-        3,
-        2,
-        100_000m,
-        false,
-        "Nội quy & Chính sách",
-        DefaultPolicyText,
-        1,
-        HoldMinutes,
-        IdentityEncryptionConfigured());
+    private BookingPolicyDto Defaults()
+    {
+        var encryptionReady = IdentityEncryptionConfigured();
+        return new BookingPolicyDto(
+            3,
+            2,
+            100_000m,
+            true,
+            "Nội quy & Chính sách",
+            DefaultPolicyText,
+            1,
+            HoldMinutes,
+            encryptionReady);
+    }
 
     private BookingPolicyDto Normalize(StoredBookingPolicy? stored)
     {
@@ -120,7 +124,7 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
             Math.Clamp(stored.PublicMaxNights <= 0 ? 3 : stored.PublicMaxNights, 1, 14),
             Math.Clamp(stored.IncludedGuests <= 0 ? 2 : stored.IncludedGuests, 1, 50),
             Math.Clamp(stored.ExtraGuestFeePerPerson, 0m, 10_000_000m),
-            stored.RequireIdentityDocuments && encryptionReady,
+            true,
             Clean(stored.PolicyTitle, 200) ?? "Nội quy & Chính sách",
             Clean(stored.PolicyText, 20_000) ?? DefaultPolicyText,
             Math.Max(1, stored.PolicyVersion),
@@ -147,7 +151,7 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
         public int PublicMaxNights { get; init; } = 3;
         public int IncludedGuests { get; init; } = 2;
         public decimal ExtraGuestFeePerPerson { get; init; } = 100_000m;
-        public bool RequireIdentityDocuments { get; init; }
+        public bool RequireIdentityDocuments { get; init; } = true;
         public string? PolicyTitle { get; init; }
         public string? PolicyText { get; init; }
         public int PolicyVersion { get; init; } = 1;

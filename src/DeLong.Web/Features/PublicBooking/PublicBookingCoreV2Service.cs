@@ -27,6 +27,7 @@ public sealed class PublicBookingCoreV2Service(
 
         var policyStore = new BookingPolicyStore(storagePaths, configuration);
         var holdStore = new PublicBookingHoldStore(storagePaths);
+        var guestDetailsStore = new BookingGuestDetailsStore(storagePaths);
         await holdStore.ReleaseExpiredAsync(db, property.Id, cancellationToken);
         var policy = await policyStore.GetAsync(property.Id, cancellationToken);
 
@@ -41,9 +42,18 @@ public sealed class PublicBookingCoreV2Service(
         if (booking is null) return (null, new("booking_not_found", "Không tìm thấy lượt đặt vừa tạo."));
 
         booking.ExtraAmount = validation.Surcharge;
-        booking.Note = BuildBookingNote(request, policy, validation.IncludedGuests, validation.Surcharge);
+        booking.Note = CleanNote(request.Note);
         booking.Customer.Email = request.CustomerEmail.Trim();
         await db.SaveChangesAsync(cancellationToken);
+        await guestDetailsStore.SaveAsync(
+            property.Id,
+            booking.Id,
+            new BookingGuestDetailsDto(
+                request.GuestCount,
+                true,
+                policy.PolicyVersion,
+                DateTime.UtcNow),
+            cancellationToken);
         await RefreshNotificationTotalAsync(property.Id, booking.Id, booking.TotalAmount, request.CustomerEmail, request.GuestCount, cancellationToken);
 
         DateTime? holdExpiresAtUtc = null;
@@ -98,9 +108,9 @@ public sealed class PublicBookingCoreV2Service(
             return (new("policy_required", "Bạn cần đọc và đồng ý với Nội quy & Chính sách trước khi đặt phòng."), 0m, 0);
         if (request.PolicyVersion != policy.PolicyVersion)
             return (new("policy_changed", "Nội quy & Chính sách vừa được cập nhật. Vui lòng đọc lại trước khi tiếp tục."), 0m, 0);
-        if (policy.RequireIdentityDocuments && (!request.HasIdentityFront || !request.HasIdentityBack))
-            return (new("identity_required", "Cơ sở yêu cầu ảnh CCCD mặt trước và mặt sau cho lượt đặt này."), 0m, 0);
-        if (policy.RequireIdentityDocuments && !policy.IdentityEncryptionConfigured)
+        if (!request.HasIdentityFront || !request.HasIdentityBack)
+            return (new("identity_required", "Khách đặt online phải cung cấp ảnh CCCD mặt trước và mặt sau."), 0m, 0);
+        if (!policy.IdentityEncryptionConfigured)
             return (new("identity_storage_unavailable", "Hệ thống lưu CCCD bảo mật chưa sẵn sàng. Vui lòng liên hệ cơ sở."), 0m, 0);
 
         var room = await db.Rooms.AsNoTracking()
@@ -169,14 +179,8 @@ public sealed class PublicBookingCoreV2Service(
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    private static string BuildBookingNote(PublicBookingRequest request, BookingPolicyDto policy, int includedGuests, decimal surcharge)
-    {
-        var system = $"[Đặt web] {request.GuestCount} khách · giá gồm {includedGuests} khách";
-        if (surcharge > 0) system += $" · phụ thu {surcharge:N0}đ";
-        system += $" · đồng ý {policy.PolicyTitle} v{policy.PolicyVersion}";
-        var note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
-        return note is null ? system : system + Environment.NewLine + note;
-    }
+    private static string? CleanNote(string? note) =>
+        string.IsNullOrWhiteSpace(note) ? null : note.Trim();
 
     private static bool IsValidEmail(string? value)
     {
