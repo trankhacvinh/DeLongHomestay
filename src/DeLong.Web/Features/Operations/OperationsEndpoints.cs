@@ -12,8 +12,10 @@ public static class OperationsEndpoints
 {
     public static IEndpointRouteBuilder MapOperationsEndpoints(this IEndpointRouteBuilder app)
     {
+        // The stream itself is operational metadata only and is shared by Calendar/Bookings/Housekeeping.
+        // AdminArea includes the Housekeeping role; the availability endpoint below remains ViewOperations-only.
         var admin = app.MapGroup("/api/admin/properties/{propertyId:guid}/operations")
-            .RequireAuthorization("ViewOperations")
+            .RequireAuthorization("AdminArea")
             .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Operations");
 
@@ -43,7 +45,7 @@ public static class OperationsEndpoints
                 Math.Clamp(days ?? 10, 1, 31),
                 cancellationToken);
             return result is null ? Results.NotFound() : Results.Ok(result);
-        });
+        }).RequireAuthorization("ViewOperations");
 
         app.MapGet("/api/public/room-availability", async (
             [FromQuery] Guid roomId,
