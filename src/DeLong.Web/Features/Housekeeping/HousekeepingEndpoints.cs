@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using DeLong.Web.Common.Security;
+using DeLong.Web.Features.Operations;
 
 namespace DeLong.Web.Features.Housekeeping;
 
@@ -28,7 +29,13 @@ public static class HousekeepingEndpoints
         {
             var actorUserId = GetUserId(user);
             var room = await service.ChangeStatusAsync(propertyId, roomId, request.Status, actorUserId, cancellationToken);
-            return room is null ? Results.NotFound() : Results.Ok(room);
+            if (room is null) return Results.NotFound();
+            OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
+                propertyId,
+                OperationsEventTypes.HousekeepingChanged,
+                null,
+                roomId));
+            return Results.Ok(room);
         })
         .RequireAuthorization("ManageHousekeeping")
         .AddEndpointFilter<ApiAntiforgeryFilter>();
