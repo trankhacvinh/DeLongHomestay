@@ -2,7 +2,7 @@
     const center = document.querySelector('[data-notification-center]');
     if (!window.DeLongApi) return;
 
-    const pageDataNode = document.getElementById('calendar-page-data') || document.getElementById('bookings-page-data');
+    const pageDataNode = document.getElementById('calendar-page-data') || document.getElementById('bookings-page-data') || document.getElementById('housekeeping-page-data');
     const pageData = (() => {
         try { return JSON.parse(pageDataNode?.textContent || '{}'); }
         catch { return {}; }
@@ -11,7 +11,7 @@
     if (!propertyId) return;
 
     function bookingLiveAssetUrl() {
-        const base = '/js/core/admin-booking-live-v2.js?v=20260819-3';
+        const base = '/js/core/admin-booking-live-v2.js?v=20260820-1';
         const host = String(window.location.hostname || '').toLowerCase();
         if (!['localhost', '127.0.0.1', '::1'].includes(host)) return base;
         return `${base}&dev=${Date.now().toString(36)}`;
@@ -41,7 +41,32 @@
         else window.addEventListener('load', ensureBookingLiveScript, { once: true });
     }
 
+    function startOperationsRealtime() {
+        if (!('EventSource' in window) || window.DeLongApi.__operationsRealtimeBound) return;
+        window.DeLongApi.__operationsRealtimeBound = true;
+        const source = new EventSource(`/api/admin/properties/${propertyId}/operations/stream`);
+        source.addEventListener('operations', event => {
+            let detail = { propertyId, raw: event.data || '' };
+            try {
+                const parsed = JSON.parse(event.data || '{}');
+                detail = { ...parsed, propertyId: parsed.propertyId || propertyId };
+            } catch { }
+            document.dispatchEvent(new CustomEvent('delong:operations-change', { detail }));
+        });
+        source.addEventListener('open', () => {
+            document.documentElement.dataset.operationsRealtime = 'connected';
+            document.dispatchEvent(new CustomEvent('delong:operations-change', {
+                detail: { propertyId, type: 'stream.reconnected' }
+            }));
+        });
+        source.addEventListener('error', () => {
+            document.documentElement.dataset.operationsRealtime = 'reconnecting';
+        });
+        window.addEventListener('beforeunload', () => source.close(), { once: true });
+    }
+
     scheduleBookingLiveScript();
+    startOperationsRealtime();
 
     if (!center) return;
 
