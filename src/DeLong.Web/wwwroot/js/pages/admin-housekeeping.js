@@ -45,7 +45,7 @@
                     const rooms = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/housekeeping`);
                     this.rooms = Array.isArray(rooms) ? rooms : [];
                 } catch {
-                    // Reconnect/focus will retry. Keep the last known board instead of flashing an error.
+                    // SSE reconnect/focus/fallback poll will retry. Keep the last known board.
                 } finally {
                     this.refreshInFlight = false;
                     if (this.refreshQueued) {
@@ -90,4 +90,9 @@
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) vm.refreshRooms();
     });
+
+    const fallbackPoll = setInterval(() => {
+        if (!document.hidden) vm.refreshRooms();
+    }, 15000);
+    window.addEventListener('beforeunload', () => clearInterval(fallbackPoll), { once: true });
 })();
