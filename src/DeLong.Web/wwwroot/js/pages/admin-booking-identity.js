@@ -21,6 +21,7 @@
     const bookingByCode = new Map((initial.bookings || []).map(item => [item.code, item]));
     const detailsCache = new Map();
     const detailsLoading = new Map();
+    const documentRetryTimers = new Map();
     let sessionKey = '';
     let editState = newEditState();
     let syncing = false;
@@ -35,7 +36,7 @@
         if (document.querySelector('link[data-admin-booking-guest-details]')) return;
         const link = document.createElement('link');
         link.rel = 'stylesheet';
-        link.href = '/css/admin-booking-guest-details.css?v=20260819-1';
+        link.href = '/css/admin-booking-guest-details.css?v=20260819-3';
         link.dataset.adminBookingGuestDetails = 'true';
         document.head.appendChild(link);
     }
@@ -81,6 +82,24 @@
         return `${identityUrl(bookingId, side)}?v=${encodeURIComponent(bookingId)}`;
     }
 
+    function vueVm() {
+        return root.__vue_app__?._instance?.proxy || null;
+    }
+
+    function resolveLiveBooking(code) {
+        const vm = vueVm();
+        const selected = vm?.selectedBooking || null;
+        if (selected && (!code || selected.code === code)) {
+            if (selected.code) bookingByCode.set(selected.code, selected);
+            return selected;
+        }
+
+        const liveRows = Array.isArray(vm?.bookings) ? vm.bookings : [];
+        const live = code ? liveRows.find(item => item.code === code) || null : null;
+        if (live?.code) bookingByCode.set(live.code, live);
+        return live || (code ? bookingByCode.get(code) || null : null);
+    }
+
     function currentContext() {
         if (calendarRoot) {
             const modal = calendarRoot.querySelector('.booking-editor');
@@ -92,14 +111,14 @@
             else if (title === 'Chi tiết lượt đặt') mode = 'view';
             else return null;
             const code = modal.querySelector('.modal-head p')?.textContent?.trim() || '';
-            const booking = code ? bookingByCode.get(code) || null : null;
+            const booking = resolveLiveBooking(code);
             return { modal, mode, code, booking };
         }
 
         const modal = bookingsRoot?.querySelector('.booking-editor');
         if (!modal) return null;
         const code = modal.querySelector('.modal-head h2')?.textContent?.trim() || '';
-        const booking = code ? bookingByCode.get(code) || null : null;
+        const booking = resolveLiveBooking(code);
         return booking ? { modal, mode: 'view', code, booking } : null;
     }
 
@@ -107,7 +126,8 @@
         if (!calendarRoot || !modal) return null;
         const roomSelect = modal.querySelector('.booking-form-section select');
         const roomId = roomSelect?.value || '';
-        return (initial.rooms || []).find(room => room.id === roomId) || null;
+        const rooms = Array.isArray(vueVm()?.rooms) ? vueVm().rooms : (initial.rooms || []);
+        return rooms.find(room => room.id === roomId) || null;
     }
 
     function currentCapacity(modal) {
@@ -117,7 +137,7 @@
     async function loadDetails(bookingId, force) {
         if (!bookingId) return null;
         if (!force && detailsCache.has(bookingId)) return detailsCache.get(bookingId);
-        if (detailsLoading.has(bookingId)) return detailsLoading.get(bookingId);
+        if (!force && detailsLoading.has(bookingId)) return detailsLoading.get(bookingId);
         const promise = rawGet(guestDetailsUrl(bookingId))
             .then(details => {
                 detailsCache.set(bookingId, details);
@@ -176,7 +196,7 @@
             extra.className = 'admin-booking-extra-fields';
             extra.dataset.adminBookingExtraFields = 'true';
             extra.innerHTML = `
-                <div class="field"><label>Email</label><input data-admin-booking-email type="email" maxlength="254" autocomplete="email" placeholder="Không bắt buộc với nhân viên" /><small>Có thể bỏ trống khi nhân viên tạo hoặc sửa booking.</small></div>
+                <div class="field"><label>Email</label><input data-admin-booking-email type="email" maxlength="254" autocomplete="email" placeholder="Không bắt buộc với nhân viên" /><small>Khách web bắt buộc email; nhân viên có thể để trống.</small></div>
                 <div class="field"><label>Số lượng khách *</label><input data-admin-booking-guests type="number" min="1" step="1" value="1" /><small data-admin-booking-guest-hint></small></div>`;
             customerSection.querySelector('.form-grid')?.insertAdjacentElement('afterend', extra);
             const emailInput = extra.querySelector('[data-admin-booking-email]');
@@ -196,7 +216,7 @@
             identity.className = 'admin-booking-identity-editor';
             identity.dataset.adminBookingIdentityEditor = 'true';
             identity.innerHTML = `
-                <div class="admin-booking-identity-editor-head"><div><strong>CCCD / giấy tờ tùy thân</strong><small>Ảnh được mã hóa trước khi ghi xuống ổ đĩa. Nhân viên có thể bỏ qua.</small></div><span>Không bắt buộc</span></div>
+                <div class="admin-booking-identity-editor-head"><div><strong>CCCD / giấy tờ tùy thân</strong><small>Ảnh được mã hóa trước khi ghi xuống ổ đĩa. Nhân viên có thể bỏ qua.</small></div><span>Không bắt buộc với nhân viên</span></div>
                 <div class="admin-booking-id-grid">
                     ${editorCardHtml('front', 'Mặt trước')}
                     ${editorCardHtml('back', 'Mặt sau')}
@@ -324,6 +344,16 @@
         hint.textContent = `Tối đa ${max} khách theo sức chứa của phòng.`;
     }
 
+    function formatAcceptedAt(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return new Intl.DateTimeFormat('vi-VN', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        }).format(date);
+    }
+
     function renderDetail(context, details, error) {
         if (!context?.modal || context.mode !== 'view') return;
         const list = context.modal.querySelector('.detail-list, .booking-detail-list');
@@ -333,43 +363,105 @@
             panel = document.createElement('section');
             panel.className = 'admin-booking-detail-panel';
             panel.dataset.adminBookingDetailPanel = 'true';
-            list.insertAdjacentElement('afterend', panel);
         }
+
+        const hero = context.modal.querySelector('.booking-detail-hero');
+        if (hero) hero.insertAdjacentElement('afterend', panel);
+        else list.insertAdjacentElement('beforebegin', panel);
+
         if (error) {
-            panel.innerHTML = `<div class="admin-booking-details-error">${escapeHtml(error)}</div>`;
+            const key = `error:${error}`;
+            if (panel.dataset.renderKey !== key) {
+                panel.dataset.renderKey = key;
+                panel.innerHTML = `<div class="admin-booking-details-error"><strong>Không tải được thông tin người đặt.</strong><span>${escapeHtml(error)}</span></div>`;
+            }
             return;
         }
         if (!details) {
-            panel.innerHTML = '<div class="admin-booking-details-loading">Đang tải thông tin khách và CCCD…</div>';
+            if (panel.dataset.renderKey !== 'loading') {
+                panel.dataset.renderKey = 'loading';
+                panel.innerHTML = '<div class="admin-booking-details-loading">Đang tải email, số khách và CCCD…</div>';
+            }
             return;
         }
 
         const booking = context.booking;
+        if (!booking?.id) return;
+        const webBooking = String(booking.source || '').toLowerCase() === 'website';
+        const acceptedAt = formatAcceptedAt(details.policyAcceptedAtUtc);
         const policyText = details.policyAccepted
-            ? `Khách đặt website đã đồng ý Nội quy & Chính sách${details.policyVersion ? ` v${Number(details.policyVersion)}` : ''}.`
-            : (String(booking?.source || '').toLowerCase() === 'website'
+            ? `Đã đồng ý Nội quy & Chính sách${details.policyVersion ? ` v${Number(details.policyVersion)}` : ''}${acceptedAt ? ` · ${acceptedAt}` : ''}`
+            : (webBooking
                 ? 'Booking web cũ chưa có dữ liệu xác nhận chính sách tách riêng.'
-                : 'Booking do nhân viên tạo: email và CCCD không bắt buộc, không yêu cầu xác nhận Nội quy & Chính sách.');
+                : 'Booking do nhân viên tạo · không yêu cầu xác nhận Nội quy & Chính sách.');
         const documents = Array.isArray(details.documents) ? details.documents : [];
+        const sourceLabel = webBooking ? 'Đặt trên website' : (booking.source || 'Nhân viên đặt');
+        const renderKey = JSON.stringify({
+            id: booking.id,
+            phone: booking.customerPhone,
+            email: details.customerEmail,
+            guests: details.guestCount,
+            max: details.maxGuests,
+            policy: policyText,
+            docs: documents.map(item => item.side).sort()
+        });
+        if (panel.dataset.renderKey === renderKey) return;
+        panel.dataset.renderKey = renderKey;
         panel.innerHTML = `
-            <div class="admin-booking-detail-head"><div><strong>Thông tin khách đặt</strong><small>Thông tin bổ sung và giấy tờ riêng tư</small></div><span>${String(booking?.source || '').toLowerCase() === 'website' ? 'Đặt web' : 'Nhân viên đặt'}</span></div>
+            <div class="admin-booking-detail-head">
+                <div><strong>Thông tin người đặt</strong><small>Thông tin liên hệ, số khách và giấy tờ đã cung cấp</small></div>
+                <span>${escapeHtml(sourceLabel)}</span>
+            </div>
             <div class="admin-booking-guest-grid">
+                <div class="is-primary"><span>Họ tên</span><strong>${escapeHtml(booking.customerName || '—')}</strong></div>
+                <div class="is-primary"><span>Số điện thoại</span><strong class="admin-booking-phone">${escapeHtml(booking.customerPhone || '—')}</strong></div>
                 <div><span>Email</span><strong>${escapeHtml(details.customerEmail || 'Không cung cấp')}</strong></div>
-                <div><span>Số lượng khách</span><strong>${Number(details.guestCount || 1)} khách</strong></div>
-                <div><span>Sức chứa phòng</span><strong>Tối đa ${Number(details.maxGuests || 1)} khách</strong></div>
+                <div><span>Số khách</span><strong>${Number(details.guestCount || 1)} khách</strong><small>Tối đa ${Number(details.maxGuests || 1)} khách/phòng</small></div>
             </div>
             <div class="admin-booking-policy-state ${details.policyAccepted ? '' : 'is-staff'}">${escapeHtml(policyText)}</div>
+            <div class="admin-booking-id-title"><strong>CCCD / giấy tờ tùy thân</strong><span>${documents.length}/2 ảnh</span></div>
             <div class="admin-booking-detail-id-grid">
-                ${detailIdentityHtml(context.booking.id, 'front', 'Mặt trước', documents)}
-                ${detailIdentityHtml(context.booking.id, 'back', 'Mặt sau', documents)}
+                ${detailIdentityHtml(booking.id, 'front', 'Mặt trước', documents)}
+                ${detailIdentityHtml(booking.id, 'back', 'Mặt sau', documents)}
             </div>`;
+
+        maybeRetryWebsiteDocuments(context, details);
     }
 
     function detailIdentityHtml(bookingId, side, label, documents) {
         const document = documents.find(item => item.side === side);
         if (!document) return `<div class="admin-booking-detail-id"><strong>${label}</strong><span class="empty">Chưa có ảnh</span></div>`;
         const url = documentUrl(bookingId, side);
-        return `<div class="admin-booking-detail-id"><strong>${label}</strong><a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${label}" loading="lazy" /></a></div>`;
+        return `<div class="admin-booking-detail-id"><div class="admin-booking-id-label"><strong>${label}</strong><span>Đã nhận</span></div><a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${label}" loading="eager" /></a></div>`;
+    }
+
+    function clearDocumentRetries(bookingId) {
+        const timers = documentRetryTimers.get(bookingId) || [];
+        timers.forEach(timer => clearTimeout(timer));
+        documentRetryTimers.delete(bookingId);
+    }
+
+    function maybeRetryWebsiteDocuments(context, details) {
+        const booking = context.booking;
+        if (!booking?.id || String(booking.source || '').toLowerCase() !== 'website') return;
+        const documents = Array.isArray(details.documents) ? details.documents : [];
+        if (documents.length >= 2) {
+            clearDocumentRetries(booking.id);
+            return;
+        }
+        if (documentRetryTimers.has(booking.id)) return;
+
+        const timers = [1200, 3600].map(delay => setTimeout(async () => {
+            const latest = currentContext();
+            if (latest?.mode !== 'view' || latest.booking?.id !== booking.id) return;
+            try {
+                const refreshed = await loadDetails(booking.id, true);
+                renderDetail(latest, refreshed, null);
+                applyCleanNote(latest, refreshed);
+                if ((refreshed.documents || []).length >= 2) clearDocumentRetries(booking.id);
+            } catch { }
+        }, delay));
+        documentRetryTimers.set(booking.id, timers);
     }
 
     function collectSupplement() {
@@ -430,6 +522,7 @@
             }
         }
         detailsCache.delete(booking.id);
+        clearDocumentRetries(booking.id);
         if (failures.length) flash(`Booking đã lưu, nhưng CCCD chưa cập nhật đủ (${failures.join('; ')}).`, 'error');
     }
 
@@ -489,8 +582,8 @@
                 } else if (context.booking?.id) {
                     renderDetail(context, null, null);
                     try {
-                        const details = await loadDetails(context.booking.id, false);
-                        if (['edit'].includes(context.mode)) hydrateEditState(context.booking.id, details);
+                        const details = await loadDetails(context.booking.id, true);
+                        if (context.mode === 'edit') hydrateEditState(context.booking.id, details);
                         applyCleanNote(context, details);
                     } catch (error) {
                         if (context.mode === 'view') renderDetail(context, null, error.message || 'Không thể tải thông tin khách.');
@@ -500,7 +593,7 @@
 
             if (context.mode === 'edit' && context.booking?.id && editState.loadedBookingId !== context.booking.id) {
                 try {
-                    const details = await loadDetails(context.booking.id, false);
+                    const details = await loadDetails(context.booking.id, true);
                     hydrateEditState(context.booking.id, details);
                     applyCleanNote(context, details);
                 } catch { }
@@ -512,7 +605,7 @@
                 renderDetail(context, details, null);
                 applyCleanNote(context, details);
                 if (!details && !detailsLoading.has(context.booking.id)) {
-                    loadDetails(context.booking.id, false)
+                    loadDetails(context.booking.id, true)
                         .then(value => {
                             const latest = currentContext();
                             if (latest?.mode === 'view' && latest.booking?.id === context.booking.id) {
@@ -545,6 +638,7 @@
     const observer = new MutationObserver(() => requestAnimationFrame(sync));
     observer.observe(root, { childList: true, subtree: true });
     window.addEventListener('beforeunload', () => {
+        for (const bookingId of documentRetryTimers.keys()) clearDocumentRetries(bookingId);
         revokePreview('front');
         revokePreview('back');
     });
