@@ -191,7 +191,7 @@
                             <label>Mức giá</label>
                             <select v-model="form.rateId" v-on:change="applyRate">
                                 <option value="">Tùy chỉnh giờ/giá</option>
-                                <option v-for="rate in selectedRoomRates" v-bind:key="rate.id" v-bind:value="rate.id">{{ rate.name }} · {{ rate.startTime }}–{{ rate.endTime }} · {{ money(rate.price) }}{{ rate.type === 2 ? '/đêm' : '' }}</option>
+                                <option v-for="rate in selectedRoomRates" v-bind:key="rate.id" v-bind:value="rate.id">{{ rate.name }} · {{ rate.startTime }}–{{ rate.endTime }} · {{ money(rate.price) }}<template v-if="rate.type === 2">/đêm</template></option>
                             </select>
                         </div>
                         <div class="field"><label>Nhận phòng *</label><input type="datetime-local" v-model="form.checkInLocal" /></div>

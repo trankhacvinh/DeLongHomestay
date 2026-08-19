@@ -75,6 +75,8 @@
             return Math.max(1, Number(booking.nightCount || 0), distance);
         };
 
+        // Calendar occupancy is based on the real interval, not BookingType. A manually-created
+        // flexible booking that crosses dates must still stretch across the occupied days.
         methods.bookingsToRender = function (roomId, dayKeyValue) {
             return this.activeBookingRows(roomId)
                 .filter(booking => {
@@ -89,6 +91,8 @@
                 .sort((a, b) => new Date(a.checkInUtc) - new Date(b.checkInUtc))
                 .map(booking => {
                     if (!this.bookingSpansCalendarDays(booking)) return booking;
+                    // The existing Razor template already knows how to draw a multi-day bar when
+                    // type === 1. Use a render-only clone; the real booking object is never mutated.
                     return { ...booking, __actualType: booking.type, type: 1, nightCount: this.calendarNightCount(booking) };
                 });
         };
@@ -149,6 +153,8 @@
             }
         };
 
+        // If staff stretches a normal/custom booking over two or more nights, automatically move
+        // it to the room's Nightly rate. One-night Overnight presets remain untouched.
         methods.syncNightlyFromDates = function () {
             if (this.nightlySyncing || !this.form?.checkInLocal || !this.form?.checkOutLocal) return;
             const nights = dayDistance(this.form.checkInLocal, this.form.checkOutLocal);
@@ -156,13 +162,10 @@
             const currentRate = this.selectedRoomRates.find(x => x.id === this.form.rateId) || null;
             const nightly = this.nightlyRateForRoom();
 
-            // An explicit Overnight preset is a one-off package and must stay TimeSlot.
             if (Number(currentRate?.type) === 1) return;
+            if (Number(currentRate?.type) !== 2 && nights < 2) return;
             if (!nightly) return;
 
-            // Any other booking whose checkout moves to a later calendar date becomes a nightly
-            // stay automatically. This matches the public multi-day model and avoids leaving a
-            // multi-date booking attached to a normal hourly rate.
             this.nightlySyncing = true;
             try {
                 this.form.rateId = nightly.id;
@@ -229,6 +232,8 @@
             }
         };
 
+        // CalendarModel intentionally sends a lean room snapshot. Refresh from the room API so the
+        // editor also receives the Nightly rate instead of only TimeSlot/Overnight presets.
         const originalMounted = options.mounted;
         options.mounted = async function () {
             if (typeof originalMounted === 'function') await originalMounted.call(this);
