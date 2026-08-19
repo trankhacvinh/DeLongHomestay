@@ -2,11 +2,12 @@ using System.Text.Json;
 using DeLong.Web.Common.Operations;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Enums;
+using DeLong.Web.Features.Operations;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicBooking;
 
-public sealed class PublicBookingHoldStore(StoragePaths paths)
+public sealed class PublicBookingHoldStore(StoragePaths paths, OperationsRealtimeBroker? realtimeBroker = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly string root = Path.Combine(paths.DataRoot, "booking-holds");
@@ -69,6 +70,11 @@ public sealed class PublicBookingHoldStore(StoragePaths paths)
             booking.Status = BookingStatus.Requested;
             await db.SaveChangesAsync(cancellationToken);
             TryDelete(path);
+            realtimeBroker?.Publish(OperationsRealtimeEvent.Create(
+                propertyId,
+                OperationsEventTypes.BookingHoldExpired,
+                booking.Id,
+                booking.RoomId));
         }
     }
 
