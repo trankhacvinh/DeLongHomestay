@@ -57,11 +57,20 @@
         delete: (url) => request(url, { method: 'DELETE' })
     };
 
+    const localHostnames = new Set(['localhost', '127.0.0.1', '::1']);
+    const localAssetNonce = localHostnames.has(window.location.hostname.toLowerCase()) ? Date.now().toString(36) : '';
+
+    function assetUrl(value) {
+        if (!localAssetNonce) return value;
+        const separator = value.includes('?') ? '&' : '?';
+        return `${value}${separator}dev=${localAssetNonce}`;
+    }
+
     function appendStyle(marker, href) {
         if (document.querySelector(`link[${marker}]`)) return;
         const link = document.createElement('link');
         link.rel = 'stylesheet';
-        link.href = href;
+        link.href = assetUrl(href);
         link.setAttribute(marker, 'true');
         document.head.appendChild(link);
     }
@@ -69,7 +78,7 @@
     function appendScript(marker, src) {
         if (document.querySelector(`script[${marker}]`)) return;
         const script = document.createElement('script');
-        script.src = src;
+        script.src = assetUrl(src);
         script.async = false;
         script.setAttribute(marker, 'true');
         document.head.appendChild(script);
@@ -84,21 +93,24 @@
         if (!document.querySelector('link[data-admin-sidebar-quick-links]')) {
             const style = document.createElement('link');
             style.rel = 'stylesheet';
-            style.href = '/css/admin-sidebar-quick-links.css?v=20260818-1';
+            style.href = assetUrl('/css/admin-sidebar-quick-links.css?v=20260818-1');
             style.dataset.adminSidebarQuickLinks = 'true';
             document.head.appendChild(style);
         }
         if (!document.querySelector('script[data-admin-sidebar-quick-links]')) {
             const script = document.createElement('script');
-            script.src = '/js/core/admin-sidebar-quick-links.js?v=20260818-3';
+            script.src = assetUrl('/js/core/admin-sidebar-quick-links.js?v=20260818-3');
             script.async = false;
             script.dataset.adminSidebarQuickLinks = 'true';
             document.head.appendChild(script);
         }
-        appendStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-4');
+        appendStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-5');
+        appendStyle('data-admin-booking-guest-details', '/css/admin-booking-guest-details.css?v=20260819-2');
         afterWindowLoad(() => {
-            appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260819-4');
-            appendScript('data-admin-booking-identity', '/js/pages/admin-booking-identity.js?v=20260819-4');
+            appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260819-5');
+            appendScript('data-admin-booking-identity', '/js/pages/admin-booking-identity.js?v=20260819-5');
+            if (document.getElementById('calendar-page'))
+                appendScript('data-admin-calendar-realtime', '/js/pages/admin-calendar-realtime.js?v=20260819-1');
         });
     }
 
@@ -128,7 +140,7 @@
         addStyle('data-public-custom-pages', '/css/public-custom-pages.css?v=20260818-1');
         addStyle('data-public-custom-page-element-style', '/css/public-custom-page-element-style.css?v=20260818-3');
         addStyle('data-public-editor-stabilization', '/css/public-editor-stabilization.css?v=20260818-1');
-        addStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-4');
+        addStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-5');
 
         addScript('data-public-shell-runtime', '/js/pages/public-shell-runtime.js?v=20260817-2');
         addScript('data-public-shell-designer-runtime', '/js/pages/public-shell-designer-runtime.js?v=20260818-1');
@@ -158,6 +170,6 @@
         addScript('data-public-toolbar-compact', '/js/pages/public-toolbar-compact.js?v=20260818-1');
         addScript('data-public-header-footer-designer', '/js/pages/public-header-footer-designer.js?v=20260818-1');
         addScript('data-public-footer-inline-editor', '/js/pages/public-footer-inline-editor.js?v=20260818-1');
-        afterWindowLoad(() => addScript('data-public-booking-core-v2', '/js/pages/public-booking-core-v2.js?v=20260819-4'));
+        afterWindowLoad(() => addScript('data-public-booking-core-v2', '/js/pages/public-booking-core-v2.js?v=20260819-5'));
     }
 })(window);
