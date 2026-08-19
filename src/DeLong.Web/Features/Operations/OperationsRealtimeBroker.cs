@@ -10,6 +10,7 @@ public static class OperationsEventTypes
     public const string BookingMoved = "booking.moved";
     public const string BookingStatusChanged = "booking.status-changed";
     public const string BookingHoldExpired = "booking.hold-expired";
+    public const string BookingBulkChanged = "booking.bulk-changed";
     public const string HousekeepingChanged = "housekeeping.changed";
 }
 
