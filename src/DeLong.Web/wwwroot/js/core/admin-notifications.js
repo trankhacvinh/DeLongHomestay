@@ -52,12 +52,17 @@
                 detail = { ...parsed, propertyId: parsed.propertyId || propertyId };
             } catch { }
             document.dispatchEvent(new CustomEvent('delong:operations-change', { detail }));
+            if (String(detail.type || '').startsWith('booking.')) {
+                document.dispatchEvent(new CustomEvent('delong:booking-notification', {
+                    detail: { propertyId, operations: detail }
+                }));
+            }
         });
         source.addEventListener('open', () => {
             document.documentElement.dataset.operationsRealtime = 'connected';
-            document.dispatchEvent(new CustomEvent('delong:operations-change', {
-                detail: { propertyId, type: 'stream.reconnected' }
-            }));
+            const detail = { propertyId, type: 'stream.reconnected' };
+            document.dispatchEvent(new CustomEvent('delong:operations-change', { detail }));
+            document.dispatchEvent(new CustomEvent('delong:booking-notification', { detail }));
         });
         source.addEventListener('error', () => {
             document.documentElement.dataset.operationsRealtime = 'reconnecting';
