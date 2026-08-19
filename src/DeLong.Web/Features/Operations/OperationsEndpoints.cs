@@ -142,10 +142,18 @@ public static class OperationsEndpoints
         else if (!string.IsNullOrWhiteSpace(room))
         {
             var key = room.Trim();
+            // Code is the stable booking-facing identifier and takes precedence over a slug.
             resolvedRoomId = await query
-                .Where(x => x.Code == key || x.Slug == key)
+                .Where(x => x.Code == key)
                 .Select(x => (Guid?)x.Id)
                 .SingleOrDefaultAsync(cancellationToken);
+            if (!resolvedRoomId.HasValue)
+            {
+                resolvedRoomId = await query
+                    .Where(x => x.Slug == key)
+                    .Select(x => (Guid?)x.Id)
+                    .SingleOrDefaultAsync(cancellationToken);
+            }
         }
 
         return resolvedRoomId.HasValue ? (property.Id, resolvedRoomId.Value) : null;
