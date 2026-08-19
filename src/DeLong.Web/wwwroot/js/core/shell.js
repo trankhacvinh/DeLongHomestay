@@ -1,4 +1,35 @@
 (function () {
+    const localHostnames = new Set(['localhost', '127.0.0.1', '::1']);
+    const legacyWorkerReloadKey = 'delong.legacy-service-worker-cleared';
+
+    async function clearLegacyLocalServiceWorkers() {
+        if (!localHostnames.has(window.location.hostname.toLowerCase()) || !('serviceWorker' in navigator)) return;
+
+        try {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            const hasController = navigator.serviceWorker.controller !== null;
+            if (registrations.length === 0 && !hasController) {
+                sessionStorage.removeItem(legacyWorkerReloadKey);
+                return;
+            }
+
+            await Promise.all(registrations.map(registration => registration.unregister()));
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+            }
+
+            if (hasController && sessionStorage.getItem(legacyWorkerReloadKey) !== 'true') {
+                sessionStorage.setItem(legacyWorkerReloadKey, 'true');
+                window.location.reload();
+            }
+        } catch (error) {
+            console.warn('Không thể dọn Service Worker cũ trên localhost.', error);
+        }
+    }
+
+    void clearLegacyLocalServiceWorkers();
+
     const body = document.body;
     const toggles = document.querySelectorAll('[data-sidebar-toggle]');
     const overlay = document.querySelector('[data-sidebar-overlay]');

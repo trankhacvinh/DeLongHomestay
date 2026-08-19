@@ -18,7 +18,7 @@
     }
 
     function ensureBookingLiveScript() {
-        if (!document.getElementById('calendar-page') && !document.getElementById('bookings-page')) return;
+        if (!document.getElementById('bookings-page')) return;
         if (document.querySelector('script[data-admin-booking-live-v2]')) return;
         const script = document.createElement('script');
         script.src = bookingLiveAssetUrl();

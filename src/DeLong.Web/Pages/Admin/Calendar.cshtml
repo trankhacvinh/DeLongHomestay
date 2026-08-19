@@ -6,6 +6,7 @@
 @section Head {
     <link rel="stylesheet" href="~/css/calendar-v2-polish.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/calendar-drag-drop.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-booking-guest-details.css" asp-append-version="true" />
 }
 <div id="calendar-page" v-cloak>
     <script id="calendar-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
@@ -204,6 +205,8 @@
                     <div class="form-grid">
                         <div class="field"><label>Tên khách *</label><input v-model.trim="form.customerName" maxlength="200" placeholder="Ví dụ: Nguyễn Minh Anh" /></div>
                         <div class="field"><label>Số điện thoại *</label><input v-model.trim="form.customerPhone" maxlength="30" inputmode="tel" placeholder="09xx xxx xxx" /></div>
+                        <div class="field"><label>Email</label><input v-model.trim="form.customerEmail" type="email" maxlength="254" autocomplete="email" placeholder="ten@email.com" /></div>
+                        <div class="field"><label>Số lượng khách *</label><input v-model.number="form.guestCount" type="number" min="1" v-bind:max="selectedRoom?.capacity || 1" /></div>
                         <div class="field">
                             <label>Nguồn</label>
                             <select v-model="form.source">
@@ -219,6 +222,13 @@
                                 <option v-bind:value="0">Yêu cầu</option>
                             </select>
                             <input v-else v-bind:value="statusText(selectedBooking?.status)" disabled />
+                        </div>
+                    </div>
+                    <div class="admin-booking-identity-editor">
+                        <div class="admin-booking-identity-editor-head"><div><strong>CCCD / giấy tờ tùy thân</strong><small>Ảnh được mã hóa trong kho riêng. Nhân viên có thể để trống.</small></div><span>Không bắt buộc</span></div>
+                        <div class="admin-booking-id-grid">
+                            <label class="admin-booking-id-card"><span class="admin-booking-id-picker"><img v-if="identityPreview('front')" v-bind:src="identityPreview('front')" alt="CCCD mặt trước" /><span v-else class="admin-booking-id-empty"><b>Mặt trước</b><small>Chọn ảnh nếu có</small></span></span><input type="file" accept="image/jpeg,image/png,image/webp" hidden v-on:change="selectIdentity('front', $event)" /></label>
+                            <label class="admin-booking-id-card"><span class="admin-booking-id-picker"><img v-if="identityPreview('back')" v-bind:src="identityPreview('back')" alt="CCCD mặt sau" /><span v-else class="admin-booking-id-empty"><b>Mặt sau</b><small>Chọn ảnh nếu có</small></span></span><input type="file" accept="image/jpeg,image/png,image/webp" hidden v-on:change="selectIdentity('back', $event)" /></label>
                         </div>
                     </div>
                 </section>
@@ -245,6 +255,21 @@
                     <div><span>Khách hàng</span><strong>{{ selectedBooking.customerName }}</strong><span>{{ selectedBooking.customerPhone }} · {{ selectedBooking.roomName }}</span></div>
                     <span class="pill" v-bind:class="statusText(selectedBooking.status).includes('xác nhận') || selectedBooking.status === 3 ? 'success' : ''">{{ statusText(selectedBooking.status) }}</span>
                 </div>
+                <section class="admin-booking-detail-panel">
+                    <div class="admin-booking-detail-head"><div><strong>Thông tin người đặt</strong><small>Email, số khách và giấy tờ khách đã cung cấp</small></div></div>
+                    <div v-if="guestDetails.loading" class="admin-booking-details-loading">Đang tải email, số khách và CCCD…</div>
+                    <div v-else-if="guestDetails.error" class="admin-booking-details-error"><strong>Không tải được thông tin người đặt.</strong><span>{{ guestDetails.error }}</span></div>
+                    <template v-else>
+                        <div class="admin-booking-guest-grid">
+                            <div><span>Email</span><strong>{{ guestDetails.customerEmail || 'Không cung cấp' }}</strong></div>
+                            <div><span>Số khách</span><strong>{{ guestDetails.guestCount || 1 }} khách</strong></div>
+                        </div>
+                        <div class="admin-booking-id-title"><strong>CCCD / giấy tờ tùy thân</strong><span>{{ guestDetails.documents.length }}/2 ảnh</span></div>
+                        <div class="admin-booking-detail-id-grid">
+                            <div class="admin-booking-detail-id" v-for="side in ['front', 'back']" v-bind:key="side"><strong>{{ side === 'front' ? 'Mặt trước' : 'Mặt sau' }}</strong><a v-if="hasIdentity(side)" v-bind:href="identityUrl(selectedBooking.id, side)" target="_blank" rel="noopener"><img v-bind:src="identityUrl(selectedBooking.id, side)" v-bind:alt="side === 'front' ? 'CCCD mặt trước' : 'CCCD mặt sau'" /></a><span v-else class="empty">Chưa có ảnh</span></div>
+                        </div>
+                    </template>
+                </section>
                 <div class="detail-list">
                     <div><span>Kiểu đặt</span><strong>{{ selectedBooking.type === 1 ? 'Lưu trú theo đêm' : 'Theo giờ thực tế' }}</strong></div>
                     <div v-if="selectedBooking.type === 1"><span>Giá lưu trú</span><strong>{{ selectedBooking.nightCount }} đêm × {{ money(selectedBooking.unitPrice) }}</strong></div>
