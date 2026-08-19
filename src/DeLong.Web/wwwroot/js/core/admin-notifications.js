@@ -1,9 +1,31 @@
 (function () {
     const center = document.querySelector('[data-notification-center]');
-    if (!center || !window.DeLongApi) return;
+    if (!window.DeLongApi) return;
 
-    const propertyId = center.dataset.propertyId;
+    const pageDataNode = document.getElementById('calendar-page-data') || document.getElementById('bookings-page-data');
+    const pageData = (() => {
+        try { return JSON.parse(pageDataNode?.textContent || '{}'); }
+        catch { return {}; }
+    })();
+    const propertyId = center?.dataset.propertyId || pageData.propertyId;
     if (!propertyId) return;
+
+    function ensureBookingLiveScript() {
+        if (!document.getElementById('calendar-page') && !document.getElementById('bookings-page')) return;
+        if (document.querySelector('script[data-admin-booking-live]')) return;
+        const script = document.createElement('script');
+        script.src = '/js/core/admin-booking-live.js?v=20260819-1';
+        script.async = false;
+        script.dataset.adminBookingLive = 'true';
+        document.head.appendChild(script);
+    }
+
+    // This file is included directly by the admin layout and is already proven to receive the
+    // notification SSE stream. Load booking live behavior from here instead of relying on the
+    // late asset enhancer used by PR #48.
+    ensureBookingLiveScript();
+
+    if (!center) return;
 
     const toggle = center.querySelector('[data-notification-toggle]');
     const popover = center.querySelector('[data-notification-popover]');
@@ -88,7 +110,7 @@
         if (!root) return;
         const toast = document.createElement('div');
         toast.className = 'notification-live-toast';
-        toast.innerHTML = '<strong>Có yêu cầu đặt phòng mới</strong><span>Mở chuông thông báo để xem chi tiết.</span>';
+        toast.innerHTML = '<strong>Có yêu cầu đặt phòng mới</strong><span>Lịch phòng và danh sách đặt phòng đang được cập nhật.</span>';
         root.appendChild(toast);
         requestAnimationFrame(() => toast.classList.add('show'));
         setTimeout(() => {
@@ -131,8 +153,11 @@
     refresh();
     if ('EventSource' in window) {
         const source = new EventSource(`${baseUrl}/stream`);
-        source.addEventListener('notification', async () => {
+        source.addEventListener('notification', async event => {
             await refresh();
+            document.dispatchEvent(new CustomEvent('delong:booking-notification', {
+                detail: { propertyId, raw: event.data || '' }
+            }));
             showRealtimeToast();
         });
         source.addEventListener('open', refresh);
