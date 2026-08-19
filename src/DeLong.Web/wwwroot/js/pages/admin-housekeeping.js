@@ -6,14 +6,16 @@
     const { createApp } = Vue;
     const timeZone = initial.timeZoneId || 'Asia/Ho_Chi_Minh';
 
-    createApp({
+    const vm = createApp({
         data() {
             return {
                 propertyId: initial.propertyId,
                 rooms: initial.rooms || [],
                 canManage: window.DeLongHousekeepingCanManage === true,
                 savingId: null,
-                toast: { show: false, message: '', type: 'success', timer: null }
+                toast: { show: false, message: '', type: 'success', timer: null },
+                refreshInFlight: false,
+                refreshQueued: false
             };
         },
         computed: {
@@ -32,6 +34,25 @@
             },
             statusText(status) {
                 return ({ 0: 'Sạch', 1: 'Bẩn', 2: 'Đang dọn' })[status] || 'Không xác định';
+            },
+            async refreshRooms() {
+                if (this.refreshInFlight) {
+                    this.refreshQueued = true;
+                    return;
+                }
+                this.refreshInFlight = true;
+                try {
+                    const rooms = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/housekeeping`);
+                    this.rooms = Array.isArray(rooms) ? rooms : [];
+                } catch {
+                    // Reconnect/focus will retry. Keep the last known board instead of flashing an error.
+                } finally {
+                    this.refreshInFlight = false;
+                    if (this.refreshQueued) {
+                        this.refreshQueued = false;
+                        setTimeout(() => this.refreshRooms(), 0);
+                    }
+                }
             },
             async setStatus(room, status) {
                 if (!this.canManage) return;
@@ -56,4 +77,17 @@
             }
         }
     }).mount(root);
+
+    document.addEventListener('delong:operations-change', event => {
+        const detail = event.detail || {};
+        if (detail.propertyId && detail.propertyId !== vm.propertyId) return;
+        const type = String(detail.type || '');
+        if (type === 'stream.reconnected' || type === 'housekeeping.changed' || type.startsWith('booking.')) {
+            vm.refreshRooms();
+        }
+    });
+    window.addEventListener('focus', () => vm.refreshRooms());
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) vm.refreshRooms();
+    });
 })();
