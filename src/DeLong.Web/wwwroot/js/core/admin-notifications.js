@@ -14,7 +14,7 @@
         if (!document.getElementById('calendar-page') && !document.getElementById('bookings-page')) return;
         if (document.querySelector('script[data-admin-booking-live-v2]')) return;
         const script = document.createElement('script');
-        script.src = '/js/core/admin-booking-live-v2.js?v=20260819-1';
+        script.src = '/js/core/admin-booking-live-v2.js?v=20260819-2';
         script.async = false;
         script.dataset.adminBookingLiveV2 = 'true';
         script.addEventListener('error', () => {
