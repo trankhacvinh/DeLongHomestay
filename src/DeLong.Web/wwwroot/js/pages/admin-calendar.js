@@ -56,6 +56,9 @@
                 saving: false,
                 editor: { open: false, mode: 'create' },
                 selectedBooking: null,
+                guestDetails: { loading: false, error: '', customerEmail: '', guestCount: 1, documents: [] },
+                identityFiles: { front: null, back: null },
+                identityPreviews: { front: '', back: '' },
                 selectedDayKey: initial.today,
                 form: {},
                 toast: { show: false, message: '', type: 'success', timer: null }
@@ -97,7 +100,7 @@
                     roomId: '', rateId: '', customerId: null, customerName: '', customerPhone: '',
                     checkInLocal: '', checkOutLocal: '', status: 1,
                     roomAmount: 0, extraAmount: 0, discountAmount: 0,
-                    source: '', note: ''
+                    source: '', note: '', customerEmail: '', guestCount: 1
                 };
             },
             money(value) {
@@ -271,6 +274,7 @@
                 if (selectedRoom) this.form.roomId = selectedRoom.id;
                 this.editor = { open: true, mode: 'create' };
                 this.selectedBooking = null;
+                this.resetGuestEditor();
 
                 const firstRate = (selectedRoom?.rates || []).filter(x => x.isActive && Number(x.type) !== 2).sort((a, b) => a.sortOrder - b.sortOrder)[0];
                 if (firstRate) {
@@ -281,7 +285,7 @@
                     this.form.checkOutLocal = toInputValue(this.selectedDayKey, '17:00');
                 }
             },
-            openEditBooking(booking) {
+            async openEditBooking(booking) {
                 if (!this.canEditBooking(booking)) return;
                 const checkInLocal = utcToLocalInput(booking.checkInUtc);
                 this.selectedDayKey = checkInLocal.slice(0, 10);
@@ -299,9 +303,12 @@
                     extraAmount: Number(booking.extraAmount || 0),
                     discountAmount: Number(booking.discountAmount || 0),
                     source: booking.source || '',
-                    note: booking.note || ''
+                    note: booking.note || '', customerEmail: '', guestCount: 1
                 };
                 this.editor = { open: true, mode: 'edit' };
+                await this.loadGuestDetails(booking.id, true);
+                this.form.customerEmail = this.guestDetails.customerEmail || '';
+                this.form.guestCount = Number(this.guestDetails.guestCount || 1);
             },
             roomChanged() {
                 this.form.rateId = '';
@@ -320,9 +327,10 @@
                 this.form.checkOutLocal = toInputValue(checkoutDay, rate.endTime);
                 this.form.roomAmount = Number(rate.price || 0);
             },
-            openBooking(booking) {
+            async openBooking(booking) {
                 this.selectedBooking = booking;
                 this.editor = { open: true, mode: 'view' };
+                await this.loadGuestDetails(booking.id);
             },
             closeEditor() {
                 if (!this.saving) this.editor.open = false;
@@ -334,6 +342,8 @@
                 if (!this.form.roomId) return 'Vui lòng chọn phòng.';
                 if (!this.form.customerName.trim()) return 'Vui lòng nhập tên khách.';
                 if (!this.form.customerPhone.trim()) return 'Vui lòng nhập số điện thoại.';
+                if (this.form.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.customerEmail)) return 'Email khách không hợp lệ.';
+                if (!Number.isInteger(Number(this.form.guestCount)) || Number(this.form.guestCount) < 1 || Number(this.form.guestCount) > Number(this.selectedRoom?.capacity || 1)) return `Phòng này tối đa ${this.selectedRoom?.capacity || 1} khách.`;
                 if (!this.form.checkInLocal || !this.form.checkOutLocal) return 'Vui lòng nhập giờ nhận/trả phòng.';
                 if (new Date(`${this.form.checkOutLocal}${utcOffset}`) <= new Date(`${this.form.checkInLocal}${utcOffset}`)) return 'Giờ trả phòng phải sau giờ nhận phòng.';
                 return null;
@@ -378,11 +388,65 @@
                         this.bookings.push(booking);
                         this.notify(`Đã tạo ${booking.code}.`, 'success');
                     }
+                    await this.saveGuestDetails(booking);
                     this.editor.open = false;
                 } catch (error) {
                     this.notify(error.message || 'Không thể lưu lượt đặt.', 'error');
                 } finally {
                     this.saving = false;
+                }
+            },
+            resetGuestEditor() {
+                for (const side of ['front', 'back']) {
+                    if (this.identityPreviews[side]) URL.revokeObjectURL(this.identityPreviews[side]);
+                }
+                this.identityFiles = { front: null, back: null };
+                this.identityPreviews = { front: '', back: '' };
+                this.guestDetails = { loading: false, error: '', customerEmail: '', guestCount: 1, documents: [] };
+            },
+            async loadGuestDetails(bookingId, editing = false) {
+                this.resetGuestEditor();
+                this.guestDetails.loading = true;
+                try {
+                    const details = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/bookings/${bookingId}/guest-details`);
+                    this.guestDetails = { ...details, loading: false, error: '', documents: Array.isArray(details.documents) ? details.documents : [] };
+                } catch (error) {
+                    this.guestDetails = { loading: false, error: error.message || 'Không thể tải dữ liệu khách.', customerEmail: '', guestCount: 1, documents: [] };
+                    if (editing) this.notify(this.guestDetails.error, 'error');
+                }
+            },
+            hasIdentity(side) {
+                return this.guestDetails.documents.some(document => document.side === side);
+            },
+            identityUrl(bookingId, side) {
+                return `/api/admin/properties/${this.propertyId}/bookings/${bookingId}/identity-documents/${side}`;
+            },
+            identityPreview(side) {
+                if (this.identityPreviews[side]) return this.identityPreviews[side];
+                if (this.selectedBooking?.id && this.hasIdentity(side)) return this.identityUrl(this.selectedBooking.id, side);
+                return '';
+            },
+            selectIdentity(side, event) {
+                const file = event.target.files?.[0] || null;
+                if (file && file.size > 8 * 1024 * 1024) {
+                    event.target.value = '';
+                    return this.notify('Mỗi ảnh CCCD tối đa 8 MB.', 'error');
+                }
+                if (this.identityPreviews[side]) URL.revokeObjectURL(this.identityPreviews[side]);
+                this.identityFiles[side] = file;
+                this.identityPreviews[side] = file ? URL.createObjectURL(file) : '';
+            },
+            async saveGuestDetails(booking) {
+                await DeLongApi.put(`/api/admin/properties/${this.propertyId}/bookings/${booking.id}/guest-details`, {
+                    customerEmail: this.form.customerEmail || null,
+                    guestCount: Number(this.form.guestCount || 1)
+                });
+                for (const side of ['front', 'back']) {
+                    const file = this.identityFiles[side];
+                    if (!file) continue;
+                    const data = new FormData();
+                    data.append('file', file, file.name);
+                    await DeLongApi.postForm(this.identityUrl(booking.id, side), data);
                 }
             },
             nextActions(booking) {

@@ -1,9 +1,49 @@
 (function () {
     const center = document.querySelector('[data-notification-center]');
-    if (!center || !window.DeLongApi) return;
+    if (!window.DeLongApi) return;
 
-    const propertyId = center.dataset.propertyId;
+    const pageDataNode = document.getElementById('calendar-page-data') || document.getElementById('bookings-page-data');
+    const pageData = (() => {
+        try { return JSON.parse(pageDataNode?.textContent || '{}'); }
+        catch { return {}; }
+    })();
+    const propertyId = center?.dataset.propertyId || pageData.propertyId;
     if (!propertyId) return;
+
+    function bookingLiveAssetUrl() {
+        const base = '/js/core/admin-booking-live-v2.js?v=20260819-3';
+        const host = String(window.location.hostname || '').toLowerCase();
+        if (!['localhost', '127.0.0.1', '::1'].includes(host)) return base;
+        return `${base}&dev=${Date.now().toString(36)}`;
+    }
+
+    function ensureBookingLiveScript() {
+        if (!document.getElementById('bookings-page')) return;
+        if (document.querySelector('script[data-admin-booking-live-v2]')) return;
+        const script = document.createElement('script');
+        script.src = bookingLiveAssetUrl();
+        script.async = false;
+        script.dataset.adminBookingLiveV2 = 'true';
+        script.addEventListener('load', () => {
+            document.documentElement.dataset.bookingLiveAsset = 'loaded';
+        });
+        script.addEventListener('error', () => {
+            document.documentElement.dataset.bookingLiveAsset = 'error';
+            console.error('Không tải được admin-booking-live-v2.js');
+        });
+        document.head.appendChild(script);
+    }
+
+    function scheduleBookingLiveScript() {
+        // Calendar/Bookings mount Vue from their own @section Scripts, which is rendered after this file.
+        // Load the booking bridge only after window.load so it always binds to the mounted page app.
+        if (document.readyState === 'complete') setTimeout(ensureBookingLiveScript, 0);
+        else window.addEventListener('load', ensureBookingLiveScript, { once: true });
+    }
+
+    scheduleBookingLiveScript();
+
+    if (!center) return;
 
     const toggle = center.querySelector('[data-notification-toggle]');
     const popover = center.querySelector('[data-notification-popover]');
@@ -88,7 +128,7 @@
         if (!root) return;
         const toast = document.createElement('div');
         toast.className = 'notification-live-toast';
-        toast.innerHTML = '<strong>Có yêu cầu đặt phòng mới</strong><span>Mở chuông thông báo để xem chi tiết.</span>';
+        toast.innerHTML = '<strong>Có yêu cầu đặt phòng mới</strong><span>Lịch phòng và danh sách đặt phòng đang được cập nhật.</span>';
         root.appendChild(toast);
         requestAnimationFrame(() => toast.classList.add('show'));
         setTimeout(() => {
@@ -131,8 +171,11 @@
     refresh();
     if ('EventSource' in window) {
         const source = new EventSource(`${baseUrl}/stream`);
-        source.addEventListener('notification', async () => {
+        source.addEventListener('notification', async event => {
             await refresh();
+            document.dispatchEvent(new CustomEvent('delong:booking-notification', {
+                detail: { propertyId, raw: event.data || '' }
+            }));
             showRealtimeToast();
         });
         source.addEventListener('open', refresh);

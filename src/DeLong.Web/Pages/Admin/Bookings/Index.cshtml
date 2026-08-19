@@ -6,6 +6,7 @@
 @section Head {
     <link rel="stylesheet" href="~/css/entities.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/booking-v2-polish.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-booking-guest-details.css" asp-append-version="true" />
 }
 <div id="bookings-page" v-cloak>
     <script id="bookings-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
@@ -218,4 +219,5 @@
 @section Scripts {
     <script>window.DeLongBookingsCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") ? "true" : "false");</script>
     <script src="~/js/pages/admin-bookings.js" asp-append-version="true"></script>
+    <script src="~/js/core/admin-booking-live-v2.js" asp-append-version="true" data-admin-booking-live-v2></script>
 }
