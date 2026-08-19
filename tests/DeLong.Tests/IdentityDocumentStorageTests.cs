@@ -4,6 +4,7 @@ using DeLong.Web.Features.PublicBooking;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
+using Xunit;
 
 namespace DeLong.Tests;
 
