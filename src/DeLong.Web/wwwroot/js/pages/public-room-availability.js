@@ -19,6 +19,7 @@
         from: today,
         days: 10,
         roomCode: '',
+        timeZone: 'Asia/Ho_Chi_Minh',
         selected: null,
         loading: false,
         source: null,
@@ -71,7 +72,10 @@
     }
 
     function timeText(value) {
-        return new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value));
+        return new Intl.DateTimeFormat('vi-VN', {
+            timeZone: state.timeZone,
+            hour: '2-digit', minute: '2-digit', hour12: false
+        }).format(new Date(value));
     }
 
     function segmentStyle(startUtc, endUtc, slotStartUtc, slotEndUtc) {
@@ -156,6 +160,7 @@
 
     function render(data) {
         state.roomCode = data.roomCode || roomRef;
+        state.timeZone = data.timeZoneId || state.timeZone;
         range.textContent = `${data.roomName || state.roomCode} · ${dateText(state.from)} → ${dateText(addDays(state.from, state.days - 1))}`;
         status.className = 'public-room-availability-status';
         status.textContent = '';
