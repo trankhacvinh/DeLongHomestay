@@ -7,6 +7,7 @@ namespace DeLong.Tests;
 public sealed class OperationsRealtimeBrokerTests
 {
     [Fact]
+    [Trait("Category", "Unit")]
     public void Publish_is_scoped_to_property_and_event_contract_contains_only_operational_metadata()
     {
         var broker = new OperationsRealtimeBroker();
