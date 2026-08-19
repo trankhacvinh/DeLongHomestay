@@ -127,8 +127,7 @@ public static class AvailabilityIntervalProjector
 public sealed class AvailabilityIntervalService(
     AppDbContext db,
     PublicPropertyResolver propertyResolver,
-    StoragePaths storagePaths,
-    OperationsRealtimeBroker realtimeBroker)
+    StoragePaths storagePaths)
 {
     private static readonly BookingStatus[] LockingStatuses =
         [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
@@ -141,7 +140,7 @@ public sealed class AvailabilityIntervalService(
         CancellationToken cancellationToken = default)
     {
         days = Math.Clamp(days, 1, 31);
-        await new PublicBookingHoldStore(storagePaths, realtimeBroker).ReleaseExpiredAsync(db, propertyId, cancellationToken);
+        await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, propertyId, cancellationToken);
 
         var property = await db.Properties.AsNoTracking()
             .Where(x => x.Id == propertyId && x.IsActive)
@@ -179,7 +178,7 @@ public sealed class AvailabilityIntervalService(
         var property = await propertyResolver.ResolveAsync(siteSlug, cancellationToken);
         if (property is null) return null;
 
-        await new PublicBookingHoldStore(storagePaths, realtimeBroker).ReleaseExpiredAsync(db, property.Id, cancellationToken);
+        await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, property.Id, cancellationToken);
         var room = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == property.Id && x.Id == roomId && x.IsActive && x.IsPublished)
             .Select(x => new { x.Id, x.Code, x.Name })
