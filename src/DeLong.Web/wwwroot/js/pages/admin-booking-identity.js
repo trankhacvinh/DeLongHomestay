@@ -47,6 +47,7 @@
     }
 
     async function loadIdentity(bookingId) {
+        if (!bookingId) return;
         currentBookingId = bookingId;
         currentDocuments = [];
         loadError = '';
@@ -69,4 +70,7 @@
     };
     window.DeLongApi.__identityViewerWrapped = true;
     new MutationObserver(render).observe(root, { childList: true, subtree: true });
+
+    const deepLinkedBookingId = new URLSearchParams(window.location.search).get('bookingId');
+    if (deepLinkedBookingId) void loadIdentity(deepLinkedBookingId);
 })();
