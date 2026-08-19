@@ -56,7 +56,7 @@
             currentDocuments = Array.isArray(payload?.documents) ? payload.documents : [];
         } catch (error) {
             loadError = error.status === 503
-                ? 'Server chưa cấu hình khóa mã hóa CCCD.'
+                ? 'Không thể đọc khóa mã hóa CCCD. Hãy kiểm tra DataRoot/security hoặc khôi phục toàn bộ DataRoot từ bản sao lưu.'
                 : (error.message || 'Không thể tải trạng thái CCCD.');
         }
         requestAnimationFrame(render);
