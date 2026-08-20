@@ -99,7 +99,7 @@
         }
         if (!document.querySelector('script[data-admin-sidebar-quick-links]')) {
             const script = document.createElement('script');
-            script.src = assetUrl('/js/core/admin-sidebar-quick-links.js?v=20260818-3');
+            script.src = assetUrl('/js/core/admin-sidebar-quick-links.js?v=20260820-1');
             script.async = false;
             script.dataset.adminSidebarQuickLinks = 'true';
             document.head.appendChild(script);
@@ -108,9 +108,10 @@
         appendStyle('data-admin-booking-guest-details', '/css/admin-booking-guest-details.css?v=20260819-4');
         afterWindowLoad(() => {
             appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260819-5');
-            if (document.getElementById('calendar-page')) {
-                appendStyle('data-admin-calendar-v2', '/css/admin-calendar-v2.css?v=20260820-1');
-                appendScript('data-admin-calendar-v2', '/js/pages/admin-calendar-v2.js?v=20260820-1');
+            const calendarV2Root = document.getElementById('calendar-page');
+            if (calendarV2Root?.dataset.calendarV2Page === 'true') {
+                appendStyle('data-admin-calendar-v2', '/css/admin-calendar-v2.css?v=20260820-2');
+                appendScript('data-admin-calendar-v2', '/js/pages/admin-calendar-v2.js?v=20260820-2');
             }
         });
     }
