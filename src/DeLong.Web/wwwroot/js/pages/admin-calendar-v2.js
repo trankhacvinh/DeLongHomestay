@@ -5,20 +5,64 @@
     const pageHead = root.querySelector('.calendar-page-head');
     if (!pageHead) return;
 
-    // Vue compiles the in-DOM template when admin-calendar.js mounts. <script type="application/json">
-    // nodes inside that root are side-effect tags and may no longer exist afterwards. Calendar V2 is
-    // intentionally loaded after the main calendar app, so bootstrap from both the original JSON (when
-    // still present) and the already-mounted Vue state instead of silently returning when the JSON node
-    // has disappeared.
+    // The JSON payload lives inside the Vue mount root on the current page. Vue can remove that
+    // side-effect node while compiling the template, so Calendar V2 must have independent fallbacks.
     const initial = (() => {
         try { return JSON.parse(document.getElementById('calendar-page-data')?.textContent || '{}'); }
         catch { return {}; }
     })();
-    const bootVm = root.__vue_app__?._instance?.proxy || null;
-    const propertyId = initial.propertyId || bootVm?.propertyId || '';
-    const today = initial.today || bootVm?.today || '';
-    const startDate = initial.startDate || bootVm?.startDate || today;
-    const timeZone = initial.timeZoneId || root.dataset.timeZoneId || 'Asia/Ho_Chi_Minh';
+    const bootVm = root.__delongCalendarVm || root.__vue_app__?._instance?.proxy || null;
+
+    function looksLikeGuid(value) {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || '').trim());
+    }
+
+    function resolvePropertyId() {
+        const query = new URLSearchParams(window.location.search);
+        const candidates = [
+            initial.propertyId,
+            root.dataset.propertyId,
+            bootVm?.propertyId,
+            query.get('propertyId'),
+            document.querySelector('[data-property-switcher]')?.value
+        ];
+        for (const candidate of candidates) {
+            if (looksLikeGuid(candidate)) return String(candidate).trim();
+        }
+
+        // The admin shell always renders property-scoped links, even when there is only one property
+        // and therefore no property switcher. This gives V2 a server-rendered source of truth without
+        // depending on private Vue internals.
+        for (const anchor of document.querySelectorAll('a[href*="propertyId="]')) {
+            try {
+                const candidate = new URL(anchor.href, window.location.origin).searchParams.get('propertyId');
+                if (looksLikeGuid(candidate)) return candidate;
+            } catch { }
+        }
+        return '';
+    }
+
+    function todayKeyInZone(zone) {
+        try {
+            const parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: zone,
+                year: 'numeric', month: '2-digit', day: '2-digit'
+            }).formatToParts(new Date());
+            const get = type => parts.find(part => part.type === type)?.value || '';
+            const year = get('year');
+            const month = get('month');
+            const day = get('day');
+            return year && month && day ? `${year}-${month}-${day}` : '';
+        } catch {
+            return new Date().toISOString().slice(0, 10);
+        }
+    }
+
+    const propertyId = resolvePropertyId();
+    let timeZone = initial.timeZoneId || bootVm?.timeZoneId || root.dataset.timeZoneId || 'Asia/Ho_Chi_Minh';
+    const today = initial.today || bootVm?.today || todayKeyInZone(timeZone);
+    const queryFrom = new URLSearchParams(window.location.search).get('from');
+    const startDate = initial.startDate || bootVm?.startDate || queryFrom || today;
 
     // These are legacy V1 placeholders kept only so the shared Vue booking editor can mount. The base
     // calendar CSS can override the HTML hidden attribute, so force them out of the standalone V2 UI.
@@ -34,6 +78,7 @@
         queued: false,
         queuedReason: '',
         data: null,
+        rooms: Array.isArray(initial.rooms) ? initial.rooms : [],
         requestSerial: 0,
         pollTimer: null
     };
@@ -76,7 +121,7 @@
         return;
     }
     if (!propertyId) {
-        showError('Calendar V2 không đọc được cơ sở hiện tại. Vui lòng chọn lại cơ sở rồi mở lại lịch.', 'missing-property');
+        showError('Calendar V2 không đọc được cơ sở hiện tại từ trang quản trị. Vui lòng tải lại trang hoặc chọn lại cơ sở.', 'missing-property');
         return;
     }
     if (!state.from) {
@@ -85,13 +130,34 @@
     }
 
     function vm() {
-        return root.__vue_app__?._instance?.proxy || bootVm || null;
+        return root.__delongCalendarVm || root.__vue_app__?._instance?.proxy || bootVm || null;
     }
 
     function rooms() {
         const app = vm();
-        const source = Array.isArray(app?.rooms) ? app.rooms : (initial.rooms || []);
-        return source.filter(item => item.isActive).sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0) || String(a.name).localeCompare(String(b.name)));
+        const vueRooms = Array.isArray(app?.rooms) ? app.rooms : [];
+        const source = vueRooms.length ? vueRooms : state.rooms;
+        return source
+            .filter(item => item && item.isActive)
+            .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0) || String(a.name).localeCompare(String(b.name)));
+    }
+
+    async function ensureRooms() {
+        if (rooms().length) return true;
+        statusBox.textContent = 'Đang tải danh sách phòng…';
+        statusBox.className = 'calendar-v2-status show';
+        try {
+            const response = await DeLongApi.get(`/api/admin/properties/${propertyId}/rooms/`);
+            state.rooms = Array.isArray(response) ? response : [];
+            if (!rooms().length) {
+                showError('Cơ sở hiện tại chưa có phòng đang hoạt động để hiển thị trên Calendar V2.', 'no-rooms');
+                return false;
+            }
+            return true;
+        } catch (error) {
+            showError(error?.message || 'Không thể tải danh sách phòng của cơ sở hiện tại.', 'rooms-request-error');
+            return false;
+        }
     }
 
     function currentRoom() {
@@ -242,6 +308,7 @@
 
     function render(data) {
         state.data = data;
+        if (data?.timeZoneId) timeZone = data.timeZoneId;
         const room = currentRoom();
         roomName.textContent = data?.roomName || room?.name || '—';
         roomMeta.textContent = `${data?.roomCode || room?.code || ''}${room ? ` · tối đa ${room.capacity} khách` : ''}`;
@@ -304,11 +371,10 @@
             state.queuedReason = reason || 'queued';
             return;
         }
+        if (!rooms().length && !await ensureRooms()) return;
         const room = currentRoom();
         if (!room) {
-            statusBox.textContent = 'Chưa có phòng đang hoạt động.';
-            statusBox.className = 'calendar-v2-status show';
-            document.documentElement.dataset.calendarV2 = 'no-rooms';
+            showError('Cơ sở hiện tại chưa có phòng đang hoạt động để hiển thị trên Calendar V2.', 'no-rooms');
             return;
         }
         const serial = ++state.requestSerial;
@@ -360,6 +426,7 @@
     state.pollTimer = setInterval(() => { if (!document.hidden) refresh('poll'); }, 15000);
     window.addEventListener('beforeunload', () => { if (state.pollTimer) clearInterval(state.pollTimer); }, { once: true });
 
+    document.documentElement.dataset.calendarV2Property = propertyId;
     document.documentElement.dataset.calendarV2 = 'initializing';
     refresh('initial');
 })();
