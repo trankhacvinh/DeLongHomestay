@@ -73,6 +73,7 @@
                     <td v-for="day in days"
                         v-bind:key="room.id + '-' + day.key"
                         class="day-cell"
+                        v-bind:style="{ '--calendar-lanes': calendarLaneCount(room.id) }"
                         v-bind:class="{
                             'calendar-today': day.key === today,
                             'calendar-drop-target': drag.overKey === dragKey(room.id, day.key)
@@ -98,7 +99,10 @@
                                         'booking-continues-after': booking.type === 1 && booking.status !== 0 && localDateKey(booking.checkOutUtc) > days[days.length - 1].key
                                     }
                                 ]"
-                                v-bind:style="booking.type === 1 && booking.status !== 0 ? { '--booking-span': bookingSpan(booking, day.key) } : null"
+                                v-bind:style="{
+                                    '--booking-span': booking.type === 1 && booking.status !== 0 ? bookingSpan(booking, day.key) : 1,
+                                    '--booking-lane': calendarBookingLane(room.id, booking)
+                                }"
                                 v-on:click.stop="openBooking(booking)"
                                 v-on:dragstart.stop="startBookingDrag(booking, $event)"
                                 v-on:dragend="endBookingDrag($event)">
@@ -281,11 +285,22 @@
                     <div v-if="selectedBooking.note"><span>Ghi chú</span><strong>{{ selectedBooking.note }}</strong></div>
                 </div>
                 <div class="notice" v-if="selectedBooking.type === 1 && canManage">Lưu trú theo đêm có thể sửa trực tiếp tại đây; đổi ngày nhận/trả sẽ tự tính lại số đêm và tiền phòng theo mức giá đã chọn.</div>
-                <div class="modal-actions" v-if="canManage">
-                    <button v-if="canEditBooking(selectedBooking)" class="btn btn-light" type="button" v-on:click="openEditBooking(selectedBooking)">Sửa lượt đặt</button>
-                    <button v-for="action in nextActions(selectedBooking)" v-bind:key="action.status" type="button" class="btn" v-bind:class="action.className" v-bind:disabled="saving" v-on:click="changeStatus(action.status)">{{ action.label }}</button>
+                <div class="modal-actions">
+                    <button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="closeEditor">Đóng</button>
+                    <template v-if="canManage">
+                        <button v-if="canEditBooking(selectedBooking)" class="btn btn-light" type="button" v-on:click="openEditBooking(selectedBooking)">Sửa lượt đặt</button>
+                        <button v-for="action in nextActions(selectedBooking)" v-bind:key="action.status" type="button" class="btn" v-bind:class="action.className" v-bind:disabled="saving" v-on:click="requestStatusChange(action)">{{ action.label }}</button>
+                    </template>
                 </div>
             </template>
+        </section>
+    </div>
+
+    <div class="modal-backdrop modal-top" v-if="statusConfirm.open" v-on:click.self="closeStatusConfirm">
+        <section class="modal-card modal-small status-confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="calendar-status-confirm-title">
+            <div class="modal-head"><div><h2 id="calendar-status-confirm-title">{{ statusConfirm.title }}</h2><p class="small muted">Thao tác chỉ được thực hiện sau khi bạn xác nhận.</p></div><button class="icon-btn" type="button" v-on:click="closeStatusConfirm" aria-label="Đóng">×</button></div>
+            <div class="status-confirm-body"><p>{{ statusConfirm.message }}</p><div class="status-confirm-booking" v-if="selectedBooking"><span>{{ selectedBooking.code }}</span><strong>{{ selectedBooking.customerName }} · {{ selectedBooking.roomName }}</strong></div></div>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="closeStatusConfirm">Quay lại</button><button class="btn btn-danger" type="button" v-bind:disabled="saving" v-on:click="confirmStatusChange">{{ saving ? 'Đang xử lý...' : statusConfirm.confirmLabel }}</button></div>
         </section>
     </div>
 

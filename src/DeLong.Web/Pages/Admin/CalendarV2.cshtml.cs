@@ -16,6 +16,9 @@ public sealed class CalendarV2Model(
     CurrentPropertyService currentPropertyService) : PageModel
 {
     public Guid PropertyId { get; private set; }
+    public string TimeZoneId { get; private set; } = "Asia/Ho_Chi_Minh";
+    public string StartDate { get; private set; } = string.Empty;
+    public string Today { get; private set; } = string.Empty;
     public string PageDataJson { get; private set; } = "{}";
 
     public async Task<IActionResult> OnGetAsync(DateOnly? from, Guid? propertyId, CancellationToken cancellationToken)
@@ -23,10 +26,13 @@ public sealed class CalendarV2Model(
         var property = await currentPropertyService.ResolveAsync(User, propertyId, cancellationToken);
         if (property is null) return Forbid();
         PropertyId = property.Id;
+        TimeZoneId = property.TimeZoneId;
 
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
         var todayLocal = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
         var startDate = from ?? todayLocal;
+        StartDate = startDate.ToString("yyyy-MM-dd");
+        Today = todayLocal.ToString("yyyy-MM-dd");
         var endDateExclusive = startDate.AddDays(10);
 
         var startLocal = DateTime.SpecifyKind(startDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);

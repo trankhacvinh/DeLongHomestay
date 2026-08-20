@@ -9,7 +9,13 @@
     <link data-admin-calendar-v2 rel="stylesheet" href="~/css/admin-calendar-v2.css" asp-append-version="true" />
     <style>#calendar-page[data-calendar-v2-page="true"] .calendar-v2-view-switch{display:none!important}</style>
 }
-<div id="calendar-page" data-calendar-v2-page="true" v-cloak>
+<div id="calendar-page"
+     data-calendar-v2-page="true"
+     data-property-id="@Model.PropertyId"
+     data-time-zone-id="@Model.TimeZoneId"
+     data-start-date="@Model.StartDate"
+     data-today="@Model.Today"
+     v-cloak>
     <script id="calendar-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
     <div class="calendar-page-head">
@@ -146,11 +152,22 @@
                     <div v-if="selectedBooking.note"><span>Ghi chú</span><strong>{{ selectedBooking.note }}</strong></div>
                 </div>
                 <div class="notice" v-if="selectedBooking.type === 1 && canManage">Lưu trú theo đêm có thể sửa trực tiếp tại màn Đặt phòng; Calendar V2 dùng khoảng thời gian thật để hiển thị mức độ chiếm phòng.</div>
-                <div class="modal-actions" v-if="canManage">
-                    <button v-if="canEditBooking(selectedBooking)" class="btn btn-light" type="button" v-on:click="openEditBooking(selectedBooking)">Sửa lượt đặt</button>
-                    <button v-for="action in nextActions(selectedBooking)" v-bind:key="action.status" type="button" class="btn" v-bind:class="action.className" v-bind:disabled="saving" v-on:click="changeStatus(action.status)">{{ action.label }}</button>
+                <div class="modal-actions">
+                    <button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="closeEditor">Đóng</button>
+                    <template v-if="canManage">
+                        <button v-if="canEditBooking(selectedBooking)" class="btn btn-light" type="button" v-on:click="openEditBooking(selectedBooking)">Sửa lượt đặt</button>
+                        <button v-for="action in nextActions(selectedBooking)" v-bind:key="action.status" type="button" class="btn" v-bind:class="action.className" v-bind:disabled="saving" v-on:click="requestStatusChange(action)">{{ action.label }}</button>
+                    </template>
                 </div>
             </template>
+        </section>
+    </div>
+
+    <div class="modal-backdrop modal-top" v-if="statusConfirm.open" v-on:click.self="closeStatusConfirm">
+        <section class="modal-card modal-small status-confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="calendar-v2-status-confirm-title">
+            <div class="modal-head"><div><h2 id="calendar-v2-status-confirm-title">{{ statusConfirm.title }}</h2><p class="small muted">Thao tác chỉ được thực hiện sau khi bạn xác nhận.</p></div><button class="icon-btn" type="button" v-on:click="closeStatusConfirm" aria-label="Đóng">×</button></div>
+            <div class="status-confirm-body"><p>{{ statusConfirm.message }}</p><div class="status-confirm-booking" v-if="selectedBooking"><span>{{ selectedBooking.code }}</span><strong>{{ selectedBooking.customerName }} · {{ selectedBooking.roomName }}</strong></div></div>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="closeStatusConfirm">Quay lại</button><button class="btn btn-danger" type="button" v-bind:disabled="saving" v-on:click="confirmStatusChange">{{ saving ? 'Đang xử lý...' : statusConfirm.confirmLabel }}</button></div>
         </section>
     </div>
 

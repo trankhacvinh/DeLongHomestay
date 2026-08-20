@@ -14,7 +14,9 @@
     const bootVm = root.__delongCalendarVm || root.__vue_app__?._instance?.proxy || null;
 
     function looksLikeGuid(value) {
-        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || '').trim());
+        // Property IDs are UUIDv7. Validate the canonical UUID shape without restricting
+        // the version nibble to the legacy v1-v5 range.
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || '').trim());
     }
 
     function resolvePropertyId() {
@@ -59,10 +61,10 @@
     }
 
     const propertyId = resolvePropertyId();
-    let timeZone = initial.timeZoneId || bootVm?.timeZoneId || root.dataset.timeZoneId || 'Asia/Ho_Chi_Minh';
-    const today = initial.today || bootVm?.today || todayKeyInZone(timeZone);
+    let timeZone = root.dataset.timeZoneId || initial.timeZoneId || bootVm?.timeZoneId || 'Asia/Ho_Chi_Minh';
+    const today = root.dataset.today || initial.today || bootVm?.today || todayKeyInZone(timeZone);
     const queryFrom = new URLSearchParams(window.location.search).get('from');
-    const startDate = initial.startDate || bootVm?.startDate || queryFrom || today;
+    const startDate = queryFrom || root.dataset.startDate || initial.startDate || bootVm?.startDate || today;
 
     // These are legacy V1 placeholders kept only so the shared Vue booking editor can mount. The base
     // calendar CSS can override the HTML hidden attribute, so force them out of the standalone V2 UI.
