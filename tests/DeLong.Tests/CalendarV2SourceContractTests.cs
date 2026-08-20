@@ -6,16 +6,31 @@ public sealed class CalendarV2SourceContractTests
 {
     [Fact]
     [Trait("Category", "Unit")]
-    public void Standalone_calendar_v2_falls_back_to_mounted_vue_state()
+    public void Standalone_calendar_v2_resolves_property_without_private_vue_state()
     {
         var source = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar-v2.js");
 
         Assert.Contains("root.dataset.calendarV2Page !== 'true'", source, StringComparison.Ordinal);
-        Assert.Contains("root.__vue_app__?._instance?.proxy", source, StringComparison.Ordinal);
-        Assert.Contains("initial.propertyId || bootVm?.propertyId", source, StringComparison.Ordinal);
-        Assert.Contains("initial.today || bootVm?.today", source, StringComparison.Ordinal);
-        Assert.Contains("initial.startDate || bootVm?.startDate", source, StringComparison.Ordinal);
+        Assert.Contains("resolvePropertyId", source, StringComparison.Ordinal);
+        Assert.Contains("query.get('propertyId')", source, StringComparison.Ordinal);
+        Assert.Contains("document.querySelector('[data-property-switcher]')?.value", source, StringComparison.Ordinal);
+        Assert.Contains("a[href*=\"propertyId=\"]", source, StringComparison.Ordinal);
+        Assert.Contains("initial.propertyId", source, StringComparison.Ordinal);
+        Assert.Contains("bootVm?.propertyId", source, StringComparison.Ordinal);
         Assert.DoesNotContain("const propertyId = initial.propertyId;", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Standalone_calendar_v2_can_reload_rooms_from_admin_api()
+    {
+        var source = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar-v2.js");
+
+        Assert.Contains("async function ensureRooms()", source, StringComparison.Ordinal);
+        Assert.Contains("/rooms/`,", source, StringComparison.Ordinal);
+        Assert.Contains("if (!rooms().length && !await ensureRooms()) return;", source, StringComparison.Ordinal);
+        Assert.Contains("rooms-request-error", source, StringComparison.Ordinal);
+        Assert.Contains("no-rooms", source, StringComparison.Ordinal);
     }
 
     [Fact]
