@@ -2,7 +2,7 @@
     const center = document.querySelector('[data-notification-center]');
     if (!window.DeLongApi) return;
 
-    const pageDataNode = document.getElementById('calendar-page-data') || document.getElementById('bookings-page-data');
+    const pageDataNode = document.getElementById('calendar-page-data') || document.getElementById('bookings-page-data') || document.getElementById('housekeeping-page-data');
     const pageData = (() => {
         try { return JSON.parse(pageDataNode?.textContent || '{}'); }
         catch { return {}; }
@@ -10,11 +10,15 @@
     const propertyId = center?.dataset.propertyId || pageData.propertyId;
     if (!propertyId) return;
 
-    function bookingLiveAssetUrl() {
-        const base = '/js/core/admin-booking-live-v2.js?v=20260819-3';
+    function versionedAssetUrl(path, version) {
+        const base = `${path}?v=${version}`;
         const host = String(window.location.hostname || '').toLowerCase();
         if (!['localhost', '127.0.0.1', '::1'].includes(host)) return base;
         return `${base}&dev=${Date.now().toString(36)}`;
+    }
+
+    function bookingLiveAssetUrl() {
+        return versionedAssetUrl('/js/core/admin-booking-live-v2.js', '20260819-3');
     }
 
     function ensureBookingLiveScript() {
@@ -34,6 +38,22 @@
         document.head.appendChild(script);
     }
 
+    function ensureOperationsRealtimeScript() {
+        if (document.querySelector('script[data-admin-operations-realtime]')) return;
+        const script = document.createElement('script');
+        script.src = versionedAssetUrl('/js/core/admin-operations-realtime.js', '20260820-1');
+        script.async = false;
+        script.dataset.adminOperationsRealtime = 'true';
+        script.addEventListener('load', () => {
+            document.documentElement.dataset.operationsRealtimeAsset = 'loaded';
+        });
+        script.addEventListener('error', () => {
+            document.documentElement.dataset.operationsRealtimeAsset = 'error';
+            console.error('Không tải được admin-operations-realtime.js');
+        });
+        document.head.appendChild(script);
+    }
+
     function scheduleBookingLiveScript() {
         // Calendar/Bookings mount Vue from their own @section Scripts, which is rendered after this file.
         // Load the booking bridge only after window.load so it always binds to the mounted page app.
@@ -41,6 +61,7 @@
         else window.addEventListener('load', ensureBookingLiveScript, { once: true });
     }
 
+    ensureOperationsRealtimeScript();
     scheduleBookingLiveScript();
 
     if (!center) return;
