@@ -24,7 +24,7 @@ public sealed class CalendarV2SourceContractTests
     {
         var source = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar-v2.js");
 
-        Assert.Contains("data-calendar-v2-panel", source, StringComparison.Ordinal);
+        Assert.Contains("panel.dataset.calendarV2Panel = 'true'", source, StringComparison.Ordinal);
         Assert.Contains("Đang tải lịch phòng", source, StringComparison.Ordinal);
         Assert.Contains("showError", source, StringComparison.Ordinal);
         Assert.Contains("missing-property", source, StringComparison.Ordinal);
