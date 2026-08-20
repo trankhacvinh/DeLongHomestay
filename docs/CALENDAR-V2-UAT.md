@@ -7,15 +7,16 @@ Calendar V2 giữ nguyên Calendar V1 nhưng là **một màn hình/menu riêng*
 1. Mở sidebar Admin và xác nhận có hai mục riêng: **Lịch phòng V1** và **Lịch phòng V2**.
 2. Mở **Lịch phòng V1**: phải vào `/Admin/Calendar`, giao diện tổng quan cũ không có switch V1/V2.
 3. Mở **Lịch phòng V2**: phải vào `/Admin/CalendarV2`, tiêu đề `Lịch phòng theo khung giờ`; không hiển thị bảng tổng quan V1 và không có switch V1/V2 trong nội dung.
-4. V2 hiển thị một phòng tại một thời điểm với `[‹] [Phòng] [›]`; bấm hai nút để chuyển phòng.
-5. Bấm `‹ 7 ngày`, `Hôm nay`, `7 ngày ›` để đổi khoảng ngày; trang không cần reload.
-6. Chỉ các rate TimeSlot / Overnight tạo cột. Nightly không tạo cột riêng.
-7. Với slot 12:00–15:00 và booking 12:00–14:00, pill occupied phải chiếm khoảng 2/3; phần còn lại ghi `Còn 14:00–15:00`.
-8. Bấm phần occupied: mở modal chi tiết booking hiện có.
-9. Bấm slot trống hoàn toàn: mở modal tạo booking với phòng/ngày/rate/giờ/giá đã điền sẵn.
-10. Bấm phần free của slot partial: mở modal tạo booking với đúng khoảng giờ còn trống, rate để tùy chỉnh và giá chỉ là gợi ý.
-11. Mở Calendar V2 ở tab A, thay đổi booking ở tab B: tab A tự cập nhật qua operations realtime; không F5.
-12. Giữ một hold đến hết hạn: Calendar V2 đang mở tự nhả phần thời gian sau hold sweep.
+4. Ngay khi V2 mở, bên dưới tiêu đề phải hiện thanh chọn phòng `[‹] [Tên phòng] [›]`, thanh ngày và bảng availability. Không được chỉ hiện một card trắng/trang trống. DevTools có thể kiểm tra `document.documentElement.dataset.calendarV2`: sau khi tải xong phải khác `initializing` và thường là `initial`.
+5. V2 hiển thị một phòng tại một thời điểm với `[‹] [Phòng] [›]`; bấm hai nút để chuyển phòng.
+6. Bấm `‹ 7 ngày`, `Hôm nay`, `7 ngày ›` để đổi khoảng ngày; trang không cần reload.
+7. Chỉ các rate TimeSlot / Overnight tạo cột. Nightly không tạo cột riêng.
+8. Với slot 12:00–15:00 và booking 12:00–14:00, pill occupied phải chiếm khoảng 2/3; phần còn lại ghi `Còn 14:00–15:00`.
+9. Bấm phần occupied: mở modal chi tiết booking hiện có.
+10. Bấm slot trống hoàn toàn: mở modal tạo booking với phòng/ngày/rate/giờ/giá đã điền sẵn.
+11. Bấm phần free của slot partial: mở modal tạo booking với đúng khoảng giờ còn trống, rate để tùy chỉnh và giá chỉ là gợi ý.
+12. Mở Calendar V2 ở tab A, thay đổi booking ở tab B: tab A tự cập nhật qua operations realtime; không F5.
+13. Giữ một hold đến hết hạn: Calendar V2 đang mở tự nhả phần thời gian sau hold sweep.
 
 ## Public room detail
 
