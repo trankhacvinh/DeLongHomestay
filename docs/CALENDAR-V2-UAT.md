@@ -8,16 +8,17 @@ Calendar V2 giữ nguyên Calendar V1 nhưng là **một màn hình/menu riêng*
 2. Mở **Lịch phòng V1**: phải vào `/Admin/Calendar`, giao diện tổng quan cũ không có switch V1/V2.
 3. Mở **Lịch phòng V2**: phải vào `/Admin/CalendarV2`, tiêu đề `Lịch phòng theo khung giờ`; không hiển thị bảng tổng quan V1 và không có switch V1/V2 trong nội dung.
 4. Ngay khi V2 mở, bên dưới tiêu đề phải hiện thanh chọn phòng `[‹] [Tên phòng] [›]`, thanh ngày và chú thích. Trong lúc gọi API phải có dòng `Đang tải lịch phòng…`; nếu bootstrap/API lỗi phải hiện thông báo lỗi ngay trong panel, **không được chỉ còn một card trắng**.
-5. Regression quan trọng: `#calendar-page-data` hiện nằm bên trong Vue root của màn Calendar. Sau `admin-calendar.js` mount, Vue có thể loại side-effect `<script type="application/json">` khỏi DOM. Vì V2 runtime chạy sau đó, nó phải lấy fallback từ state Vue đã mount (`propertyId`, `today`, `startDate`, `rooms`) thay vì silent-return khi JSON node không còn. `document.documentElement.dataset.calendarV2` phải phản ánh `booted/initial/request-error/...`, không được để bootstrap thất bại im lặng.
-6. V2 hiển thị một phòng tại một thời điểm; bấm `[‹]` / `[›]` để chuyển phòng.
-7. Bấm `‹ 7 ngày`, `Hôm nay`, `7 ngày ›` để đổi khoảng ngày; trang không cần reload.
-8. Chỉ các rate TimeSlot / Overnight tạo cột. Nightly không tạo cột riêng.
-9. Với slot 12:00–15:00 và booking 12:00–14:00, pill occupied phải chiếm khoảng 2/3; phần còn lại ghi `Còn 14:00–15:00`.
-10. Bấm phần occupied: mở modal chi tiết booking hiện có.
-11. Bấm slot trống hoàn toàn: mở modal tạo booking với phòng/ngày/rate/giờ/giá đã điền sẵn.
-12. Bấm phần free của slot partial: mở modal tạo booking với đúng khoảng giờ còn trống, rate để tùy chỉnh và giá chỉ là gợi ý.
-13. Mở Calendar V2 ở tab A, thay đổi booking ở tab B: tab A tự cập nhật qua operations realtime; không F5.
-14. Giữ một hold đến hết hạn: Calendar V2 đang mở tự nhả phần thời gian sau hold sweep.
+5. Regression quan trọng: `#calendar-page-data` nằm bên trong Vue root. Sau `admin-calendar.js` mount, Vue có thể loại side-effect `<script type="application/json">` khỏi DOM. Vì V2 runtime chạy sau đó, nó phải lấy fallback từ state Vue đã mount (`propertyId`, `today`, `startDate`, `rooms`) thay vì silent-return khi JSON node không còn. `document.documentElement.dataset.calendarV2` phải phản ánh `booted/initial/request-error/...`.
+6. Hai placeholder V1 (`.calendar-toolbar-card`, `.calendar-wrap`) trên trang standalone V2 phải bị force-hide; CSS base không được làm chúng hiện thành card trắng.
+7. V2 hiển thị một phòng tại một thời điểm; bấm `[‹]` / `[›]` để chuyển phòng.
+8. Bấm `‹ 7 ngày`, `Hôm nay`, `7 ngày ›` để đổi khoảng ngày; trang không cần reload.
+9. Chỉ các rate TimeSlot / Overnight tạo cột. Nightly không tạo cột riêng.
+10. Với slot 12:00–15:00 và booking 12:00–14:00, pill occupied phải chiếm khoảng 2/3; phần còn lại ghi `Còn 14:00–15:00`.
+11. Bấm phần occupied: mở modal chi tiết booking hiện có.
+12. Bấm slot trống hoàn toàn: mở modal tạo booking với phòng/ngày/rate/giờ/giá đã điền sẵn.
+13. Bấm phần free của slot partial: mở modal tạo booking với đúng khoảng giờ còn trống, rate để tùy chỉnh và giá chỉ là gợi ý.
+14. Mở Calendar V2 ở tab A, thay đổi booking ở tab B: tab A tự cập nhật qua operations realtime; không F5.
+15. Giữ một hold đến hết hạn: Calendar V2 đang mở tự nhả phần thời gian sau hold sweep.
 
 ## Public room detail
 
