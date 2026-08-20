@@ -27,7 +27,7 @@ public sealed class CalendarV2SourceContractTests
         var source = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar-v2.js");
 
         Assert.Contains("async function ensureRooms()", source, StringComparison.Ordinal);
-        Assert.Contains("/rooms/`,", source, StringComparison.Ordinal);
+        Assert.Contains("`/api/admin/properties/${propertyId}/rooms/`", source, StringComparison.Ordinal);
         Assert.Contains("if (!rooms().length && !await ensureRooms()) return;", source, StringComparison.Ordinal);
         Assert.Contains("rooms-request-error", source, StringComparison.Ordinal);
         Assert.Contains("no-rooms", source, StringComparison.Ordinal);
