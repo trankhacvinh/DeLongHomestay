@@ -8,7 +8,7 @@ Calendar V2 giữ nguyên Calendar V1 nhưng là **một màn hình/menu riêng*
 2. Mở **Lịch phòng V1**: phải vào `/Admin/Calendar`, giao diện tổng quan cũ không có switch V1/V2.
 3. Mở **Lịch phòng V2**: phải vào `/Admin/CalendarV2`, tiêu đề `Lịch phòng theo khung giờ`; không hiển thị bảng tổng quan V1 và không có switch V1/V2 trong nội dung.
 4. Ngay khi V2 mở, bên dưới tiêu đề phải hiện thanh chọn phòng `[‹] [Tên phòng] [›]`, thanh ngày và chú thích. Trong lúc gọi API phải có dòng `Đang tải lịch phòng…`; nếu bootstrap/API lỗi phải hiện thông báo lỗi ngay trong panel, **không được chỉ còn một card trắng**.
-5. V2 phải khởi tạo được kể cả khi Vue đã mount và node `#calendar-page-data` không còn trong DOM. Runtime lấy fallback từ state Vue hiện tại. DevTools có thể kiểm tra `document.documentElement.dataset.calendarV2`; sau bootstrap phải không còn trạng thái trống/silent return.
+5. Regression quan trọng: `#calendar-page-data` hiện nằm bên trong Vue root của màn Calendar. Sau `admin-calendar.js` mount, Vue có thể loại side-effect `<script type="application/json">` khỏi DOM. Vì V2 runtime chạy sau đó, nó phải lấy fallback từ state Vue đã mount (`propertyId`, `today`, `startDate`, `rooms`) thay vì silent-return khi JSON node không còn. DevTools có thể kiểm tra `document.documentElement.dataset.calendarV2` để biết trạng thái bootstrap.
 6. V2 hiển thị một phòng tại một thời điểm; bấm `[‹]` / `[›]` để chuyển phòng.
 7. Bấm `‹ 7 ngày`, `Hôm nay`, `7 ngày ›` để đổi khoảng ngày; trang không cần reload.
 8. Chỉ các rate TimeSlot / Overnight tạo cột. Nightly không tạo cột riêng.
