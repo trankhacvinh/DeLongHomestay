@@ -27,7 +27,7 @@ public sealed class CalendarV2Model(
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
         var todayLocal = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
         var startDate = from ?? todayLocal;
-        var endDateExclusive = startDate.AddDays(7);
+        var endDateExclusive = startDate.AddDays(10);
 
         var startLocal = DateTime.SpecifyKind(startDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
         var endLocal = DateTime.SpecifyKind(endDateExclusive.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
