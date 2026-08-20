@@ -1,6 +1,6 @@
 (function () {
     const root = document.getElementById('calendar-page');
-    if (!root || !window.DeLongApi) return;
+    if (!root || root.dataset.calendarV2Page !== 'true' || !window.DeLongApi) return;
 
     const initial = (() => {
         try { return JSON.parse(document.getElementById('calendar-page-data')?.textContent || '{}'); }
@@ -11,7 +11,6 @@
     if (!propertyId) return;
 
     const state = {
-        active: false,
         roomIndex: 0,
         from: initial.startDate || initial.today,
         days: 10,
@@ -23,18 +22,11 @@
         pollTimer: null
     };
 
-    const v1Toolbar = root.querySelector('.calendar-toolbar-card');
-    const v1Wrap = root.querySelector('.calendar-wrap');
     const pageHead = root.querySelector('.calendar-page-head');
-    if (!pageHead || !v1Toolbar || !v1Wrap) return;
-
-    const switcher = document.createElement('div');
-    switcher.className = 'calendar-v2-view-switch';
-    switcher.innerHTML = '<div><strong>Kiểu lịch</strong><span>V1 xem tổng thể nhiều phòng · V2 xem chi tiết từng phòng theo khung giờ</span></div><div class="calendar-v2-view-actions"><button type="button" data-calendar-view="v1">Tổng quan</button><button type="button" data-calendar-view="v2">Theo khung giờ</button></div>';
+    if (!pageHead) return;
 
     const panel = document.createElement('section');
     panel.className = 'calendar-v2-panel';
-    panel.hidden = true;
     panel.innerHTML = [
         '<div class="calendar-v2-roombar">',
         '  <button class="calendar-v2-nav" type="button" data-v2-room-prev aria-label="Phòng trước">‹</button>',
@@ -50,10 +42,8 @@
         '<div class="calendar-v2-scroll" data-v2-scroll></div>'
     ].join('');
 
-    pageHead.after(switcher);
-    switcher.after(panel);
+    pageHead.after(panel);
 
-    const viewButtons = Array.from(switcher.querySelectorAll('[data-calendar-view]'));
     const roomName = panel.querySelector('[data-v2-room-name]');
     const roomMeta = panel.querySelector('[data-v2-room-meta]');
     const rangeLabel = panel.querySelector('[data-v2-range]');
@@ -136,16 +126,6 @@
 
     function visibleSlots(slots) {
         return (slots || []).filter(slot => Number(slot.rateType) !== 2);
-    }
-
-    function setView(value) {
-        state.active = value === 'v2';
-        panel.hidden = !state.active;
-        v1Toolbar.hidden = state.active;
-        v1Wrap.hidden = state.active;
-        viewButtons.forEach(button => button.classList.toggle('active', button.dataset.calendarView === value));
-        try { localStorage.setItem(`delong.calendar.view.${propertyId}`, value); } catch { }
-        if (state.active) refresh('view');
     }
 
     async function openBooking(bookingId) {
@@ -285,7 +265,6 @@
     }
 
     async function refresh(reason) {
-        if (!state.active) return;
         if (state.loading) {
             state.queued = true;
             state.queuedReason = reason || 'queued';
@@ -327,7 +306,6 @@
         refresh('room');
     }
 
-    viewButtons.forEach(button => button.addEventListener('click', () => setView(button.dataset.calendarView)));
     panel.querySelector('[data-v2-room-prev]').addEventListener('click', () => moveRoom(-1));
     panel.querySelector('[data-v2-room-next]').addEventListener('click', () => moveRoom(1));
     panel.querySelector('[data-v2-date-prev]').addEventListener('click', () => { state.from = addDays(state.from, -7); refresh('date'); });
@@ -335,19 +313,17 @@
     panel.querySelector('[data-v2-today]').addEventListener('click', () => { state.from = initial.today; refresh('today'); });
 
     document.addEventListener('delong:operations-change', event => {
-        if (!state.active) return;
         if (event.detail?.propertyId && event.detail.propertyId !== propertyId) return;
         const changedRoomId = event.detail?.roomId;
         if (changedRoomId && changedRoomId !== currentRoom()?.id) return;
         refresh('realtime');
         setTimeout(() => refresh('realtime-settled'), 500);
     });
-    window.addEventListener('focus', () => { if (state.active) refresh('focus'); });
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && state.active) refresh('visible'); });
-    state.pollTimer = setInterval(() => { if (!document.hidden && state.active) refresh('poll'); }, 15000);
+    window.addEventListener('focus', () => refresh('focus'));
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh('visible'); });
+    state.pollTimer = setInterval(() => { if (!document.hidden) refresh('poll'); }, 15000);
     window.addEventListener('beforeunload', () => { if (state.pollTimer) clearInterval(state.pollTimer); }, { once: true });
 
-    let preferred = 'v1';
-    try { preferred = localStorage.getItem(`delong.calendar.view.${propertyId}`) || 'v1'; } catch { }
-    setView(preferred === 'v2' ? 'v2' : 'v1');
+    document.documentElement.dataset.calendarV2 = 'initializing';
+    refresh('initial');
 })();
