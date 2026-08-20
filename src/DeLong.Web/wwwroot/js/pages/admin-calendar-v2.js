@@ -1,18 +1,34 @@
 (function () {
     const root = document.getElementById('calendar-page');
-    if (!root || root.dataset.calendarV2Page !== 'true' || !window.DeLongApi) return;
+    if (!root || root.dataset.calendarV2Page !== 'true') return;
 
+    const pageHead = root.querySelector('.calendar-page-head');
+    if (!pageHead) return;
+
+    // Vue compiles the in-DOM template when admin-calendar.js mounts. <script type="application/json">
+    // nodes inside that root are side-effect tags and may no longer exist afterwards. Calendar V2 is
+    // intentionally loaded after the main calendar app, so bootstrap from both the original JSON (when
+    // still present) and the already-mounted Vue state instead of silently returning when the JSON node
+    // has disappeared.
     const initial = (() => {
         try { return JSON.parse(document.getElementById('calendar-page-data')?.textContent || '{}'); }
         catch { return {}; }
     })();
-    const propertyId = initial.propertyId;
-    const timeZone = initial.timeZoneId || 'Asia/Ho_Chi_Minh';
-    if (!propertyId) return;
+    const bootVm = root.__vue_app__?._instance?.proxy || null;
+    const propertyId = initial.propertyId || bootVm?.propertyId || '';
+    const today = initial.today || bootVm?.today || '';
+    const startDate = initial.startDate || bootVm?.startDate || today;
+    const timeZone = initial.timeZoneId || root.dataset.timeZoneId || 'Asia/Ho_Chi_Minh';
+
+    // These are legacy V1 placeholders kept only so the shared Vue booking editor can mount. The base
+    // calendar CSS can override the HTML hidden attribute, so force them out of the standalone V2 UI.
+    root.querySelectorAll('.calendar-toolbar-card[hidden], .calendar-wrap[hidden]').forEach(element => {
+        element.style.setProperty('display', 'none', 'important');
+    });
 
     const state = {
         roomIndex: 0,
-        from: initial.startDate || initial.today,
+        from: startDate,
         days: 10,
         loading: false,
         queued: false,
@@ -22,11 +38,9 @@
         pollTimer: null
     };
 
-    const pageHead = root.querySelector('.calendar-page-head');
-    if (!pageHead) return;
-
     const panel = document.createElement('section');
     panel.className = 'calendar-v2-panel';
+    panel.dataset.calendarV2Panel = 'true';
     panel.innerHTML = [
         '<div class="calendar-v2-roombar">',
         '  <button class="calendar-v2-nav" type="button" data-v2-room-prev aria-label="Phòng trước">‹</button>',
@@ -38,11 +52,12 @@
         '  <div class="calendar-v2-date-actions"><button type="button" data-v2-date-prev>‹ 7 ngày</button><button type="button" data-v2-today>Hôm nay</button><button type="button" data-v2-date-next>7 ngày ›</button></div>',
         '</div>',
         '<div class="calendar-v2-legend"><span><i class="available"></i>Trống</span><span><i class="partial"></i>Còn trống một phần</span><span><i class="held"></i>Giữ phòng</span><span><i class="booked"></i>Đã đặt</span></div>',
-        '<div class="calendar-v2-status" data-v2-status></div>',
+        '<div class="calendar-v2-status show" data-v2-status>Đang tải lịch phòng…</div>',
         '<div class="calendar-v2-scroll" data-v2-scroll></div>'
     ].join('');
 
     pageHead.after(panel);
+    document.documentElement.dataset.calendarV2 = 'booted';
 
     const roomName = panel.querySelector('[data-v2-room-name]');
     const roomMeta = panel.querySelector('[data-v2-room-meta]');
@@ -50,8 +65,27 @@
     const statusBox = panel.querySelector('[data-v2-status]');
     const scroll = panel.querySelector('[data-v2-scroll]');
 
+    function showError(message, marker) {
+        statusBox.textContent = message;
+        statusBox.className = 'calendar-v2-status show error';
+        document.documentElement.dataset.calendarV2 = marker || 'error';
+    }
+
+    if (!window.DeLongApi) {
+        showError('Calendar V2 chưa khởi tạo được API client. Hãy tải lại trang sau khi ứng dụng khởi động xong.', 'missing-api');
+        return;
+    }
+    if (!propertyId) {
+        showError('Calendar V2 không đọc được cơ sở hiện tại. Vui lòng chọn lại cơ sở rồi mở lại lịch.', 'missing-property');
+        return;
+    }
+    if (!state.from) {
+        showError('Calendar V2 không đọc được ngày bắt đầu của lịch.', 'missing-date');
+        return;
+    }
+
     function vm() {
-        return root.__vue_app__?._instance?.proxy || null;
+        return root.__vue_app__?._instance?.proxy || bootVm || null;
     }
 
     function rooms() {
@@ -248,7 +282,7 @@
             const tr = document.createElement('tr');
             const th = document.createElement('th');
             th.textContent = dateText(day.date);
-            if (day.date === initial.today) th.classList.add('today');
+            if (day.date === today) th.classList.add('today');
             tr.appendChild(th);
             const byRate = new Map(visibleSlots(day.slots).map(slot => [slot.rateId, slot]));
             headerSlots.forEach(header => {
@@ -274,19 +308,21 @@
         if (!room) {
             statusBox.textContent = 'Chưa có phòng đang hoạt động.';
             statusBox.className = 'calendar-v2-status show';
+            document.documentElement.dataset.calendarV2 = 'no-rooms';
             return;
         }
         const serial = ++state.requestSerial;
         state.loading = true;
         panel.classList.add('loading');
+        statusBox.textContent = 'Đang tải lịch phòng…';
+        statusBox.className = 'calendar-v2-status show';
         try {
             const query = new URLSearchParams({ from: state.from, days: String(state.days) });
             const data = await DeLongApi.get(`/api/admin/properties/${propertyId}/operations/availability/rooms/${room.id}?${query}`);
             if (serial === state.requestSerial) render(data);
             document.documentElement.dataset.calendarV2 = reason || 'loaded';
         } catch (error) {
-            statusBox.textContent = error?.message || 'Không thể tải lịch theo khung giờ.';
-            statusBox.className = 'calendar-v2-status show error';
+            showError(error?.message || 'Không thể tải lịch theo khung giờ.', 'request-error');
         } finally {
             state.loading = false;
             panel.classList.remove('loading');
@@ -310,7 +346,7 @@
     panel.querySelector('[data-v2-room-next]').addEventListener('click', () => moveRoom(1));
     panel.querySelector('[data-v2-date-prev]').addEventListener('click', () => { state.from = addDays(state.from, -7); refresh('date'); });
     panel.querySelector('[data-v2-date-next]').addEventListener('click', () => { state.from = addDays(state.from, 7); refresh('date'); });
-    panel.querySelector('[data-v2-today]').addEventListener('click', () => { state.from = initial.today; refresh('today'); });
+    panel.querySelector('[data-v2-today]').addEventListener('click', () => { state.from = today || state.from; refresh('today'); });
 
     document.addEventListener('delong:operations-change', event => {
         if (event.detail?.propertyId && event.detail.propertyId !== propertyId) return;
