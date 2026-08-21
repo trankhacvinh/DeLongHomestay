@@ -178,6 +178,8 @@
 .public-success-summary strong { margin-top:5px; }
 .public-success-actions { display:flex; justify-content:center; gap:9px; flex-wrap:wrap; }
 .public-success-contact { margin-top:24px!important; font-size:10px!important; }
+.public-booking-guide-card{width:min(900px,100%);margin:28px auto 0;padding:clamp(24px,4vw,42px);border:1px solid #d9e4e0;border-radius:24px;background:#fff;text-align:left;box-shadow:0 18px 54px rgba(27,56,52,.07)}
+.public-booking-guide-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding-bottom:20px;border-bottom:1px solid #e1e9e6}.public-booking-guide-head h2{margin:7px 0 0;font-size:clamp(1.55rem,3vw,2.2rem)}.public-booking-guide-copy{padding-top:22px;color:#314743;line-height:1.75}.public-booking-guide-copy>:first-child{margin-top:0}.public-booking-guide-copy img,.public-booking-guide-copy iframe{max-width:100%}
 
 @media (max-width:900px) {
     .public-hero-grid,.public-room-detail-grid,.public-detail-content-grid { grid-template-columns:1fr; }

@@ -3,6 +3,8 @@ using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Site;
+using DeLong.Web.Features.CustomerAccounts;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -68,6 +70,7 @@ public static class PublicBookingEndpoints
             PublicPropertyResolver resolver,
             StoragePaths paths,
             IConfiguration configuration,
+            CustomerAccountService customerAccountService,
             CancellationToken ct) =>
         {
             var idempotencyKey = http.Request.Headers["Idempotency-Key"].FirstOrDefault();
@@ -75,6 +78,17 @@ public static class PublicBookingEndpoints
             var (result, error) = await core.CreateRequestAsync(siteSlug, request, idempotencyKey, ct);
             if (result is not null)
             {
+                var userIdValue = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (Guid.TryParse(userIdValue, out var userId) && http.User.IsInRole(CustomerAccountService.CustomerRole))
+                {
+                    var property = await resolver.ResolveAsync(siteSlug, ct);
+                    if (property is not null)
+                    {
+                        await customerAccountService.LinkBookingCustomerAsync(userId, property.Id, result.BookingId, ct);
+                        await customerAccountService.CopySavedIdentityDocumentsToBookingAsync(
+                            userId, property.Id, result.BookingId, new IdentityDocumentStorage(paths, configuration), ct);
+                    }
+                }
                 var prefix = PublicPropertyResolver.ScopePrefix(siteSlug);
                 return Results.Created($"{prefix}/booking/success?code={Uri.EscapeDataString(result.Code)}", result);
             }

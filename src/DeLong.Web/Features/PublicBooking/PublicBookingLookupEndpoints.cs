@@ -23,6 +23,35 @@ public static class PublicBookingLookupEndpoints
         .AddEndpointFilter<ApiAntiforgeryFilter>()
         .RequireRateLimiting("public-lookup");
 
+        app.MapPost("/api/public/booking-guide-pdf", async (
+            [FromQuery] string? siteSlug,
+            PublicBookingLookupRequest request,
+            PublicBookingLookupService service,
+            CancellationToken ct) =>
+        {
+            var booking = await service.LookupAsync(siteSlug, request.Code, request.Phone, ct);
+            if (booking is null) return Results.NotFound(new { message = "Không tìm thấy lượt đặt còn hiệu lực." });
+            var guide = new PublicBookingGuideDto(booking.Code, booking.RoomName, booking.GuestGuideHtml);
+            return Results.File(BookingGuestGuidePdf.Create(guide), "application/pdf", $"huong-dan-{booking.Code}.pdf");
+        })
+        .AllowAnonymous()
+        .AddEndpointFilter<ApiAntiforgeryFilter>()
+        .RequireRateLimiting("public-lookup");
+
+        app.MapGet("/api/public/booking-guide-pdf", async (
+            [FromQuery] string? siteSlug,
+            [FromQuery] string code,
+            PublicBookingLookupService service,
+            CancellationToken ct) =>
+        {
+            var guide = await service.GetSuccessGuideAsync(siteSlug, code, ct);
+            return guide is null
+                ? Results.NotFound()
+                : Results.File(BookingGuestGuidePdf.Create(guide), "application/pdf", $"huong-dan-{guide.Code}.pdf");
+        })
+        .AllowAnonymous()
+        .RequireRateLimiting("public-lookup");
+
         return app;
     }
 }

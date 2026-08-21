@@ -86,6 +86,7 @@ public sealed class StaffAccountService(
             return new StaffAccountDto(
                 user.Id,
                 string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email ?? user.UserName ?? "Nhân viên" : user.DisplayName,
+                user.UserName ?? string.Empty,
                 user.Email ?? user.UserName ?? string.Empty,
                 rolesByUser.GetValueOrDefault(user.Id) ?? string.Empty,
                 user.IsActive,
@@ -105,7 +106,7 @@ public sealed class StaffAccountService(
         CreateStaffAccountRequest request,
         CancellationToken cancellationToken = default)
     {
-        var validation = ValidateCommon(request.DisplayName, request.Email, request.Role, request.PropertyIds);
+        var validation = ValidateCommon(request.DisplayName, request.UserName, request.Email, request.Role, request.PropertyIds);
         if (validation is not null) return (null, validation);
         if (string.IsNullOrWhiteSpace(request.TemporaryPassword) || request.TemporaryPassword.Length < 8)
             return (null, "Mật khẩu tạm phải có ít nhất 8 ký tự.");
@@ -117,8 +118,11 @@ public sealed class StaffAccountService(
             return (null, "Bạn không thể cấp quyền cho cơ sở mà tài khoản của bạn không quản lý.");
 
         var email = request.Email.Trim();
+        var username = request.UserName.Trim();
         if (await userManager.FindByEmailAsync(email) is not null)
             return (null, "Email này đã có tài khoản.");
+        if (await userManager.FindByNameAsync(username) is not null)
+            return (null, "Tên đăng nhập này đã có tài khoản.");
 
         var roleName = StaffRoles.Normalize(request.Role);
         var roleError = await EnsureRoleAsync(roleName);
@@ -128,7 +132,7 @@ public sealed class StaffAccountService(
         var user = new ApplicationUser
         {
             Id = Guid.CreateVersion7(),
-            UserName = email,
+            UserName = username,
             Email = email,
             DisplayName = request.DisplayName.Trim(),
             EmailConfirmed = true,
@@ -166,7 +170,7 @@ public sealed class StaffAccountService(
         UpdateStaffAccountRequest request,
         CancellationToken cancellationToken = default)
     {
-        var validation = ValidateCommon(request.DisplayName, request.Email, request.Role, request.PropertyIds);
+        var validation = ValidateCommon(request.DisplayName, request.UserName, request.Email, request.Role, request.PropertyIds);
         if (validation is not null) return (null, validation);
 
         var actorProperties = await GetActorPropertiesAsync(actorUserId, cancellationToken);
@@ -209,9 +213,13 @@ public sealed class StaffAccountService(
         if (coverageError is not null) return (null, coverageError);
 
         var email = request.Email.Trim();
+        var username = request.UserName.Trim();
         var duplicate = await userManager.FindByEmailAsync(email);
         if (duplicate is not null && duplicate.Id != userId)
             return (null, "Email này đã có tài khoản.");
+        var duplicateUsername = await userManager.FindByNameAsync(username);
+        if (duplicateUsername is not null && duplicateUsername.Id != userId)
+            return (null, "Tên đăng nhập này đã có tài khoản.");
 
         var roleError = await EnsureRoleAsync(newRole);
         if (roleError is not null) return (null, roleError);
@@ -219,6 +227,7 @@ public sealed class StaffAccountService(
         var before = new
         {
             user.DisplayName,
+            user.UserName,
             user.Email,
             Role = currentRole,
             PropertyIds = currentPropertyIds.Order().ToArray(),
@@ -231,7 +240,11 @@ public sealed class StaffAccountService(
         {
             var emailResult = await userManager.SetEmailAsync(user, email);
             if (!emailResult.Succeeded) return (null, IdentityErrors(emailResult));
-            var usernameResult = await userManager.SetUserNameAsync(user, email);
+        }
+
+        if (!string.Equals(user.UserName, username, StringComparison.OrdinalIgnoreCase))
+        {
+            var usernameResult = await userManager.SetUserNameAsync(user, username);
             if (!usernameResult.Succeeded) return (null, IdentityErrors(usernameResult));
         }
 
@@ -437,9 +450,11 @@ public sealed class StaffAccountService(
         return result.Succeeded ? null : IdentityErrors(result);
     }
 
-    private static string? ValidateCommon(string displayName, string email, string role, IReadOnlyList<Guid> propertyIds)
+    private static string? ValidateCommon(string displayName, string userName, string email, string role, IReadOnlyList<Guid> propertyIds)
     {
         if (string.IsNullOrWhiteSpace(displayName)) return "Tên hiển thị là bắt buộc.";
+        if (string.IsNullOrWhiteSpace(userName) || userName.Trim().Length is < 3 or > 100) return "Tên đăng nhập phải từ 3 đến 100 ký tự.";
+        if (!userName.Trim().All(ch => char.IsLetterOrDigit(ch) || ch is '.' or '_' or '-')) return "Tên đăng nhập chỉ gồm chữ, số, dấu chấm, gạch dưới hoặc gạch ngang.";
         if (displayName.Trim().Length > 200) return "Tên hiển thị tối đa 200 ký tự.";
         if (string.IsNullOrWhiteSpace(email) || !new EmailAddressAttribute().IsValid(email.Trim())) return "Email không hợp lệ.";
         if (email.Trim().Length > 254) return "Email tối đa 254 ký tự.";

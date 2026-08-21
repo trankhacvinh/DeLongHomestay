@@ -39,6 +39,40 @@ public sealed class CustomerService(AppDbContext db)
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<CustomerProfileDto?> GetProfileAsync(
+        Guid propertyId,
+        Guid customerId,
+        CancellationToken cancellationToken = default)
+    {
+        var customer = await GetAsync(propertyId, customerId, cancellationToken);
+        if (customer is null) return null;
+
+        var bookings = await db.Bookings
+            .AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.CustomerId == customerId)
+            .OrderByDescending(x => x.CheckInUtc)
+            .ThenByDescending(x => x.CreatedAtUtc)
+            .Select(x => new CustomerBookingHistoryDto(
+                x.Id,
+                x.Code,
+                x.RoomId,
+                x.Room.Code,
+                x.Room.Name,
+                x.CheckInUtc,
+                x.CheckOutUtc,
+                x.Status,
+                x.RoomAmount + x.ExtraAmount - x.DiscountAmount,
+                x.Payments.Where(payment => !payment.IsVoided)
+                    .Sum(payment => payment.Type == Domain.Enums.PaymentType.Receipt ? payment.Amount : -payment.Amount),
+                x.RoomAmount + x.ExtraAmount - x.DiscountAmount - x.Payments.Where(payment => !payment.IsVoided)
+                    .Sum(payment => payment.Type == Domain.Enums.PaymentType.Receipt ? payment.Amount : -payment.Amount),
+                x.Source,
+                x.CreatedAtUtc))
+            .ToListAsync(cancellationToken);
+
+        return new CustomerProfileDto(customer, bookings);
+    }
+
     public async Task<(CustomerDto? Customer, string? Error)> CreateAsync(
         Guid propertyId,
         CreateCustomerRequest request,

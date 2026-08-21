@@ -19,7 +19,7 @@
                 showPassword: false,
                 editor: { open: false, mode: 'create', account: null },
                 form: this.emptyForm ? this.emptyForm() : {
-                    displayName: '', email: '', role: 'Staff', propertyIds: [], temporaryPassword: '', isActive: true
+                    displayName: '', userName: '', email: '', role: 'Staff', propertyIds: [], temporaryPassword: '', isActive: true
                 },
                 resetModal: { open: false, password: '', showPassword: false },
                 toast: { show: false, message: '', type: 'success', timer: null }
@@ -37,6 +37,7 @@
                     if (!q) return true;
                     return (account.displayName || '').toLowerCase().includes(q) ||
                         (account.email || '').toLowerCase().includes(q) ||
+                        (account.userName || '').toLowerCase().includes(q) ||
                         this.roleLabel(account.role).toLowerCase().includes(q);
                 });
             },
@@ -49,6 +50,7 @@
             emptyForm() {
                 return {
                     displayName: '',
+                    userName: '',
                     email: '',
                     role: 'Staff',
                     propertyIds: this.availableProperties?.length === 1 ? [this.availableProperties[0].id] : [],
@@ -80,6 +82,7 @@
                 if (!account.canManage) return this.notify('Tài khoản này có quyền ở cơ sở ngoài phạm vi bạn quản lý.', 'error');
                 this.form = {
                     displayName: account.displayName,
+                    userName: account.userName,
                     email: account.email,
                     role: account.role,
                     propertyIds: (account.properties || []).map(x => x.id),
@@ -95,6 +98,7 @@
             },
             validate() {
                 if (!this.form.displayName.trim()) return 'Vui lòng nhập tên hiển thị.';
+                if (!/^[\p{L}\p{N}._-]{3,100}$/u.test(this.form.userName.trim())) return 'Tên đăng nhập phải từ 3 ký tự và chỉ gồm chữ, số, dấu chấm, gạch dưới hoặc gạch ngang.';
                 if (!/^\S+@\S+\.\S+$/.test(this.form.email.trim())) return 'Email không hợp lệ.';
                 if (!this.form.role) return 'Vui lòng chọn vai trò.';
                 if (!this.form.propertyIds.length) return 'Chọn ít nhất một cơ sở được truy cập.';
@@ -130,6 +134,7 @@
                     if (this.editor.mode === 'create') {
                         const created = await DeLongApi.post('/api/admin/staff', {
                             displayName: this.form.displayName,
+                            userName: this.form.userName,
                             email: this.form.email,
                             role: this.form.role,
                             propertyIds: this.form.propertyIds,
@@ -143,6 +148,7 @@
                         const wasActive = this.editor.account.isActive;
                         await DeLongApi.put(`/api/admin/staff/${accountId}`, {
                             displayName: this.form.displayName,
+                            userName: this.form.userName,
                             email: this.form.email,
                             role: this.form.role,
                             propertyIds: this.form.propertyIds,

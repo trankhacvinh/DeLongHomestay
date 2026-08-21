@@ -12,6 +12,7 @@ public sealed class Room : EntityBase
     public string? Slug { get; set; }
     public string? ShortDescription { get; set; }
     public string? DescriptionHtml { get; set; }
+    public string? GuestGuideHtml { get; set; }
     public bool IsPublished { get; set; }
     public int Capacity { get; set; } = 2;
     public int SortOrder { get; set; }

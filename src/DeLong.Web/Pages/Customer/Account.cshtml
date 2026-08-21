@@ -1,0 +1,62 @@
+@page "/customer/account"
+@model DeLong.Web.Pages.Customer.AccountModel
+@{
+    ViewData["Title"] = "Tài khoản khách";
+}
+@section Head { <link rel="stylesheet" href="~/css/customer-account.css" asp-append-version="true" /> }
+<div id="customer-account-page" class="customer-account-page" v-cloak>
+    <section class="customer-account-shell" v-bind:class="{ 'is-auth-view': !loading && !profile }">
+        <div class="customer-account-brand">
+            <span>TÀI KHOẢN KHÁCH</span>
+            <h1>{{ profile ? `Xin chào, ${profile.name}` : 'Đặt phòng nhanh hơn' }}</h1>
+            <p>{{ settings.benefitText }}</p>
+            <div class="customer-auth-benefits" v-if="!loading && !profile">
+                <div><strong>01</strong><span>Tự điền thông tin bằng số điện thoại</span></div>
+                <div><strong>02</strong><span>Dùng CCCD đã lưu cho lần đặt tiếp theo</span></div>
+                <div><strong>03</strong><span>Theo dõi lịch sử đặt phòng và điểm thưởng</span></div>
+            </div>
+        </div>
+
+        <div v-if="loading" class="customer-account-card">Đang tải tài khoản…</div>
+        <template v-else-if="profile">
+            <div class="customer-account-summary"><div><span>Điểm hiện có</span><strong>{{ profile.loyaltyBalance }}</strong></div><div><span>Lượt đặt</span><strong>{{ (profile.bookings || []).length }}</strong></div><div><span>CCCD</span><strong>{{ profile.hasIdentityDocuments ? 'Đã có' : 'Chưa có' }}</strong></div></div>
+            <section class="customer-account-card"><div class="customer-account-card-head"><div><h2>Hồ sơ</h2><p>{{ profile.phone }} · {{ profile.email || 'Chưa có email' }}</p></div><form method="post" action="/Account/Logout"><button class="btn btn-light" type="submit">Đăng xuất</button></form></div></section>
+            <section class="customer-account-card customer-identity-card">
+                <div class="customer-identity-head"><div><h2>CCCD dùng cho lần đặt sau</h2><p>Không hiển thị lại ảnh đã lưu để bảo mật. Ảnh mới tải lên sẽ thay thế bản hiện tại của tài khoản và được dùng cho những lượt đặt tiếp theo.</p></div><span>{{ profile.hasIdentityDocuments ? 'Đã lưu đủ' : 'Chưa đủ 2 mặt' }}</span></div>
+                <div class="customer-identity-grid">
+                    <label class="customer-identity-picker" v-bind:class="{ loading: identity.front.uploading }">
+                        <img v-if="identity.front.previewUrl" v-bind:src="identity.front.previewUrl" alt="CCCD mặt trước vừa chọn" />
+                        <span v-else><b>▧＋</b><strong>Mặt trước</strong><small>Chạm để chọn ảnh mới</small></span>
+                        <em v-if="identity.front.uploaded">Đã thay thế mặt trước</em>
+                        <input type="file" accept="image/jpeg,image/png,image/webp" hidden v-on:change="uploadIdentity($event, 'front')" />
+                    </label>
+                    <label class="customer-identity-picker" v-bind:class="{ loading: identity.back.uploading }">
+                        <img v-if="identity.back.previewUrl" v-bind:src="identity.back.previewUrl" alt="CCCD mặt sau vừa chọn" />
+                        <span v-else><b>▧＋</b><strong>Mặt sau</strong><small>Chạm để chọn ảnh mới</small></span>
+                        <em v-if="identity.back.uploaded">Đã thay thế mặt sau</em>
+                        <input type="file" accept="image/jpeg,image/png,image/webp" hidden v-on:change="uploadIdentity($event, 'back')" />
+                    </label>
+                </div>
+                <p class="customer-identity-privacy">Bạn chỉ xem được ảnh vừa chọn trong phiên này. Sau khi tải lại trang, hệ thống chỉ hiển thị trạng thái đã có CCCD.</p>
+            </section>
+            <section class="customer-account-card"><h2>Lịch sử đặt phòng</h2><div class="customer-booking-list" v-if="(profile.bookings || []).length"><article v-for="booking in (profile.bookings || [])" v-bind:key="booking.id"><div><strong>{{ booking.code }}</strong><span>{{ booking.propertyName }} · {{ booking.roomName }}</span></div><div><strong>{{ dateText(booking.checkInUtc) }}</strong><span>{{ statusText(booking.status) }}</span></div><div><strong>{{ money(booking.totalAmount) }}</strong><span>+{{ booking.earnedPoints }} điểm</span></div></article></div><p v-else class="muted">Chưa có lịch sử đặt phòng.</p></section>
+            <section class="customer-account-card"><h2>Bảo mật</h2><div class="customer-security-grid"><div><h3>Đổi mật khẩu</h3><input type="password" v-model="password.currentPassword" placeholder="Mật khẩu hiện tại" /><input type="password" v-model="password.newPassword" placeholder="Mật khẩu mới, ít nhất 8 ký tự" /><button class="btn btn-primary" type="button" v-on:click="changePassword">Đổi mật khẩu</button></div><div><h3>Google Authenticator</h3><p>{{ profile.authenticatorConfigured ? 'Đã bật. Bạn có thể dùng mã 6 số thay mật khẩu.' : 'Thêm mã bảo mật để đăng nhập nhanh.' }}</p><button class="btn btn-light" type="button" v-on:click="openAuthenticator">{{ profile.authenticatorConfigured ? 'Quản lý Authenticator' : 'Thiết lập Authenticator' }}</button></div></div></section>
+            <section class="customer-account-card" v-if="(profile.loyaltyHistory || []).length"><h2>Lịch sử điểm</h2><div class="customer-point-list"><div v-for="entry in (profile.loyaltyHistory || [])" v-bind:key="entry.id"><span>{{ entry.reason }} · {{ dateText(entry.createdAtUtc) }}</span><strong v-bind:class="entry.points >= 0 ? 'positive' : 'negative'">{{ entry.points >= 0 ? '+' : '' }}{{ entry.points }}</strong></div></div></section>
+        </template>
+
+        <section v-else class="customer-account-card customer-auth-card">
+            <div class="customer-auth-tabs"><button type="button" v-bind:class="{ active: mode === 'login' }" v-on:click="mode = 'login'">Đăng nhập</button><button type="button" v-bind:class="{ active: mode === 'register' }" v-on:click="mode = 'register'" v-if="settings.registrationEnabled">Tạo tài khoản</button></div>
+            <div class="customer-auth-form" v-if="mode === 'login'"><label>Số điện thoại<input inputmode="tel" autocomplete="username" v-model.trim="login.phone" /></label><label v-if="loginMethod === 'password'">Mật khẩu<input type="password" autocomplete="current-password" v-model="login.password" /></label><label v-else>Mã Authenticator<input inputmode="numeric" autocomplete="one-time-code" maxlength="8" v-model.trim="login.code" /></label><button class="customer-auth-switch" type="button" v-if="settings.authenticatorEnabled" v-on:click="loginMethod = loginMethod === 'password' ? 'authenticator' : 'password'">{{ loginMethod === 'password' ? 'Dùng mã Authenticator' : 'Dùng mật khẩu' }}</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="signIn">Đăng nhập</button></div>
+            <div class="customer-auth-form" v-else><label>Họ tên<input autocomplete="name" v-model.trim="register.name" /></label><label>Số điện thoại<input inputmode="tel" autocomplete="tel" v-model.trim="register.phone" /></label><label>Email (không bắt buộc)<input type="email" autocomplete="email" v-model.trim="register.email" /></label><label>Mật khẩu<input type="password" autocomplete="new-password" v-model="register.password" /></label><label class="customer-terms-check"><input type="checkbox" v-model="register.termsAccepted" /><span>Tôi đã đọc và đồng ý <button type="button" v-on:click="termsOpen = true">{{ settings.termsTitle }}</button>.</span></label><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="signUp">Tạo tài khoản</button></div>
+            <div class="customer-staff-login">
+                <span>Bạn là nhân viên hoặc quản trị viên?</span>
+                <a href="/Account/Login">Đăng nhập trang quản trị <span aria-hidden="true">→</span></a>
+            </div>
+        </section>
+    </section>
+
+    <div class="modal-backdrop" v-if="termsOpen" v-on:click.self="termsOpen = false"><section class="modal-card customer-terms-modal"><div class="modal-head"><h2>{{ settings.termsTitle }}</h2><button class="icon-btn" type="button" v-on:click="termsOpen = false">×</button></div><div class="customer-terms-copy" v-html="settings.termsHtml"></div><div class="modal-actions"><button class="btn btn-primary" type="button" v-on:click="termsOpen = false; register.termsAccepted = true">Đồng ý</button></div></section></div>
+    <div class="modal-backdrop" v-if="authenticator.open" v-on:click.self="authenticator.open = false"><section class="modal-card modal-small"><div class="modal-head"><h2>Google Authenticator</h2><button class="icon-btn" type="button" v-on:click="authenticator.open = false">×</button></div><div class="customer-authenticator-body"><p>Trong Google Authenticator, chọn nhập khóa thiết lập rồi nhập khóa:</p><code>{{ authenticator.sharedKey }}</code><input inputmode="numeric" maxlength="8" v-model.trim="authenticator.code" placeholder="Mã 6 số để xác nhận" /><button class="btn btn-primary" type="button" v-on:click="confirmAuthenticator">Xác nhận bật</button><div v-if="authenticator.recoveryCodes.length"><strong>Lưu các mã khôi phục này ở nơi an toàn:</strong><code v-for="code in authenticator.recoveryCodes" v-bind:key="code">{{ code }}</code></div></div></section></div>
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+</div>
+@section Scripts { <script src="~/js/pages/customer-account.js" asp-append-version="true"></script> }

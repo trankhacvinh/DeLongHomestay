@@ -54,3 +54,7 @@
 - [ ] Chốt logic thanh toán/cọc/hoàn tiền.
 - [ ] Thêm Payment ledger thay vì số tiền thanh toán nằm trong Booking.
 - [ ] Check-out tự tạo housekeeping task/trạng thái Bẩn.
+- [ ] Áp dụng migration `AddRoomConditionReports` trước khi mở chức năng báo cáo phòng.
+- [ ] Kiểm tra nhân viên chỉ thấy/tạo báo cáo tại cơ sở được cấp quyền.
+- [ ] Chụp trực tiếp và chọn nhiều ảnh trên iPhone/Android; xác nhận ảnh xoay đúng và WebP tải nhanh.
+- [ ] Xác nhận báo cáo cần 1-12 ảnh và không mất nội dung khi server trả lỗi validation.

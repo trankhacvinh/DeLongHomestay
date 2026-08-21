@@ -16,7 +16,7 @@ public sealed class CalendarModel(
     public Guid PropertyId { get; private set; }
     public string PageDataJson { get; private set; } = "{}";
 
-    public async Task<IActionResult> OnGetAsync(DateOnly? from, Guid? propertyId, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(DateOnly? from, DateOnly? to, Guid? propertyId, CancellationToken cancellationToken)
     {
         var property = await currentPropertyService.ResolveAsync(User, propertyId, cancellationToken);
         if (property is null) return Forbid();
@@ -25,7 +25,11 @@ public sealed class CalendarModel(
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
         var todayLocal = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
         var startDate = from ?? todayLocal;
-        var endDateExclusive = startDate.AddDays(7);
+        var requestedDays = to.HasValue && to.Value >= startDate
+            ? to.Value.DayNumber - startDate.DayNumber + 1
+            : 7;
+        var rangeDays = Math.Clamp(requestedDays, 1, 31);
+        var endDateExclusive = startDate.AddDays(rangeDays);
 
         var startLocal = DateTime.SpecifyKind(startDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
         var endLocal = DateTime.SpecifyKind(endDateExclusive.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
@@ -62,6 +66,7 @@ public sealed class CalendarModel(
                 timeZoneId = property.TimeZoneId,
                 utcOffset = offsetText,
                 startDate = startDate.ToString("yyyy-MM-dd"),
+                rangeDays,
                 today = todayLocal.ToString("yyyy-MM-dd"),
                 rooms,
                 bookings

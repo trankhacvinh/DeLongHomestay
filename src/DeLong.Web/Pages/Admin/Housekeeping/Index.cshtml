@@ -3,6 +3,9 @@
 @{
     ViewData["Title"] = "Dọn phòng";
 }
+@section Head {
+    <link rel="stylesheet" href="~/css/housekeeping-schedule.css" asp-append-version="true" />
+}
 <div id="housekeeping-page" v-cloak>
     <script id="housekeeping-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
@@ -13,12 +16,19 @@
             <p>Checkout tự chuyển phòng sang Bẩn. Cập nhật theo luồng Bẩn → Đang dọn → Sạch để lịch luôn phản ánh đúng tình trạng thực tế.</p>
         </div>
         <div class="housekeeping-summary" aria-live="polite">
-            <strong>{{ dirtyRooms.length + cleaningRooms.length }}</strong>
-            <span>phòng đang xử lý</span>
+            <strong>{{ mode === 'status' ? dirtyRooms.length + cleaningRooms.length : (mode === 'reports' ? conditionReports.length : taskCount) }}</strong>
+            <span>{{ mode === 'status' ? 'phòng đang xử lý' : (mode === 'reports' ? 'báo cáo gần đây' : 'việc trong lịch') }}</span>
         </div>
     </div>
 
-    <div class="housekeeping-board">
+    <nav class="housekeeping-view-switch" aria-label="Chế độ xem dọn phòng">
+        <button type="button" v-bind:class="{ active: mode === 'status' }" v-on:click="mode = 'status'">Tình trạng phòng</button>
+        <button type="button" v-bind:class="{ active: mode === 'schedule' }" v-on:click="mode = 'schedule'">Lịch công việc</button>
+        <button type="button" v-bind:class="{ active: mode === 'text' }" v-on:click="openTextMode">Văn bản</button>
+        <button type="button" v-bind:class="{ active: mode === 'reports' }" v-on:click="mode = 'reports'">Báo cáo phòng</button>
+    </nav>
+
+    <div class="housekeeping-board" v-if="mode === 'status'">
         <section class="panel housekeeping-column">
             <div class="panel-head">
                 <div class="housekeeping-heading">
@@ -36,6 +46,7 @@
                     <div class="housekeeping-actions" v-if="canManage">
                         <button class="btn btn-primary btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 2)">Bắt đầu dọn</button>
                         <button class="btn btn-light btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 0)">Đánh dấu sạch</button>
+                        <button class="btn btn-light btn-sm" type="button" v-on:click="openReportForm(room.roomId)">Báo cáo</button>
                     </div>
                 </article>
                 <div v-if="dirtyRooms.length === 0" class="empty-state"><strong>Không có phòng bẩn</strong>Phòng checkout mới sẽ tự xuất hiện ở đây.</div>
@@ -59,6 +70,7 @@
                     <div class="housekeeping-actions" v-if="canManage">
                         <button class="btn btn-primary btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 0)">Hoàn tất / Sạch</button>
                         <button class="btn btn-light btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 1)">Vẫn bẩn</button>
+                        <button class="btn btn-light btn-sm" type="button" v-on:click="openReportForm(room.roomId)">Báo cáo</button>
                     </div>
                 </article>
                 <div v-if="cleaningRooms.length === 0" class="empty-state"><strong>Chưa có phòng đang dọn</strong>Bấm “Bắt đầu dọn” ở cột Phòng bẩn để chuyển trạng thái.</div>
@@ -81,10 +93,110 @@
                     </div>
                     <div class="housekeeping-actions" v-if="canManage">
                         <button class="btn btn-light btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 1)">Đánh dấu bẩn</button>
+                        <button class="btn btn-light btn-sm" type="button" v-on:click="openReportForm(room.roomId)">Báo cáo</button>
                     </div>
                 </article>
                 <div v-if="cleanRooms.length === 0" class="empty-state"><strong>Chưa có phòng sẵn sàng</strong>Hoàn tất dọn phòng để chuyển phòng về trạng thái sạch.</div>
             </div>
+        </section>
+    </div>
+
+    <section class="room-report-shell" v-else-if="mode === 'reports'">
+        <div class="room-report-toolbar">
+            <div><span class="page-eyebrow">Kiểm tra hiện trạng</span><h2>Báo cáo tình trạng phòng</h2><p>Chụp ảnh và ghi nhận ngay tại phòng. Ảnh được tối ưu trước khi lưu.</p></div>
+            <button class="btn btn-primary" type="button" v-if="canManage" v-on:click="openReportForm">＋ Tạo báo cáo</button>
+        </div>
+
+        <div class="room-report-list" v-if="conditionReports.length">
+            <article class="room-report-card" v-for="report in conditionReports" v-bind:key="report.id">
+                <button class="room-report-card-head" type="button" v-on:click="toggleReport(report.id)">
+                    <span class="room-report-room"><strong>{{ report.roomName }}</strong><small>{{ report.roomCode }} · {{ inspectionTypeText(report.inspectionType) }}</small></span>
+                    <span class="room-report-meta"><time>{{ reportDateText(report.createdAtUtc) }}</time><b v-bind:class="severityClass(report.severity)">{{ severityText(report.severity) }}</b><i>{{ expandedReportId === report.id ? '⌃' : '⌄' }}</i></span>
+                </button>
+                <div class="room-report-card-body" v-if="expandedReportId === report.id">
+                    <div class="room-report-author">Báo bởi <strong>{{ report.reportedBy }}</strong> · {{ reportStatusText(report.status) }}</div>
+                    <div class="room-report-tags" v-if="report.tags.length"><span v-for="tag in report.tags" v-bind:key="tag">{{ tag }}</span></div>
+                    <p>{{ report.content || 'Không có mô tả riêng.' }}</p>
+                    <div class="room-report-gallery"><a v-for="image in report.images" v-bind:key="image.id" v-bind:href="image.largeUrl" target="_blank" rel="noopener"><img v-bind:src="image.thumbnailUrl" v-bind:alt="'Ảnh báo cáo ' + report.roomName" loading="lazy" /></a></div>
+                    <div class="room-report-status-actions" v-if="canManage && report.status !== 2">
+                        <button class="btn btn-light btn-sm" type="button" v-if="report.status === 0" v-on:click="changeReportStatus(report, 1)">Đang xử lý</button>
+                        <button class="btn btn-primary btn-sm" type="button" v-on:click="changeReportStatus(report, 2)">Đã hoàn thành</button>
+                    </div>
+                </div>
+            </article>
+        </div>
+        <div class="empty-state room-report-empty" v-else><strong>Chưa có báo cáo tình trạng</strong>Nhân viên có thể tạo báo cáo ngay trên điện thoại khi kiểm tra phòng.</div>
+    </section>
+
+    <section class="housekeeping-schedule-shell" v-else>
+        <div class="housekeeping-schedule-toolbar">
+            <div class="housekeeping-date-controls">
+                <button class="btn btn-light btn-sm" type="button" v-on:click="moveDate(-1)" aria-label="Ngày trước">‹</button>
+                <label><span>Ngày làm việc</span><input type="date" v-model="selectedDate" v-on:change="loadSchedule" /></label>
+                <button class="btn btn-light btn-sm" type="button" v-on:click="goToday">Hôm nay</button>
+                <button class="btn btn-light btn-sm" type="button" v-on:click="moveDate(1)" aria-label="Ngày sau">›</button>
+            </div>
+            <div class="housekeeping-task-filter" aria-label="Lọc loại công việc">
+                <button type="button" v-bind:class="{ active: taskFilter === 'prepare' }" v-on:click="taskFilter = 'prepare'">Chuẩn bị đón khách</button>
+                <button type="button" v-bind:class="{ active: taskFilter === 'turnover' }" v-on:click="taskFilter = 'turnover'">Sau trả phòng</button>
+                <button type="button" v-bind:class="{ active: taskFilter === 'all' }" v-on:click="taskFilter = 'all'">Tất cả</button>
+            </div>
+        </div>
+        <div class="housekeeping-offset-note">Đang áp dụng: dọn trước nhận phòng <strong>{{ schedule.settings?.beforeCheckInMinutes || 0 }} phút</strong> · dọn sau trả phòng <strong>{{ schedule.settings?.afterCheckOutMinutes || 0 }} phút</strong>. Thay đổi tại trang Cấu hình.</div>
+
+        <div class="housekeeping-schedule-loading" v-if="scheduleLoading">Đang cập nhật lịch công việc…</div>
+
+        <div class="housekeeping-schedule" v-if="mode === 'schedule' && !scheduleLoading">
+            <section class="housekeeping-day" v-for="day in scheduleDays" v-bind:key="day.date">
+                <div class="housekeeping-day-head"><div><span>{{ weekdayText(day.date) }}</span><strong>{{ dateText(day.date) }}</strong></div><span>{{ day.tasks.length }} việc</span></div>
+                <div class="housekeeping-task-list" v-if="day.tasks.length">
+                    <article class="housekeeping-task" v-for="task in day.tasks" v-bind:key="task.kind + '-' + task.bookingId">
+                        <time>{{ taskTime(task) }}</time>
+                        <span class="housekeeping-task-kind" v-bind:class="task.kind">{{ task.kind === 'prepare' ? 'Đón khách' : 'Trả phòng' }}</span>
+                        <div><strong>{{ task.roomName }}</strong><span>{{ task.action }} · {{ task.bookingCode }}</span></div>
+                        <button v-if="canManage" class="btn btn-light btn-sm" type="button" v-bind:disabled="savingId === task.roomId" v-on:click="startTask(task)">Bắt đầu dọn</button>
+                    </article>
+                </div>
+                <div class="housekeeping-schedule-empty" v-else>Không có công việc phù hợp trong ngày này.</div>
+            </section>
+        </div>
+
+        <div class="housekeeping-text-mode" v-if="mode === 'text' && !scheduleLoading">
+            <div class="housekeeping-text-head"><div><strong>Nội dung gửi lao công</strong><span>Đã sắp theo ngày, giờ và phòng. Có thể sao chép để gửi Zalo.</span></div><button class="btn btn-primary btn-sm" type="button" v-bind:disabled="!scheduleText" v-on:click="copyScheduleText">{{ copied ? 'Đã sao chép' : 'Sao chép văn bản' }}</button></div>
+            <textarea readonly v-bind:value="scheduleText" aria-label="Lịch dọn phòng dạng văn bản"></textarea>
+            <div class="housekeeping-schedule-empty" v-if="!scheduleText">Không có công việc phù hợp để tạo văn bản.</div>
+        </div>
+    </section>
+
+    <div class="modal-backdrop room-report-modal" v-if="reportForm.open" v-on:click.self="closeReportForm">
+        <section class="modal-card room-report-form-card" role="dialog" aria-modal="true" aria-labelledby="room-report-form-title">
+            <div class="modal-head"><div><span class="page-eyebrow">Báo cáo tại phòng</span><h2 id="room-report-form-title">Ghi nhận tình trạng</h2></div><button class="icon-btn" type="button" v-on:click="closeReportForm" aria-label="Đóng">×</button></div>
+            <div class="room-report-form-body">
+                <div class="room-report-form-grid">
+                    <label><span>Phòng *</span><select v-model="reportForm.roomId"><option value="">Chọn phòng</option><option v-for="room in rooms" v-bind:key="room.roomId" v-bind:value="room.roomId">{{ room.roomName }} · {{ room.roomCode }}</option></select></label>
+                    <label><span>Loại kiểm tra *</span><select v-model="reportForm.inspectionType"><option value="PreCheckIn">Trước nhận phòng</option><option value="PostCheckOut">Sau trả phòng</option><option value="Routine">Kiểm tra định kỳ</option><option value="Incident">Báo sự cố</option></select></label>
+                    <label><span>Mức độ *</span><select v-model="reportForm.severity"><option value="Normal">Bình thường</option><option value="Attention">Cần theo dõi</option><option value="Urgent">Cần xử lý gấp</option></select></label>
+                </div>
+
+                <section class="room-report-photo-section">
+                    <div class="room-report-section-head"><div><strong>Hình ảnh *</strong><span>Tối đa 12 ảnh. Có thể chụp trực tiếp hoặc chọn nhiều ảnh.</span></div><small>{{ reportForm.photos.length }}/12 ảnh</small></div>
+                    <div class="room-report-photo-actions">
+                        <button class="btn btn-primary" type="button" v-on:click="$refs.reportCamera.click()">📷 Chụp ảnh</button>
+                        <button class="btn btn-light" type="button" v-on:click="$refs.reportGallery.click()">▧ Chọn nhiều ảnh</button>
+                        <input ref="reportCamera" hidden type="file" accept="image/*" capture="environment" v-on:change="addReportPhotos" />
+                        <input ref="reportGallery" hidden type="file" accept="image/*" multiple v-on:change="addReportPhotos" />
+                    </div>
+                    <div class="room-report-photo-grid" v-if="reportForm.photos.length"><figure v-for="(photo, index) in reportForm.photos" v-bind:key="photo.key"><img v-bind:src="photo.previewUrl" v-bind:alt="'Ảnh ' + (index + 1)" /><button type="button" v-on:click="removeReportPhoto(index)" aria-label="Xóa ảnh">×</button><figcaption>{{ photo.optimizing ? 'Đang tối ưu…' : formatBytes(photo.file.size) }}</figcaption></figure></div>
+                </section>
+
+                <section class="room-report-tag-section">
+                    <div class="room-report-section-head"><div><strong>Nội dung mẫu</strong><span>Chạm để chọn nhanh, có thể chọn nhiều.</span></div></div>
+                    <div class="room-report-tag-groups"><div v-for="group in conditionTagGroups" v-bind:key="group.category"><small>{{ group.category }}</small><div><button type="button" v-for="tag in group.tags" v-bind:key="tag.id" v-bind:class="{ active: reportForm.tags.includes(tag.name) }" v-on:click="toggleReportTag(tag.name)">{{ tag.name }}</button></div></div></div>
+                </section>
+
+                <label class="room-report-content"><span>Mô tả hiện trạng</span><textarea maxlength="4000" v-model.trim="reportForm.content" placeholder="Nhập nội dung riêng nếu có vấn đề cần mô tả thêm…"></textarea><small>{{ reportForm.content.length }}/4000</small></label>
+            </div>
+            <div class="modal-actions room-report-form-actions"><button class="btn btn-light" type="button" v-on:click="closeReportForm">Đóng</button><button class="btn btn-primary" type="button" v-bind:disabled="reportForm.saving || reportForm.photos.some(x => x.optimizing)" v-on:click="submitConditionReport">{{ reportForm.saving ? 'Đang tải ảnh…' : 'Gửi báo cáo' }}</button></div>
         </section>
     </div>
 

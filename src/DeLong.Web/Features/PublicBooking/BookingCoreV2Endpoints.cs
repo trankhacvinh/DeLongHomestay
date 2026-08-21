@@ -6,6 +6,8 @@ using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Site;
+using DeLong.Web.Features.CustomerAccounts;
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicBooking;
@@ -21,6 +23,7 @@ public static class BookingCoreV2Endpoints
             PublicPropertyResolver resolver,
             StoragePaths paths,
             IConfiguration configuration,
+            CustomerAccountService customerAccountService,
             CancellationToken cancellationToken) =>
         {
             var property = await resolver.ResolveAsync(siteSlug, cancellationToken);
@@ -64,6 +67,16 @@ public static class BookingCoreV2Endpoints
             if (!storage.IsConfigured)
                 return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
             var (document, error) = await storage.SaveAsync(property.Id, bookingId, side, file, cancellationToken);
+            if (error is null)
+            {
+                var userIdValue = httpRequest.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (Guid.TryParse(userIdValue, out var userId) && httpRequest.HttpContext.User.IsInRole(CustomerAccountService.CustomerRole))
+                {
+                    var (_, accountError) = await storage.SaveAsync(property.Id, userId, side, file, cancellationToken);
+                    if (accountError is not null)
+                        return Problem("identity_account_copy_failed", accountError, StatusCodes.Status500InternalServerError);
+                }
+            }
             return error is null
                 ? Results.Ok(document)
                 : Problem("invalid_identity_document", error, StatusCodes.Status400BadRequest);

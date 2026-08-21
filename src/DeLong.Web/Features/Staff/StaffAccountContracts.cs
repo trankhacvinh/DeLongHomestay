@@ -28,6 +28,7 @@ public sealed record StaffPropertyDto(Guid Id, string Name, string Code);
 public sealed record StaffAccountDto(
     Guid Id,
     string DisplayName,
+    string UserName,
     string Email,
     string Role,
     bool IsActive,
@@ -46,6 +47,7 @@ public sealed record StaffPageDataDto(
 
 public sealed record CreateStaffAccountRequest(
     string DisplayName,
+    string UserName,
     string Email,
     string Role,
     IReadOnlyList<Guid> PropertyIds,
@@ -53,6 +55,7 @@ public sealed record CreateStaffAccountRequest(
 
 public sealed record UpdateStaffAccountRequest(
     string DisplayName,
+    string UserName,
     string Email,
     string Role,
     IReadOnlyList<Guid> PropertyIds,

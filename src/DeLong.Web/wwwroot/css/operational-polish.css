@@ -158,7 +158,52 @@
 .archive-copy { margin:18px 20px 0; color:var(--text-soft); line-height:1.55; }
 
 /* Rate/settings management */
+.settings-tabs {
+    display:flex;
+    align-items:center;
+    gap:6px;
+    width:max-content;
+    max-width:100%;
+    margin:0 0 20px;
+    padding:6px;
+    overflow-x:auto;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:var(--surface-soft);
+    scrollbar-width:none;
+}
+.settings-tabs::-webkit-scrollbar { display:none; }
+.settings-tabs button {
+    min-height:42px;
+    padding:0 15px;
+    border:0;
+    border-radius:10px;
+    background:transparent;
+    color:var(--muted);
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    font:inherit;
+    font-size:12px;
+    font-weight:750;
+    white-space:nowrap;
+    cursor:pointer;
+    transition:background .18s ease,color .18s ease,box-shadow .18s ease,transform .12s ease;
+}
+.settings-tabs button:hover { color:var(--brand-800); background:rgba(255,255,255,.62); }
+.settings-tabs button:active { transform:translateY(1px); }
+.settings-tabs button:focus-visible { outline:3px solid rgba(28,112,107,.2); outline-offset:2px; }
+.settings-tabs button.active { color:var(--brand-800); background:#fff; box-shadow:0 3px 12px rgba(20,65,61,.08); }
+.settings-tabs svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.settings-tabs small { min-width:20px; padding:2px 6px; border-radius:999px; background:var(--brand-50); color:var(--brand-700); font-size:10px; font-weight:800; }
+.settings-tab-panel { animation:settings-tab-in .18s ease-out; }
+@keyframes settings-tab-in { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
 .settings-room-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; }
+.housekeeping-minute-input { display:flex; align-items:center; gap:8px; }
+.housekeeping-minute-input input { flex:1; }
+.housekeeping-minute-input span { min-width:34px; color:var(--muted); font-size:11px; font-weight:700; }
+.notification-settings-grid .field>small { margin-top:4px; color:var(--muted); font-size:10px; line-height:1.45; }
 .settings-room .panel-head { min-height:64px; }
 .settings-room-title { display:flex; align-items:center; gap:10px; }
 .settings-room-title .room-cell-icon { width:32px; height:32px; flex-basis:32px; }
@@ -213,6 +258,8 @@
 }
 
 @media (max-width:680px) {
+    .settings-tabs { width:100%; }
+    .settings-tabs button { flex:0 0 auto; }
     .management-toolbar { align-items:stretch; flex-direction:column; }
     .management-toolbar-main { width:100%; }
     .settings-room-grid { grid-template-columns:1fr; }

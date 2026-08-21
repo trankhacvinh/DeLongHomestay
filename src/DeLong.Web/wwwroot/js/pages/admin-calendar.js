@@ -6,6 +6,7 @@
     const { createApp } = Vue;
     const timeZone = initial.timeZoneId || 'Asia/Ho_Chi_Minh';
     const utcOffset = initial.utcOffset || '+07:00';
+    let dateRangePicker = null;
 
     function parseDateKey(key) {
         const [year, month, day] = key.split('-').map(Number);
@@ -46,6 +47,7 @@
             return {
                 propertyId: initial.propertyId,
                 startDate: initial.startDate,
+                rangeDays: Math.max(1, Math.min(31, Number(initial.rangeDays || 7))),
                 today: initial.today,
                 rooms: initial.rooms || [],
                 bookings: initial.bookings || [],
@@ -67,7 +69,7 @@
         },
         computed: {
             days() {
-                return Array.from({ length: 7 }, (_, index) => {
+                return Array.from({ length: this.rangeDays }, (_, index) => {
                     const key = addDays(this.startDate, index);
                     const value = parseDateKey(key);
                     return {
@@ -292,10 +294,14 @@
             },
             moveRange(amount) {
                 const target = addDays(this.startDate, amount);
-                window.location.assign(`/Admin/Calendar?propertyId=${this.propertyId}&from=${target}`);
+                this.openCalendarRange(target, addDays(target, this.rangeDays - 1));
             },
             goToday() {
-                window.location.assign(`/Admin/Calendar?propertyId=${this.propertyId}&from=${this.today}`);
+                this.openCalendarRange(this.today, addDays(this.today, this.rangeDays - 1));
+            },
+            openCalendarRange(from, to) {
+                const query = new URLSearchParams({ propertyId: this.propertyId, from, to });
+                window.location.assign(`/Admin/Calendar?${query}`);
             },
             openCreate(room, day) {
                 if (!this.canManage) return;
@@ -560,6 +566,19 @@
         },
         created() {
             this.form = this.emptyForm();
+        },
+        mounted() {
+            dateRangePicker = window.DeLongCalendarRangePicker?.create(this.$refs.dateRangePicker, {
+                startDate: this.startDate,
+                endDate: addDays(this.startDate, this.rangeDays - 1),
+                maxDays: 31,
+                onApply: range => this.openCalendarRange(range.from, range.to),
+                onError: message => this.notify(message, 'error')
+            });
+        },
+        beforeUnmount() {
+            dateRangePicker?.destroy();
+            dateRangePicker = null;
         }
     });
     const calendarVm = calendarApp.mount(root);

@@ -63,8 +63,13 @@
     const propertyId = resolvePropertyId();
     let timeZone = root.dataset.timeZoneId || initial.timeZoneId || bootVm?.timeZoneId || 'Asia/Ho_Chi_Minh';
     const today = root.dataset.today || initial.today || bootVm?.today || todayKeyInZone(timeZone);
-    const queryFrom = new URLSearchParams(window.location.search).get('from');
+    const pageQuery = new URLSearchParams(window.location.search);
+    const queryFrom = pageQuery.get('from');
+    const queryTo = pageQuery.get('to');
     const startDate = queryFrom || root.dataset.startDate || initial.startDate || bootVm?.startDate || today;
+    const queryRangeDays = queryFrom && queryTo
+        ? Math.round((Date.parse(`${queryTo}T00:00:00Z`) - Date.parse(`${queryFrom}T00:00:00Z`)) / 86400000) + 1
+        : 0;
 
     // These are legacy V1 placeholders kept only so the shared Vue booking editor can mount. The base
     // calendar CSS can override the HTML hidden attribute, so force them out of the standalone V2 UI.
@@ -75,7 +80,7 @@
     const state = {
         roomIndex: 0,
         from: startDate,
-        days: 10,
+        days: Math.max(1, Math.min(31, queryRangeDays > 0 ? queryRangeDays : Number(root.dataset.rangeDays || initial.rangeDays || 10))),
         loading: false,
         queued: false,
         queuedReason: '',
@@ -96,7 +101,7 @@
         '</div>',
         '<div class="calendar-v2-datebar">',
         '  <div><strong data-v2-range>—</strong><span>Cuộn dọc để xem ngày · bấm phần trống để tạo booking · bấm phần đã đặt để mở chi tiết</span></div>',
-        '  <div class="calendar-v2-date-actions"><button type="button" data-v2-date-prev>‹ 7 ngày</button><button type="button" data-v2-today>Hôm nay</button><button type="button" data-v2-date-next>7 ngày ›</button></div>',
+        '  <div class="calendar-v2-date-tools"><label class="calendar-date-range"><span>Khoảng ngày</span><input type="text" data-v2-date-range aria-label="Chọn ngày bắt đầu và ngày kết thúc" placeholder="Chọn khoảng ngày"></label><div class="calendar-v2-date-actions"><button type="button" data-v2-date-prev>‹ 7 ngày</button><button type="button" data-v2-today>Hôm nay</button><button type="button" data-v2-date-next>7 ngày ›</button></div></div>',
         '</div>',
         '<div class="calendar-v2-legend"><span><i class="available"></i>Trống</span><span><i class="partial"></i>Còn trống một phần</span><span><i class="held"></i>Giữ phòng</span><span><i class="booked"></i>Đã đặt</span></div>',
         '<div class="calendar-v2-status show" data-v2-status>Đang tải lịch phòng…</div>',
@@ -111,6 +116,7 @@
     const rangeLabel = panel.querySelector('[data-v2-range]');
     const statusBox = panel.querySelector('[data-v2-status]');
     const scroll = panel.querySelector('[data-v2-scroll]');
+    let dateRangePicker = null;
 
     function showError(message, marker) {
         statusBox.textContent = message;
@@ -410,11 +416,38 @@
         refresh('room');
     }
 
+    function updateRangeUrl() {
+        const url = new URL(window.location.href);
+        url.searchParams.set('propertyId', propertyId);
+        url.searchParams.set('from', state.from);
+        url.searchParams.set('to', addDays(state.from, state.days - 1));
+        window.history.replaceState(null, '', url);
+    }
+
+    function setRange(from, days, reason) {
+        state.from = from;
+        state.days = Math.max(1, Math.min(31, Number(days || state.days)));
+        dateRangePicker?.setDate([state.from, addDays(state.from, state.days - 1)], false);
+        updateRangeUrl();
+        refresh(reason);
+    }
+
     panel.querySelector('[data-v2-room-prev]').addEventListener('click', () => moveRoom(-1));
     panel.querySelector('[data-v2-room-next]').addEventListener('click', () => moveRoom(1));
-    panel.querySelector('[data-v2-date-prev]').addEventListener('click', () => { state.from = addDays(state.from, -7); refresh('date'); });
-    panel.querySelector('[data-v2-date-next]').addEventListener('click', () => { state.from = addDays(state.from, 7); refresh('date'); });
-    panel.querySelector('[data-v2-today]').addEventListener('click', () => { state.from = today || state.from; refresh('today'); });
+    panel.querySelector('[data-v2-date-prev]').addEventListener('click', () => setRange(addDays(state.from, -7), state.days, 'date'));
+    panel.querySelector('[data-v2-date-next]').addEventListener('click', () => setRange(addDays(state.from, 7), state.days, 'date'));
+    panel.querySelector('[data-v2-today]').addEventListener('click', () => setRange(today || state.from, state.days, 'today'));
+
+    dateRangePicker = window.DeLongCalendarRangePicker?.create(panel.querySelector('[data-v2-date-range]'), {
+        startDate: state.from,
+        endDate: addDays(state.from, state.days - 1),
+        maxDays: 31,
+        onApply: range => setRange(range.from, range.days, 'range'),
+        onError: message => {
+            statusBox.textContent = message;
+            statusBox.className = 'calendar-v2-status show error';
+        }
+    });
 
     document.addEventListener('delong:operations-change', event => {
         if (event.detail?.propertyId && event.detail.propertyId !== propertyId) return;
@@ -426,7 +459,10 @@
     window.addEventListener('focus', () => refresh('focus'));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh('visible'); });
     state.pollTimer = setInterval(() => { if (!document.hidden) refresh('poll'); }, 15000);
-    window.addEventListener('beforeunload', () => { if (state.pollTimer) clearInterval(state.pollTimer); }, { once: true });
+    window.addEventListener('beforeunload', () => {
+        if (state.pollTimer) clearInterval(state.pollTimer);
+        dateRangePicker?.destroy();
+    }, { once: true });
 
     document.documentElement.dataset.calendarV2Property = propertyId;
     document.documentElement.dataset.calendarV2 = 'initializing';

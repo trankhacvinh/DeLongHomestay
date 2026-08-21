@@ -129,6 +129,7 @@
 
     function renderGuestDetail(context, details, error) {
         if (!context?.modal || context.mode !== 'view') return;
+        if (context.modal.querySelector('[data-native-booking-guest-details]')) return;
         const booking = context.booking;
         if (!booking?.id) return;
 

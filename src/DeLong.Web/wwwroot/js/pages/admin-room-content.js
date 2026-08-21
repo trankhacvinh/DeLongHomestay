@@ -5,6 +5,7 @@
     const initial = JSON.parse(document.getElementById('room-content-data').textContent || '{}');
     const { createApp } = Vue;
     let quill = null;
+    let guestGuideQuill = null;
     let gallerySortable = null;
 
     createApp({
@@ -17,6 +18,7 @@
                 slug: room.slug || '',
                 shortDescription: room.shortDescription || '',
                 descriptionHtml: room.descriptionHtml || '',
+                guestGuideHtml: room.guestGuideHtml || '',
                 isPublished: room.isPublished === true,
                 amenities: [...(room.amenities || [])],
                 tags: [...(room.tags || [])],
@@ -84,6 +86,28 @@
                 quill.on('text-change', () => {
                     const html = quill.root.innerHTML;
                     this.form.descriptionHtml = html === '<p><br></p>' ? '' : html;
+                });
+                this.initGuestGuideQuill();
+            },
+            initGuestGuideQuill() {
+                if (!this.$refs.guestGuideEditor || typeof Quill === 'undefined' || guestGuideQuill) return;
+                guestGuideQuill = new Quill(this.$refs.guestGuideEditor, {
+                    theme: 'snow',
+                    placeholder: 'Ví dụ: Cách nhận phòng, sử dụng khóa cửa, Wi-Fi, máy lạnh, nước nóng, thời gian yên tĩnh và quy trình trả phòng...',
+                    modules: {
+                        toolbar: [
+                            [{ header: [2, 3, false] }],
+                            ['bold', 'italic', 'blockquote'],
+                            [{ list: 'ordered' }, { list: 'bullet' }],
+                            ['link'],
+                            ['clean']
+                        ]
+                    }
+                });
+                if (this.form.guestGuideHtml) guestGuideQuill.clipboard.dangerouslyPasteHTML(this.form.guestGuideHtml, 'silent');
+                guestGuideQuill.on('text-change', () => {
+                    const html = guestGuideQuill.root.innerHTML;
+                    this.form.guestGuideHtml = html === '<p><br></p>' ? '' : html;
                 });
             },
             toggleEditorExpanded() {
@@ -221,6 +245,10 @@
                     const html = quill.root.innerHTML;
                     this.form.descriptionHtml = html === '<p><br></p>' ? '' : html;
                 }
+                if (guestGuideQuill) {
+                    const html = guestGuideQuill.root.innerHTML;
+                    this.form.guestGuideHtml = html === '<p><br></p>' ? '' : html;
+                }
                 this.form.code = code;
                 this.form.name = name;
                 this.form.capacity = capacity;
@@ -235,6 +263,7 @@
                             slug: this.form.slug || null,
                             shortDescription: this.form.shortDescription || null,
                             descriptionHtml: this.form.descriptionHtml || null,
+                            guestGuideHtml: this.form.guestGuideHtml || null,
                             isPublished: this.form.isPublished,
                             amenities: this.normalizeList(this.form.amenities),
                             tags: this.normalizeList(this.form.tags),
@@ -258,6 +287,7 @@
                     slug: updated.slug || '',
                     shortDescription: updated.shortDescription || '',
                     descriptionHtml: updated.descriptionHtml || '',
+                    guestGuideHtml: updated.guestGuideHtml || '',
                     isPublished: updated.isPublished === true,
                     amenities: [...(updated.amenities || [])],
                     tags: [...(updated.tags || [])],
@@ -267,6 +297,9 @@
                 this.$nextTick(() => {
                     if (quill && quill.root.innerHTML !== (this.form.descriptionHtml || '<p><br></p>')) {
                         quill.clipboard.dangerouslyPasteHTML(this.form.descriptionHtml || '', 'silent');
+                    }
+                    if (guestGuideQuill && guestGuideQuill.root.innerHTML !== (this.form.guestGuideHtml || '<p><br></p>')) {
+                        guestGuideQuill.clipboard.dangerouslyPasteHTML(this.form.guestGuideHtml || '', 'silent');
                     }
                     this.initGallerySortable();
                 });

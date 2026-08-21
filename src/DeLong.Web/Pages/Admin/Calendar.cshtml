@@ -4,6 +4,7 @@
     ViewData["Title"] = "Lịch phòng";
 }
 @section Head {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="~/css/calendar-v2-polish.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/calendar-drag-drop.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-booking-guest-details.css" asp-append-version="true" />
@@ -19,6 +20,10 @@
                 <p>Giữ phòng, đã xác nhận và đang ở hiển thị theo thời gian chiếm phòng. Yêu cầu chỉ hiện tại ngày bắt đầu; lượt đã kết thúc được lưu ở màn Đặt phòng.</p>
             </div>
             <div class="calendar-controls">
+                <label class="calendar-date-range">
+                    <span>Khoảng ngày</span>
+                    <input ref="dateRangePicker" type="text" aria-label="Chọn ngày bắt đầu và ngày kết thúc" placeholder="Chọn khoảng ngày" />
+                </label>
                 <button class="btn-icon" type="button" v-on:click="moveRange(-7)" title="7 ngày trước" aria-label="7 ngày trước"><svg><use href="#i-chevron-left" /></svg></button>
                 <button class="btn btn-light btn-sm" type="button" v-on:click="goToday">Hôm nay</button>
                 <button class="btn-icon" type="button" v-on:click="moveRange(7)" title="7 ngày sau" aria-label="7 ngày sau"><svg><use href="#i-chevron-right" /></svg></button>
@@ -45,7 +50,7 @@
     </div>
 
     <div class="calendar-wrap">
-        <table class="booking-calendar">
+        <table class="booking-calendar" v-bind:style="{ minWidth: `${220 + (days.length * 146)}px` }">
             <thead>
                 <tr>
                     <th><span class="tiny muted">PHÒNG</span></th>
@@ -309,6 +314,8 @@
 
 @section Scripts {
     <script>window.DeLongCalendarCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") ? "true" : "false");</script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="~/js/pages/admin-calendar-range.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-calendar-nightly.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-calendar.js" asp-append-version="true"></script>
 }

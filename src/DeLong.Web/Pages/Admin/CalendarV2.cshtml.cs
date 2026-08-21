@@ -19,9 +19,10 @@ public sealed class CalendarV2Model(
     public string TimeZoneId { get; private set; } = "Asia/Ho_Chi_Minh";
     public string StartDate { get; private set; } = string.Empty;
     public string Today { get; private set; } = string.Empty;
+    public int RangeDays { get; private set; } = 10;
     public string PageDataJson { get; private set; } = "{}";
 
-    public async Task<IActionResult> OnGetAsync(DateOnly? from, Guid? propertyId, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(DateOnly? from, DateOnly? to, Guid? propertyId, CancellationToken cancellationToken)
     {
         var property = await currentPropertyService.ResolveAsync(User, propertyId, cancellationToken);
         if (property is null) return Forbid();
@@ -33,7 +34,11 @@ public sealed class CalendarV2Model(
         var startDate = from ?? todayLocal;
         StartDate = startDate.ToString("yyyy-MM-dd");
         Today = todayLocal.ToString("yyyy-MM-dd");
-        var endDateExclusive = startDate.AddDays(10);
+        var requestedDays = to.HasValue && to.Value >= startDate
+            ? to.Value.DayNumber - startDate.DayNumber + 1
+            : 10;
+        RangeDays = Math.Clamp(requestedDays, 1, 31);
+        var endDateExclusive = startDate.AddDays(RangeDays);
 
         var startLocal = DateTime.SpecifyKind(startDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
         var endLocal = DateTime.SpecifyKind(endDateExclusive.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
@@ -65,6 +70,7 @@ public sealed class CalendarV2Model(
                 timeZoneId = property.TimeZoneId,
                 utcOffset = offsetText,
                 startDate = startDate.ToString("yyyy-MM-dd"),
+                rangeDays = RangeDays,
                 today = todayLocal.ToString("yyyy-MM-dd"),
                 rooms,
                 bookings

@@ -77,9 +77,22 @@
                 </div>
             </section>
 
+            <section class="panel room-content-section room-editor-section">
+                <div class="panel-head room-content-section-head room-editor-head">
+                    <div><span class="room-content-step">03</span><div><h2>Hướng dẫn dành cho khách</h2><p>Soạn hướng dẫn check-in, sử dụng thiết bị trong phòng, Wi-Fi, check-out và các quy định riêng.</p></div></div>
+                </div>
+                <div class="quill-editor-shell">
+                    <div ref="guestGuideEditor" class="room-quill-editor room-guest-guide-editor"></div>
+                    <div class="editor-footnote">
+                        <span>Nội dung này xuất hiện sau khi khách đặt thành công và khi tra cứu booking còn hiệu lực.</span>
+                        <span>Khách có thể tải nội dung thành PDF. Không nhập mật khẩu cửa hoặc dữ liệu chỉ nên gửi sát giờ check-in.</span>
+                    </div>
+                </div>
+            </section>
+
             <section class="panel room-content-section">
                 <div class="panel-head room-content-section-head">
-                    <div><span class="room-content-step">03</span><div><h2>Tiện nghi & thẻ</h2><p>Dùng bộ tiện nghi cho phần lặp lại, sau đó bổ sung riêng cho từng phòng.</p></div></div>
+                    <div><span class="room-content-step">04</span><div><h2>Tiện nghi & thẻ</h2><p>Dùng bộ tiện nghi cho phần lặp lại, sau đó bổ sung riêng cho từng phòng.</p></div></div>
                 </div>
 
                 <div class="amenity-preset-zone">
@@ -128,7 +141,7 @@
 
             <section class="panel room-content-section">
                 <div class="panel-head room-content-section-head">
-                    <div><span class="room-content-step">04</span><div><h2>Điểm nổi bật</h2><p>3–5 câu ngắn giúp khách đọc lướt trước khi xem nội dung dài.</p></div></div>
+                    <div><span class="room-content-step">05</span><div><h2>Điểm nổi bật</h2><p>3–5 câu ngắn giúp khách đọc lướt trước khi xem nội dung dài.</p></div></div>
                 </div>
                 <div class="highlight-list">
                     <div class="highlight-row" v-for="(item, index) in form.highlights" v-bind:key="'highlight-' + index">

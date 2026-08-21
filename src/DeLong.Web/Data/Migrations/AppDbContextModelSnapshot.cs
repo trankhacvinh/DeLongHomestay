@@ -17,7 +17,7 @@ namespace DeLong.Web.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -463,6 +463,156 @@ namespace DeLong.Web.Data.Migrations
                     b.ToTable("customers");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.CustomerAccountLink", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.HasKey("UserId", "PropertyId", "CustomerId")
+                        .HasName("p_k_customer_account_links");
+
+                    b.HasIndex("CustomerId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_customer_account_links_customer_id");
+
+                    b.HasIndex("PropertyId")
+                        .HasDatabaseName("i_x_customer_account_links_property_id");
+
+                    b.HasIndex("UserId", "PropertyId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_customer_account_links_user_id_property_id");
+
+                    b.ToTable("customer_account_links");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.CustomerAccountSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AuthenticatorEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("authenticator_enabled");
+
+                    b.Property<string>("BenefitText")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("benefit_text");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<bool>("LoyaltyEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("loyalty_enabled");
+
+                    b.Property<int>("LoyaltySpendPerPoint")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(10000)
+                        .HasColumnName("loyalty_spend_per_point");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<bool>("RegistrationEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("registration_enabled");
+
+                    b.Property<string>("TermsHtml")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("terms_html");
+
+                    b.Property<string>("TermsTitle")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("character varying(240)")
+                        .HasColumnName("terms_title");
+
+                    b.Property<int>("TermsVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("terms_version");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_customer_account_settings");
+
+                    b.HasIndex("PropertyId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_customer_account_settings_property_id");
+
+                    b.ToTable("customer_account_settings", t =>
+                        {
+                            t.HasCheckConstraint("ck_customer_account_settings_spend_per_point", "loyalty_spend_per_point BETWEEN 1 AND 1000000000");
+                        });
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.CustomerAccountTermsAcceptance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("AcceptedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at_utc");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<int>("TermsVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("terms_version");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_customer_account_terms_acceptances");
+
+                    b.HasIndex("PropertyId")
+                        .HasDatabaseName("i_x_customer_account_terms_acceptances_property_id");
+
+                    b.HasIndex("UserId", "PropertyId", "TermsVersion")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_customer_account_terms_acceptances_user_id_property_id_term~");
+
+                    b.ToTable("customer_account_terms_acceptances");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Expense", b =>
                 {
                     b.Property<Guid>("Id")
@@ -700,6 +850,60 @@ namespace DeLong.Web.Data.Migrations
                         .HasDatabaseName("i_x_home_section_property_id_sort_order");
 
                     b.ToTable("home_section");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.LoyaltyLedgerEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("BookingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("integer")
+                        .HasColumnName("points");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_loyalty_ledger_entries");
+
+                    b.HasIndex("BookingId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_loyalty_ledger_entries_booking_id")
+                        .HasFilter("\"booking_id\" IS NOT NULL");
+
+                    b.HasIndex("PropertyId")
+                        .HasDatabaseName("i_x_loyalty_ledger_entries_property_id");
+
+                    b.HasIndex("UserId", "PropertyId", "CreatedAtUtc")
+                        .HasDatabaseName("i_x_loyalty_ledger_entries_user_id_property_id_created_at_utc");
+
+                    b.ToTable("loyalty_ledger_entries");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.MediaAsset", b =>
@@ -974,6 +1178,18 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
 
+                    b.Property<int>("HousekeepingAfterCheckOutMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("housekeeping_after_check_out_minutes");
+
+                    b.Property<int>("HousekeepingBeforeCheckInMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("housekeeping_before_check_in_minutes");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
@@ -1010,7 +1226,12 @@ namespace DeLong.Web.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("i_x_properties_site_slug");
 
-                    b.ToTable("properties");
+                    b.ToTable("properties", t =>
+                        {
+                            t.HasCheckConstraint("ck_properties_housekeeping_after_check_out_minutes", "housekeeping_after_check_out_minutes BETWEEN 0 AND 1440");
+
+                            t.HasCheckConstraint("ck_properties_housekeeping_before_check_in_minutes", "housekeeping_before_check_in_minutes BETWEEN 0 AND 1440");
+                        });
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyGalleryItem", b =>
@@ -1405,6 +1626,10 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description_html");
 
+                    b.Property<string>("GuestGuideHtml")
+                        .HasColumnType("text")
+                        .HasColumnName("guest_guide_html");
+
                     b.Property<string>("HousekeepingStatus")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1488,6 +1713,212 @@ namespace DeLong.Web.Data.Migrations
                         .HasDatabaseName("i_x_room_amenities_amenity_id");
 
                     b.ToTable("room_amenities");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.RoomConditionReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("InspectionType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("inspection_type");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<Guid>("ReportedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reported_by_user_id");
+
+                    b.Property<Guid>("RoomId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("room_id");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("severity");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TagsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("tags_json");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_room_condition_reports");
+
+                    b.HasIndex("ReportedByUserId")
+                        .HasDatabaseName("i_x_room_condition_reports_reported_by_user_id");
+
+                    b.HasIndex("PropertyId", "CreatedAtUtc")
+                        .HasDatabaseName("i_x_room_condition_reports_property_id_created_at_utc");
+
+                    b.HasIndex("RoomId", "CreatedAtUtc")
+                        .HasDatabaseName("i_x_room_condition_reports_room_id_created_at_utc");
+
+                    b.ToTable("room_condition_reports");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.RoomConditionReportImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CardPath")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("card_path");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("integer")
+                        .HasColumnName("height");
+
+                    b.Property<string>("LargePath")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("large_path");
+
+                    b.Property<long>("OriginalBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_bytes");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("original_file_name");
+
+                    b.Property<string>("OriginalStoragePath")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("original_storage_path");
+
+                    b.Property<Guid>("ReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("report_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("ThumbnailPath")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("thumbnail_path");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("integer")
+                        .HasColumnName("width");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_room_condition_report_images");
+
+                    b.HasIndex("ReportId", "SortOrder")
+                        .HasDatabaseName("i_x_room_condition_report_images_report_id_sort_order");
+
+                    b.ToTable("room_condition_report_images");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.RoomConditionTag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("normalized_name");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_room_condition_tags");
+
+                    b.HasIndex("PropertyId", "NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_room_condition_tags_property_id_normalized_name");
+
+                    b.ToTable("room_condition_tags");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.RoomHighlight", b =>
@@ -1813,6 +2244,10 @@ namespace DeLong.Web.Data.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<bool>("IsCustomerAccount")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_customer_account");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean")
@@ -2155,6 +2590,69 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Property");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.CustomerAccountLink", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_customer_account_links_customers_customer_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_customer_account_links_properties_property_id");
+
+                    b.HasOne("DeLong.Web.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_customer_account_links_asp_net_users_user_id");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Property");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.CustomerAccountSettings", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithOne()
+                        .HasForeignKey("DeLong.Web.Domain.Entities.CustomerAccountSettings", "PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_customer_account_settings_properties_property_id");
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.CustomerAccountTermsAcceptance", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_customer_account_terms_acceptances_properties_property_id");
+
+                    b.HasOne("DeLong.Web.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_customer_account_terms_acceptances_asp_net_users_user_id");
+
+                    b.Navigation("Property");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Expense", b =>
                 {
                     b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
@@ -2176,6 +2674,35 @@ namespace DeLong.Web.Data.Migrations
                         .HasConstraintName("f_k_home_section_properties_property_id");
 
                     b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.LoyaltyLedgerEntry", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_loyalty_ledger_entries_bookings_booking_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_loyalty_ledger_entries_properties_property_id");
+
+                    b.HasOne("DeLong.Web.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_loyalty_ledger_entries_asp_net_users_user_id");
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Property");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.MediaAsset", b =>
@@ -2339,6 +2866,58 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Amenity");
 
                     b.Navigation("Room");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.RoomConditionReport", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_room_condition_reports_properties_property_id");
+
+                    b.HasOne("DeLong.Web.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ReportedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_room_condition_reports_asp_net_users_reported_by_user_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Room", "Room")
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_room_condition_reports_rooms_room_id");
+
+                    b.Navigation("Property");
+
+                    b.Navigation("Room");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.RoomConditionReportImage", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.RoomConditionReport", "Report")
+                        .WithMany("Images")
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_room_condition_report_images_room_condition_reports_report_~");
+
+                    b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.RoomConditionTag", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_room_condition_tags_properties_property_id");
+
+                    b.Navigation("Property");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.RoomHighlight", b =>
@@ -2524,6 +3103,11 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Rates");
 
                     b.Navigation("Tags");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.RoomConditionReport", b =>
+                {
+                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.RoomTag", b =>

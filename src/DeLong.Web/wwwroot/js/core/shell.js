@@ -45,17 +45,17 @@
         if (event.key === 'Escape') setOpen(false);
     });
 
-    const userChip = document.querySelector('.admin-topbar .user-chip');
-    if (userChip && !document.querySelector('.topbar-password-link')) {
-        const passwordLink = document.createElement('a');
-        const returnUrl = `${window.location.pathname}${window.location.search}`;
-        passwordLink.className = 'btn btn-ghost btn-sm topbar-password-link';
-        passwordLink.href = `/Account/ChangePassword?returnUrl=${encodeURIComponent(returnUrl)}`;
-        passwordLink.title = 'Đổi mật khẩu';
-        passwordLink.setAttribute('aria-label', 'Đổi mật khẩu');
-        passwordLink.innerHTML = '<svg aria-hidden="true"><use href="#i-settings"></use></svg><span>Đổi mật khẩu</span>';
-        userChip.insertAdjacentElement('afterend', passwordLink);
-    }
+    // const userChip = document.querySelector('.admin-topbar .user-chip');
+    // if (userChip && !document.querySelector('.topbar-password-link')) {
+    //     const passwordLink = document.createElement('a');
+    //     const returnUrl = `${window.location.pathname}${window.location.search}`;
+    //     passwordLink.className = 'btn btn-ghost btn-sm topbar-password-link';
+    //     passwordLink.href = `/Account/ChangePassword?returnUrl=${encodeURIComponent(returnUrl)}`;
+    //     passwordLink.title = 'Đổi mật khẩu';
+    //     passwordLink.setAttribute('aria-label', 'Đổi mật khẩu');
+    //     passwordLink.innerHTML = '<svg aria-hidden="true"><use href="#i-settings"></use></svg><span>Đổi mật khẩu</span>';
+    //     userChip.insertAdjacentElement('afterend', passwordLink);
+    // }
 
     const propertySwitcher = document.querySelector('[data-property-switcher]');
     propertySwitcher?.addEventListener('change', () => {
