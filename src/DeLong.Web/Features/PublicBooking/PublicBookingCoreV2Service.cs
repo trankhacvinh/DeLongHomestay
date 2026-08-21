@@ -3,6 +3,7 @@ using DeLong.Web.Common.Operations;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
+using DeLong.Web.Features.Operations;
 using DeLong.Web.Features.Site;
 using Microsoft.EntityFrameworkCore;
 
@@ -78,9 +79,20 @@ public sealed class PublicBookingCoreV2Service(
                 booking.Note = AppendLine(booking.Note, "Tự hủy vì phòng vừa được giữ bởi một yêu cầu khác.");
                 await db.SaveChangesAsync(cancellationToken);
                 await RemoveNotificationAsync(property.Id, booking.Id, cancellationToken);
+                OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
+                    property.Id,
+                    OperationsEventTypes.BookingStatusChanged,
+                    booking.Id,
+                    booking.RoomId));
                 return (null, new("booking_conflict", "Phòng vừa được khách khác giữ. Vui lòng chọn khung giờ hoặc phòng khác."));
             }
         }
+
+        OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
+            property.Id,
+            OperationsEventTypes.BookingCreated,
+            booking.Id,
+            booking.RoomId));
 
         return (result with
         {

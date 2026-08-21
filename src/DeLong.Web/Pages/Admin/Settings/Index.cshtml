@@ -3,6 +3,9 @@
 @{
     ViewData["Title"] = "Cấu hình";
 }
+@section Head {
+    <link rel="stylesheet" href="~/css/public-visual-editor-enhancements.css" asp-append-version="true" />
+}
 <script id="settings-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 <div id="settings-page" v-cloak>
 
@@ -10,15 +13,119 @@
         <div>
             <div class="page-eyebrow">Hệ thống & giá</div>
             <h1>Cấu hình</h1>
-            <p>Cấu hình thông báo đặt phòng, email SMTP và các mức giá của cơ sở.</p>
+            <p>Cấu hình lịch dọn phòng, thông báo đặt phòng, email SMTP và các mức giá của cơ sở.</p>
         </div>
-        <div class="settings-title-actions">
+        <div class="settings-title-actions" v-show="activeTab === 'rooms'">
             <button class="btn btn-light" type="button" data-quick-rate-open><svg><use href="#i-plus" /></svg>Tạo nhanh bộ khung giờ</button>
             <button class="btn btn-primary" type="button" v-on:click="openCreate"><svg><use href="#i-plus" /></svg>Thêm mức giá</button>
         </div>
     </div>
 
-    <section class="panel notification-settings-panel">
+    <nav class="settings-tabs" role="tablist" aria-label="Nhóm cấu hình">
+        <button id="settings-tab-rooms" type="button" role="tab" v-bind:aria-selected="activeTab === 'rooms'" aria-controls="settings-panel-rooms" v-bind:class="{ active: activeTab === 'rooms' }" v-on:click="selectTab('rooms')">
+            <svg aria-hidden="true"><use href="#i-bed" /></svg><span>Cấu hình phòng</span><small>{{ activeRooms.length }}</small>
+        </button>
+        <button id="settings-tab-housekeeping" type="button" role="tab" v-bind:aria-selected="activeTab === 'housekeeping'" aria-controls="settings-panel-housekeeping" v-bind:class="{ active: activeTab === 'housekeeping' }" v-on:click="selectTab('housekeeping')">
+            <svg aria-hidden="true"><use href="#i-sparkles" /></svg><span>Dọn phòng</span>
+        </button>
+        <button id="settings-tab-booking" type="button" role="tab" v-bind:aria-selected="activeTab === 'booking'" aria-controls="settings-panel-booking" v-bind:class="{ active: activeTab === 'booking' }" v-on:click="selectTab('booking')">
+            <svg aria-hidden="true"><use href="#i-booking" /></svg><span>Đặt phòng online</span>
+        </button>
+        <button id="settings-tab-customer-accounts" type="button" role="tab" v-bind:aria-selected="activeTab === 'customer-accounts'" aria-controls="settings-panel-customer-accounts" v-bind:class="{ active: activeTab === 'customer-accounts' }" v-on:click="selectTab('customer-accounts')">
+            <svg aria-hidden="true"><use href="#i-users" /></svg><span>Tài khoản khách</span>
+        </button>
+        <button id="settings-tab-notifications" type="button" role="tab" v-bind:aria-selected="activeTab === 'notifications'" aria-controls="settings-panel-notifications" v-bind:class="{ active: activeTab === 'notifications' }" v-on:click="selectTab('notifications')">
+            <svg aria-hidden="true"><use href="#i-bell" /></svg><span>Thông báo & email</span>
+        </button>
+    </nav>
+
+    <div id="settings-panel-rooms" class="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-rooms" v-show="activeTab === 'rooms'">
+        <div class="settings-room-grid">
+            <section class="panel settings-room" v-for="room in activeRooms" v-bind:key="room.id">
+                <div class="panel-head">
+                    <div class="settings-room-title">
+                        <span class="room-cell-icon" aria-hidden="true"><svg><use href="#i-bed" /></svg></span>
+                        <div>
+                            <h2>{{ room.name }}</h2>
+                            <div class="tiny muted">{{ room.code }} · {{ room.capacity }} người · {{ sortedRates(room).length }} mức giá</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-light btn-sm" type="button" v-on:click="openCreate(room)"><svg><use href="#i-plus" /></svg>Mức giá</button>
+                </div>
+                <div class="panel-body">
+                    <div class="rate-settings-list" v-if="sortedRates(room).length">
+                        <article class="rate-settings-row" v-for="rate in sortedRates(room)" v-bind:key="rate.id" v-bind:class="{ 'rate-inactive': !rate.isActive }">
+                            <div class="rate-settings-main">
+                                <div class="rate-settings-name">
+                                    <strong>{{ rate.name }}</strong>
+                                    <span v-if="rate.type === 1" class="pill">Qua đêm</span>
+                                    <span v-if="rate.type === 2" class="pill success">Theo đêm</span>
+                                    <span v-if="!rate.isActive" class="pill danger">Ngừng</span>
+                                </div>
+                                <div class="rate-settings-meta">
+                                    <template v-if="rate.type === 2">Nhận {{ rate.startTime }} · Trả {{ rate.endTime }} · {{ money(rate.price) }}/đêm</template>
+                                    <template v-else>{{ rate.startTime }} → {{ rate.endTime }} · Thứ tự {{ rate.sortOrder }}</template>
+                                </div>
+                            </div>
+                            <div class="rate-settings-actions">
+                                <strong v-if="rate.type !== 2">{{ money(rate.price) }}</strong>
+                                <button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(room, rate)">Sửa</button>
+                                <button v-if="rate.isActive" class="btn btn-danger btn-sm" type="button" v-on:click="openArchive(room, rate)">Ngừng</button>
+                            </div>
+                        </article>
+                    </div>
+                    <div v-else class="empty-state"><strong>Chưa có mức giá</strong>Thêm giá theo khung giờ hoặc giá lưu trú theo đêm cho phòng này.</div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <section id="settings-panel-housekeeping" class="panel notification-settings-panel settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-housekeeping" v-show="activeTab === 'housekeeping'">
+        <div class="panel-head">
+            <div>
+                <h2>Thời điểm dọn phòng</h2>
+                <p class="small muted">Điều chỉnh giờ công việc so với giờ nhận/trả thực tế của booking. Mặc định 0 phút.</p>
+            </div>
+            <span class="pill">Theo cơ sở</span>
+        </div>
+        <div class="panel-body">
+            <div class="notification-settings-grid">
+                <div class="field">
+                    <label for="housekeeping-before-checkin">Dọn trước giờ nhận phòng</label>
+                    <div class="housekeeping-minute-input"><input id="housekeeping-before-checkin" type="number" min="0" max="1440" step="5" inputmode="numeric" v-model.number="housekeeping.beforeCheckInMinutes" /><span>phút</span></div>
+                    <small>Ví dụ nhận phòng 14:00, nhập 30 → công việc lúc 13:30.</small>
+                </div>
+                <div class="field">
+                    <label for="housekeeping-after-checkout">Dọn sau giờ trả phòng</label>
+                    <div class="housekeeping-minute-input"><input id="housekeeping-after-checkout" type="number" min="0" max="1440" step="5" inputmode="numeric" v-model.number="housekeeping.afterCheckOutMinutes" /><span>phút</span></div>
+                    <small>Ví dụ trả phòng 14:00, nhập 15 → công việc lúc 14:15.</small>
+                </div>
+            </div>
+            <div class="notification-settings-actions">
+                <button class="btn btn-primary" type="button" v-bind:disabled="savingHousekeeping" v-on:click="saveHousekeepingSettings">{{ savingHousekeeping ? 'Đang lưu...' : 'Lưu thời điểm dọn phòng' }}</button>
+            </div>
+        </div>
+    </section>
+
+    <div id="settings-panel-booking" class="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-booking" v-show="activeTab === 'booking'" data-booking-policy-tab></div>
+
+    <section id="settings-panel-customer-accounts" class="panel notification-settings-panel settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-customer-accounts" v-show="activeTab === 'customer-accounts'">
+        <div class="panel-head"><div><h2>Tài khoản và tích điểm của khách</h2><p class="small muted">Khách đăng nhập bằng số điện thoại để điền nhanh, xem lịch sử booking, quản lý giấy tờ và điểm thưởng.</p></div><span class="pill success" v-if="customerAccounts.loyaltyEnabled">Đang tích điểm</span></div>
+        <div class="panel-body">
+            <div class="notification-settings-grid">
+                <label class="check-row full"><input type="checkbox" v-model="customerAccounts.registrationEnabled" /> Cho phép khách tạo tài khoản bằng số điện thoại</label>
+                <label class="check-row full"><input type="checkbox" v-model="customerAccounts.authenticatorEnabled" /> Cho phép đăng nhập bằng Google Authenticator</label>
+                <label class="check-row full"><input type="checkbox" v-model="customerAccounts.loyaltyEnabled" /> Bật tích điểm khi booking hoàn tất</label>
+                <div class="field"><label for="loyalty-spend-per-point">Số tiền tương ứng 1 điểm</label><div class="housekeeping-minute-input"><input id="loyalty-spend-per-point" type="number" min="1" max="1000000000" step="1000" v-model.number="customerAccounts.loyaltySpendPerPoint" /><span>đ</span></div><small>Điểm = tổng tiền booking hoàn tất ÷ số tiền này, làm tròn xuống.</small></div>
+                <div class="field full"><label for="customer-account-benefit">Lợi ích giới thiệu cho khách</label><textarea id="customer-account-benefit" rows="3" maxlength="1000" v-model.trim="customerAccounts.benefitText"></textarea></div>
+                <div class="field full"><label for="customer-account-terms-title">Tiêu đề điều khoản</label><input id="customer-account-terms-title" maxlength="240" v-model.trim="customerAccounts.termsTitle" /></div>
+                <div class="field full"><label for="customer-account-terms">Nội dung điều khoản đăng ký</label><textarea id="customer-account-terms" rows="10" v-model="customerAccounts.termsHtml" data-customer-account-terms-editor></textarea><small>Phiên bản hiện tại: {{ customerAccounts.termsVersion }}. Thay đổi nội dung sẽ tự tăng phiên bản.</small></div>
+            </div>
+            <div class="notification-settings-actions"><button class="btn btn-primary" type="button" v-bind:disabled="savingCustomerAccounts" v-on:click="saveCustomerAccountSettings">{{ savingCustomerAccounts ? 'Đang lưu...' : 'Lưu tài khoản khách' }}</button></div>
+        </div>
+    </section>
+
+    <section id="settings-panel-notifications" class="panel notification-settings-panel settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-notifications" v-show="activeTab === 'notifications'">
         <div class="panel-head">
             <div>
                 <h2>Thông báo đặt phòng</h2>
@@ -49,45 +156,6 @@
             </div>
         </div>
     </section>
-
-    <div class="settings-room-grid">
-        <section class="panel settings-room" v-for="room in activeRooms" v-bind:key="room.id">
-            <div class="panel-head">
-                <div class="settings-room-title">
-                    <span class="room-cell-icon" aria-hidden="true"><svg><use href="#i-bed" /></svg></span>
-                    <div>
-                        <h2>{{ room.name }}</h2>
-                        <div class="tiny muted">{{ room.code }} · {{ room.capacity }} người · {{ sortedRates(room).length }} mức giá</div>
-                    </div>
-                </div>
-                <button class="btn btn-light btn-sm" type="button" v-on:click="openCreate(room)"><svg><use href="#i-plus" /></svg>Mức giá</button>
-            </div>
-            <div class="panel-body">
-                <div class="rate-settings-list" v-if="sortedRates(room).length">
-                    <article class="rate-settings-row" v-for="rate in sortedRates(room)" v-bind:key="rate.id" v-bind:class="{ 'rate-inactive': !rate.isActive }">
-                        <div class="rate-settings-main">
-                            <div class="rate-settings-name">
-                                <strong>{{ rate.name }}</strong>
-                                <span v-if="rate.type === 1" class="pill">Qua đêm</span>
-                                <span v-if="rate.type === 2" class="pill success">Theo đêm</span>
-                                <span v-if="!rate.isActive" class="pill danger">Ngừng</span>
-                            </div>
-                            <div class="rate-settings-meta">
-                                <template v-if="rate.type === 2">Nhận {{ rate.startTime }} · Trả {{ rate.endTime }} · {{ money(rate.price) }}/đêm</template>
-                                <template v-else>{{ rate.startTime }} → {{ rate.endTime }} · Thứ tự {{ rate.sortOrder }}</template>
-                            </div>
-                        </div>
-                        <div class="rate-settings-actions">
-                            <strong v-if="rate.type !== 2">{{ money(rate.price) }}</strong>
-                            <button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(room, rate)">Sửa</button>
-                            <button v-if="rate.isActive" class="btn btn-danger btn-sm" type="button" v-on:click="openArchive(room, rate)">Ngừng</button>
-                        </div>
-                    </article>
-                </div>
-                <div v-else class="empty-state"><strong>Chưa có mức giá</strong>Thêm giá theo khung giờ hoặc giá lưu trú theo đêm cho phòng này.</div>
-            </div>
-        </section>
-    </div>
 
     <div class="modal-backdrop" v-if="editor.open" v-on:click.self="closeEditor">
         <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="rate-editor-title">
@@ -148,6 +216,7 @@
     <div class="toast" v-if="toast.show" v-bind:class="toast.type" aria-live="polite">{{ toast.message }}</div>
 </div>
 @section Scripts {
+    <script src="~/js/pages/public-rich-editor.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-settings.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-settings-quick-rate.js" asp-append-version="true"></script>
 }

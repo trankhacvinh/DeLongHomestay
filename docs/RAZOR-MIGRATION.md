@@ -38,6 +38,10 @@ Vue page scope
 
 Không dùng SPA router. Chuyển trang lớn vẫn đi qua Razor Pages; CRUD/modal/inline actions đi qua API để tránh reload toàn trang.
 
+Housekeeping Schedule là projection từ Booking, không lưu một bản lịch trùng lặp. Hai offset phút được lưu theo `Property`, cấu hình qua Minimal API và áp dụng server-side trước khi Razor/Vue hiển thị.
+
+Hướng dẫn khách là nội dung hiện hành trên `Room`, được làm sạch server-side. Razor hiển thị ở trang thành công/tra cứu; PDF được sinh server-side. Endpoint tra cứu và PDF dùng cùng điều kiện chặn booking terminal để không làm lộ lịch sử lưu trú sau checkout.
+
 ## Production security
 
 - ASP.NET Core Identity, không mang demo auth sang.
@@ -45,3 +49,8 @@ Không dùng SPA router. Chuyển trang lớn vẫn đi qua Razor Pages; CRUD/mo
 - Antiforgery bắt buộc cho mutation API dùng cookie auth.
 - Authorization theo role + property access.
 - Password/connection string nằm trong User Secrets/environment, không commit Git.
+## Báo cáo tình trạng phòng
+
+- Trang `/Admin/Housekeeping` progressive-enhance bằng Vue và có tab `Báo cáo phòng` tối ưu cho điện thoại.
+- Camera/multi-file input chỉ tạo preview phía client; server luôn giải mã, sửa orientation, resize và xuất WebP lại.
+- Form upload dùng `DeLongApi.postForm`, antiforgery và kiểm tra quyền cơ sở phía server.

@@ -17,8 +17,8 @@
 
     function render() {
         if (!policy || root.querySelector('[data-booking-policy-settings]')) return;
-        const anchor = root.querySelector('.settings-room-grid');
-        if (!anchor) return;
+        const target = root.querySelector('[data-booking-policy-tab]');
+        if (!target) return;
         const panel = document.createElement('section');
         panel.className = 'panel booking-policy-settings';
         panel.dataset.bookingPolicySettings = 'true';
@@ -43,8 +43,15 @@
                 <div class="booking-policy-settings-actions"><button class="btn btn-primary" type="button" data-policy-save>Lưu quy tắc đặt phòng</button></div>
             </div>`;
         panel.querySelector('[data-policy-field="policyText"]').value = policy.policyText || '';
+        panel._policyEditor = window.DeLongRichEditor?.enhance(
+            panel.querySelector('[data-policy-field="policyText"]'),
+            {
+                allowImages: false,
+                placeholder: 'Nhập nội quy, quy định nhận/trả phòng và chính sách áp dụng cho khách đặt online…',
+                helpText: 'Soạn trực quan bằng Quill giống các nội dung khác trong hệ thống; có thể chuyển sang HTML khi cần.'
+            });
         panel.querySelector('[data-policy-save]').addEventListener('click', () => save(panel));
-        anchor.parentNode.insertBefore(panel, anchor);
+        target.appendChild(panel);
     }
 
     function escapeAttribute(value) {
@@ -53,6 +60,7 @@
 
     async function save(panel) {
         if (saving) return;
+        panel._policyEditor?.sync();
         const button = panel.querySelector('[data-policy-save]');
         const payload = {
             publicMaxNights: numberValue(panel, 'publicMaxNights', 3),

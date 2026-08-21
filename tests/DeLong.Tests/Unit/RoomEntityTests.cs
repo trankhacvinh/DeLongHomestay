@@ -17,6 +17,14 @@ public sealed class RoomEntityTests
     }
 
     [Fact]
+    public void New_property_defaults_housekeeping_offsets_to_zero()
+    {
+        var property = new Property();
+        Assert.Equal(0, property.HousekeepingBeforeCheckInMinutes);
+        Assert.Equal(0, property.HousekeepingAfterCheckOutMinutes);
+    }
+
+    [Fact]
     public void Overnight_rate_can_cross_midnight()
     {
         var rate = new RoomRate

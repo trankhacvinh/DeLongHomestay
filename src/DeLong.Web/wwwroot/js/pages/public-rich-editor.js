@@ -233,6 +233,8 @@
             quillHost.innerHTML = '';
             const editor = document.createElement('div');
             quillHost.appendChild(editor);
+            const inlineTools = opts.allowImages === false ? ['link'] : ['link', 'image'];
+            const toolbarHandlers = opts.allowImages === false ? {} : { image: () => imageInput.click() };
             quill = new Quill(editor, {
                 theme: 'snow',
                 placeholder: opts.placeholder || 'Nhập nội dung…',
@@ -242,12 +244,10 @@
                             [{ header: [2, 3, false] }],
                             ['bold', 'italic', 'blockquote'],
                             [{ list: 'ordered' }, { list: 'bullet' }],
-                            ['link', 'image'],
+                            inlineTools,
                             ['clean']
                         ],
-                        handlers: {
-                            image: () => imageInput.click()
-                        }
+                        handlers: toolbarHandlers
                     }
                 }
             });

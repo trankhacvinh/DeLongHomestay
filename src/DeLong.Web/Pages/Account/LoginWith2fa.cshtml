@@ -1,0 +1,23 @@
+@page
+@model DeLong.Web.Pages.Account.LoginWith2faModel
+@{
+    ViewData["Title"] = "Xác minh đăng nhập";
+}
+<section class="auth-wrap">
+    <form method="post" class="auth-card">
+        <span class="eyebrow">BẢO MẬT</span>
+        <h1>Xác minh đăng nhập</h1>
+        <p class="muted">Tài khoản này đã bật Google Authenticator. Nhập mã 6 số hiện tại để tiếp tục.</p>
+        <div asp-validation-summary="ModelOnly" class="validation"></div>
+        <div class="field">
+            <label asp-for="Input.Code"></label>
+            <input asp-for="Input.Code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" autofocus />
+            <span asp-validation-for="Input.Code" class="validation"></span>
+        </div>
+        <label class="check-row"><input asp-for="Input.RememberBrowser" /> Tin cậy trình duyệt này</label>
+        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+        <input type="hidden" name="rememberMe" value="@Model.RememberMe.ToString().ToLowerInvariant()" />
+        <button class="btn btn-primary" type="submit">Xác minh</button>
+        <a class="btn btn-light" asp-page="/Account/Login">Quay lại đăng nhập</a>
+    </form>
+</section>

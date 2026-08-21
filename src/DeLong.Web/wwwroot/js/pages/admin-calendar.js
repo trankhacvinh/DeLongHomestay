@@ -6,6 +6,7 @@
     const { createApp } = Vue;
     const timeZone = initial.timeZoneId || 'Asia/Ho_Chi_Minh';
     const utcOffset = initial.utcOffset || '+07:00';
+    let dateRangePicker = null;
 
     function parseDateKey(key) {
         const [year, month, day] = key.split('-').map(Number);
@@ -40,12 +41,13 @@
         return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
     }
 
-    createApp({
+    const calendarApp = createApp({
         data() {
             const finePointer = window.matchMedia ? window.matchMedia('(pointer: fine)').matches : true;
             return {
                 propertyId: initial.propertyId,
                 startDate: initial.startDate,
+                rangeDays: Math.max(1, Math.min(31, Number(initial.rangeDays || 7))),
                 today: initial.today,
                 rooms: initial.rooms || [],
                 bookings: initial.bookings || [],
@@ -53,6 +55,7 @@
                 dragEnabled: window.DeLongCalendarCanManage === true && finePointer && window.innerWidth > 820,
                 drag: { bookingId: null, overKey: '' },
                 moveConfirm: { open: false, booking: null, room: null, day: null },
+                statusConfirm: { open: false, action: null, title: '', message: '', confirmLabel: '' },
                 saving: false,
                 editor: { open: false, mode: 'create' },
                 selectedBooking: null,
@@ -66,7 +69,7 @@
         },
         computed: {
             days() {
-                return Array.from({ length: 7 }, (_, index) => {
+                return Array.from({ length: this.rangeDays }, (_, index) => {
                     const key = addDays(this.startDate, index);
                     const value = parseDateKey(key);
                     return {
@@ -173,6 +176,36 @@
                 const endKey = checkoutKey > lastVisible ? lastVisible : checkoutKey;
                 return Math.max(1, Math.min(7, dayDistance(dayKey, endKey) + 1));
             },
+            calendarLaneMap(roomId) {
+                const lastVisible = this.days[this.days.length - 1]?.key || this.startDate;
+                const rows = this.activeBookingRows(roomId)
+                    .map(booking => {
+                        const checkInKey = this.localDateKey(booking.checkInUtc);
+                        const checkOutKey = this.localDateKey(booking.checkOutUtc);
+                        const start = checkInKey < this.startDate ? this.startDate : checkInKey;
+                        const spansDays = checkInKey !== checkOutKey && Number(booking.status) !== 0;
+                        const end = spansDays ? (checkOutKey > lastVisible ? lastVisible : checkOutKey) : start;
+                        return { booking, start, end };
+                    })
+                    .filter(item => item.start <= lastVisible && item.end >= this.startDate)
+                    .sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || new Date(a.booking.checkInUtc) - new Date(b.booking.checkInUtc));
+
+                const laneEnds = [];
+                const lanes = new Map();
+                for (const item of rows) {
+                    let lane = laneEnds.findIndex(end => end < item.start);
+                    if (lane < 0) lane = laneEnds.length;
+                    laneEnds[lane] = item.end;
+                    lanes.set(item.booking.id, lane);
+                }
+                return { lanes, count: Math.max(1, laneEnds.length) };
+            },
+            calendarBookingLane(roomId, booking) {
+                return this.calendarLaneMap(roomId).lanes.get(booking.id) || 0;
+            },
+            calendarLaneCount(roomId) {
+                return this.calendarLaneMap(roomId).count;
+            },
             canDragBooking(booking) {
                 return this.dragEnabled && booking && [0, 1, 2].includes(Number(booking.status));
             },
@@ -261,10 +294,14 @@
             },
             moveRange(amount) {
                 const target = addDays(this.startDate, amount);
-                window.location.assign(`/Admin/Calendar?propertyId=${this.propertyId}&from=${target}`);
+                this.openCalendarRange(target, addDays(target, this.rangeDays - 1));
             },
             goToday() {
-                window.location.assign(`/Admin/Calendar?propertyId=${this.propertyId}&from=${this.today}`);
+                this.openCalendarRange(this.today, addDays(this.today, this.rangeDays - 1));
+            },
+            openCalendarRange(from, to) {
+                const query = new URLSearchParams({ propertyId: this.propertyId, from, to });
+                window.location.assign(`/Admin/Calendar?${query}`);
             },
             openCreate(room, day) {
                 if (!this.canManage) return;
@@ -333,7 +370,9 @@
                 await this.loadGuestDetails(booking.id);
             },
             closeEditor() {
-                if (!this.saving) this.editor.open = false;
+                if (this.saving) return;
+                this.editor.open = false;
+                this.closeStatusConfirm();
             },
             canEditBooking(booking) {
                 return this.canManage && booking && Number(booking.type) !== 1 && ![4, 5, 6].includes(booking.status);
@@ -476,6 +515,33 @@
                 ];
                 return [];
             },
+            requestStatusChange(action) {
+                if (!action || !this.selectedBooking) return;
+                if (![5, 6].includes(Number(action.status))) {
+                    this.changeStatus(action.status);
+                    return;
+                }
+
+                const cancelling = Number(action.status) === 5;
+                this.statusConfirm = {
+                    open: true,
+                    action,
+                    title: cancelling ? 'Hủy lượt đặt này?' : 'Đánh dấu khách không đến?',
+                    message: cancelling
+                        ? 'Lượt đặt sẽ chuyển sang Đã hủy và không còn giữ chỗ trên lịch.'
+                        : 'Lượt đặt sẽ chuyển sang Không đến và phòng được giải phóng trên lịch.',
+                    confirmLabel: cancelling ? 'Xác nhận hủy lượt đặt' : 'Xác nhận không đến'
+                };
+            },
+            closeStatusConfirm() {
+                if (this.saving) return;
+                this.statusConfirm = { open: false, action: null, title: '', message: '', confirmLabel: '' };
+            },
+            async confirmStatusChange() {
+                const status = this.statusConfirm.action?.status;
+                if (status === undefined || status === null) return;
+                await this.changeStatus(status);
+            },
             async changeStatus(status) {
                 if (!this.selectedBooking) return;
                 this.saving = true;
@@ -484,6 +550,7 @@
                     const index = this.bookings.findIndex(x => x.id === updated.id);
                     if (index >= 0) this.bookings.splice(index, 1, updated);
                     this.selectedBooking = updated;
+                    this.statusConfirm = { open: false, action: null, title: '', message: '', confirmLabel: '' };
                     this.notify(`Đã chuyển sang ${this.statusText(updated.status)}.`, 'success');
                 } catch (error) {
                     this.notify(error.message || 'Không thể đổi trạng thái lượt đặt.', 'error');
@@ -499,6 +566,21 @@
         },
         created() {
             this.form = this.emptyForm();
+        },
+        mounted() {
+            dateRangePicker = window.DeLongCalendarRangePicker?.create(this.$refs.dateRangePicker, {
+                startDate: this.startDate,
+                endDate: addDays(this.startDate, this.rangeDays - 1),
+                maxDays: 31,
+                onApply: range => this.openCalendarRange(range.from, range.to),
+                onError: message => this.notify(message, 'error')
+            });
+        },
+        beforeUnmount() {
+            dateRangePicker?.destroy();
+            dateRangePicker = null;
         }
-    }).mount(root);
+    });
+    const calendarVm = calendarApp.mount(root);
+    root.__delongCalendarVm = calendarVm;
 })();

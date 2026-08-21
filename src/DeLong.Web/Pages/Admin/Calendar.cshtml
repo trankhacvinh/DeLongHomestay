@@ -4,6 +4,7 @@
     ViewData["Title"] = "Lịch phòng";
 }
 @section Head {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="~/css/calendar-v2-polish.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/calendar-drag-drop.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-booking-guest-details.css" asp-append-version="true" />
@@ -19,6 +20,10 @@
                 <p>Giữ phòng, đã xác nhận và đang ở hiển thị theo thời gian chiếm phòng. Yêu cầu chỉ hiện tại ngày bắt đầu; lượt đã kết thúc được lưu ở màn Đặt phòng.</p>
             </div>
             <div class="calendar-controls">
+                <label class="calendar-date-range">
+                    <span>Khoảng ngày</span>
+                    <input ref="dateRangePicker" type="text" aria-label="Chọn ngày bắt đầu và ngày kết thúc" placeholder="Chọn khoảng ngày" />
+                </label>
                 <button class="btn-icon" type="button" v-on:click="moveRange(-7)" title="7 ngày trước" aria-label="7 ngày trước"><svg><use href="#i-chevron-left" /></svg></button>
                 <button class="btn btn-light btn-sm" type="button" v-on:click="goToday">Hôm nay</button>
                 <button class="btn-icon" type="button" v-on:click="moveRange(7)" title="7 ngày sau" aria-label="7 ngày sau"><svg><use href="#i-chevron-right" /></svg></button>
@@ -45,7 +50,7 @@
     </div>
 
     <div class="calendar-wrap">
-        <table class="booking-calendar">
+        <table class="booking-calendar" v-bind:style="{ minWidth: `${220 + (days.length * 146)}px` }">
             <thead>
                 <tr>
                     <th><span class="tiny muted">PHÒNG</span></th>
@@ -73,6 +78,7 @@
                     <td v-for="day in days"
                         v-bind:key="room.id + '-' + day.key"
                         class="day-cell"
+                        v-bind:style="{ '--calendar-lanes': calendarLaneCount(room.id) }"
                         v-bind:class="{
                             'calendar-today': day.key === today,
                             'calendar-drop-target': drag.overKey === dragKey(room.id, day.key)
@@ -98,7 +104,10 @@
                                         'booking-continues-after': booking.type === 1 && booking.status !== 0 && localDateKey(booking.checkOutUtc) > days[days.length - 1].key
                                     }
                                 ]"
-                                v-bind:style="booking.type === 1 && booking.status !== 0 ? { '--booking-span': bookingSpan(booking, day.key) } : null"
+                                v-bind:style="{
+                                    '--booking-span': booking.type === 1 && booking.status !== 0 ? bookingSpan(booking, day.key) : 1,
+                                    '--booking-lane': calendarBookingLane(room.id, booking)
+                                }"
                                 v-on:click.stop="openBooking(booking)"
                                 v-on:dragstart.stop="startBookingDrag(booking, $event)"
                                 v-on:dragend="endBookingDrag($event)">
@@ -281,11 +290,22 @@
                     <div v-if="selectedBooking.note"><span>Ghi chú</span><strong>{{ selectedBooking.note }}</strong></div>
                 </div>
                 <div class="notice" v-if="selectedBooking.type === 1 && canManage">Lưu trú theo đêm có thể sửa trực tiếp tại đây; đổi ngày nhận/trả sẽ tự tính lại số đêm và tiền phòng theo mức giá đã chọn.</div>
-                <div class="modal-actions" v-if="canManage">
-                    <button v-if="canEditBooking(selectedBooking)" class="btn btn-light" type="button" v-on:click="openEditBooking(selectedBooking)">Sửa lượt đặt</button>
-                    <button v-for="action in nextActions(selectedBooking)" v-bind:key="action.status" type="button" class="btn" v-bind:class="action.className" v-bind:disabled="saving" v-on:click="changeStatus(action.status)">{{ action.label }}</button>
+                <div class="modal-actions">
+                    <button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="closeEditor">Đóng</button>
+                    <template v-if="canManage">
+                        <button v-if="canEditBooking(selectedBooking)" class="btn btn-light" type="button" v-on:click="openEditBooking(selectedBooking)">Sửa lượt đặt</button>
+                        <button v-for="action in nextActions(selectedBooking)" v-bind:key="action.status" type="button" class="btn" v-bind:class="action.className" v-bind:disabled="saving" v-on:click="requestStatusChange(action)">{{ action.label }}</button>
+                    </template>
                 </div>
             </template>
+        </section>
+    </div>
+
+    <div class="modal-backdrop modal-top" v-if="statusConfirm.open" v-on:click.self="closeStatusConfirm">
+        <section class="modal-card modal-small status-confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="calendar-status-confirm-title">
+            <div class="modal-head"><div><h2 id="calendar-status-confirm-title">{{ statusConfirm.title }}</h2><p class="small muted">Thao tác chỉ được thực hiện sau khi bạn xác nhận.</p></div><button class="icon-btn" type="button" v-on:click="closeStatusConfirm" aria-label="Đóng">×</button></div>
+            <div class="status-confirm-body"><p>{{ statusConfirm.message }}</p><div class="status-confirm-booking" v-if="selectedBooking"><span>{{ selectedBooking.code }}</span><strong>{{ selectedBooking.customerName }} · {{ selectedBooking.roomName }}</strong></div></div>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="closeStatusConfirm">Quay lại</button><button class="btn btn-danger" type="button" v-bind:disabled="saving" v-on:click="confirmStatusChange">{{ saving ? 'Đang xử lý...' : statusConfirm.confirmLabel }}</button></div>
         </section>
     </div>
 
@@ -294,6 +314,8 @@
 
 @section Scripts {
     <script>window.DeLongCalendarCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") ? "true" : "false");</script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="~/js/pages/admin-calendar-range.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-calendar-nightly.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-calendar.js" asp-append-version="true"></script>
 }

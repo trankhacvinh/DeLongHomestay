@@ -10,6 +10,30 @@
         if ((link.textContent || '').trim().toLowerCase() === 'xem website') link.remove();
     });
 
+    const calendarV1 = [...nav.querySelectorAll('a.side-link')].find(link => {
+        try { return new URL(link.href, window.location.origin).pathname.toLowerCase() === '/admin/calendar'; }
+        catch { return false; }
+    });
+    if (calendarV1) {
+        const label = calendarV1.querySelector('span');
+        if (label) label.textContent = 'Lịch phòng V1';
+        calendarV1.dataset.sidebarCalendarV1 = '1';
+        calendarV1.classList.toggle('active', window.location.pathname.toLowerCase() === '/admin/calendar');
+
+        if (!nav.querySelector('[data-sidebar-calendar-v2]')) {
+            const url = new URL(calendarV1.href, window.location.origin);
+            url.pathname = '/Admin/CalendarV2';
+            const link = document.createElement('a');
+            link.className = 'side-link';
+            if (window.location.pathname.toLowerCase() === '/admin/calendarv2') link.classList.add('active');
+            link.href = `${url.pathname}${url.search}`;
+            link.dataset.sidebarCalendarV2 = '1';
+            const icon = calendarV1.querySelector('svg')?.outerHTML || '<svg><use href="#i-calendar"></use></svg>';
+            link.innerHTML = `${icon}<span>Lịch phòng V2</span>`;
+            calendarV1.after(link);
+        }
+    }
+
     if (!nav.querySelector('[data-sidebar-website-top]')) {
         const group = document.createElement('div');
         group.className = 'nav-group sidebar-website-quick';

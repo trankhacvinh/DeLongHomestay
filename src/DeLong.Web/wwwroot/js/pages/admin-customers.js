@@ -13,6 +13,7 @@
                 search: '',
                 showInactive: false,
                 saving: false,
+                detail: { open: false, loading: false, error: '', customer: null, bookings: [] },
                 editor: { open: false, mode: 'create', customerId: null },
                 form: { name: '', phone: '', email: '', identityNumber: '', note: '', isActive: true },
                 toast: { show: false, message: '', type: 'success', timer: null }
@@ -30,6 +31,46 @@
         methods: {
             dateText(value) {
                 return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value));
+            },
+            dateTimeText(value) {
+                return new Intl.DateTimeFormat('vi-VN', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: false
+                }).format(new Date(value));
+            },
+            money(value) {
+                return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
+            },
+            statusText(status) {
+                return ({ 0: 'Yêu cầu', 1: 'Giữ phòng', 2: 'Đã xác nhận', 3: 'Đang ở', 4: 'Hoàn tất', 5: 'Đã hủy', 6: 'Không đến' })[status] || `#${status}`;
+            },
+            statusClass(status) {
+                if (status === 1) return 'warning';
+                if ([2, 3, 4].includes(Number(status))) return 'success';
+                if ([5, 6].includes(Number(status))) return 'danger';
+                return 'info';
+            },
+            sourceText(source) {
+                if (!source) return 'Không rõ nguồn';
+                return String(source).toLowerCase() === 'website' ? 'Trang web' : source;
+            },
+            async openDetail(customer) {
+                this.detail = { open: true, loading: true, error: '', customer, bookings: [] };
+                try {
+                    const profile = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/customers/${customer.id}/profile`);
+                    if (!this.detail.open || this.detail.customer?.id !== customer.id) return;
+                    this.detail = { open: true, loading: false, error: '', customer: profile.customer, bookings: profile.bookings || [] };
+                } catch (error) {
+                    if (!this.detail.open || this.detail.customer?.id !== customer.id) return;
+                    this.detail.loading = false;
+                    this.detail.error = error.message || 'Không thể tải hồ sơ khách hàng.';
+                }
+            },
+            closeDetail() { this.detail.open = false; },
+            editFromDetail() {
+                const customer = this.detail.customer;
+                this.detail.open = false;
+                if (customer) this.openEdit(customer);
             },
             openCreate() {
                 this.form = { name: '', phone: '', email: '', identityNumber: '', note: '', isActive: true };

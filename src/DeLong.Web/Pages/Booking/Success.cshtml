@@ -22,6 +22,11 @@
                 <p class="public-success-lookup-note">Hãy lưu lại mã trên. Bạn có thể dùng mã này cùng số điện thoại đã đặt để xem trạng thái sau này.</p>
             }
             <div class="public-success-actions">
+                @if (!string.IsNullOrWhiteSpace(Model.GuestGuideHtml))
+                {
+                    <a class="public-btn public-btn-primary" href="#room-guide">Xem hướng dẫn phòng</a>
+                    <a class="public-btn public-btn-ghost" href="@Model.GuidePdfUrl">Tải PDF hướng dẫn</a>
+                }
                 <a class="public-btn public-btn-primary" asp-page="/Booking/Lookup" asp-route-siteSlug="@Model.SiteSlug">Tra cứu đặt phòng</a>
                 <a class="public-btn public-btn-ghost" asp-page="/Index" asp-route-siteSlug="@Model.SiteSlug">Về trang chủ</a>
             </div>
@@ -30,5 +35,12 @@
                 <p class="public-success-contact">Cần hỗ trợ ngay? Gọi @Model.SiteName: <strong>@Model.Phone</strong></p>
             }
         </div>
+        @if (!string.IsNullOrWhiteSpace(Model.GuestGuideHtml))
+        {
+            <section id="room-guide" class="public-booking-guide-card">
+                <div class="public-booking-guide-head"><div><span class="public-eyebrow">Dành cho @Model.Room</span><h2>Hướng dẫn nhận và sử dụng phòng</h2></div><a class="public-btn public-btn-ghost" href="@Model.GuidePdfUrl">Tải PDF</a></div>
+                <div class="public-rich-copy public-booking-guide-copy">@Html.Raw(Model.GuestGuideHtml)</div>
+            </section>
+        }
     </div>
 </section>

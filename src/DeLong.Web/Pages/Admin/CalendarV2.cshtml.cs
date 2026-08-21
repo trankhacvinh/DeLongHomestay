@@ -1,0 +1,82 @@
+using System.Text.Json;
+using DeLong.Web.Common.Security;
+using DeLong.Web.Domain.Enums;
+using DeLong.Web.Features.Bookings;
+using DeLong.Web.Features.Rooms;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+
+namespace DeLong.Web.Pages.Admin;
+
+[Authorize(Policy = "ViewOperations")]
+public sealed class CalendarV2Model(
+    RoomService roomService,
+    BookingService bookingService,
+    CurrentPropertyService currentPropertyService) : PageModel
+{
+    public Guid PropertyId { get; private set; }
+    public string TimeZoneId { get; private set; } = "Asia/Ho_Chi_Minh";
+    public string StartDate { get; private set; } = string.Empty;
+    public string Today { get; private set; } = string.Empty;
+    public int RangeDays { get; private set; } = 10;
+    public string PageDataJson { get; private set; } = "{}";
+
+    public async Task<IActionResult> OnGetAsync(DateOnly? from, DateOnly? to, Guid? propertyId, CancellationToken cancellationToken)
+    {
+        var property = await currentPropertyService.ResolveAsync(User, propertyId, cancellationToken);
+        if (property is null) return Forbid();
+        PropertyId = property.Id;
+        TimeZoneId = property.TimeZoneId;
+
+        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
+        var todayLocal = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
+        var startDate = from ?? todayLocal;
+        StartDate = startDate.ToString("yyyy-MM-dd");
+        Today = todayLocal.ToString("yyyy-MM-dd");
+        var requestedDays = to.HasValue && to.Value >= startDate
+            ? to.Value.DayNumber - startDate.DayNumber + 1
+            : 10;
+        RangeDays = Math.Clamp(requestedDays, 1, 31);
+        var endDateExclusive = startDate.AddDays(RangeDays);
+
+        var startLocal = DateTime.SpecifyKind(startDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
+        var endLocal = DateTime.SpecifyKind(endDateExclusive.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
+        var startUtc = TimeZoneInfo.ConvertTimeToUtc(startLocal, timeZone);
+        var endUtc = TimeZoneInfo.ConvertTimeToUtc(endLocal, timeZone);
+        var offset = timeZone.GetUtcOffset(startLocal);
+        var offsetText = $"{(offset < TimeSpan.Zero ? "-" : "+")}{Math.Abs(offset.Hours):00}:{Math.Abs(offset.Minutes):00}";
+
+        var rooms = (await roomService.GetAllAsync(PropertyId, cancellationToken))
+            .Select(room => room with
+            {
+                Rates = room.Rates.Where(rate => rate.Type != RoomRateType.Nightly).ToList()
+            })
+            .ToList();
+
+        var bookings = (await bookingService.GetAllAsync(
+                PropertyId,
+                new DateTimeOffset(startUtc, TimeSpan.Zero),
+                new DateTimeOffset(endUtc, TimeSpan.Zero),
+                cancellationToken))
+            .Where(booking => booking.Status is BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn)
+            .ToList();
+
+        PageDataJson = JsonSerializer.Serialize(
+            new
+            {
+                propertyId = PropertyId,
+                propertyName = property.Name,
+                timeZoneId = property.TimeZoneId,
+                utcOffset = offsetText,
+                startDate = startDate.ToString("yyyy-MM-dd"),
+                rangeDays = RangeDays,
+                today = todayLocal.ToString("yyyy-MM-dd"),
+                rooms,
+                bookings
+            },
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        return Page();
+    }
+}

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using DeLong.Web.Common.Security;
+using DeLong.Web.Features.Operations;
 
 namespace DeLong.Web.Features.Payments;
 
@@ -30,7 +31,8 @@ public static class PaymentEndpoints
             var userId = GetUserId(user);
             var (payment, error) = await service.AddAsync(propertyId, bookingId, request, userId, cancellationToken);
             if (error is not null) return ToProblem(error);
-            return Results.Created($"/api/admin/properties/{propertyId}/payments/{payment!.Id}", payment);
+            PublishBookingChanged(payment!);
+            return Results.Created($"/api/admin/properties/{propertyId}/payments/{payment.Id}", payment);
         })
         .RequireAuthorization("ManagePayments")
         .AddEndpointFilter<ApiAntiforgeryFilter>();
@@ -46,6 +48,7 @@ public static class PaymentEndpoints
             var userId = GetUserId(user);
             var (payment, error) = await service.VoidAsync(propertyId, paymentId, request.Reason, userId, cancellationToken);
             if (error is not null) return ToProblem(error);
+            PublishBookingChanged(payment!);
             return Results.Ok(payment);
         })
         .RequireAuthorization("ManagePayments")
@@ -53,6 +56,12 @@ public static class PaymentEndpoints
 
         return app;
     }
+
+    private static void PublishBookingChanged(PaymentDto payment) =>
+        OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
+            payment.PropertyId,
+            OperationsEventTypes.BookingUpdated,
+            payment.BookingId));
 
     private static Guid? GetUserId(ClaimsPrincipal user)
     {

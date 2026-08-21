@@ -24,6 +24,19 @@
     box-shadow:0 8px 20px rgba(22,57,52,.07);
 }
 .public-site-actions .public-btn-primary { min-height:44px; }
+.public-logout-form { margin:0; }
+.public-logout-link {
+    min-height:42px;
+    padding:0 10px;
+    border:0;
+    background:transparent;
+    color:#667673;
+    font:inherit;
+    font-size:12px;
+    font-weight:750;
+    cursor:pointer;
+}
+.public-logout-link:hover { color:#a43e3e; }
 
 .public-room-card .public-room-body {
     display:grid;

@@ -29,6 +29,7 @@ public sealed record RoomContentDto(
     string Slug,
     string? ShortDescription,
     string? DescriptionHtml,
+    string? GuestGuideHtml,
     bool IsPublished,
     IReadOnlyList<string> Amenities,
     IReadOnlyList<string> Tags,
@@ -43,6 +44,7 @@ public sealed class UpdateRoomContentRequest
     public string? Slug { get; init; }
     public string? ShortDescription { get; init; }
     public string? DescriptionHtml { get; init; }
+    public string? GuestGuideHtml { get; init; }
     public bool IsPublished { get; init; }
     public IReadOnlyList<string> Amenities { get; init; } = [];
     public IReadOnlyList<string> Tags { get; init; } = [];

@@ -21,6 +21,7 @@ using DeLong.Web.Features.Reports;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Features.Site;
 using DeLong.Web.Features.Staff;
+using DeLong.Web.Features.CustomerAccounts;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -126,6 +127,28 @@ builder.Services.ConfigureApplicationCookie(options =>
         ? CookieSecurePolicy.SameAsRequest
         : CookieSecurePolicy.Always;
     options.SlidingExpiration = true;
+    options.Events.OnRedirectToLogin = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
 });
 
 builder.Services.AddAuthorization(options =>
@@ -174,6 +197,9 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AddPageRoute("/Booking/Index", "h/{siteSlug}/booking");
     options.Conventions.AddPageRoute("/Booking/Lookup", "h/{siteSlug}/booking/lookup");
     options.Conventions.AddPageRoute("/Booking/Success", "h/{siteSlug}/booking/success");
+    options.Conventions.AddPageRoute("/Customer/Account", "h/{siteSlug}/customer/account");
+    options.Conventions.AddPageRoute("/Customer/Account", "customer/login");
+    options.Conventions.AddPageRoute("/Customer/Account", "h/{siteSlug}/customer/login");
     options.Conventions.AddPageRoute("/Blog/Index", "h/{siteSlug}/blog");
     options.Conventions.AddPageRoute("/Blog/Details", "h/{siteSlug}/blog/{slug}");
     options.Conventions.AddPageRoute("/CustomPage", "{slug}");
@@ -212,6 +238,16 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("account-login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"{httpContext.Connection.RemoteIpAddress}:account",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 8,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 
 builder.Services.AddScoped<ApiAntiforgeryFilter>();
@@ -242,6 +278,8 @@ builder.Services.AddScoped<ExpenseService>();
 builder.Services.AddScoped<FinanceService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<StaffAccountService>();
+builder.Services.AddScoped<CustomerAccountSettingsService>();
+builder.Services.AddScoped<CustomerAccountService>();
 builder.Services.AddScoped<PublicBookingService>();
 builder.Services.AddScoped<PublicBookingLookupService>();
 builder.Services.AddScoped<PublicRoomContentService>();
@@ -281,7 +319,7 @@ app.Use(async (context, next) =>
         headers.TryAdd("X-Content-Type-Options", "nosniff");
         headers.TryAdd("X-Frame-Options", "SAMEORIGIN");
         headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
-        headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+        headers.TryAdd("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
         return Task.CompletedTask;
     });
     await next();
@@ -338,6 +376,14 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     ResponseWriter = HealthResponseWriter.WriteAsync
 }).AllowAnonymous();
 
+app.MapGet("/api/antiforgery/token", (
+    Microsoft.AspNetCore.Antiforgery.IAntiforgery antiforgery,
+    HttpContext httpContext) =>
+{
+    var tokens = antiforgery.GetAndStoreTokens(httpContext);
+    return Results.Ok(new { token = tokens.RequestToken });
+}).AllowAnonymous();
+
 app.MapRazorPages();
 app.MapPropertyAdminEndpoints();
 app.MapSiteContentEndpoints();
@@ -357,6 +403,7 @@ app.MapHousekeepingEndpoints();
 app.MapExpenseEndpoints();
 app.MapAuditEndpoints();
 app.MapStaffAccountEndpoints();
+app.MapCustomerAccountEndpoints();
 app.MapPublicRoomMediaEndpoints();
 app.MapPublicBookingEndpoints();
 app.MapPublicBookingLookupEndpoints();

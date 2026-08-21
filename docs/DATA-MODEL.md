@@ -1,11 +1,21 @@
 # Data model mục tiêu
 
+## Customer accounts và loyalty
+
+- `asp_net_users.is_customer_account`: phân tách tài khoản khách khỏi đăng nhập quản trị.
+- `customer_account_links`: duy nhất theo user/cơ sở và duy nhất theo customer.
+- `customer_account_settings`: đăng ký, Authenticator, quy đổi điểm và điều khoản có phiên bản theo cơ sở.
+- `customer_account_terms_acceptances`: bằng chứng đồng ý theo user/cơ sở/phiên bản.
+- `loyalty_ledger_entries`: điểm có dấu, user, cơ sở, booking tùy chọn và lý do; booking duy nhất khi có.
+
 ## Property
 - id
 - name
 - public_name
 - address
 - phone
+- housekeeping_before_check_in_minutes (mặc định 0)
+- housekeeping_after_check_out_minutes (mặc định 0)
 - fanpage
 - active
 
@@ -18,6 +28,7 @@
 - beds
 - has_bathtub
 - description
+- guest_guide_html: hướng dẫn check-in, sử dụng phòng và quy định dành cho khách; HTML đã được làm sạch trước khi lưu
 - housekeeping_status
 - active
 
@@ -92,6 +103,8 @@ Nhánh phụ: `cancelled`, `rejected`.
 - started_at nullable
 - completed_at nullable
 - note
+
+Housekeeping Schedule V2 hiện là projection từ `Booking.check_in/check_out` và hai offset trên `Property`; chưa tạo hàng task trùng lặp trong database.
 
 ## User / Role / PropertyAccess
 Production dùng ASP.NET Core Identity hoặc mô hình authentication tương đương, không lưu plaintext password.

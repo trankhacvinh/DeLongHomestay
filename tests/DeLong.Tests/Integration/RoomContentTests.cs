@@ -67,6 +67,7 @@ public sealed class RoomContentTests
             Slug = requestedSlug,
             ShortDescription = "Không gian riêng tư cho hai người.",
             DescriptionHtml = "<h2>Không gian</h2><p>Yên tĩnh <strong>và riêng tư</strong>.</p><img class=\"room-image-size-50 room-image-align-right\" src=\"/uploads/rooms/a/b/large.webp\" alt=\"Phòng\"><iframe class=\"ql-video\" src=\"https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ\"></iframe><iframe src=\"https://evil.example/embed/x\"></iframe><script>alert('x')</script>",
+            GuestGuideHtml = "<h2>Check-in</h2><ol><li>Nhận chìa khóa tại quầy.</li></ol><script>alert('guide')</script>",
             IsPublished = true,
             Amenities = ["Bồn tắm", "Wifi"],
             Tags = ["Couple", "Lãng mạn"],
@@ -87,6 +88,8 @@ public sealed class RoomContentTests
         Assert.Contains("room-image-size-50", updated.DescriptionHtml, StringComparison.Ordinal);
         Assert.Contains("room-image-align-right", updated.DescriptionHtml, StringComparison.Ordinal);
         Assert.Contains("<strong>và riêng tư</strong>", updated.DescriptionHtml);
+        Assert.Contains("Nhận chìa khóa tại quầy", updated.GuestGuideHtml);
+        Assert.DoesNotContain("<script", updated.GuestGuideHtml, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(2, updated.Amenities.Count);
         Assert.Equal(2, updated.Tags.Count);
         Assert.Equal(2, updated.Highlights.Count);
@@ -110,6 +113,7 @@ public sealed class RoomContentTests
             Slug = updated.Slug,
             ShortDescription = updated.ShortDescription,
             DescriptionHtml = updated.DescriptionHtml,
+            GuestGuideHtml = updated.GuestGuideHtml,
             IsPublished = false,
             Amenities = updated.Amenities,
             Tags = updated.Tags,

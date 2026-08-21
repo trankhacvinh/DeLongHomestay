@@ -7,11 +7,11 @@
     <form method="post" class="auth-card">
         <span class="eyebrow">Admin</span>
         <h1>Đăng nhập quản trị</h1>
-        <p class="muted">Tài khoản production dùng ASP.NET Core Identity.</p>
         <div asp-validation-summary="ModelOnly" class="validation"></div>
-        <div class="field"><label asp-for="Input.Email"></label><input asp-for="Input.Email" autocomplete="username" /><span asp-validation-for="Input.Email" class="validation"></span></div>
-        <div class="field"><label asp-for="Input.Password"></label><input asp-for="Input.Password" autocomplete="current-password" /><span asp-validation-for="Input.Password" class="validation"></span></div>
+        <div class="field"><label asp-for="Input.Identifier"></label><input asp-for="Input.Identifier" autocomplete="username" /><span asp-validation-for="Input.Identifier" class="validation"></span></div>
+        <div class="field"><label asp-for="Input.Password"></label><input asp-for="Input.Password" autocomplete="current-password" /></div>
         <label class="check-row"><input asp-for="Input.RememberMe" /> Ghi nhớ đăng nhập</label>
         <button class="btn btn-primary" type="submit">Đăng nhập</button>
+        <a class="btn btn-light" href="/customer/login">Bạn là khách? Đăng nhập bằng số điện thoại</a>
     </form>
 </section>

@@ -48,13 +48,27 @@
         return payload;
     }
 
+    async function refreshAntiforgery() {
+        const payload = await request('/api/antiforgery/token', { cache: 'no-store' });
+        const token = payload?.token || '';
+        let meta = document.querySelector('meta[name="csrf-token"]');
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.name = 'csrf-token';
+            document.head.appendChild(meta);
+        }
+        meta.content = token;
+        return token;
+    }
+
     global.DeLongApi = {
         get: (url) => request(url),
         post: (url, data, headers) => request(url, { method: 'POST', headers: headers || {}, body: JSON.stringify(data) }),
         postForm: (url, formData, headers) => request(url, { method: 'POST', headers: headers || {}, body: formData }),
         put: (url, data) => request(url, { method: 'PUT', body: JSON.stringify(data) }),
         patch: (url, data) => request(url, { method: 'PATCH', body: JSON.stringify(data) }),
-        delete: (url) => request(url, { method: 'DELETE' })
+        delete: (url) => request(url, { method: 'DELETE' }),
+        refreshAntiforgery
     };
 
     const localHostnames = new Set(['localhost', '127.0.0.1', '::1']);
@@ -99,15 +113,20 @@
         }
         if (!document.querySelector('script[data-admin-sidebar-quick-links]')) {
             const script = document.createElement('script');
-            script.src = assetUrl('/js/core/admin-sidebar-quick-links.js?v=20260818-3');
+            script.src = assetUrl('/js/core/admin-sidebar-quick-links.js?v=20260820-1');
             script.async = false;
             script.dataset.adminSidebarQuickLinks = 'true';
             document.head.appendChild(script);
         }
-        appendStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-5');
+        appendStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260820-6');
         appendStyle('data-admin-booking-guest-details', '/css/admin-booking-guest-details.css?v=20260819-4');
         afterWindowLoad(() => {
-            appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260819-5');
+            appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260820-6');
+            const calendarV2Root = document.getElementById('calendar-page');
+            if (calendarV2Root?.dataset.calendarV2Page === 'true') {
+                appendStyle('data-admin-calendar-v2', '/css/admin-calendar-v2.css?v=20260820-2');
+                appendScript('data-admin-calendar-v2', '/js/pages/admin-calendar-v2.js?v=20260820-2');
+            }
         });
     }
 
@@ -137,7 +156,7 @@
         addStyle('data-public-custom-pages', '/css/public-custom-pages.css?v=20260818-1');
         addStyle('data-public-custom-page-element-style', '/css/public-custom-page-element-style.css?v=20260818-3');
         addStyle('data-public-editor-stabilization', '/css/public-editor-stabilization.css?v=20260818-1');
-        addStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260819-5');
+        addStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260820-6');
 
         addScript('data-public-shell-runtime', '/js/pages/public-shell-runtime.js?v=20260817-2');
         addScript('data-public-shell-designer-runtime', '/js/pages/public-shell-designer-runtime.js?v=20260818-1');
@@ -167,6 +186,12 @@
         addScript('data-public-toolbar-compact', '/js/pages/public-toolbar-compact.js?v=20260818-1');
         addScript('data-public-header-footer-designer', '/js/pages/public-header-footer-designer.js?v=20260818-1');
         addScript('data-public-footer-inline-editor', '/js/pages/public-footer-inline-editor.js?v=20260818-1');
-        afterWindowLoad(() => addScript('data-public-booking-core-v2', '/js/pages/public-booking-core-v2.js?v=20260819-5'));
+        afterWindowLoad(() => {
+            addScript('data-public-booking-core-v2', '/js/pages/public-booking-core-v2.js?v=20260819-5');
+            if (document.querySelector('.public-room-page')) {
+                addStyle('data-public-room-availability', '/css/public-room-availability.css?v=20260820-1');
+                addScript('data-public-room-availability', '/js/pages/public-room-availability.js?v=20260820-1');
+            }
+        });
     }
 })(window);

@@ -1,0 +1,37 @@
+@page
+@model DeLong.Web.Pages.Account.AuthenticatorModel
+@{ ViewData["Title"] = "Google Authenticator"; }
+<section class="auth-wrap">
+    <form method="post" class="auth-card"><span class="eyebrow">Bảo mật</span>
+        <h1>Google Authenticator</h1>
+        @if (Model.Enabled)
+        {
+            <p class="notice">Authenticator đang bật. Bạn có thể dùng mã 6 số thay mật khẩu tại trang đăng nhập quản
+                trị.</p>
+            <button class="btn btn-danger" type="submit" asp-page-handler="Disable">Tắt và tạo lại khóa</button>
+        }
+        else
+        {
+            <p>Trong Google Authenticator, chọn <strong>Nhập khóa thiết lập</strong>, sau đó nhập khóa dưới đây.</p>
+            <code
+                style="display:block;padding:14px;border-radius:12px;background:#eef4f2;overflow-wrap:anywhere">@Model.SharedKey</code>
+            <div class="field"><label asp-for="Code">Mã 6 số để xác nhận</label><input asp-for="Code"
+                                                                                       inputmode="numeric"
+                                                                                       autocomplete="one-time-code"
+                                                                                       maxlength="8"/><span
+                    asp-validation-for="Code" class="validation"></span></div>
+            <button class="btn btn-primary" type="submit" asp-page-handler="Enable">Bật Authenticator</button>
+        }
+        @if (Model.RecoveryCodes.Count > 0)
+        {
+            <div class="notice"><strong>Lưu các mã khôi phục này ở nơi an toàn.</strong>
+                @foreach (var code in Model.RecoveryCodes)
+                {
+                    <code style="display:block">
+                        @(code)
+                    </code>
+                }
+            </div>
+        }
+    </form>
+</section>

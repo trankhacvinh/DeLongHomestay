@@ -16,9 +16,14 @@
         back: null,
         frontUrl: '',
         backUrl: '',
-        restored: false,
+        savedIdentity: false,
+        accountHasIdentity: false,
+        authenticatedPhone: '',
+        accountRestoreStarted: false,
         selectionSignature: '',
         baseTotal: 0
+        ,accountSettings: null,
+        accountRegistrationCompleted: false
     };
 
     function money(value) {
@@ -29,39 +34,90 @@
         return String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
     }
 
-    function savedContact() {
-        try { return JSON.parse(localStorage.getItem('delong.booking.contact.v1') || '{}'); }
-        catch { return {}; }
+    function normalizePhone(value) {
+        return String(value || '').replace(/\D/g, '');
     }
 
-    function persistContact() {
-        const name = root.querySelector('input[autocomplete="name"]')?.value?.trim() || '';
-        const phone = root.querySelector('input[autocomplete="tel"]')?.value?.trim() || '';
-        const email = root.querySelector('[data-booking-email]')?.value?.trim() || state.email;
-        try { localStorage.setItem('delong.booking.contact.v1', JSON.stringify({ name, phone, email })); }
-        catch { }
+    function updateSavedIdentityUi() {
+        const identitySection = root.querySelector('.booking-id-section');
+        const existingNote = root.querySelector('.booking-saved-identity-note');
+        if (!identitySection) return;
+        identitySection.hidden = state.savedIdentity;
+        if (!state.savedIdentity) {
+            existingNote?.remove();
+            return;
+        }
+        if (existingNote) return;
+        const note = document.createElement('p');
+        note.className = 'booking-saved-identity-note';
+        note.textContent = 'Tài khoản đã có CCCD. Lượt đặt này sẽ dùng bản mới nhất đang lưu trong tài khoản.';
+        identitySection.before(note);
     }
 
-    function restoreContact() {
-        if (state.restored) return;
-        const saved = savedContact();
-        const nameInput = root.querySelector('input[autocomplete="name"]');
-        const phoneInput = root.querySelector('input[autocomplete="tel"]');
-        const emailInput = root.querySelector('[data-booking-email]');
-        if (!nameInput || !phoneInput || !emailInput) return;
-        if (!nameInput.value && saved.name) {
-            nameInput.value = saved.name;
-            nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    async function restoreCustomerAccount() {
+        try {
+            const profile = await DeLongApi.get('/api/customer/account/profile');
+            const nameInput = root.querySelector('[data-booking-customer-name]');
+            const phoneInput = root.querySelector('[data-booking-customer-phone]');
+            const emailInput = root.querySelector('[data-booking-email]');
+            if (nameInput) { nameInput.value = profile.name || ''; nameInput.dispatchEvent(new Event('input', { bubbles: true })); }
+            if (phoneInput) { phoneInput.value = profile.phone || ''; phoneInput.dispatchEvent(new Event('input', { bubbles: true })); }
+            if (emailInput) { emailInput.value = profile.email || ''; state.email = profile.email || ''; }
+            state.authenticatedPhone = normalizePhone(profile.phone);
+            state.accountHasIdentity = !!profile.hasIdentityDocuments;
+            state.savedIdentity = state.accountHasIdentity;
+            updateSavedIdentityUi();
+            const panel = root.querySelector('[data-booking-account-panel]');
+            if (panel) {
+                panel.hidden = false;
+                panel.innerHTML = '<div class="booking-account-success"><strong>Đã điền thông tin từ tài khoản</strong><small>Bạn không cần nhập lại mật khẩu khi dùng đúng số điện thoại tài khoản.</small></div>';
+            }
+        } catch { }
+    }
+
+    async function checkCustomerAccount(wrapper) {
+        const phone = root.querySelector('[data-booking-customer-phone]')?.value?.trim() || '';
+        const panel = wrapper?.querySelector('[data-booking-account-panel]');
+        if (!panel || phone.replace(/\D/g, '').length < 8) { if (panel) panel.hidden = true; return; }
+        if (state.authenticatedPhone && normalizePhone(phone) === state.authenticatedPhone) {
+            state.savedIdentity = state.accountHasIdentity;
+            updateSavedIdentityUi();
+            panel.hidden = false;
+            panel.innerHTML = '<div class="booking-account-success"><strong>Đang dùng tài khoản đã đăng nhập</strong><small>Thông tin đã được điền sẵn, không cần nhập lại mật khẩu.</small></div>';
+            return;
         }
-        if (!phoneInput.value && saved.phone) {
-            phoneInput.value = saved.phone;
-            phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-        if (!emailInput.value && saved.email) {
-            emailInput.value = saved.email;
-            state.email = saved.email;
-        }
-        state.restored = true;
+        try {
+            const query = new URLSearchParams({ phone });
+            if (siteSlug) query.set('siteSlug', siteSlug);
+            const status = await DeLongApi.get(`/api/public/customer-account/status?${query}`);
+            panel.hidden = false;
+            const hasAccount = status.hasAccount ?? status.exists;
+            if (hasAccount) {
+                panel.innerHTML = `<div class="booking-account-summary"><div><strong>Đã tìm thấy tài khoản</strong><small>Đăng nhập để tự điền hồ sơ và dùng CCCD đã lưu.</small></div></div><div class="booking-account-form"><label><span>Mật khẩu</span><input type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" data-quick-password /></label><button type="button" data-quick-login>Đăng nhập & điền nhanh</button></div><p class="booking-account-message" data-account-message hidden></p>`;
+                panel.querySelector('[data-quick-login]').addEventListener('click', async () => {
+                    const button = panel.querySelector('[data-quick-login]');
+                    try {
+                        button.disabled = true; button.textContent = 'Đang đăng nhập…';
+                        await DeLongApi.refreshAntiforgery();
+                        await DeLongApi.post('/api/public/customer-account/login', { phone, password: panel.querySelector('[data-quick-password]').value, rememberMe: true });
+                        await DeLongApi.refreshAntiforgery();
+                        await restoreCustomerAccount(); panel.innerHTML = '<div class="booking-account-success"><strong>Đã điền thông tin từ tài khoản</strong><small>Bạn có thể tiếp tục hoàn tất yêu cầu đặt phòng.</small></div>';
+                    } catch (error) {
+                        const message = panel.querySelector('[data-account-message]');
+                        message.hidden = false; message.textContent = error.message || 'Không thể đăng nhập.';
+                        button.disabled = false; button.textContent = 'Đăng nhập & điền nhanh';
+                    }
+                });
+            } else if (state.accountSettings?.registrationEnabled) {
+                const accountTitle = status.exists ? 'Bạn đã từng đặt phòng tại đây' : 'Đặt phòng nhanh hơn vào lần sau';
+                const accountDescription = status.exists
+                    ? 'Hồ sơ khách đã có, nhưng chưa có tài khoản đăng nhập. Tạo mật khẩu để dùng lại thông tin lần sau.'
+                    : (state.accountSettings.benefitText || 'Lưu hồ sơ và không phải nhập lại thông tin.');
+                panel.innerHTML = `<div class="booking-account-summary"><div><strong>${escapeHtml(accountTitle)}</strong><small>${escapeHtml(accountDescription)}</small></div><button type="button" data-quick-register-open>Tạo tài khoản</button></div><div class="booking-account-register" data-quick-register-form hidden><label><span>Tạo mật khẩu</span><input type="password" autocomplete="new-password" placeholder="Ít nhất 8 ký tự" data-quick-new-password /></label><label class="booking-account-terms"><input type="checkbox" data-quick-terms /><span>Tôi đồng ý <button type="button" data-account-terms-open>${escapeHtml(state.accountSettings.termsTitle || 'điều khoản tài khoản')}</button></span></label><p class="booking-account-submit-note">Tài khoản sẽ được tạo cùng lúc khi bạn gửi yêu cầu đặt phòng.</p><p class="booking-account-message" data-account-message hidden></p></div>`;
+                panel.querySelector('[data-quick-register-open]').addEventListener('click', event => { event.currentTarget.hidden = true; panel.querySelector('[data-quick-register-form]').hidden = false; });
+                panel.querySelector('[data-account-terms-open]').addEventListener('click', openAccountTerms);
+            } else panel.hidden = true;
+        } catch { panel.hidden = true; }
     }
 
     function currentCapacity() {
@@ -225,14 +281,40 @@
             modal.querySelector('.booking-policy-actions button').addEventListener('click', closePolicy);
         }
         modal.querySelector('#booking-policy-title').textContent = state.policy.policyTitle || 'Nội quy & Chính sách';
-        modal.querySelector('.booking-policy-copy').textContent = state.policy.policyText || '';
+        modal.querySelector('.booking-policy-copy').innerHTML = state.policy.policyText || '';
         modal.classList.add('is-open');
         document.documentElement.classList.add('booking-policy-open');
     }
 
     function closePolicy() {
         document.getElementById('booking-policy-modal')?.classList.remove('is-open');
+        document.getElementById('booking-account-terms-modal')?.classList.remove('is-open');
         document.documentElement.classList.remove('booking-policy-open');
+    }
+
+    function openAccountTerms() {
+        if (!state.accountSettings) return;
+        let modal = document.getElementById('booking-account-terms-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'booking-account-terms-modal';
+            modal.className = 'booking-policy-modal';
+            modal.innerHTML = `
+                <div class="booking-policy-dialog" role="dialog" aria-modal="true" aria-labelledby="booking-account-terms-title">
+                    <div class="booking-policy-head"><div><span>TÀI KHOẢN KHÁCH</span><h2 id="booking-account-terms-title"></h2></div><button type="button" aria-label="Đóng">×</button></div>
+                    <div class="booking-policy-copy"></div>
+                    <div class="booking-policy-actions"><button type="button" class="public-btn public-btn-primary">Đã đọc</button></div>
+                </div>`;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', event => { if (event.target === modal) closePolicy(); });
+            modal.querySelector('.booking-policy-head button').addEventListener('click', closePolicy);
+            modal.querySelector('.booking-policy-actions button').addEventListener('click', closePolicy);
+        }
+        modal.querySelector('#booking-account-terms-title').textContent = state.accountSettings.termsTitle || 'Điều khoản tài khoản khách';
+        modal.querySelector('.booking-policy-copy').innerHTML = state.accountSettings.termsHtml || '<p>Chưa có nội dung điều khoản.</p>';
+        modal.classList.add('is-open');
+        document.documentElement.classList.add('booking-policy-open');
+        modal.querySelector('.booking-policy-head button').focus();
     }
 
     function injectFields() {
@@ -249,8 +331,9 @@
         wrapper.className = 'public-form-full booking-v2-fields';
         wrapper.dataset.bookingV2Fields = 'true';
         wrapper.innerHTML = `
+            <div class="booking-account-panel" data-booking-account-panel hidden></div>
             <div class="booking-v2-contact-row">
-                <label class="booking-email-field"><span>Email *</span><input data-booking-email type="email" maxlength="254" autocomplete="email" placeholder="ten@email.com" /></label>
+                <label class="booking-email-field"><span>Email *</span><input data-booking-email type="email" maxlength="254" autocomplete="off" placeholder="ten@email.com" /><small aria-hidden="true">&nbsp;</small></label>
                 <div class="booking-guest-field">
                     <span>Số lượng khách *</span>
                     <div class="booking-guest-stepper"><button type="button" data-guest-minus aria-label="Giảm số khách">−</button><strong data-booking-guest-count>${state.guestCount}</strong><button type="button" data-guest-plus aria-label="Tăng số khách">+</button></div>
@@ -270,6 +353,16 @@
         const email = wrapper.querySelector('[data-booking-email]');
         email.value = state.email || '';
         email.addEventListener('input', () => { state.email = email.value; });
+        const phoneInput = root.querySelector('[data-booking-customer-phone]');
+        if (phoneInput && !phoneInput.dataset.customerAccountBound) {
+            phoneInput.dataset.customerAccountBound = 'true';
+            phoneInput.addEventListener('input', () => {
+                if (!state.authenticatedPhone || normalizePhone(phoneInput.value) === state.authenticatedPhone) return;
+                state.savedIdentity = false;
+                updateSavedIdentityUi();
+            });
+            phoneInput.addEventListener('blur', () => checkCustomerAccount(wrapper));
+        }
         wrapper.querySelector('[data-guest-minus]').addEventListener('click', () => {
             state.guestCount = Math.max(1, state.guestCount - 1);
             updateGuestSummary(wrapper);
@@ -284,7 +377,12 @@
         idGrid.appendChild(createIdentityCard('front', 'Mặt trước'));
         idGrid.appendChild(createIdentityCard('back', 'Mặt sau'));
         updateGuestSummary(wrapper);
-        restoreContact();
+        updateSavedIdentityUi();
+
+        if (root.dataset.customerAuthenticated === 'true' && !state.accountRestoreStarted) {
+            state.accountRestoreStarted = true;
+            restoreCustomerAccount();
+        }
 
         const notice = root.querySelector('.public-booking-notice');
         if (notice) notice.innerHTML = `Sau khi gửi, hệ thống <strong>giữ phòng tạm ${Number(state.policy.publicHoldMinutes || 3)} phút</strong> trên server để tránh người khác đặt trùng. Nhân viên vẫn cần xác nhận lượt đặt.`;
@@ -299,9 +397,44 @@
         if (state.guestCount < 1) return 'Vui lòng chọn số lượng khách.';
         if (state.guestCount > capacity) return `Phòng này tối đa ${capacity} khách.`;
         if (!wrapper.querySelector('[data-policy-accepted]').checked) return `Bạn cần đọc và đồng ý với ${state.policy.policyTitle || 'Nội quy & Chính sách'}.`;
-        if (state.policy.requireIdentityDocuments && (!state.front || !state.back)) return 'Vui lòng chọn ảnh CCCD mặt trước và mặt sau.';
+        if (state.policy.requireIdentityDocuments && !state.savedIdentity && (!state.front || !state.back)) return 'Vui lòng chọn ảnh CCCD mặt trước và mặt sau.';
+        const registrationForm = wrapper.querySelector('[data-quick-register-form]');
+        if (registrationForm && !registrationForm.hidden && !state.accountRegistrationCompleted) {
+            if ((registrationForm.querySelector('[data-quick-new-password]')?.value || '').length < 8)
+                return 'Mật khẩu tài khoản cần ít nhất 8 ký tự.';
+            if (!registrationForm.querySelector('[data-quick-terms]')?.checked)
+                return 'Bạn cần đồng ý điều khoản tài khoản khách.';
+        }
         state.email = email.value.trim();
         return null;
+    }
+
+    async function createPendingCustomerAccount(originalPost) {
+        const wrapper = root.querySelector('[data-booking-v2-fields]');
+        const form = wrapper?.querySelector('[data-quick-register-form]');
+        if (!form || form.hidden || state.accountRegistrationCompleted) return;
+
+        const phone = root.querySelector('[data-booking-customer-phone]')?.value?.trim() || '';
+        const name = root.querySelector('[data-booking-customer-name]')?.value?.trim() || '';
+        const password = form.querySelector('[data-quick-new-password]').value;
+        const query = siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : '';
+        await DeLongApi.refreshAntiforgery();
+        await originalPost(`/api/public/customer-account/register${query}`, {
+            phone,
+            password,
+            name,
+            email: state.email || null,
+            termsAccepted: true,
+            termsVersion: state.accountSettings.termsVersion
+        });
+        await DeLongApi.refreshAntiforgery();
+        const verificationQuery = new URLSearchParams({ phone });
+        if (siteSlug) verificationQuery.set('siteSlug', siteSlug);
+        const verification = await DeLongApi.get(`/api/public/customer-account/status?${verificationQuery}`);
+        if (!(verification.hasAccount ?? verification.exists))
+            throw new Error('Tài khoản chưa được lưu. Yêu cầu đặt phòng chưa được gửi.');
+        state.accountRegistrationCompleted = true;
+        wrapper.querySelector('[data-booking-account-panel]').innerHTML = '<div class="booking-account-success"><strong>Đã tạo tài khoản</strong><small>Yêu cầu đặt phòng đang được gửi…</small></div>';
     }
 
     async function uploadIdentity(bookingId, side, file, requestKey) {
@@ -338,14 +471,15 @@
 
             const validation = validateExtraFields();
             if (validation) throw new Error(validation);
+            await createPendingCustomerAccount(originalPost);
             const payload = {
                 ...data,
                 customerEmail: state.email,
                 guestCount: state.guestCount,
                 policyAccepted: true,
                 policyVersion: Number(state.policy.policyVersion || 1),
-                hasIdentityFront: !!state.front,
-                hasIdentityBack: !!state.back
+                hasIdentityFront: !!state.front || state.savedIdentity,
+                hasIdentityBack: !!state.back || state.savedIdentity
             };
             const result = await originalPost(url, payload, headers);
             const requestKey = headers?.['Idempotency-Key'] || headers?.['idempotency-key'] || '';
@@ -353,7 +487,6 @@
                 if (state.front) await uploadIdentity(result.bookingId, 'front', state.front, requestKey);
                 if (state.back) await uploadIdentity(result.bookingId, 'back', state.back, requestKey);
             }
-            persistContact();
             return result;
         };
         window.DeLongApi.__bookingCoreV2Wrapped = true;
@@ -370,11 +503,14 @@
     observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     document.addEventListener('keydown', event => { if (event.key === 'Escape') closePolicy(); });
     wrapBookingPost();
+    DeLongApi.get(siteSlug ? `/api/public/customer-account/settings?siteSlug=${encodeURIComponent(siteSlug)}` : '/api/public/customer-account/settings')
+        .then(settings => { state.accountSettings = settings; })
+        .catch(() => { state.accountSettings = null; });
     DeLongApi.get(policyUrl)
         .then(policy => {
             state.policy = policy;
             state.guestCount = Math.max(1, Number(policy.includedGuests || 2));
-            state.email = savedContact().email || '';
+            state.email = '';
             injectFields();
         })
         .catch(() => {

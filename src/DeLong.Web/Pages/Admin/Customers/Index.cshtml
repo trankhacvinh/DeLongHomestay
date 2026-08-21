@@ -33,16 +33,17 @@
             <table class="data-table">
                 <thead><tr><th>Khách hàng</th><th>Điện thoại</th><th>Liên hệ / định danh</th><th>Ngày thêm</th><th>Trạng thái</th><th></th></tr></thead>
                 <tbody>
-                    <tr v-for="customer in filteredCustomers" v-bind:key="customer.id">
+                    <tr v-for="customer in filteredCustomers" v-bind:key="customer.id" class="clickable-row" tabindex="0" v-bind:aria-label="`Xem hồ sơ ${customer.name}`" v-on:click="openDetail(customer)" v-on:keydown.enter="openDetail(customer)" v-on:keydown.space.prevent="openDetail(customer)">
                         <td><div class="entity-cell"><span class="entity-avatar">{{ (customer.name || '?').charAt(0) }}</span><div class="entity-copy"><strong>{{ customer.name }}</strong><span>{{ customer.note || 'Chưa có ghi chú' }}</span></div></div></td>
                         <td><strong>{{ customer.phone }}</strong></td>
                         <td><span>{{ customer.email || '—' }}</span><div v-if="customer.identityNumber" class="tiny muted">CCCD/Hộ chiếu: {{ customer.identityNumber }}</div></td>
                         <td>{{ dateText(customer.createdAtUtc) }}</td>
                         <td><span class="pill" v-bind:class="customer.isActive ? 'success' : 'danger'">{{ customer.isActive ? 'Hoạt động' : 'Ngừng' }}</span></td>
                         <td>
+                            <button class="btn btn-light btn-sm row-action" type="button" v-on:click.stop="openDetail(customer)">Chi tiết</button>
                             @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff"))
                             {
-                                <button class="btn btn-light btn-sm row-action" type="button" v-on:click="openEdit(customer)">Chỉnh sửa</button>
+                                <button class="btn btn-light btn-sm row-action" type="button" v-on:click.stop="openEdit(customer)">Chỉnh sửa</button>
                             }
                         </td>
                     </tr>
@@ -51,6 +52,43 @@
             </table>
         </div>
     </section>
+
+    <div class="modal-backdrop" v-if="detail.open" v-on:click.self="closeDetail">
+        <section class="modal-card customer-profile-modal" role="dialog" aria-modal="true" v-bind:aria-label="`Hồ sơ khách hàng ${detail.customer?.name || ''}`">
+            <div class="modal-head">
+                <div><div class="page-eyebrow">Hồ sơ tại cơ sở hiện tại</div><h2>{{ detail.customer?.name }}</h2><p class="small muted">{{ detail.customer?.phone }}</p></div>
+                <button class="icon-btn" type="button" v-on:click="closeDetail" aria-label="Đóng">×</button>
+            </div>
+            <div v-if="detail.loading" class="empty-state"><strong>Đang tải hồ sơ…</strong>Lịch sử đặt phòng đang được tổng hợp.</div>
+            <div v-else-if="detail.error" class="notice danger">{{ detail.error }}</div>
+            <template v-else-if="detail.customer">
+                <div class="customer-profile-grid">
+                    <div><span>Họ tên</span><strong>{{ detail.customer.name }}</strong></div>
+                    <div><span>Điện thoại</span><strong>{{ detail.customer.phone }}</strong></div>
+                    <div><span>Email</span><strong>{{ detail.customer.email || 'Chưa cung cấp' }}</strong></div>
+                    <div><span>CCCD / Hộ chiếu</span><strong>{{ detail.customer.identityNumber || (detail.hasIdentityDocuments ? `Đã có ảnh trong ${detail.identityDocumentBookingCount} booking` : 'Chưa cung cấp') }}</strong></div>
+                    <div class="full"><span>Ghi chú</span><strong>{{ detail.customer.note || 'Chưa có ghi chú' }}</strong></div>
+                </div>
+                <div class="customer-history-head"><div><h3>Lịch sử đặt phòng</h3><span>Chỉ hiển thị booking tại cơ sở đang chọn</span></div><strong>{{ detail.bookings.length }} lượt</strong></div>
+                <div class="customer-history-list" v-if="detail.bookings.length">
+                    <article v-for="booking in detail.bookings" v-bind:key="booking.id" class="customer-history-item">
+                        <div><strong>{{ booking.code }}</strong><span>{{ booking.roomName }} · {{ sourceText(booking.source) }}</span></div>
+                        <div><strong>{{ dateTimeText(booking.checkInUtc) }}</strong><span>đến {{ dateTimeText(booking.checkOutUtc) }}</span></div>
+                        <span class="pill" v-bind:class="statusClass(booking.status)">{{ statusText(booking.status) }}</span>
+                        <div class="customer-history-money"><strong>{{ money(booking.totalAmount) }}</strong><span>Còn {{ money(booking.balanceAmount) }}</span></div>
+                    </article>
+                </div>
+                <div v-else class="empty-state"><strong>Khách chưa có lượt đặt</strong>Lịch sử sẽ xuất hiện sau khi khách có booking tại cơ sở này.</div>
+            </template>
+            <div class="modal-actions">
+                <button class="btn btn-light" type="button" v-on:click="closeDetail">Đóng</button>
+                @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff"))
+                {
+                    <button class="btn btn-primary" type="button" v-if="detail.customer" v-on:click="editFromDetail">Chỉnh sửa hồ sơ</button>
+                }
+            </div>
+        </section>
+    </div>
 
     <div class="modal-backdrop" v-if="editor.open" v-on:click.self="closeEditor">
         <section class="modal-card customer-form" role="dialog" aria-modal="true">

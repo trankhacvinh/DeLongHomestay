@@ -24,6 +24,7 @@ Cập nhật cho production sau Admin UI redesign và branch `agent/public-booki
 - PostgreSQL exclusion constraint chống overlap + `23P01` → `409`.
 - Payment Receipt/Refund + void; Paid/Balance từ ledger.
 - Housekeeping Clean/Dirty/Cleaning; checkout → Dirty.
+- Housekeeping Schedule V2 theo ngày: chuẩn bị đón khách/sau trả phòng, realtime và xuất văn bản gửi lao công.
 - Expense + void, Finance, Reports.
 - Audit timeline cho Booking.
 - Admin UI/UX desktop/mobile đã visual UAT và merge.
@@ -49,6 +50,8 @@ Cập nhật cho production sau Admin UI redesign và branch `agent/public-booki
 3. `AddHousekeepingState`
 4. `AddAuditAndExpenses`
 5. data-only migration sửa preset seed theo Excel gốc
+
+Các migration tiếp theo đã bổ sung booking/public/CMS và `AddHousekeepingScheduleOffsets`; migration offset thêm hai số phút theo cơ sở với mặc định `0` và constraint `0–1440`.
 
 Public booking hiện không cần schema migration mới.
 

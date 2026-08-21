@@ -50,7 +50,7 @@
             <table class="data-table responsive-booking-table">
                 <thead><tr><th>Mã</th><th>Khách hàng</th><th>Phòng</th><th>Thời gian</th><th>Trạng thái</th><th>Thanh toán</th><th>Còn lại</th><th></th></tr></thead>
                 <tbody>
-                    <tr v-for="booking in filteredBookings" v-bind:key="booking.id">
+                    <tr v-for="booking in filteredBookings" v-bind:key="booking.id" class="clickable-row" tabindex="0" v-bind:aria-label="`Xem chi tiết ${booking.code}`" v-on:click="openBooking(booking)" v-on:keydown.enter="openBooking(booking)" v-on:keydown.space.prevent="openBooking(booking)">
                         <td data-label="Mã"><span class="booking-code">{{ booking.code }}</span><div class="tiny muted">{{ sourceText(booking.source) }}</div></td>
                         <td data-label="Khách hàng">
                             <div class="entity-cell"><span class="entity-avatar">{{ (booking.customerName || '?').charAt(0) }}</span><div class="entity-copy"><strong>{{ booking.customerName }}</strong><span>{{ booking.customerPhone }}</span></div></div>
@@ -60,7 +60,7 @@
                         <td data-label="Trạng thái"><span class="pill" v-bind:class="statusClass(booking.status)">{{ statusText(booking.status) }}</span></td>
                         <td data-label="Thanh toán"><div class="money-stack"><strong>{{ money(booking.totalAmount) }}</strong><span>Đã thu {{ money(booking.paidAmount) }}</span></div></td>
                         <td data-label="Còn lại"><strong class="booking-balance" v-bind:class="{ 'text-success': booking.balanceAmount <= 0, 'text-danger': booking.balanceAmount > 0 }">{{ money(booking.balanceAmount) }}</strong></td>
-                        <td data-label="Thao tác"><button class="btn btn-light btn-sm row-action" type="button" v-on:click="openBooking(booking)">Chi tiết</button></td>
+                        <td data-label="Thao tác"><button class="btn btn-light btn-sm row-action" type="button" v-on:click.stop="openBooking(booking)">Chi tiết</button></td>
                     </tr>
                     <tr v-if="filteredBookings.length === 0" class="booking-empty-row"><td colspan="8" class="empty-state"><strong>Không tìm thấy lượt đặt</strong>Thử đổi từ khóa hoặc bộ lọc trạng thái.</td></tr>
                 </tbody>
@@ -78,6 +78,24 @@
                 <div><span>Khách hàng</span><strong>{{ selectedBooking.customerName }}</strong><span>{{ selectedBooking.customerPhone }} · {{ dateTimeText(selectedBooking.checkInUtc) }}</span></div>
                 <span class="pill" v-bind:class="statusClass(selectedBooking.status)">{{ statusText(selectedBooking.status) }}</span>
             </div>
+            <section class="admin-booking-detail-panel" data-native-booking-guest-details>
+                <div class="admin-booking-detail-head"><div><strong>Thông tin người đặt</strong><small>Email, số khách và giấy tờ khách đã cung cấp</small></div><span>{{ sourceText(selectedBooking.source) }}</span></div>
+                <div v-if="guestDetails.loading" class="admin-booking-details-loading">Đang tải email, số khách và CCCD…</div>
+                <div v-else-if="guestDetails.error" class="admin-booking-details-error"><strong>Không tải được thông tin người đặt.</strong><span>{{ guestDetails.error }}</span></div>
+                <template v-else>
+                    <div class="admin-booking-guest-grid">
+                        <div class="is-primary"><span>Họ tên</span><strong>{{ selectedBooking.customerName }}</strong></div>
+                        <div class="is-primary"><span>Số điện thoại</span><strong>{{ selectedBooking.customerPhone }}</strong></div>
+                        <div><span>Email</span><strong>{{ guestDetails.customerEmail || 'Không cung cấp' }}</strong></div>
+                        <div><span>Số khách</span><strong>{{ guestDetails.guestCount || 1 }} khách</strong><small>Tối đa {{ guestDetails.maxGuests || 1 }} khách/phòng</small></div>
+                    </div>
+                    <div class="admin-booking-policy-state" v-bind:class="{ 'is-staff': !guestDetails.policyAccepted }">{{ guestDetails.policyAccepted ? 'Đã đồng ý Nội quy & Chính sách' : (String(selectedBooking.source || '').toLowerCase() === 'website' ? 'Booking web chưa đồng bộ đủ xác nhận chính sách' : 'Booking do nhân viên tạo') }}</div>
+                    <div class="admin-booking-id-title"><strong>CCCD / giấy tờ tùy thân</strong><span>{{ guestDetails.documents.length }}/2 ảnh</span></div>
+                    <div class="admin-booking-detail-id-grid">
+                        <div class="admin-booking-detail-id" v-for="side in ['front', 'back']" v-bind:key="side"><strong>{{ side === 'front' ? 'Mặt trước' : 'Mặt sau' }}</strong><a v-if="hasIdentity(side)" v-bind:href="identityUrl(selectedBooking.id, side)" target="_blank" rel="noopener"><img v-bind:src="identityUrl(selectedBooking.id, side)" v-bind:alt="side === 'front' ? 'CCCD mặt trước' : 'CCCD mặt sau'" /></a><span v-else class="empty">Chưa có ảnh</span></div>
+                    </div>
+                </template>
+            </section>
             <div class="payment-summary-grid">
                 <div class="payment-summary-card"><span>Tổng tiền phòng</span><strong>{{ money(selectedBooking.totalAmount) }}</strong></div>
                 <div class="payment-summary-card"><span>Đã thanh toán</span><strong class="text-success">{{ money(selectedBooking.paidAmount) }}</strong></div>
@@ -87,6 +105,7 @@
                 <div><span>Kiểu đặt</span><strong>{{ selectedBooking.type === 1 ? 'Lưu trú nhiều ngày' : 'Theo khung giờ' }}</strong></div>
                 <div><span>Phòng</span><strong>{{ selectedBooking.roomName }}</strong></div>
                 <div v-if="selectedBooking.type === 1"><span>Giá lưu trú</span><strong>{{ selectedBooking.nightCount }} đêm × {{ money(selectedBooking.unitPrice) }}</strong></div>
+                <div v-if="selectedBooking.rateName"><span>Mức giá</span><strong>{{ selectedBooking.rateName }}</strong></div>
                 <div><span>Thời gian</span><strong>{{ dateTimeText(selectedBooking.checkInUtc) }} → {{ dateTimeText(selectedBooking.checkOutUtc) }}</strong></div>
                 <div v-if="selectedBooking.note"><span>Ghi chú</span><strong>{{ selectedBooking.note }}</strong></div>
             </div>

@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
+using System.Net;
 using System.Text.Json;
 using DeLong.Web.Common.Operations;
+using Ganss.Xss;
 
 namespace DeLong.Web.Features.PublicBooking;
 
@@ -30,6 +32,7 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
     public const int HoldMinutes = 3;
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> Gates = new();
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    private static readonly HtmlSanitizer PolicySanitizer = CreatePolicySanitizer();
     private readonly string root = Path.Combine(paths.DataRoot, "booking-settings");
 
     public async Task<BookingPolicyDto> GetAsync(Guid propertyId, CancellationToken cancellationToken = default)
@@ -59,7 +62,8 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
             return (null, "Kho CCCD chưa thể tạo hoặc đọc khóa mã hóa trong DataRoot. Hãy kiểm tra quyền ghi DataRoot/security hoặc khôi phục DataRoot đầy đủ từ bản sao lưu.");
 
         var title = Clean(request.PolicyTitle, 200) ?? "Nội quy & Chính sách";
-        var text = Clean(request.PolicyText, 20_000) ?? DefaultPolicyText;
+        if ((request.PolicyText?.Length ?? 0) > 20_000) return (null, "Nội dung Nội quy & Chính sách tối đa 20.000 ký tự.");
+        var text = NormalizePolicyHtml(request.PolicyText);
         var gate = Gates.GetOrAdd(propertyId, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(cancellationToken);
         try
@@ -110,7 +114,7 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
             100_000m,
             true,
             "Nội quy & Chính sách",
-            DefaultPolicyText,
+            NormalizePolicyHtml(DefaultPolicyText),
             1,
             HoldMinutes,
             encryptionReady);
@@ -126,7 +130,7 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
             Math.Clamp(stored.ExtraGuestFeePerPerson, 0m, 10_000_000m),
             true,
             Clean(stored.PolicyTitle, 200) ?? "Nội quy & Chính sách",
-            Clean(stored.PolicyText, 20_000) ?? DefaultPolicyText,
+            NormalizePolicyHtml(stored.PolicyText),
             Math.Max(1, stored.PolicyVersion),
             HoldMinutes,
             encryptionReady);
@@ -142,6 +146,36 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
         if (string.IsNullOrWhiteSpace(value)) return null;
         var clean = value.Trim();
         return clean.Length <= maxLength ? clean : clean[..maxLength];
+    }
+
+    internal static string NormalizePolicyHtml(string? value)
+    {
+        var source = Clean(value, 20_000) ?? DefaultPolicyText;
+        if (!source.Contains('<', StringComparison.Ordinal))
+        {
+            var encoded = WebUtility.HtmlEncode(source)
+                .Replace("\r\n", "\n", StringComparison.Ordinal)
+                .Replace("\r", "\n", StringComparison.Ordinal)
+                .Replace("\n", "<br>", StringComparison.Ordinal);
+            source = $"<p>{encoded}</p>";
+        }
+
+        var sanitized = PolicySanitizer.Sanitize(source).Trim();
+        return string.IsNullOrWhiteSpace(sanitized) ? $"<p>{WebUtility.HtmlEncode(DefaultPolicyText)}</p>" : sanitized;
+    }
+
+    private static HtmlSanitizer CreatePolicySanitizer()
+    {
+        var sanitizer = new HtmlSanitizer();
+        sanitizer.AllowedTags.Clear();
+        foreach (var tag in new[] { "p", "br", "strong", "b", "em", "i", "u", "h2", "h3", "ul", "ol", "li", "a", "blockquote" })
+            sanitizer.AllowedTags.Add(tag);
+        sanitizer.AllowedAttributes.Clear();
+        foreach (var attribute in new[] { "href", "target", "rel", "title" })
+            sanitizer.AllowedAttributes.Add(attribute);
+        sanitizer.AllowedSchemes.Clear();
+        foreach (var scheme in new[] { "http", "https", "mailto", "tel" }) sanitizer.AllowedSchemes.Add(scheme);
+        return sanitizer;
     }
 
     private const string DefaultPolicyText = "Khách vui lòng cung cấp thông tin đặt phòng chính xác, giữ gìn tài sản và tuân thủ hướng dẫn nhận/trả phòng của cơ sở. Vui lòng liên hệ cơ sở nếu cần thay đổi giờ hoặc số lượng khách.";

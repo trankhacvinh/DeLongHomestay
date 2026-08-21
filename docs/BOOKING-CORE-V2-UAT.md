@@ -16,13 +16,14 @@ Nếu đã từng UAT bản cũ với `Security__IdentityDocumentEncryptionKeyBa
 
 ## Quy tắc booking public
 
-1. Admin → Cấu hình → Quy tắc đặt phòng online.
+1. Admin → Cấu hình → tab **Đặt phòng online**.
 2. Đặt `Đặt tối đa = 3 đêm`, `Đã gồm trong giá = 2 khách`, `Phụ thu = 100.000đ`.
-3. Nhập Nội quy & Chính sách và lưu.
-4. Thử đặt public 4 đêm → phải bị từ chối.
-5. Với phòng sức chứa 5: đặt 3 khách → phụ thu 100.000đ; 5 khách → phụ thu 300.000đ; 6 khách → bị từ chối.
-6. Sau khi gửi thành công, booking chuyển sang **Giữ phòng** trong 3 phút. Một lượt public khác không được đặt trùng khoảng thời gian đó.
-7. Sau khi hold hết hạn, lần kiểm tra availability tiếp theo phải giải phóng hold về **Yêu cầu** và khung được mở lại nếu chưa được nhân viên xác nhận.
+3. Nhập Nội quy & Chính sách bằng trình soạn thảo Quill ở chế độ Trực quan; thử tiêu đề, chữ đậm và danh sách rồi lưu.
+4. Mở form đặt phòng public, bấm Nội quy & Chính sách và xác nhận định dạng đã soạn hiển thị đúng, không hiện mã HTML.
+5. Thử đặt public 4 đêm → phải bị từ chối.
+6. Với phòng sức chứa 5: đặt 3 khách → phụ thu 100.000đ; 5 khách → phụ thu 300.000đ; 6 khách → bị từ chối.
+7. Sau khi gửi thành công, booking chuyển sang **Giữ phòng** trong 3 phút. Một lượt public khác không được đặt trùng khoảng thời gian đó.
+8. Sau khi hold hết hạn, lần kiểm tra availability tiếp theo phải giải phóng hold về **Yêu cầu** và khung được mở lại nếu chưa được nhân viên xác nhận.
 
 ## Thông tin khách đặt từ website
 

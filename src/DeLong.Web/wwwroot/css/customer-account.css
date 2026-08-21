@@ -1,0 +1,58 @@
+.customer-account-page { min-height: 70vh; padding: clamp(32px, 4vw, 58px) 20px 72px; background: #f5f8f7; }
+.customer-account-shell { width: min(1120px, 100%); margin: 0 auto; display: grid; gap: 20px; }
+.customer-account-shell.is-auth-view { grid-template-columns: minmax(0, .82fr) minmax(440px, 1fr); gap: clamp(42px, 6vw, 86px); align-items: start; }
+.customer-account-brand { max-width: 760px; }
+.customer-account-brand > span { color: #195b5e; font-weight: 800; letter-spacing: .18em; font-size: .78rem; }
+.customer-account-page .customer-account-brand h1 { margin: 10px 0 14px; font-size: clamp(2.25rem, 4vw, 3.65rem) !important; line-height: 1.02; letter-spacing: -.045em; text-wrap: balance; }
+.customer-account-brand p { margin: 0; color: #657574; font-size: 1.02rem; line-height: 1.65; }
+.customer-account-shell.is-auth-view .customer-account-brand { padding-top: 36px; }
+.customer-account-shell.is-auth-view .customer-account-brand h1 { max-width: 9ch; }
+.customer-auth-benefits { display: grid; gap: 0; margin-top: 34px; border-top: 1px solid #d5e1de; }
+.customer-auth-benefits > div { display: grid; grid-template-columns: 38px 1fr; gap: 12px; align-items: center; padding: 15px 0; border-bottom: 1px solid #d5e1de; color: #405552; }
+.customer-auth-benefits strong { color: #1c6d69; font-size: .72rem; letter-spacing: .08em; }
+.customer-auth-benefits span { font-size: .92rem; font-weight: 700; line-height: 1.4; }
+.customer-account-card { padding: clamp(22px, 4vw, 36px); border: 1px solid #d8e3e0; border-radius: 24px; background: #fff; }
+.customer-account-card h2, .customer-account-card h3 { margin-top: 0; }
+.customer-account-card-head, .customer-account-summary, .customer-history-item { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+.customer-account-summary { display: grid; grid-template-columns: repeat(3, 1fr); }
+.customer-account-summary > div { display: grid; gap: 4px; padding: 22px; border-radius: 20px; background: #eaf5f1; }
+.customer-account-summary span, .customer-booking-list span, .customer-point-list span { color: #6d7c7a; }
+.customer-account-summary strong { font-size: 1.7rem; color: #195b5e; }
+.customer-auth-card { width: 100%; padding: 30px; border-radius: 20px; box-shadow: 0 18px 48px rgba(20, 62, 57, .07); }
+.customer-auth-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+.customer-auth-tabs button, .customer-auth-switch { border: 0; background: transparent; color: #52615f; font-weight: 750; padding: 10px 14px; cursor: pointer; }
+.customer-auth-tabs button.active { color: #195b5e; border-bottom: 3px solid #195b5e; }
+.customer-auth-form, .customer-security-grid > div { display: grid; gap: 14px; }
+.customer-auth-form label { display: grid; gap: 7px; font-weight: 700; }
+.customer-auth-form input, .customer-security-grid input, .customer-authenticator-body input { width: 100%; min-height: 52px; padding: 0 14px; border: 1px solid #cbd9d6; border-radius: 12px; font-size: 1rem; }
+.customer-auth-form .btn-primary { min-height: 52px; margin-top: 2px; }
+.customer-staff-login { display: flex; justify-content: space-between; gap: 14px; align-items: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid #e0e8e5; color: #71807d; font-size: .84rem; }
+.customer-staff-login a { color: #195b5e; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.customer-staff-login a:hover { text-decoration: underline; }
+.customer-terms-check { grid-template-columns: auto 1fr !important; align-items: start; font-weight: 500 !important; }
+.customer-terms-check input { width: 20px; min-height: 20px; }
+.customer-terms-check button { border: 0; background: transparent; color: #195b5e; text-decoration: underline; cursor: pointer; }
+.customer-booking-list, .customer-point-list { display: grid; }
+.customer-booking-list article { display: grid; grid-template-columns: 1.3fr 1fr .8fr; gap: 20px; padding: 16px 0; border-bottom: 1px solid #e1e8e6; }
+.customer-booking-list article > div { display: grid; gap: 4px; }
+.customer-security-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.customer-security-grid > div { padding: 20px; border: 1px solid #dfe8e6; border-radius: 18px; }
+.customer-point-list > div { display: flex; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid #e1e8e6; }
+.customer-point-list .positive { color: #237b5e; }.customer-point-list .negative { color: #b94545; }
+.customer-terms-modal { width: min(820px, calc(100vw - 32px)); }.customer-terms-copy { padding: 24px 32px; max-height: 60vh; overflow: auto; }
+.customer-authenticator-body { display: grid; gap: 14px; padding: 24px 32px; }.customer-authenticator-body code { display: block; padding: 12px; border-radius: 10px; background: #eef4f2; overflow-wrap: anywhere; }
+@media (max-width: 900px) { .customer-account-shell.is-auth-view { grid-template-columns: 1fr; gap: 28px; }.customer-account-shell.is-auth-view .customer-account-brand { padding-top: 0; }.customer-account-shell.is-auth-view .customer-account-brand h1 { max-width: none; }.customer-auth-benefits { grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 24px; border: 0; }.customer-auth-benefits > div { grid-template-columns: 1fr; align-content: start; padding: 14px; border: 1px solid #d5e1de; border-radius: 12px; } }
+@media (max-width: 700px) { .customer-account-page { padding: 28px 14px 54px; }.customer-account-page .customer-account-brand h1 { font-size: clamp(2rem, 11vw, 2.8rem) !important; }.customer-auth-benefits { grid-template-columns: 1fr; }.customer-account-summary, .customer-security-grid { grid-template-columns: 1fr; }.customer-booking-list article { grid-template-columns: 1fr; }.customer-auth-card { padding: 22px 18px; }.customer-staff-login { align-items: flex-start; flex-direction: column; } }
+.customer-identity-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.customer-identity-head p{margin-bottom:0;color:#657574}
+.customer-identity-head>span{flex:0 0 auto;padding:8px 12px;border-radius:999px;background:#e7f5ef;color:#21775b;font-size:.82rem;font-weight:800}
+.customer-identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:24px}
+.customer-identity-picker{position:relative;min-height:260px;border:2px dashed #b9d1cc;border-radius:20px;background:#fbfdfc;overflow:hidden;cursor:pointer;display:grid;place-items:center;transition:border-color .16s ease,background .16s ease,transform .16s ease}
+.customer-identity-picker:hover{border-color:#247b78;background:#f4faf8;transform:translateY(-1px)}
+.customer-identity-picker.loading{opacity:.65;pointer-events:none}
+.customer-identity-picker>span{display:grid;justify-items:center;gap:7px;color:#526763}
+.customer-identity-picker>span b{font-size:2rem;color:#247b78}.customer-identity-picker>span strong{font-size:1.15rem}.customer-identity-picker>span small{color:#81918e}
+.customer-identity-picker img{width:100%;height:100%;min-height:260px;object-fit:contain;background:#edf4f2}
+.customer-identity-picker em{position:absolute;left:12px;bottom:12px;padding:7px 10px;border-radius:999px;background:#1e705b;color:#fff;font-size:.76rem;font-style:normal;font-weight:800;box-shadow:0 6px 18px rgba(16,74,62,.2)}
+.customer-identity-privacy{margin:14px 0 0;color:#71817e;font-size:.9rem}
+@media (max-width:700px){.customer-identity-head{display:grid}.customer-identity-grid{grid-template-columns:1fr}.customer-identity-picker,.customer-identity-picker img{min-height:220px}}

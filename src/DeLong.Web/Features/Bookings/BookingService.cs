@@ -96,6 +96,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         {
             var room = await db.Rooms.SingleAsync(x => x.PropertyId == propertyId && x.Id == booking.RoomId, cancellationToken);
             room.HousekeepingStatus = HousekeepingStatus.Dirty; room.HousekeepingUpdatedAtUtc = DateTime.UtcNow; room.HousekeepingUpdatedByUserId = actorUserId;
+            await AwardLoyaltyPointsAsync(booking, cancellationToken);
         }
         auditService.Add(propertyId, "Booking", booking.Id, "StatusChanged", actorUserId, before, Snapshot(booking));
         var saveError = await SaveWithConflictGuardAsync(cancellationToken); if (saveError is not null) return (null, saveError);
@@ -140,6 +141,29 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         x.Source, x.Note, x.CreatedAtUtc));
 
     private static object Snapshot(Booking b) => new { b.Id, b.Code, Type = b.Type.ToString(), b.RoomId, b.CustomerId, b.RoomRateId, b.RateName, b.UnitPrice, b.NightCount, b.CheckInUtc, b.CheckOutUtc, Status = b.Status.ToString(), b.RoomAmount, b.ExtraAmount, b.DiscountAmount, b.Source, b.Note };
+
+    private async Task AwardLoyaltyPointsAsync(Booking booking, CancellationToken cancellationToken)
+    {
+        if (await db.LoyaltyLedgerEntries.AnyAsync(x => x.BookingId == booking.Id, cancellationToken)) return;
+        var settings = await db.CustomerAccountSettings.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.PropertyId == booking.PropertyId && x.LoyaltyEnabled, cancellationToken);
+        if (settings is null) return;
+        var userId = await db.CustomerAccountLinks.AsNoTracking()
+            .Where(x => x.PropertyId == booking.PropertyId && x.CustomerId == booking.CustomerId)
+            .Select(x => (Guid?)x.UserId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (!userId.HasValue) return;
+        var points = (int)decimal.Floor(booking.TotalAmount / settings.LoyaltySpendPerPoint);
+        if (points <= 0) return;
+        db.LoyaltyLedgerEntries.Add(new LoyaltyLedgerEntry
+        {
+            UserId = userId.Value,
+            PropertyId = booking.PropertyId,
+            BookingId = booking.Id,
+            Points = points,
+            Reason = $"Hoàn tất booking {booking.Code}"
+        });
+    }
 
     private static BookingOperationError? ValidateCreate(CreateBookingRequest r)
     {

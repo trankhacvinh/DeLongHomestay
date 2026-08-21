@@ -38,6 +38,13 @@ public sealed class AppDbContext
     public DbSet<PropertyNotificationSettings> PropertyNotificationSettings => Set<PropertyNotificationSettings>();
     public DbSet<NotificationEmailOutbox> NotificationEmailOutbox => Set<NotificationEmailOutbox>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
+    public DbSet<CustomerAccountLink> CustomerAccountLinks => Set<CustomerAccountLink>();
+    public DbSet<CustomerAccountSettings> CustomerAccountSettings => Set<CustomerAccountSettings>();
+    public DbSet<CustomerAccountTermsAcceptance> CustomerAccountTermsAcceptances => Set<CustomerAccountTermsAcceptance>();
+    public DbSet<LoyaltyLedgerEntry> LoyaltyLedgerEntries => Set<LoyaltyLedgerEntry>();
+    public DbSet<RoomConditionReport> RoomConditionReports => Set<RoomConditionReport>();
+    public DbSet<RoomConditionReportImage> RoomConditionReportImages => Set<RoomConditionReportImage>();
+    public DbSet<RoomConditionTag> RoomConditionTags => Set<RoomConditionTag>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,6 +56,17 @@ public sealed class AppDbContext
             entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
             entity.Property(x => x.TimeZoneId).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.HousekeepingBeforeCheckInMinutes).HasDefaultValue(0).IsRequired();
+            entity.Property(x => x.HousekeepingAfterCheckOutMinutes).HasDefaultValue(0).IsRequired();
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_properties_housekeeping_before_check_in_minutes",
+                    "housekeeping_before_check_in_minutes BETWEEN 0 AND 1440");
+                table.HasCheckConstraint(
+                    "ck_properties_housekeeping_after_check_out_minutes",
+                    "housekeeping_after_check_out_minutes BETWEEN 0 AND 1440");
+            });
         });
 
         modelBuilder.Entity<Room>(entity =>
@@ -58,6 +76,41 @@ public sealed class AppDbContext
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
             entity.Property(x => x.HousekeepingStatus).HasConversion<string>().HasMaxLength(20).HasDefaultValue(HousekeepingStatus.Clean).IsRequired();
             entity.HasOne(x => x.Property).WithMany(x => x.Rooms).HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<RoomConditionReport>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.CreatedAtUtc });
+            entity.HasIndex(x => new { x.RoomId, x.CreatedAtUtc });
+            entity.Property(x => x.InspectionType).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(x => x.Severity).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Content).HasMaxLength(4000).IsRequired();
+            entity.Property(x => x.TagsJson).HasColumnType("jsonb").IsRequired();
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Room).WithMany().HasForeignKey(x => x.RoomId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.ReportedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<RoomConditionReportImage>(entity =>
+        {
+            entity.HasIndex(x => new { x.ReportId, x.SortOrder });
+            entity.Property(x => x.OriginalFileName).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.OriginalStoragePath).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.LargePath).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.CardPath).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.ThumbnailPath).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(100).IsRequired();
+            entity.HasOne(x => x.Report).WithMany(x => x.Images).HasForeignKey(x => x.ReportId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RoomConditionTag>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.NormalizedName }).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.NormalizedName).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Category).HasMaxLength(80).IsRequired();
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<RoomRate>(entity =>
@@ -79,6 +132,44 @@ public sealed class AppDbContext
             entity.Property(x => x.IdentityNumber).HasMaxLength(100);
             entity.Property(x => x.Note).HasMaxLength(2000);
             entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CustomerAccountLink>(entity =>
+        {
+            entity.HasKey(x => new { x.UserId, x.PropertyId, x.CustomerId });
+            entity.HasIndex(x => new { x.UserId, x.PropertyId }).IsUnique();
+            entity.HasIndex(x => x.CustomerId).IsUnique();
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CustomerAccountSettings>(entity =>
+        {
+            entity.HasIndex(x => x.PropertyId).IsUnique();
+            entity.Property(x => x.LoyaltySpendPerPoint).HasDefaultValue(10_000).IsRequired();
+            entity.Property(x => x.BenefitText).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.TermsTitle).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.TermsHtml).HasColumnType("text").IsRequired();
+            entity.HasOne(x => x.Property).WithOne().HasForeignKey<CustomerAccountSettings>(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+            entity.ToTable(table => table.HasCheckConstraint("ck_customer_account_settings_spend_per_point", "loyalty_spend_per_point BETWEEN 1 AND 1000000000"));
+        });
+
+        modelBuilder.Entity<CustomerAccountTermsAcceptance>(entity =>
+        {
+            entity.HasIndex(x => new { x.UserId, x.PropertyId, x.TermsVersion }).IsUnique();
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LoyaltyLedgerEntry>(entity =>
+        {
+            entity.HasIndex(x => new { x.UserId, x.PropertyId, x.CreatedAtUtc });
+            entity.HasIndex(x => x.BookingId).IsUnique().HasFilter("\"booking_id\" IS NOT NULL");
+            entity.Property(x => x.Reason).HasMaxLength(500).IsRequired();
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Booking).WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Booking>(entity =>
