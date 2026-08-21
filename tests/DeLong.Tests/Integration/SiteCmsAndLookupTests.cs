@@ -172,7 +172,8 @@ public sealed class SiteCmsAndLookupTests
             Slug = $"lookup-{suffix}",
             Capacity = 2,
             IsActive = true,
-            IsPublished = true
+            IsPublished = true,
+            GuestGuideHtml = "<h2>Check-in</h2><p>Mở khóa tại quầy lễ tân.</p>"
         };
         var customer = new Customer
         {
@@ -246,8 +247,20 @@ public sealed class SiteCmsAndLookupTests
         Assert.Equal(120_000m, found.PaidAmount);
         Assert.Equal(210_000m, found.Balance);
         Assert.Equal("0352291921", found.PropertyPhone);
+        Assert.Contains("Mở khóa tại quầy lễ tân", found.GuestGuideHtml);
+
+        var guide = await service.GetSuccessGuideAsync(null, booking.Code);
+        Assert.NotNull(guide);
+        var pdf = BookingGuestGuidePdf.Create(guide!);
+        Assert.True(pdf.Length > 500);
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
 
         Assert.Null(await service.LookupAsync(booking.Code, "0900000000"));
         Assert.Null(await service.LookupAsync("BK-NOT-FOUND", customer.Phone));
+
+        booking.Status = BookingStatus.Completed;
+        await db.SaveChangesAsync();
+        Assert.Null(await service.LookupAsync(booking.Code, customer.Phone));
+        Assert.Null(await service.GetSuccessGuideAsync(null, booking.Code));
     }
 }

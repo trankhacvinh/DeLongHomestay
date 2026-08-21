@@ -131,6 +131,7 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
         room.Slug = slug;
         room.ShortDescription = shortDescription;
         room.DescriptionHtml = string.IsNullOrWhiteSpace(request.DescriptionHtml) ? null : SanitizeDescription(request.DescriptionHtml);
+        room.GuestGuideHtml = string.IsNullOrWhiteSpace(request.GuestGuideHtml) ? null : SanitizeDescription(request.GuestGuideHtml);
         room.IsPublished = request.IsPublished;
 
         await SyncAmenitiesAsync(room, amenities.Items, cancellationToken);
@@ -374,7 +375,7 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static RoomContentDto ToDto(Room room) => new(
-        room.Id, room.Code, room.Name, room.Capacity, room.Slug ?? CreateSlug(room.Name), room.ShortDescription, room.DescriptionHtml, room.IsPublished,
+        room.Id, room.Code, room.Name, room.Capacity, room.Slug ?? CreateSlug(room.Name), room.ShortDescription, room.DescriptionHtml, room.GuestGuideHtml, room.IsPublished,
         room.Amenities.Where(x => x.Amenity.IsActive).Select(x => x.Amenity.Name).OrderBy(x => x).ToList(),
         room.Tags.Where(x => x.RoomTag.IsActive).Select(x => x.RoomTag.Name).OrderBy(x => x).ToList(),
         room.Highlights.OrderBy(x => x.SortOrder).Select(x => x.Text).ToList(),

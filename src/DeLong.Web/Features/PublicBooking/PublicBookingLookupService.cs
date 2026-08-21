@@ -28,7 +28,10 @@ public sealed record PublicBookingLookupDto(
     decimal Balance,
     string PropertyName,
     string PropertyPhone,
-    string PropertyAddress);
+    string PropertyAddress,
+    string? GuestGuideHtml);
+
+public sealed record PublicBookingGuideDto(string Code, string RoomName, string? GuestGuideHtml);
 
 public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyResolver? resolver = null)
 {
@@ -47,7 +50,8 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
         if (code.Length is < 8 or > 50 || phone.Length < 8) return null;
 
         var booking = await db.Bookings.AsNoTracking()
-            .Where(x => x.PropertyId == property.Id && x.Code == code && x.Customer.NormalizedPhone == phone)
+            .Where(x => x.PropertyId == property.Id && x.Code == code && x.Customer.NormalizedPhone == phone &&
+                        x.Status != BookingStatus.Completed && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
             .Select(x => new
             {
                 x.Code,
@@ -61,6 +65,7 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
                 x.DiscountAmount,
                 CustomerName = x.Customer.Name,
                 RoomName = x.Room.Name,
+                x.Room.GuestGuideHtml,
                 PropertyName = x.Property.Name,
                 x.Property.TimeZoneId,
                 Payments = x.Payments.Where(p => !p.IsVoided).Select(p => new { p.Type, p.Amount }).ToList()
@@ -94,7 +99,24 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
             total - paid,
             string.IsNullOrWhiteSpace(site?.SiteName) ? booking.PropertyName : site.SiteName,
             site?.Phone ?? string.Empty,
-            site?.Address ?? string.Empty);
+            site?.Address ?? string.Empty,
+            booking.GuestGuideHtml);
+    }
+
+    public async Task<PublicBookingGuideDto?> GetSuccessGuideAsync(
+        string? siteSlug,
+        string rawCode,
+        CancellationToken ct = default)
+    {
+        var property = await publicPropertyResolver.ResolveAsync(siteSlug, ct);
+        if (property is null) return null;
+        var code = (rawCode ?? string.Empty).Trim().ToUpperInvariant();
+        if (code.Length is < 8 or > 50) return null;
+        return await db.Bookings.AsNoTracking()
+            .Where(x => x.PropertyId == property.Id && x.Code == code &&
+                        x.Status != BookingStatus.Completed && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
+            .Select(x => new PublicBookingGuideDto(x.Code, x.Room.Name, x.Room.GuestGuideHtml))
+            .SingleOrDefaultAsync(ct);
     }
 
     public static string StatusLabel(BookingStatus status) => status switch

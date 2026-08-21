@@ -91,6 +91,7 @@ public sealed class StaffAccountFlowTests
             admin.Id,
             new CreateStaffAccountRequest(
                 "Nhân viên Test",
+                $"staff-{suffix}",
                 staffEmail,
                 StaffRoles.Staff,
                 [property.Id],
@@ -120,6 +121,7 @@ public sealed class StaffAccountFlowTests
             staffUser!.Id,
             new UpdateStaffAccountRequest(
                 "Nhân viên Dọn phòng",
+                $"staff-{suffix}",
                 staffEmail,
                 StaffRoles.Housekeeping,
                 [property.Id],
@@ -151,6 +153,7 @@ public sealed class StaffAccountFlowTests
             admin.Id,
             new UpdateStaffAccountRequest(
                 admin.DisplayName,
+                admin.UserName!,
                 admin.Email!,
                 StaffRoles.Manager,
                 [property.Id],
@@ -162,6 +165,7 @@ public sealed class StaffAccountFlowTests
             admin.Id,
             new UpdateStaffAccountRequest(
                 admin.DisplayName,
+                admin.UserName!,
                 admin.Email!,
                 StaffRoles.Admin,
                 [property.Id],

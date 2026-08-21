@@ -2,6 +2,17 @@
 
 Dùng checklist này sau khi apply migrations/seed trên `delong_dev`.
 
+## Tài khoản khách và tích điểm
+
+- [ ] Đăng ký bằng số điện thoại/mật khẩu và đồng ý đúng phiên bản điều khoản.
+- [ ] Đăng nhập bằng mật khẩu và TOTP; nhập sai phải tăng bộ đếm khóa.
+- [ ] Tải CCCD hai mặt, tải lại hồ sơ và chỉ thấy trạng thái “Đã có”.
+- [ ] Đặt phòng khi đã đăng nhập và xác nhận quản trị đọc được bản CCCD mã hóa của booking.
+- [ ] Tắt tích điểm thì booking hoàn tất không tạo điểm; bật lên thì booking kế tiếp chỉ tạo đúng một dòng điểm, làm tròn xuống đúng cấu hình.
+- [ ] Nhân viên đăng nhập bằng username hoặc email; tài khoản khách không vào được trang quản trị.
+- [ ] User chưa bật Authenticator chỉ thấy username/email và mật khẩu; user đã bật chỉ thấy bước nhập TOTP sau khi mật khẩu đúng.
+- [ ] Bật tạm `Authentication:AdminEmergencyBypassTwoFactor=true`: chỉ role Admin có mật khẩu đúng bỏ qua được TOTP và hệ thống ghi log Critical; tắt lại ngay sau khôi phục.
+
 ## 1. Login / quyền
 
 - [ ] Admin login/logout thành công.
@@ -21,6 +32,7 @@ Dùng checklist này sau khi apply migrations/seed trên `delong_dev`.
 - [ ] End <= Start tự thành khung qua đêm.
 - [ ] Ngừng khung giá không xóa lịch sử.
 - [ ] Calendar không còn dùng khung giá đã ngừng.
+- [ ] Soạn hướng dẫn phòng có tiêu đề, danh sách và liên kết; lưu lại không còn thẻ/script nguy hiểm.
 
 ## 3. Khách hàng
 
@@ -48,6 +60,9 @@ Dùng checklist này sau khi apply migrations/seed trên `delong_dev`.
 - [ ] CheckedIn → Completed đúng.
 - [ ] Booking terminal không sửa giờ/phòng được.
 - [ ] Audit timeline ghi Created/Updated/StatusChanged và actor.
+- [ ] Trang đặt thành công hiện đúng hướng dẫn của phòng và tải được PDF mở hợp lệ.
+- [ ] Tra cứu đúng mã + SĐT hiện hướng dẫn và tải được PDF.
+- [ ] Booking `Completed`, `Cancelled` hoặc `NoShow` không còn tra cứu hay tải PDF được.
 
 ## 5. Thanh toán
 
@@ -67,6 +82,10 @@ Dùng checklist này sau khi apply migrations/seed trên `delong_dev`.
 - [ ] Cleaning → Clean.
 - [ ] Có thể sửa lại Cleaning → Dirty nếu chưa đạt.
 - [ ] Housekeeping update không reload trang.
+- [ ] Lịch công việc lấy đúng giờ nhận/trả thực tế của booking đã giữ/xác nhận/đang ở.
+- [ ] Booking hủy/không đến không xuất hiện trong lịch dọn phòng.
+- [ ] Chế độ Văn bản sắp theo ngày → giờ → phòng và sao chép được để gửi lao công.
+- [ ] Offset dọn trước check-in/sau check-out mặc định 0, lưu theo cơ sở và áp dụng đúng khi đổi ngày.
 
 ## 7. Thu chi
 

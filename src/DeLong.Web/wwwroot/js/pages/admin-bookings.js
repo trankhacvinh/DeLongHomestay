@@ -60,6 +60,7 @@
                 sortMode: 'operations',
                 selectedBooking: null,
                 detail: { open: false },
+                guestDetails: { loading: false, error: '', customerEmail: '', guestCount: 1, maxGuests: 1, policyAccepted: false, documents: [] },
                 stayEditor: { open: false },
                 stayForm: { roomId: '', checkInDate: '', checkOutDate: '', unitPrice: 0, note: '' },
                 payments: [],
@@ -194,7 +195,34 @@
             async openBooking(booking) {
                 this.selectedBooking = booking;
                 this.detail.open = true;
-                await this.loadPayments();
+                await Promise.all([this.loadPayments(), this.loadGuestDetails(booking.id)]);
+            },
+            async loadGuestDetails(bookingId) {
+                this.guestDetails = { loading: true, error: '', customerEmail: '', guestCount: 1, maxGuests: 1, policyAccepted: false, documents: [] };
+                try {
+                    const details = await DeLongApi.get(
+                        `/api/admin/properties/${this.propertyId}/bookings/${bookingId}/guest-details`);
+                    if (this.selectedBooking?.id !== bookingId) return;
+                    this.guestDetails = {
+                        ...details,
+                        loading: false,
+                        error: '',
+                        documents: Array.isArray(details.documents) ? details.documents : []
+                    };
+                } catch (error) {
+                    if (this.selectedBooking?.id !== bookingId) return;
+                    this.guestDetails = {
+                        loading: false,
+                        error: error.message || 'Không thể tải dữ liệu khách.',
+                        customerEmail: '', guestCount: 1, maxGuests: 1, policyAccepted: false, documents: []
+                    };
+                }
+            },
+            hasIdentity(side) {
+                return this.guestDetails.documents.some(document => document.side === side);
+            },
+            identityUrl(bookingId, side) {
+                return `/api/admin/properties/${this.propertyId}/bookings/${bookingId}/identity-documents/${side}`;
             },
             closeDetail() {
                 if (this.saving) return;

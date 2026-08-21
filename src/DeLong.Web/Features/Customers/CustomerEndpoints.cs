@@ -1,4 +1,6 @@
 using DeLong.Web.Common.Security;
+using DeLong.Web.Common.Operations;
+using DeLong.Web.Features.PublicBooking;
 
 namespace DeLong.Web.Features.Customers;
 
@@ -26,6 +28,25 @@ public static class CustomerEndpoints
         {
             var customer = await service.GetAsync(propertyId, customerId, cancellationToken);
             return customer is null ? Results.NotFound() : Results.Ok(customer);
+        });
+
+        group.MapGet("/{customerId:guid}/profile", async (
+            Guid propertyId,
+            Guid customerId,
+            CustomerService service,
+            StoragePaths paths,
+            IConfiguration configuration,
+            CancellationToken cancellationToken) =>
+        {
+            var profile = await service.GetProfileAsync(propertyId, customerId, cancellationToken);
+            if (profile is null) return Results.NotFound();
+            var storage = new IdentityDocumentStorage(paths, configuration);
+            var documentBookings = 0;
+            foreach (var booking in profile.Bookings)
+            {
+                if ((await storage.ListAsync(propertyId, booking.Id, cancellationToken)).Count > 0) documentBookings++;
+            }
+            return Results.Ok(profile with { HasIdentityDocuments = documentBookings > 0, IdentityDocumentBookingCount = documentBookings });
         });
 
         group.MapPost("/", async (

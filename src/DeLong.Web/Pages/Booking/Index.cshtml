@@ -18,7 +18,7 @@
 }
 else
 {
-<div id="public-booking-page" class="public-booking-page" v-cloak>
+<div id="public-booking-page" class="public-booking-page" data-customer-authenticated="@(User.IsInRole("Customer") ? "true" : "false")" v-cloak>
     <script id="public-booking-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
     <section class="public-page-hero public-booking-hero">
@@ -158,8 +158,8 @@ else
                 <div id="booking-contact-step" class="public-step-card public-contact-step" v-if="selectedRate">
                     <div class="public-step-head"><span>04</span><div><h2>Thông tin liên hệ</h2><p>Nhân viên sẽ gọi lại để xác nhận phòng và tiền cọc.</p></div></div>
                     <div class="public-form-grid">
-                        <label v-bind:class="{ invalid: fieldErrors.customerName }"><span>Tên khách *</span><input ref="customerName" v-model.trim="form.customerName" v-on:input="clearFieldError('customerName')" v-bind:aria-invalid="!!fieldErrors.customerName" maxlength="200" autocomplete="name" placeholder="Nguyễn Minh Anh" /><small class="public-field-error" v-if="fieldErrors.customerName">{{ fieldErrors.customerName }}</small></label>
-                        <label v-bind:class="{ invalid: fieldErrors.customerPhone }"><span>Số điện thoại *</span><input ref="customerPhone" v-model.trim="form.customerPhone" v-on:input="clearFieldError('customerPhone')" v-bind:aria-invalid="!!fieldErrors.customerPhone" maxlength="30" inputmode="tel" autocomplete="tel" placeholder="09xx xxx xxx" /><small class="public-field-error" v-if="fieldErrors.customerPhone">{{ fieldErrors.customerPhone }}</small></label>
+                        <label v-bind:class="{ invalid: fieldErrors.customerPhone }"><span>Số điện thoại *</span><input ref="customerPhone" data-booking-customer-phone v-model.trim="form.customerPhone" v-on:input="clearFieldError('customerPhone')" v-bind:aria-invalid="!!fieldErrors.customerPhone" maxlength="30" inputmode="tel" autocomplete="off" placeholder="09xx xxx xxx" /><small class="public-field-error" v-if="fieldErrors.customerPhone">{{ fieldErrors.customerPhone }}</small></label>
+                        <label v-bind:class="{ invalid: fieldErrors.customerName }"><span>Họ và tên *</span><input ref="customerName" data-booking-customer-name v-model.trim="form.customerName" v-on:input="clearFieldError('customerName')" v-bind:aria-invalid="!!fieldErrors.customerName" maxlength="200" autocomplete="off" placeholder="Nguyễn Minh Anh" /><small class="public-field-error" v-if="fieldErrors.customerName">{{ fieldErrors.customerName }}</small></label>
                         <label class="public-form-full"><span>Ghi chú</span><textarea v-model.trim="form.note" maxlength="1000" placeholder="Ví dụ: muốn nhận phòng trễ hơn 30 phút..."></textarea></label>
                         <label class="public-honeypot" aria-hidden="true"><span>Website</span><input v-model="form.website" tabindex="-1" autocomplete="off" /></label>
                     </div>

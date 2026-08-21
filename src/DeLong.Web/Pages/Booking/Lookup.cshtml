@@ -8,6 +8,7 @@
 
 @section Head {
     <link rel="stylesheet" href="~/css/booking-lookup.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/booking-guide.css" asp-append-version="true" />
 }
 
 <main id="booking-lookup" class="lookup-page" v-cloak data-site-slug="@Model.SiteSlug">
@@ -55,6 +56,11 @@
                 <div><span>Đã thanh toán</span><strong>{{ money(result.paidAmount) }}</strong></div>
                 <div class="balance"><span>Còn lại</span><strong>{{ money(result.balance) }}</strong></div>
             </div>
+
+            <section class="lookup-guide" v-if="result.guestGuideHtml">
+                <div class="lookup-guide-head"><div><span class="public-eyebrow">Hướng dẫn phòng</span><h3>Nhận phòng, sử dụng và quy định</h3></div><button class="public-btn public-btn-ghost" type="button" v-bind:disabled="downloadingGuide" v-on:click="downloadGuide">{{ downloadingGuide ? 'Đang tạo PDF…' : 'Tải PDF' }}</button></div>
+                <div class="public-rich-copy lookup-guide-copy" v-html="result.guestGuideHtml"></div>
+            </section>
 
             <footer v-if="result.propertyPhone || result.propertyAddress">
                 <strong>Cần hỗ trợ?</strong>

@@ -107,9 +107,10 @@
 
             <div class="staff-editor-scroll">
                 <section class="staff-form-section">
-                    <div class="staff-form-title"><span>01</span><div><strong>Thông tin đăng nhập</strong><small>Email đồng thời là tên đăng nhập.</small></div></div>
+                    <div class="staff-form-title"><span>01</span><div><strong>Thông tin đăng nhập</strong><small>Có thể đăng nhập bằng tên đăng nhập hoặc email.</small></div></div>
                     <div class="form-grid staff-form-grid">
                         <div class="field"><label>Tên hiển thị *</label><input v-model.trim="form.displayName" maxlength="200" autocomplete="name" placeholder="Nguyễn Minh Anh" /></div>
+                        <div class="field"><label>Tên đăng nhập *</label><input v-model.trim="form.userName" maxlength="100" autocomplete="username" placeholder="minhanh" /></div>
                         <div class="field"><label>Email *</label><input type="email" v-model.trim="form.email" maxlength="254" autocomplete="email" placeholder="nhanvien@example.com" /></div>
                     </div>
                 </section>

@@ -9,9 +9,15 @@
         data() {
             return {
                 propertyId: initial.propertyId,
+                activeTab: 'rooms',
                 rooms: initial.rooms || [],
+                housekeeping: { beforeCheckInMinutes: 0, afterCheckOutMinutes: 0, ...(initial.housekeepingSettings || {}) },
                 notification: { ...(initial.notificationSettings || {}), smtpPassword: '', clearSmtpPassword: false },
+                customerAccounts: { registrationEnabled: true, authenticatorEnabled: true, loyaltyEnabled: false, loyaltySpendPerPoint: 10000, benefitText: '', termsTitle: '', termsHtml: '', termsVersion: 1, ...(initial.customerAccountSettings || {}) },
+                savingHousekeeping: false,
                 savingNotifications: false,
+                savingCustomerAccounts: false,
+                customerTermsEditor: null,
                 testingEmail: false,
                 saving: false,
                 editor: { open: false, mode: 'create', rateId: null },
@@ -26,9 +32,65 @@
             }
         },
         methods: {
+            selectTab(tab) {
+                if (!['rooms', 'housekeeping', 'booking', 'customer-accounts', 'notifications'].includes(tab)) return;
+                this.activeTab = tab;
+                if (tab === 'customer-accounts') this.$nextTick(() => this.enhanceCustomerTerms());
+            },
+            enhanceCustomerTerms() {
+                const textarea = root.querySelector('[data-customer-account-terms-editor]');
+                if (!textarea || textarea.dataset.richEditorReady) return;
+                this.customerTermsEditor = window.DeLongRichEditor?.enhance(textarea, {
+                    allowImages: false,
+                    placeholder: 'Nhập điều khoản đăng ký và sử dụng tài khoản khách…',
+                    helpText: 'Nội dung được làm sạch trước khi lưu và mỗi lần thay đổi sẽ tăng phiên bản điều khoản.'
+                });
+            },
+            async saveCustomerAccountSettings() {
+                this.customerTermsEditor?.sync();
+                const editor = root.querySelector('[data-customer-account-terms-editor]');
+                if (editor) this.customerAccounts.termsHtml = editor.value;
+                const spend = Number(this.customerAccounts.loyaltySpendPerPoint || 0);
+                if (!Number.isInteger(spend) || spend < 1) return this.notify('Số tiền quy đổi điểm phải lớn hơn 0.', 'error');
+                this.savingCustomerAccounts = true;
+                try {
+                    this.customerAccounts = await DeLongApi.put(`/api/admin/properties/${this.propertyId}/customer-account-settings`, {
+                        registrationEnabled: this.customerAccounts.registrationEnabled === true,
+                        authenticatorEnabled: this.customerAccounts.authenticatorEnabled === true,
+                        loyaltyEnabled: this.customerAccounts.loyaltyEnabled === true,
+                        loyaltySpendPerPoint: spend,
+                        benefitText: this.customerAccounts.benefitText,
+                        termsTitle: this.customerAccounts.termsTitle,
+                        termsHtml: this.customerAccounts.termsHtml
+                    });
+                    this.notify('Đã lưu cấu hình tài khoản và tích điểm.', 'success');
+                } catch (error) {
+                    this.notify(error.message || 'Không thể lưu cấu hình tài khoản khách.', 'error');
+                } finally { this.savingCustomerAccounts = false; }
+            },
             notificationDate(value) {
                 if (!value) return '';
                 return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+            },
+            async saveHousekeepingSettings() {
+                const before = Number(this.housekeeping.beforeCheckInMinutes);
+                const after = Number(this.housekeeping.afterCheckOutMinutes);
+                if (!Number.isInteger(before) || before < 0 || before > 1440 || !Number.isInteger(after) || after < 0 || after > 1440) {
+                    this.notify('Số phút dọn phòng phải là số nguyên từ 0 đến 1440.', 'error');
+                    return;
+                }
+
+                this.savingHousekeeping = true;
+                try {
+                    this.housekeeping = await DeLongApi.put(
+                        `/api/admin/properties/${this.propertyId}/housekeeping/settings`,
+                        { beforeCheckInMinutes: before, afterCheckOutMinutes: after });
+                    this.notify('Đã lưu thời điểm dọn phòng.', 'success');
+                } catch (error) {
+                    this.notify(error.message || 'Không thể lưu thời điểm dọn phòng.', 'error');
+                } finally {
+                    this.savingHousekeeping = false;
+                }
             },
             async saveNotificationSettings() {
                 this.savingNotifications = true;

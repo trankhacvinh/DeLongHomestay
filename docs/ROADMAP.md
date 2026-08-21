@@ -1,5 +1,14 @@
 # Roadmap
 
+## Đã triển khai — tài khoản khách và nền tảng tích điểm
+
+- [x] Đăng ký/đăng nhập khách bằng số điện thoại và mật khẩu.
+- [x] Hồ sơ, lịch sử booking, đổi mật khẩu và TOTP Authenticator.
+- [x] Kho CCCD mã hóa dùng cho booking sau, không cho khách đọc lại ảnh cũ.
+- [x] Nhân viên đăng nhập bằng username/email và tự cấu hình TOTP.
+- [x] Sổ điểm thật có cấu hình, mặc định tắt, cộng đúng một lần khi booking hoàn tất.
+- [ ] Quy tắc đổi điểm và màn hình điều chỉnh điểm có audit.
+
 ## Phase 0 — Demo UX/localStorage
 
 - [x] Chuẩn hóa dữ liệu Excel và 6 phòng.
@@ -59,6 +68,7 @@
 - [x] Settings/rates.
 - [x] Dashboard vận hành.
 - [x] UI/UX redesign desktop + mobile admin.
+- [x] Housekeeping Schedule V2 sinh việc từ giờ booking thật + chế độ văn bản sao chép + offset phút cấu hình theo cơ sở.
 
 ## Phase 5 — Public booking
 
@@ -74,6 +84,7 @@
 - [x] Dashboard Admin inbox cho yêu cầu website mới.
 - [x] Public multi-day booking.
 - [x] Room Content V2: gallery, cover/focal, optimized images, rich editor, amenities/tags/highlights.
+- [x] Hướng dẫn phòng soạn bằng editor, hiển thị sau đặt/tra cứu, tải PDF và khóa tra cứu sau checkout hoặc trạng thái terminal.
 - [x] Visual UAT public desktop/mobile vòng chính.
 - [ ] End-to-end UAT cuối: public request → admin xử lý → Held/Confirmed → payment → checkout.
 - [ ] Notification ngoài hệ thống (email/Zalo/SMS) — chỉ làm khi cần.
@@ -90,3 +101,6 @@
 - [ ] Tài khoản/role nhân viên thật.
 - [ ] Hướng dẫn nhân viên.
 - [ ] Go-live.
+- [x] MVP báo cáo tình trạng phòng: nhiều ảnh tối ưu, nội dung, tag mẫu, mức độ, trạng thái xử lý và lịch sử theo cơ sở.
+- [ ] UAT thực tế camera trên iOS Safari và Android Chrome; kiểm tra retry khi mạng di động yếu.
+- [ ] Màn hình quản lý đầy đủ cho thêm, sắp xếp và ngừng dùng tag mẫu.

@@ -12,6 +12,7 @@ public sealed class RoomContentRoomConfiguration : IEntityTypeConfiguration<Room
         entity.Property(x => x.Slug).HasMaxLength(180);
         entity.Property(x => x.ShortDescription).HasMaxLength(600);
         entity.Property(x => x.DescriptionHtml).HasColumnType("text");
+        entity.Property(x => x.GuestGuideHtml).HasColumnType("text");
     }
 }
 
