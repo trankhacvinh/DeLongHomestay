@@ -9,6 +9,7 @@
         { value: 'BranchGrid', label: 'Danh sách cơ sở' },
         { value: 'RoomGrid', label: 'Danh sách phòng' },
         { value: 'AvailabilitySearch', label: 'Kiểm tra phòng nhanh' },
+        { value: 'AvailabilityCalendar', label: 'Lịch phòng trống V2' },
         { value: 'FeatureGrid', label: 'Nội dung + điểm nổi bật' },
         { value: 'RichText', label: 'Nội dung tự do' },
         { value: 'Cta', label: 'Kêu gọi hành động' }
@@ -18,6 +19,7 @@
         if (type === 'BranchGrid') return { eyebrow: 'CƠ SỞ', title: 'Chọn nơi bạn muốn ghé', propertyIds: [] };
         if (type === 'RoomGrid') return { eyebrow: 'PHÒNG', title: 'Một vài lựa chọn đang mở', mode: 'all', limit: 6, propertyQuotas: {}, roomIds: [] };
         if (type === 'AvailabilitySearch') return { title: 'Chọn cơ sở và ngày bạn muốn ghé' };
+        if (type === 'AvailabilityCalendar') return { eyebrow: 'LỊCH PHÒNG', title: 'Xem phòng và khung giờ còn trống', days: 7 };
         if (type === 'FeatureGrid') return { eyebrow: '', title: '', body: '', items: [], imageUrl: '' };
         if (type === 'Cta') return { title: '', body: '', buttonText: 'Xem phòng', buttonUrl: '/rooms' };
         return { html: '<p>Nội dung mới</p>' };
@@ -49,6 +51,7 @@
                 if (type === 'BranchGrid') return ['grid-3', 'grid-2', 'editorial'];
                 if (type === 'RoomGrid') return ['grid-3', 'grid-2', 'featured-first', 'editorial-cards', 'horizontal-scroll'];
                 if (type === 'AvailabilitySearch') return ['booking-bar', 'card', 'minimal'];
+                if (type === 'AvailabilityCalendar') return ['vertical'];
                 if (type === 'FeatureGrid') return ['split', 'stacked', 'icon-grid', 'dark-band', 'editorial'];
                 if (type === 'RichText') return ['narrow', 'wide', 'editorial'];
                 if (type === 'Cta') return ['card', 'full-width', 'dark', 'offer'];

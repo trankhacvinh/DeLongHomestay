@@ -66,6 +66,9 @@
                 payments: [],
                 loadingPayments: false,
                 paymentEditor: { open: false },
+                pay2sEditor: { open: false, payUrl: '', amount: 0, expiresAtUtc: null, releaseAtUtc: null },
+                pay2sIntent: null,
+                lateResolution: { action: 'refund', note: '', roomId: '', checkInUtc: '', checkOutUtc: '' },
                 paymentForm: { type: 0, method: 1, amount: 0, reference: '', note: '' },
                 voidEditor: { open: false, payment: null, reason: '' },
                 statusConfirm: { open: false, action: null, title: '', message: '' },
@@ -162,7 +165,7 @@
                 return ({ Website: 'Trang web', website: 'Trang web' })[value] || value;
             },
             paymentMethodText(method) {
-                return ({ 0: 'Tiền mặt', 1: 'Chuyển khoản', 2: 'Thẻ', 3: 'Khác' })[method] || 'Khác';
+                return ({ 0: 'Tiền mặt', 1: 'Chuyển khoản', 2: 'Thẻ', 3: 'Khác', 4: 'Pay2S' })[method] || 'Khác';
             },
             friendlyError(error, fallback) {
                 const problem = error?.problem || {};
@@ -195,7 +198,36 @@
             async openBooking(booking) {
                 this.selectedBooking = booking;
                 this.detail.open = true;
-                await Promise.all([this.loadPayments(), this.loadGuestDetails(booking.id)]);
+                await Promise.all([this.loadPayments(), this.loadGuestDetails(booking.id), this.loadPay2SIntent(booking.id)]);
+            },
+            async loadPay2SIntent(bookingId) {
+                try {
+                    this.pay2sIntent = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/pay2s/bookings/${bookingId}/latest-intent`);
+                } catch (error) {
+                    if (error?.status === 204 || error?.status === 404) this.pay2sIntent = null;
+                    else this.notify(this.friendlyError(error, 'Không thể tải trạng thái Pay2S.'), 'error');
+                }
+            },
+            async resolveLatePay2S() {
+                if (!this.pay2sIntent || this.saving) return;
+                const action = this.lateResolution.action;
+                if (!window.confirm(action === 'refund'
+                    ? 'Xác nhận bạn đã hoàn tiền cho khách và ghi nhận khoản hoàn trong hệ thống?'
+                    : action === 'confirm' ? 'Xác nhận booking cũ nếu phòng vẫn còn trống?'
+                        : 'Chuyển booking sang phòng/thời gian mới và xác nhận?')) return;
+                this.saving = true;
+                try {
+                    await DeLongApi.post(`/api/admin/properties/${this.propertyId}/pay2s/intents/${this.pay2sIntent.id}/resolve-late`, {
+                        action,
+                        note: this.lateResolution.note || null,
+                        roomId: action === 'move' ? this.lateResolution.roomId : null,
+                        checkInUtc: action === 'move' && this.lateResolution.checkInUtc ? new Date(this.lateResolution.checkInUtc).toISOString() : null,
+                        checkOutUtc: action === 'move' && this.lateResolution.checkOutUtc ? new Date(this.lateResolution.checkOutUtc).toISOString() : null
+                    });
+                    await Promise.all([this.loadPayments(), this.reloadSelectedBooking(), this.loadPay2SIntent(this.selectedBooking.id)]);
+                    this.notify('Đã xử lý khoản thanh toán Pay2S đến muộn.', 'success');
+                } catch (error) { this.notify(this.friendlyError(error, 'Không thể xử lý khoản thanh toán đến muộn.'), 'error'); }
+                finally { this.saving = false; }
             },
             async loadGuestDetails(bookingId) {
                 this.guestDetails = { loading: true, error: '', customerEmail: '', guestCount: 1, maxGuests: 1, policyAccepted: false, documents: [] };
@@ -323,6 +355,23 @@
                 const suggested = Math.max(0, Number(this.selectedBooking?.balanceAmount || 0));
                 this.paymentForm = { type: 0, method: 1, amount: suggested, reference: '', note: '' };
                 this.paymentEditor.open = true;
+            },
+            async createPay2SIntent() {
+                if (!this.selectedBooking || this.saving) return;
+                this.saving = true;
+                try {
+                    const status = Number(this.selectedBooking.status);
+                    const intent = await DeLongApi.post(`/api/admin/properties/${this.propertyId}/pay2s/intents`, {
+                        bookingId: this.selectedBooking.id,
+                        cancelBookingOnExpiry: status === 0 || status === 1
+                    });
+                    this.pay2sEditor = { open: true, payUrl: intent.payUrl, amount: intent.amount, expiresAtUtc: intent.expiresAtUtc, releaseAtUtc: intent.releaseAtUtc };
+                } catch (error) { this.notify(error.message || 'Không thể tạo QR Pay2S.', 'error'); }
+                finally { this.saving = false; }
+            },
+            async copyPay2SLink() {
+                try { await navigator.clipboard.writeText(this.pay2sEditor.payUrl); this.notify('Đã sao chép liên kết thanh toán.', 'success'); }
+                catch { this.notify('Không thể sao chép tự động. Hãy mở QR rồi sao chép địa chỉ.', 'error'); }
             },
             closePayment() { if (!this.saving) this.paymentEditor.open = false; },
             async savePayment() {

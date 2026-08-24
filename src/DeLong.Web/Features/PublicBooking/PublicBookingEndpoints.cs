@@ -4,9 +4,12 @@ using DeLong.Web.Data;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Site;
 using DeLong.Web.Features.CustomerAccounts;
+using DeLong.Web.Features.Payments;
+using DeLong.Web.Domain.Enums;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicBooking;
 
@@ -71,6 +74,7 @@ public static class PublicBookingEndpoints
             StoragePaths paths,
             IConfiguration configuration,
             CustomerAccountService customerAccountService,
+            Pay2SService pay2SService,
             CancellationToken ct) =>
         {
             var idempotencyKey = http.Request.Headers["Idempotency-Key"].FirstOrDefault();
@@ -89,6 +93,24 @@ public static class PublicBookingEndpoints
                             userId, property.Id, result.BookingId, new IdentityDocumentStorage(paths, configuration), ct);
                     }
                 }
+                var paymentProperty = await resolver.ResolveAsync(siteSlug, ct);
+                if (paymentProperty is null) return Results.NotFound();
+                var (intent, paymentError) = await pay2SService.CreateIntentAsync(
+                    paymentProperty.Id,
+                    result.BookingId,
+                    cancelBookingOnExpiry: true,
+                    ct,
+                    siteSlug,
+                    useSettlementGrace: true);
+                if (intent is null)
+                {
+                    var booking = await db.Bookings.SingleAsync(x => x.Id == result.BookingId, ct);
+                    booking.Status = BookingStatus.Cancelled;
+                    await db.SaveChangesAsync(ct);
+                    return Results.Problem(statusCode: 503, title: "Chưa thể tạo thanh toán", detail: paymentError?.Message, type: "pay2s_unavailable");
+                }
+                await new PublicBookingHoldStore(paths).CompleteAsync(paymentProperty.Id, result.BookingId);
+                result = result with { HoldExpiresAtUtc = intent.ExpiresAtUtc, PaymentOrderId = intent.OrderId, PaymentUrl = intent.PayUrl };
                 var prefix = PublicPropertyResolver.ScopePrefix(siteSlug);
                 return Results.Created($"{prefix}/booking/success?code={Uri.EscapeDataString(result.Code)}", result);
             }

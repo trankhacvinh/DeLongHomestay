@@ -77,15 +77,19 @@
                 </div>
             </section>
 
-            <section class="panel room-content-section room-editor-section">
+            <section class="panel room-content-section room-editor-section" v-bind:class="{ 'is-editor-expanded': guestGuideExpanded }">
                 <div class="panel-head room-content-section-head room-editor-head">
                     <div><span class="room-content-step">03</span><div><h2>Hướng dẫn dành cho khách</h2><p>Soạn hướng dẫn check-in, sử dụng thiết bị trong phòng, Wi-Fi, check-out và các quy định riêng.</p></div></div>
+                    <button class="btn btn-light btn-sm editor-expand-button" type="button" v-on:click="toggleGuestGuideExpanded" v-bind:aria-pressed="guestGuideExpanded" v-bind:title="guestGuideExpanded ? 'Thu gọn vùng soạn hướng dẫn' : 'Mở rộng vùng soạn hướng dẫn'">
+                        {{ guestGuideExpanded ? 'Thu gọn' : 'Mở rộng editor' }}
+                    </button>
                 </div>
                 <div class="quill-editor-shell">
                     <div ref="guestGuideEditor" class="room-quill-editor room-guest-guide-editor"></div>
                     <div class="editor-footnote">
                         <span>Nội dung này xuất hiện sau khi khách đặt thành công và khi tra cứu booking còn hiệu lực.</span>
                         <span>Khách có thể tải nội dung thành PDF. Không nhập mật khẩu cửa hoặc dữ liệu chỉ nên gửi sát giờ check-in.</span>
+                        <span v-if="guestGuideExpanded">Nhấn Esc để thu gọn.</span>
                     </div>
                 </div>
             </section>

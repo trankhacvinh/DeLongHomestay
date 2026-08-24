@@ -14,9 +14,11 @@
                 housekeeping: { beforeCheckInMinutes: 0, afterCheckOutMinutes: 0, ...(initial.housekeepingSettings || {}) },
                 notification: { ...(initial.notificationSettings || {}), smtpPassword: '', clearSmtpPassword: false },
                 customerAccounts: { registrationEnabled: true, authenticatorEnabled: true, loyaltyEnabled: false, loyaltySpendPerPoint: 10000, benefitText: '', termsTitle: '', termsHtml: '', termsVersion: 1, ...(initial.customerAccountSettings || {}) },
+                pay2s: { enabled: false, sandbox: true, partnerCode: '', partnerName: 'De Long Homestay', accessKey: '', secretKey: '', accessKeyConfigured: false, secretKeyConfigured: false, bankAccountNumber: '', bankId: 'ACB', apiEndpoint: 'https://payment.pay2s.vn/v1/gateway/api/create', callbackBaseUrl: '', holdMinutes: 15, settlementGraceMinutes: 3, clearCredentials: false, ...(initial.pay2SSettings || {}) },
                 savingHousekeeping: false,
                 savingNotifications: false,
                 savingCustomerAccounts: false,
+                savingPay2s: false,
                 customerTermsEditor: null,
                 testingEmail: false,
                 saving: false,
@@ -33,9 +35,33 @@
         },
         methods: {
             selectTab(tab) {
-                if (!['rooms', 'housekeeping', 'booking', 'customer-accounts', 'notifications'].includes(tab)) return;
+                if (!['rooms', 'housekeeping', 'booking', 'customer-accounts', 'pay2s', 'notifications'].includes(tab)) return;
                 this.activeTab = tab;
                 if (tab === 'customer-accounts') this.$nextTick(() => this.enhanceCustomerTerms());
+            },
+            async savePay2SSettings() {
+                this.savingPay2s = true;
+                try {
+                    const saved = await DeLongApi.put(`/api/admin/properties/${this.propertyId}/pay2s/settings`, {
+                        enabled: this.pay2s.enabled === true,
+                        sandbox: this.pay2s.sandbox === true,
+                        partnerCode: this.pay2s.partnerCode,
+                        partnerName: this.pay2s.partnerName,
+                        accessKey: this.pay2s.accessKey || null,
+                        secretKey: this.pay2s.secretKey || null,
+                        bankAccountNumber: this.pay2s.bankAccountNumber,
+                        bankId: this.pay2s.bankId,
+                        apiEndpoint: this.pay2s.apiEndpoint,
+                        callbackBaseUrl: this.pay2s.callbackBaseUrl,
+                        holdMinutes: Number(this.pay2s.holdMinutes || 15),
+                        settlementGraceMinutes: Number(this.pay2s.settlementGraceMinutes ?? 3),
+                        clearCredentials: this.pay2s.clearCredentials === true
+                    });
+                    this.pay2s = { ...saved, accessKey: '', secretKey: '', clearCredentials: false };
+                    this.notify('Đã lưu hồ sơ Pay2S riêng cho cơ sở.', 'success');
+                } catch (error) {
+                    this.notify(error.message || 'Không thể lưu cấu hình Pay2S.', 'error');
+                } finally { this.savingPay2s = false; }
             },
             enhanceCustomerTerms() {
                 const textarea = root.querySelector('[data-customer-account-terms-editor]');

@@ -1,25 +1,35 @@
 @page "/booking/success"
 @model DeLong.Web.Pages.Booking.SuccessModel
 @{
-    ViewData["Title"] = "Đã gửi yêu cầu";
+    ViewData["Title"] = Model.IsPay2SPaid ? "Thanh toán thành công" : "Đã gửi yêu cầu";
     ViewData["Robots"] = "noindex,follow";
 }
 
 <section class="public-success-section">
     <div class="public-container">
-        <div class="public-success-card">
+        <div class="public-success-card @(Model.IsPay2SPaid ? "public-payment-success-card" : string.Empty)">
             <div class="public-success-icon" aria-hidden="true">✓</div>
-            <span class="public-eyebrow">Đã nhận yêu cầu</span>
-            <h1>Cảm ơn bạn. @Model.SiteName sẽ liên hệ để xác nhận.</h1>
-            <p>Phòng được giữ tạm trên server trong khoảng 3 phút ngay sau khi gửi để tránh người khác đặt trùng. Lượt đặt chỉ được xác nhận chính thức sau khi nhân viên liên hệ lại.</p>
+            @if (Model.IsPay2SPaid)
+            {
+                <span class="public-eyebrow">Thanh toán thành công</span>
+                <h1>Phòng của bạn đã được xác nhận.</h1>
+                <p>@Model.SiteName đã ghi nhận khoản thanh toán và xác nhận lượt đặt. Bạn không cần chờ nhân viên xác nhận lại.</p>
+            }
+            else
+            {
+                <span class="public-eyebrow">Đã nhận yêu cầu</span>
+                <h1>Cảm ơn bạn. @Model.SiteName sẽ liên hệ để xác nhận.</h1>
+                <p>Phòng được giữ tạm trên server trong khoảng 3 phút ngay sau khi gửi để tránh người khác đặt trùng. Lượt đặt chỉ được xác nhận chính thức sau khi nhân viên liên hệ lại.</p>
+            }
             @if (!string.IsNullOrWhiteSpace(Model.Code))
             {
                 <div class="public-success-summary">
-                    <div><small>Mã yêu cầu</small><strong>@Model.Code</strong></div>
+                    <div><small>@(Model.IsPay2SPaid ? "Mã đặt phòng" : "Mã yêu cầu")</small><strong>@Model.Code</strong></div>
                     @if (!string.IsNullOrWhiteSpace(Model.Room)) { <div><small>Phòng</small><strong>@Model.Room</strong></div> }
-                    @if (Model.Amount > 0) { <div><small>Tạm tính</small><strong>@Model.Amount.ToString("N0")đ</strong></div> }
+                    @if (Model.IsPay2SPaid && Model.PaidAmount > 0) { <div><small>Đã thanh toán</small><strong>@Model.PaidAmount.ToString("N0")đ</strong></div> }
+                    else if (Model.Amount > 0) { <div><small>Tạm tính</small><strong>@Model.Amount.ToString("N0")đ</strong></div> }
                 </div>
-                <p class="public-success-lookup-note">Hãy lưu lại mã trên. Bạn có thể dùng mã này cùng số điện thoại đã đặt để xem trạng thái sau này.</p>
+                <p class="public-success-lookup-note">Hãy lưu lại mã trên. Bạn có thể dùng mã này cùng số điện thoại đã đặt để xem @(Model.IsPay2SPaid ? "thông tin phòng và hướng dẫn nhận phòng" : "trạng thái sau này").</p>
             }
             <div class="public-success-actions">
                 @if (!string.IsNullOrWhiteSpace(Model.GuestGuideHtml))

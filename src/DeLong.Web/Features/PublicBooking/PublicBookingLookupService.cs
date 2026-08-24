@@ -33,6 +33,13 @@ public sealed record PublicBookingLookupDto(
 
 public sealed record PublicBookingGuideDto(string Code, string RoomName, string? GuestGuideHtml);
 
+public sealed record PublicBookingSuccessDto(
+    string Code,
+    string RoomName,
+    string? GuestGuideHtml,
+    bool IsPay2SPaid,
+    decimal PaidAmount);
+
 public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyResolver? resolver = null)
 {
     private readonly PublicPropertyResolver publicPropertyResolver = resolver ?? new PublicPropertyResolver(db);
@@ -116,6 +123,30 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
             .Where(x => x.PropertyId == property.Id && x.Code == code &&
                         x.Status != BookingStatus.Completed && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
             .Select(x => new PublicBookingGuideDto(x.Code, x.Room.Name, x.Room.GuestGuideHtml))
+            .SingleOrDefaultAsync(ct);
+    }
+
+    public async Task<PublicBookingSuccessDto?> GetSuccessAsync(
+        string? siteSlug,
+        string rawCode,
+        CancellationToken ct = default)
+    {
+        var property = await publicPropertyResolver.ResolveAsync(siteSlug, ct);
+        if (property is null) return null;
+
+        var code = (rawCode ?? string.Empty).Trim().ToUpperInvariant();
+        if (code.Length is < 8 or > 50) return null;
+
+        return await db.Bookings.AsNoTracking()
+            .Where(x => x.PropertyId == property.Id && x.Code == code &&
+                        x.Status != BookingStatus.Completed && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
+            .Select(x => new PublicBookingSuccessDto(
+                x.Code,
+                x.Room.Name,
+                x.Room.GuestGuideHtml,
+                x.Payments.Any(p => !p.IsVoided && p.Type == PaymentType.Receipt && p.Method == PaymentMethod.Pay2S),
+                x.Payments.Where(p => !p.IsVoided)
+                    .Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount)))
             .SingleOrDefaultAsync(ct);
     }
 

@@ -27,6 +27,8 @@ public sealed class AppDbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Pay2SPaymentIntent> Pay2SPaymentIntents => Set<Pay2SPaymentIntent>();
+    public DbSet<PropertyPay2SSettings> PropertyPay2SSettings => Set<PropertyPay2SSettings>();
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<UserPropertyAccess> UserPropertyAccesses => Set<UserPropertyAccess>();
@@ -207,6 +209,46 @@ public sealed class AppDbContext
             entity.Property(x => x.VoidReason).HasMaxLength(1000);
             entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Booking).WithMany(x => x.Payments).HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PropertyPay2SSettings>(entity =>
+        {
+            entity.HasIndex(x => x.PropertyId).IsUnique();
+            entity.Property(x => x.PartnerCode).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.PartnerName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.AccessKeyProtected).HasColumnType("text").IsRequired();
+            entity.Property(x => x.SecretKeyProtected).HasColumnType("text").IsRequired();
+            entity.Property(x => x.BankAccountNumber).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.BankId).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.ApiEndpoint).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.CallbackBaseUrl).HasMaxLength(1000).IsRequired();
+            entity.HasOne(x => x.Property).WithOne().HasForeignKey<PropertyPay2SSettings>(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+            entity.ToTable(table => table.HasCheckConstraint("ck_property_pay2s_settings_hold_minutes", "hold_minutes BETWEEN 1 AND 60"));
+            entity.ToTable(table => table.HasCheckConstraint("ck_property_pay2s_settings_settlement_grace", "settlement_grace_minutes BETWEEN 0 AND 15"));
+        });
+
+        modelBuilder.Entity<Pay2SPaymentIntent>(entity =>
+        {
+            entity.HasIndex(x => x.OrderId).IsUnique();
+            entity.HasIndex(x => x.RequestId).IsUnique();
+            entity.HasIndex(x => x.BookingId).IsUnique().HasFilter("\"status\" = 'Pending'");
+            entity.HasIndex(x => new { x.Status, x.ReleaseAtUtc });
+            entity.HasIndex(x => x.TransactionId).IsUnique().HasFilter("\"transaction_id\" IS NOT NULL");
+            entity.Property(x => x.OrderId).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.RequestId).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.OrderInfo).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.SiteSlug).HasMaxLength(100);
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(x => x.PayUrl).HasMaxLength(2048);
+            entity.Property(x => x.PayType).HasMaxLength(100);
+            entity.Property(x => x.ProviderMessage).HasMaxLength(1000);
+            entity.Property(x => x.LastCallbackErrorCode).HasMaxLength(100);
+            entity.Property(x => x.LatePaymentResolution).HasMaxLength(40);
+            entity.Property(x => x.LatePaymentResolutionNote).HasMaxLength(2000);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Booking).WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Payment).WithMany().HasForeignKey(x => x.PaymentId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Expense>(entity =>

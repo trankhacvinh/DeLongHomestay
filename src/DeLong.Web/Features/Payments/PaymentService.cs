@@ -67,6 +67,7 @@ public sealed class PaymentService(AppDbContext db)
         };
 
         db.Payments.Add(payment);
+        await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, bookingId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return (ToDto(payment), null);
     }
@@ -99,6 +100,7 @@ public sealed class PaymentService(AppDbContext db)
         payment.VoidedAtUtc = DateTime.UtcNow;
         payment.VoidedByUserId = voidedByUserId;
         payment.VoidReason = reason.Trim();
+        await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, payment.BookingId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return (ToDto(payment), null);
     }

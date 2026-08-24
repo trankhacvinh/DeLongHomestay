@@ -86,7 +86,9 @@
 - [x] Room Content V2: gallery, cover/focal, optimized images, rich editor, amenities/tags/highlights.
 - [x] Hướng dẫn phòng soạn bằng editor, hiển thị sau đặt/tra cứu, tải PDF và khóa tra cứu sau checkout hoặc trạng thái terminal.
 - [x] Visual UAT public desktop/mobile vòng chính.
-- [ ] End-to-end UAT cuối: public request → admin xử lý → Held/Confirmed → payment → checkout.
+- [ ] End-to-end UAT cuối: public request → Pay2S Sandbox/IPN → Confirmed → checkout.
+- [x] Nền tảng Pay2S theo từng cơ sở: cấu hình mã hóa, payment intent, tách hạn thanh toán và hạn giải phóng phòng, đệm chờ IPN, ghi Payment và quy trình xử lý thanh toán muộn.
+- [ ] UAT Pay2S thực tế trên `delong.pmedia.vn`: tạo QR Sandbox, webhook công khai, đóng/mở lại trang, hết hạn và IPN đến muộn.
 - [ ] Notification ngoài hệ thống (email/Zalo/SMS) — chỉ làm khi cần.
 
 ## Phase 6 — Migration & go-live (đang thực hiện)

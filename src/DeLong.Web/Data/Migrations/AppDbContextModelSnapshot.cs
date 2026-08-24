@@ -1074,6 +1074,166 @@ namespace DeLong.Web.Data.Migrations
                     b.ToTable("notification_email_outbox");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.Pay2SPaymentIntent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_id");
+
+                    b.Property<DateTime?>("CallbackReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("callback_received_at_utc");
+
+                    b.Property<bool>("CancelBookingOnExpiry")
+                        .HasColumnType("boolean")
+                        .HasColumnName("cancel_booking_on_expiry");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<DateTime?>("LastCallbackAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_callback_attempt_at_utc");
+
+                    b.Property<string>("LastCallbackErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("last_callback_error_code");
+
+                    b.Property<string>("LatePaymentResolution")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("late_payment_resolution");
+
+                    b.Property<string>("LatePaymentResolutionNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("late_payment_resolution_note");
+
+                    b.Property<DateTime?>("LatePaymentResolvedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("late_payment_resolved_at_utc");
+
+                    b.Property<Guid?>("LatePaymentResolvedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("late_payment_resolved_by_user_id");
+
+                    b.Property<string>("OrderId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("OrderInfo")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("order_info");
+
+                    b.Property<string>("PayType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("pay_type");
+
+                    b.Property<string>("PayUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("pay_url");
+
+                    b.Property<Guid?>("PaymentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("payment_id");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<string>("ProviderMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("provider_message");
+
+                    b.Property<DateTime>("ReleaseAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("release_at_utc");
+
+                    b.Property<string>("RequestId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("request_id");
+
+                    b.Property<int?>("ResultCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("result_code");
+
+                    b.Property<string>("SiteSlug")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("site_slug");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long?>("TransactionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("transaction_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_pay2_s_payment_intents");
+
+                    b.HasIndex("BookingId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_pay2_s_payment_intents_booking_id")
+                        .HasFilter("\"status\" = 'Pending'");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_pay2_s_payment_intents_order_id");
+
+                    b.HasIndex("PaymentId")
+                        .HasDatabaseName("i_x_pay2_s_payment_intents_payment_id");
+
+                    b.HasIndex("PropertyId")
+                        .HasDatabaseName("i_x_pay2_s_payment_intents_property_id");
+
+                    b.HasIndex("RequestId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_pay2_s_payment_intents_request_id");
+
+                    b.HasIndex("TransactionId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_pay2_s_payment_intents_transaction_id")
+                        .HasFilter("\"transaction_id\" IS NOT NULL");
+
+                    b.HasIndex("Status", "ReleaseAtUtc")
+                        .HasDatabaseName("i_x_pay2_s_payment_intents_status_release_at_utc");
+
+                    b.ToTable("pay2_s_payment_intents");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Payment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1458,6 +1618,102 @@ namespace DeLong.Web.Data.Migrations
                         .HasDatabaseName("i_x_property_notification_settings_property_id");
 
                     b.ToTable("property_notification_settings");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyPay2SSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccessKeyProtected")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("access_key_protected");
+
+                    b.Property<string>("ApiEndpoint")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("api_endpoint");
+
+                    b.Property<string>("BankAccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("bank_account_number");
+
+                    b.Property<string>("BankId")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("bank_id");
+
+                    b.Property<string>("CallbackBaseUrl")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("callback_base_url");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<int>("HoldMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("hold_minutes");
+
+                    b.Property<string>("PartnerCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("partner_code");
+
+                    b.Property<string>("PartnerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("partner_name");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<bool>("Sandbox")
+                        .HasColumnType("boolean")
+                        .HasColumnName("sandbox");
+
+                    b.Property<string>("SecretKeyProtected")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("secret_key_protected");
+
+                    b.Property<int>("SettlementGraceMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("settlement_grace_minutes");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_property_pay2_s_settings");
+
+                    b.HasIndex("PropertyId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_property_pay2_s_settings_property_id");
+
+                    b.ToTable("property_pay2_s_settings", t =>
+                        {
+                            t.HasCheckConstraint("ck_property_pay2s_settings_hold_minutes", "hold_minutes BETWEEN 1 AND 60");
+
+                            t.HasCheckConstraint("ck_property_pay2s_settings_settlement_grace", "settlement_grace_minutes BETWEEN 0 AND 15");
+                        });
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertySiteSettings", b =>
@@ -2737,6 +2993,35 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Property");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.Pay2SPaymentIntent", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_pay2_s_payment_intents_bookings_booking_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Payment", "Payment")
+                        .WithMany()
+                        .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_pay2_s_payment_intents_payments_payment_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_pay2_s_payment_intents_properties_property_id");
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Payment");
+
+                    b.Navigation("Property");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Payment", b =>
                 {
                     b.HasOne("DeLong.Web.Domain.Entities.Booking", "Booking")
@@ -2819,6 +3104,18 @@ namespace DeLong.Web.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("f_k_property_notification_settings_properties_property_id");
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyPay2SSettings", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithOne()
+                        .HasForeignKey("DeLong.Web.Domain.Entities.PropertyPay2SSettings", "PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_property_pay2_s_settings_properties_property_id");
 
                     b.Navigation("Property");
                 });

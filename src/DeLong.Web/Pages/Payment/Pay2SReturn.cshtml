@@ -1,0 +1,22 @@
+@page
+@model DeLong.Web.Pages.Payment.Pay2SReturnModel
+@{
+    ViewData["Title"] = "Xác nhận thanh toán";
+}
+<div class="public-page-shell payment-return" data-pay2s-return data-order-id="@Model.OrderId">
+    <section class="panel public-result-card payment-return-card">
+        <div class="panel-body payment-return-body">
+            <div class="page-eyebrow">THANH TOÁN PAY2S</div>
+            <h1>Đang xác nhận giao dịch</h1>
+            <p data-payment-message>Hệ thống đang đợi Pay2S xác nhận. Bạn có thể giữ trang này mở hoặc quay lại sau; phòng vẫn được giữ trên server đến hết thời hạn.</p>
+            <div class="notice mt-16" data-payment-expiry></div>
+            <div class="payment-return-actions">
+                <a class="btn btn-light" href="/booking">Về trang đặt phòng</a>
+                <button class="btn btn-primary" type="button" data-payment-resume hidden>Tiếp tục thanh toán</button>
+            </div>
+        </div>
+    </section>
+</div>
+@section Scripts {
+    <script src="~/js/pages/pay2s-return.js" asp-append-version="true"></script>
+}

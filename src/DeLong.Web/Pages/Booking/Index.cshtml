@@ -81,6 +81,15 @@ else
                     </div>
                 </div>
 
+                <div id="booking-conflict-notice" class="public-inline-status error public-booking-conflict"
+                     v-if="bookingConflictMessage" role="alert" aria-live="assertive">
+                    <div>
+                        <strong>Khung giờ vừa có người đặt</strong>
+                        <p>{{ bookingConflictMessage }}</p>
+                    </div>
+                    <button class="public-btn public-btn-ghost" type="button" v-on:click="focusAvailableOptions">Chọn khung khác</button>
+                </div>
+
                 <div id="booking-room-step" class="public-step-card">
                     <div class="public-step-head">
                         <span>02</span>
@@ -137,7 +146,7 @@ else
                     <div v-if="bookingType === 0" class="public-rate-choice-grid">
                         <button v-for="rate in timeSlotRates(selectedRoom)" v-bind:key="rate.id" type="button" class="public-rate-choice"
                                 v-bind:class="{ active: selectedRateId === rate.id, disabled: !rate.available }" v-bind:disabled="!rate.available"
-                                v-on:click="selectedRateId = rate.id">
+                                v-on:click="chooseRate(rate)">
                             <span><strong>{{ rate.name }}</strong><small>{{ rate.startTime }} → {{ rate.endTime }} <template v-if="rate.type === 1">· qua đêm</template></small></span>
                             <strong>{{ money(rate.price) }}</strong>
                         </button>

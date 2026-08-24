@@ -92,7 +92,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
 
     public const string PublicPropertyCode = PublicPropertyResolver.LegacyPropertyCode;
     private static readonly HashSet<string> AllowedSectionTypes =
-        ["Hero", "AvailabilitySearch", "BranchGrid", "RoomGrid", "FeatureGrid", "Faq", "Location", "PolicyGrid", "RichText", "Cta"];
+        ["Hero", "AvailabilitySearch", "AvailabilityCalendar", "BranchGrid", "RoomGrid", "FeatureGrid", "Faq", "Location", "PolicyGrid", "RichText", "Cta"];
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<GlobalSiteAdminDto> GetGlobalAdminAsync(CancellationToken ct = default)

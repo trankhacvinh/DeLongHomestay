@@ -31,7 +31,8 @@ public static class PaymentEndpoints
             var userId = GetUserId(user);
             var (payment, error) = await service.AddAsync(propertyId, bookingId, request, userId, cancellationToken);
             if (error is not null) return ToProblem(error);
-            PublishBookingChanged(payment!);
+            if (payment is null) return MissingPaymentResult();
+            PublishBookingChanged(payment);
             return Results.Created($"/api/admin/properties/{propertyId}/payments/{payment.Id}", payment);
         })
         .RequireAuthorization("ManagePayments")
@@ -84,4 +85,11 @@ public static class PaymentEndpoints
             statusCode: status,
             extensions: new Dictionary<string, object?> { ["code"] = error.Code });
     }
+
+    private static IResult MissingPaymentResult() => Results.Problem(
+        type: "https://delong.local/problems/payment_result_missing",
+        title: "Không thể xử lý thanh toán",
+        detail: "Dịch vụ không trả về dữ liệu giao dịch sau khi ghi nhận.",
+        statusCode: StatusCodes.Status500InternalServerError,
+        extensions: new Dictionary<string, object?> { ["code"] = "payment_result_missing" });
 }

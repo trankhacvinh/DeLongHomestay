@@ -35,6 +35,7 @@
                 saving: false,
                 uploading: false,
                 editorExpanded: false,
+                guestGuideExpanded: false,
                 mediaPicker: { open: false },
                 focalEditor: { open: false, image: null, x: 0.5, y: 0.5 },
                 toast: { show: false, message: '', type: 'success', timer: null }
@@ -111,17 +112,24 @@
                 });
             },
             toggleEditorExpanded() {
+                this.guestGuideExpanded = false;
                 this.editorExpanded = !this.editorExpanded;
                 document.body.classList.toggle('room-editor-expanded', this.editorExpanded);
                 this.$nextTick(() => quill?.focus());
             },
-            closeExpandedEditor() {
-                if (!this.editorExpanded) return;
+            toggleGuestGuideExpanded() {
                 this.editorExpanded = false;
+                this.guestGuideExpanded = !this.guestGuideExpanded;
+                document.body.classList.toggle('room-editor-expanded', this.guestGuideExpanded);
+                this.$nextTick(() => guestGuideQuill?.focus());
+            },
+            closeExpandedEditor() {
+                this.editorExpanded = false;
+                this.guestGuideExpanded = false;
                 document.body.classList.remove('room-editor-expanded');
             },
             handleEditorKeydown(event) {
-                if (event.key === 'Escape' && this.editorExpanded) this.closeExpandedEditor();
+                if (event.key === 'Escape' && (this.editorExpanded || this.guestGuideExpanded)) this.closeExpandedEditor();
             },
             openMediaPicker() {
                 this.mediaPicker.open = true;

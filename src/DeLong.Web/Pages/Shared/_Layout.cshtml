@@ -202,8 +202,14 @@
     {
         <link rel="stylesheet" href="@(publicScopePrefix + "/site/custom.css")"/>
     }
+    @if (!isAdmin && string.Equals(routePage, "/Booking/Index", StringComparison.OrdinalIgnoreCase) && Context.Request.Query["embed"] == "1")
+    {
+        <link rel="stylesheet" href="~/css/booking-embed.css" asp-append-version="true"/>
+    }
 </head>
-<body class="@(isAdmin ? "admin-body" : "public-body")">
+<body class="@(isAdmin
+    ? "admin-body"
+    : $"public-body{(canManageSite ? " public-editor-enabled" : string.Empty)}{(Context.Request.Query["embed"] == "1" ? " public-embedded-page" : string.Empty)}")">
 <a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
 <svg class="svg-sprite" aria-hidden="true">
     <symbol id="i-grid" viewBox="0 0 24 24">
@@ -539,7 +545,7 @@ else
                     <a class="public-admin-link public-customer-account-link"
                        href="@customerAccountUrl">@(User.Identity?.Name ?? "Tài khoản")</a>
                     <form class="public-logout-form" method="post" asp-page="/Account/Logout">
-                        <button class="public-logout-link" type="submit" title="Đăng xuất">Đăng xuất</button>
+                        <button class="public-admin-link public-logout-link" type="submit" title="Đăng xuất">Đăng xuất</button>
                     </form>
                 }
                 else if (User.Identity?.IsAuthenticated == true)
