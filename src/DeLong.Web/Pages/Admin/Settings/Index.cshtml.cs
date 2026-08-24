@@ -4,6 +4,7 @@ using DeLong.Web.Features.Notifications;
 using DeLong.Web.Features.Housekeeping;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Features.CustomerAccounts;
+using DeLong.Web.Features.Payments;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -16,6 +17,7 @@ public sealed class IndexModel(
     HousekeepingService housekeepingService,
     NotificationSettingsService notificationSettingsService,
     CustomerAccountSettingsService customerAccountSettingsService,
+    Pay2SSettingsService pay2SSettingsService,
     CurrentPropertyService currentPropertyService) : PageModel
 {
     public Guid PropertyId { get; private set; }
@@ -31,6 +33,7 @@ public sealed class IndexModel(
         var housekeepingSettings = await housekeepingService.GetSettingsAsync(PropertyId, cancellationToken);
         var notificationSettings = await notificationSettingsService.GetAsync(PropertyId, cancellationToken);
         var customerAccountSettings = await customerAccountSettingsService.GetAsync(PropertyId, cancellationToken);
+        var pay2SSettings = await pay2SSettingsService.GetAsync(PropertyId, cancellationToken);
         PageDataJson = JsonSerializer.Serialize(
             new
             {
@@ -40,6 +43,7 @@ public sealed class IndexModel(
                 housekeepingSettings,
                 notificationSettings,
                 customerAccountSettings
+                ,pay2SSettings
             },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return Page();

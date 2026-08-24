@@ -20,11 +20,11 @@
     const BASE_TYPES = {
         global: [
             ['Hero', 'Hero / mở đầu'], ['BranchGrid', 'Danh sách cơ sở'], ['RoomGrid', 'Danh sách phòng'],
-            ['AvailabilitySearch', 'Kiểm tra phòng nhanh'], ['FeatureGrid', 'Nội dung + điểm nổi bật'],
+            ['AvailabilitySearch', 'Kiểm tra phòng nhanh'], ['AvailabilityCalendar', 'Lịch phòng trống V2'], ['FeatureGrid', 'Nội dung + điểm nổi bật'],
             ['RichText', 'Nội dung tự do'], ['Cta', 'Kêu gọi hành động']
         ],
         property: [
-            ['Hero', 'Hero / mở đầu'], ['AvailabilitySearch', 'Kiểm tra phòng nhanh'], ['RoomGrid', 'Danh sách phòng'],
+            ['Hero', 'Hero / mở đầu'], ['AvailabilitySearch', 'Kiểm tra phòng nhanh'], ['AvailabilityCalendar', 'Lịch phòng trống V2'], ['RoomGrid', 'Danh sách phòng'],
             ['FeatureGrid', 'Nội dung + điểm nổi bật'], ['Faq', 'Câu hỏi thường gặp'], ['Location', 'Vị trí & chỉ đường'],
             ['PolicyGrid', 'Quy định lưu trú'], ['RichText', 'Nội dung tự do'], ['Cta', 'Kêu gọi hành động']
         ]
@@ -49,6 +49,7 @@
         BranchGrid: ['grid-3', 'grid-2', 'editorial'],
         RoomGrid: ['grid-3', 'grid-2', 'featured-first', 'editorial-cards', 'horizontal-scroll'],
         AvailabilitySearch: ['booking-bar', 'card', 'minimal'],
+        AvailabilityCalendar: ['vertical'],
         FeatureGrid: ['split', 'stacked', 'icon-grid', 'dark-band', 'editorial'],
         Faq: ['accordion', 'two-column'],
         Location: ['split', 'card'],
@@ -65,7 +66,7 @@
 
     const ELEMENT_TYPES = [
         ['.public-cms-hero', 'Hero'], ['.public-branch-section', 'BranchGrid'], ['.public-cms-room-grid', 'RoomGrid'],
-        ['.public-cms-availability', 'AvailabilitySearch'], ['.public-cms-feature', 'FeatureGrid'],
+        ['.public-cms-availability', 'AvailabilitySearch'], ['.public-cms-availability-calendar', 'AvailabilityCalendar'], ['.public-cms-feature', 'FeatureGrid'],
         ['.public-story-faq', 'Faq'], ['.public-story-location', 'Location'], ['.public-story-policies', 'PolicyGrid'],
         ['.public-cms-rich', 'RichText'], ['.public-cms-cta', 'Cta']
     ];
@@ -120,6 +121,7 @@
             ? { eyebrow: 'PHÒNG', title: 'Một vài lựa chọn đang mở', mode: 'all', limit: 6, propertyQuotas: {}, roomIds: [] }
             : { eyebrow: 'KHÔNG GIAN', title: 'Chọn căn phòng hợp với nhịp của bạn', limit: 6 };
         if (type === 'AvailabilitySearch') return { title: scope === 'global' ? 'Chọn cơ sở và ngày bạn muốn ghé' : 'Chọn ngày bạn muốn ghé' };
+        if (type === 'AvailabilityCalendar') return { eyebrow: 'LỊCH PHÒNG', title: 'Xem phòng và khung giờ còn trống', days: 7 };
         if (type === 'FeatureGrid') return { eyebrow: '', title: '', body: '', items: [], imageUrl: '' };
         if (type === 'Faq') return { eyebrow: 'THÔNG TIN', title: 'Câu hỏi thường gặp', items: [{ question: '', answer: '' }] };
         if (type === 'Location') return { eyebrow: 'VỊ TRÍ', title: 'Tìm đường đến cơ sở', body: '', address: '', mapUrl: '', embedUrl: '', nearby: [] };
@@ -215,6 +217,7 @@
             field('Số phòng tối đa', 'content.limit', content.limit || 6, { type: 'number', min: 1, max: 24 }) +
             (scope === 'global' ? `<div data-room-source>${roomSourceFields(content, context)}</div>` : '<div class="pve-notice">Trang cơ sở tự lấy phòng đã xuất bản của chính cơ sở này.</div>');
         if (type === 'AvailabilitySearch') return field('Tiêu đề', 'content.title', content.title || '');
+        if (type === 'AvailabilityCalendar') return `<div class="pve-grid-2">${field('Eyebrow', 'content.eyebrow', content.eyebrow || '')}${field('Tiêu đề', 'content.title', content.title || '')}</div>${field('Số ngày hiển thị', 'content.days', content.days || 7, { type: 'number', min: 1, max: 14 })}<div class="pve-notice">Khách bấm khung còn trống để mở form đặt phòng trong modal cố định.</div>`;
         if (type === 'FeatureGrid') return field('Eyebrow', 'content.eyebrow', content.eyebrow || '') + field('Tiêu đề', 'content.title', content.title || '', { type: 'textarea', rows: 2 }) + field('Mô tả', 'content.body', content.body || '', { type: 'textarea', rows: 3 }) + field('Các điểm nổi bật — mỗi dòng một mục', 'content.itemsText', Array.isArray(content.items) ? content.items.join('\n') : '', { type: 'textarea', rows: 5 }) + imageField('Ảnh kể chuyện', content.imageUrl || '');
         if (type === 'Faq' || type === 'PolicyGrid') return `<div class="pve-grid-2">${field('Eyebrow', 'content.eyebrow', content.eyebrow || '')}${field('Tiêu đề', 'content.title', content.title || '')}</div><div class="pve-repeat" data-repeat-type="${type}">${repeatRows(type, content.items)}<button class="pve-add-repeat" type="button" data-repeat-add>+ Thêm ${type === 'Faq' ? 'câu hỏi' : 'mục'}</button></div>`;
         if (type === 'Location') return `<div class="pve-grid-2">${field('Eyebrow', 'content.eyebrow', content.eyebrow || '')}${field('Tiêu đề', 'content.title', content.title || '')}</div>` + field('Mô tả', 'content.body', content.body || '', { type: 'textarea', rows: 3 }) + field('Địa chỉ', 'content.address', content.address || '') + field('Google Maps URL', 'content.mapUrl', content.mapUrl || '') + field('Maps embed URL', 'content.embedUrl', content.embedUrl || '') + field('Địa điểm gần — mỗi dòng một mục', 'content.nearbyText', Array.isArray(content.nearby) ? content.nearby.join('\n') : '', { type: 'textarea', rows: 4 });
@@ -477,6 +480,7 @@
                 if (key === 'itemsText') content.items = input.value.split('\n').map(x => x.trim()).filter(Boolean);
                 else if (key === 'nearbyText') content.nearby = input.value.split('\n').map(x => x.trim()).filter(Boolean);
                 else if (key === 'limit') content.limit = Math.max(1, Math.min(24, Number(input.value) || 6));
+                else if (key === 'days') content.days = Math.max(1, Math.min(14, Number(input.value) || 7));
                 else content[key] = input.value;
             });
             if (type === 'BranchGrid') content.propertyIds = [...this.drawer.querySelectorAll('[name="content.propertyIds"]:checked')].map(input => input.value);

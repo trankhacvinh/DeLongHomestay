@@ -41,7 +41,8 @@ public static class BookingEndpoints
             var (booking, error) = await service.CreateAsync(
                 propertyId, request, GetUserId(user), cancellationToken);
             if (error is not null) return ToProblem(error);
-            Publish(propertyId, OperationsEventTypes.BookingCreated, booking!);
+            if (booking is null) return MissingBookingResult();
+            Publish(propertyId, OperationsEventTypes.BookingCreated, booking);
             return Results.Created($"/api/admin/properties/{propertyId}/bookings/{booking.Id}", booking);
         })
         .RequireAuthorization("ManageBookings")
@@ -134,4 +135,11 @@ public static class BookingEndpoints
             statusCode: status,
             extensions: new Dictionary<string, object?> { ["code"] = error.Code });
     }
+
+    private static IResult MissingBookingResult() => Results.Problem(
+        type: "https://delong.local/problems/booking_result_missing",
+        title: "Không thể xử lý lượt đặt",
+        detail: "Dịch vụ không trả về dữ liệu lượt đặt sau khi tạo.",
+        statusCode: StatusCodes.Status500InternalServerError,
+        extensions: new Dictionary<string, object?> { ["code"] = "booking_result_missing" });
 }

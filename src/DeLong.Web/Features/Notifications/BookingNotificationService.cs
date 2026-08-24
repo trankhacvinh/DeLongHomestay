@@ -11,6 +11,39 @@ public sealed class BookingNotificationService(
 {
     private const string BookingRequestedType = "booking-requested";
     private const string BookingEmailOnlyType = "booking-email-only";
+    private const string Pay2SLatePaymentType = "pay2s-paid-after-expiry";
+    private static readonly string[] InAppTypes = [BookingRequestedType, Pay2SLatePaymentType];
+
+    public async Task NotifyLatePay2SPaymentAsync(Guid propertyId, Guid bookingId, decimal amount, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (await db.Set<PropertyNotification>().AsNoTracking().AnyAsync(
+                    x => x.PropertyId == propertyId && x.BookingId == bookingId && x.Type == Pay2SLatePaymentType,
+                    cancellationToken)) return;
+            var booking = await db.Bookings.AsNoTracking()
+                .Where(x => x.PropertyId == propertyId && x.Id == bookingId)
+                .Select(x => new { x.Code, CustomerName = x.Customer.Name, RoomName = x.Room.Name })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (booking is null) return;
+            var notification = new PropertyNotification
+            {
+                PropertyId = propertyId,
+                BookingId = bookingId,
+                Type = Pay2SLatePaymentType,
+                Title = $"Tiền Pay2S đến muộn · {booking.Code}",
+                Message = $"{booking.CustomerName} · {booking.RoomName} · {amount:N0} đ · bắt buộc xử lý",
+                ActionUrl = $"/Admin/Bookings?propertyId={propertyId}&bookingId={bookingId}&paymentIssue=late"
+            };
+            db.Add(notification);
+            await db.SaveChangesAsync(cancellationToken);
+            realtimeBroker.Publish(new NotificationRealtimeEvent(notification.Id, propertyId, notification.Type, notification.CreatedAtUtc));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not create late Pay2S notification for booking {BookingId}.", bookingId);
+        }
+    }
 
     public async Task NotifyBookingCreatedAsync(Guid propertyId, Guid bookingId, CancellationToken cancellationToken = default)
     {
@@ -103,7 +136,7 @@ public sealed class BookingNotificationService(
     {
         take = Math.Clamp(take, 1, 50);
         var items = await db.Set<PropertyNotification>().AsNoTracking()
-            .Where(x => x.PropertyId == propertyId && x.Type == BookingRequestedType)
+            .Where(x => x.PropertyId == propertyId && InAppTypes.Contains(x.Type))
             .OrderByDescending(x => x.CreatedAtUtc)
             .Take(take)
             .Select(x => new NotificationItemDto(
@@ -117,14 +150,14 @@ public sealed class BookingNotificationService(
                 x.Reads.Any(r => r.UserId == userId)))
             .ToListAsync(cancellationToken);
         var unreadCount = await db.Set<PropertyNotification>().AsNoTracking()
-            .CountAsync(x => x.PropertyId == propertyId && x.Type == BookingRequestedType && !x.Reads.Any(r => r.UserId == userId), cancellationToken);
+            .CountAsync(x => x.PropertyId == propertyId && InAppTypes.Contains(x.Type) && !x.Reads.Any(r => r.UserId == userId), cancellationToken);
         return new NotificationFeedDto(items, unreadCount);
     }
 
     public async Task<bool> MarkReadAsync(Guid propertyId, Guid notificationId, Guid userId, CancellationToken cancellationToken = default)
     {
         if (!await db.Set<PropertyNotification>().AsNoTracking()
-            .AnyAsync(x => x.Id == notificationId && x.PropertyId == propertyId && x.Type == BookingRequestedType, cancellationToken)) return false;
+            .AnyAsync(x => x.Id == notificationId && x.PropertyId == propertyId && InAppTypes.Contains(x.Type), cancellationToken)) return false;
         if (await db.Set<PropertyNotificationRead>().AnyAsync(x => x.NotificationId == notificationId && x.UserId == userId, cancellationToken)) return true;
         db.Add(new PropertyNotificationRead { NotificationId = notificationId, UserId = userId, ReadAtUtc = DateTime.UtcNow });
         await db.SaveChangesAsync(cancellationToken);
@@ -134,7 +167,7 @@ public sealed class BookingNotificationService(
     public async Task<int> MarkAllReadAsync(Guid propertyId, Guid userId, CancellationToken cancellationToken = default)
     {
         var unreadIds = await db.Set<PropertyNotification>().AsNoTracking()
-            .Where(x => x.PropertyId == propertyId && x.Type == BookingRequestedType && !x.Reads.Any(r => r.UserId == userId))
+            .Where(x => x.PropertyId == propertyId && InAppTypes.Contains(x.Type) && !x.Reads.Any(r => r.UserId == userId))
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
         if (unreadIds.Count == 0) return 0;

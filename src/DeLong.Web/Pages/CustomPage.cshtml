@@ -1,4 +1,5 @@
 @page
+@using System.Text.Json
 @using System.Text.Json.Nodes
 @using DeLong.Web.Features.Site
 @model DeLong.Web.Pages.CustomPageModel
@@ -34,6 +35,7 @@
     <link rel="stylesheet" href="~/css/homepage-cms.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/hospitality-home.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/property-storytelling.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/public-availability-calendar.css" asp-append-version="true" />
 }
 
 @if (!page.IsPublished)
@@ -107,6 +109,15 @@
             <section class="public-check-section public-cms-availability variant-@(section.Variant)"><div class="public-container"><form class="public-check-card" method="get" action="@(Model.IsGlobal ? "/booking" : PublicUrlBuilder.Booking(Model.SiteSlug!))"><div><span class="public-eyebrow">Đặt phòng nhanh</span><h2 class="@(CustomPageModel.VisualClass(content, "title"))">@CustomPageModel.Text(content, "title", "Chọn ngày bạn muốn ghé")</h2></div>@if (Model.IsGlobal && Model.GlobalCatalog.Properties.Count > 1) { <label class="public-date-field"><span>Cơ sở</span><select name="site" required><option value="">Chọn cơ sở</option>@foreach (var property in Model.GlobalCatalog.Properties) { <option value="@property.SiteSlug">@property.SiteName</option> }</select></label> }<label class="public-date-field"><span>Ngày sử dụng</span><input type="date" name="date" value="@Model.DefaultDate" required /></label><button class="public-btn public-btn-primary" type="submit">Tìm phòng</button></form></div></section>
             break;
         }
+        case "AvailabilityCalendar":
+        {
+            var days = Math.Clamp(content["days"]?.GetValue<int>() ?? 7, 1, 14);
+            var roomsJson = Model.IsGlobal
+                ? JsonSerializer.Serialize(Model.GlobalCatalog.Rooms.Select(item => new { id = item.Room.Id, code = item.Room.Code, name = item.Room.Name, propertyName = item.PropertyName, siteSlug = item.PropertySiteSlug, bookingUrl = PublicUrlBuilder.Booking(item.PropertySiteSlug, room: item.Room.Code) }))
+                : JsonSerializer.Serialize(Model.Catalog.Rooms.Select(room => new { id = room.Id, code = room.Code, name = room.Name, propertyName = siteName, siteSlug = Model.SiteSlug ?? string.Empty, bookingUrl = PublicUrlBuilder.Booking(Model.SiteSlug!, room: room.Code) }));
+            <section class="public-section public-cms-availability-calendar variant-@(section.Variant)" data-public-availability-calendar data-days="@days"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">@CustomPageModel.Text(content, "eyebrow", "LỊCH PHÒNG")</span><h2>@CustomPageModel.Text(content, "title", "Xem phòng và khung giờ còn trống")</h2></div></div><script type="application/json" data-availability-rooms>@Html.Raw(roomsJson)</script><div data-availability-calendar-host></div></div></section>
+            break;
+        }
         case "FeatureGrid":
         {
             var items = content["items"] as JsonArray;
@@ -151,6 +162,8 @@
         }
     }
 }
+
+@section Scripts { <script src="~/js/pages/public-availability-calendar.js" asp-append-version="true"></script> }
 
 @if (page.Sections.Count == 0)
 {

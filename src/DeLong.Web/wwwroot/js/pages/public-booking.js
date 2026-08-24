@@ -48,6 +48,7 @@
                 submitting: false,
                 availabilityError: '',
                 errorMessage: '',
+                bookingConflictMessage: '',
                 fieldErrors: { customerName: '', customerPhone: '' },
                 deepLinkedRoom: !!initial.initialRoomId,
                 deepLinkedRate: !!initial.initialRateId,
@@ -249,6 +250,7 @@
                 this.selectedRateId = null;
                 this.availabilityError = '';
                 this.errorMessage = '';
+                this.bookingConflictMessage = '';
                 if (type === 1) {
                     if (!this.checkInDate) this.checkInDate = this.date || this.today;
                     if (!this.checkOutDate || this.checkOutDate <= this.checkInDate) this.checkOutDate = addDays(this.checkInDate, 1);
@@ -261,6 +263,7 @@
             },
             chooseRoom(room) {
                 if (!this.roomSelectable(room)) return;
+                this.bookingConflictMessage = '';
                 this.selectedRoomId = room.id;
                 if (this.bookingType === 1) {
                     this.selectedRateId = room.nightlyRate?.id || null;
@@ -271,11 +274,18 @@
                 }
                 this.errorMessage = '';
             },
+            chooseRate(rate) {
+                if (!rate?.available) return;
+                this.bookingConflictMessage = '';
+                this.errorMessage = '';
+                this.selectedRateId = rate.id;
+            },
             async loadAvailability() {
                 if (!this.date || this.bookingType !== 0) return;
                 this.loading = true;
                 this.availabilityError = '';
                 this.errorMessage = '';
+                this.bookingConflictMessage = '';
                 try {
                     const data = await DeLongApi.get(this.apiUrl('/api/public/availability', { date: this.date }));
                     this.rooms = data.rooms || [];
@@ -311,6 +321,7 @@
                 this.loading = true;
                 this.availabilityError = '';
                 this.errorMessage = '';
+                this.bookingConflictMessage = '';
                 try {
                     const data = await DeLongApi.get(this.apiUrl('/api/public/stay-availability', { checkIn: this.checkInDate, checkOut: this.checkOutDate }));
                     this.stayRooms = data.rooms || [];
@@ -338,6 +349,30 @@
             },
             reloadAvailability() {
                 return this.bookingType === 1 ? this.loadStayAvailability() : this.loadAvailability();
+            },
+            focusAvailableOptions() {
+                this.bookingConflictMessage = '';
+                const target = document.getElementById(this.selectedRoom ? 'booking-rate-step' : 'booking-room-step');
+                target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            },
+            async handleBookingConflict(roomId, rateId, message) {
+                if (this.bookingType === 1) {
+                    await this.loadStayAvailability();
+                    this.selectedRoomId = null;
+                    this.selectedRateId = null;
+                } else {
+                    await this.loadAvailability();
+                    const room = this.rooms.find(item => item.id === roomId);
+                    const rate = this.timeSlotRates(room).find(item => item.id === rateId);
+                    if (rate) rate.available = false;
+                    this.selectedRoomId = room ? roomId : null;
+                    this.selectedRateId = null;
+                }
+
+                this.errorMessage = '';
+                this.bookingConflictMessage = message || 'Phòng vừa được giữ hoặc xác nhận trong khung giờ này. Vui lòng chọn khung khác.';
+                await this.$nextTick();
+                document.getElementById('booking-conflict-notice')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             },
             focusDateInput() {
                 const selector = this.bookingType === 1 ? 'input[type="date"][v-model="checkInDate"]' : 'input[type="date"][v-model="date"]';
@@ -377,7 +412,10 @@
                 if (!this.validateContact()) return;
                 this.submitting = true;
                 this.errorMessage = '';
+                this.bookingConflictMessage = '';
                 if (!this.requestKey) this.requestKey = this.newRequestKey();
+                const attemptedRoomId = this.selectedRoomId;
+                const attemptedRateId = this.selectedRate.id;
                 try {
                     const payload = {
                         type: this.bookingType,
@@ -392,16 +430,22 @@
                         website: this.form.website
                     };
                     const result = await DeLongApi.post(this.apiUrl('/api/public/booking-requests'), payload, { 'Idempotency-Key': this.requestKey });
+                    if (result.paymentUrl && result.paymentOrderId) {
+                        localStorage.setItem('delong.pendingPay2S', JSON.stringify({ orderId: result.paymentOrderId, payUrl: result.paymentUrl, expiresAtUtc: result.holdExpiresAtUtc }));
+                        window.location.assign(result.paymentUrl);
+                        return;
+                    }
                     const query = new URLSearchParams({ code: result.code, room: result.roomName, amount: String(result.totalAmount) });
                     window.location.assign(`${this.scopePrefix}/booking/success?${query.toString()}`);
                 } catch (error) {
-                    this.errorMessage = error.message || 'Không thể gửi yêu cầu lúc này.';
+                    const message = error.message || 'Không thể gửi yêu cầu lúc này.';
                     // Keep the same key only for network-level uncertainty. Any HTTP response means
                     // the server answered definitively and a corrected retry should get a fresh key.
                     if (error.status) this.requestKey = null;
                     if (error.status === 409) {
-                        if (this.bookingType === 1) await this.loadStayAvailability();
-                        else await this.loadAvailability();
+                        await this.handleBookingConflict(attemptedRoomId, attemptedRateId, message);
+                    } else {
+                        this.errorMessage = message;
                     }
                 } finally {
                     this.submitting = false;

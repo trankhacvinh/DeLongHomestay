@@ -207,7 +207,7 @@ public sealed class SiteCmsAndLookupTests
             Type = PaymentType.Receipt,
             Amount = 150_000m,
             OccurredAtUtc = DateTime.UtcNow,
-            Method = PaymentMethod.Cash
+            Method = PaymentMethod.Pay2S
         };
         var refund = new Payment
         {
@@ -255,6 +255,11 @@ public sealed class SiteCmsAndLookupTests
         Assert.True(pdf.Length > 500);
         Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
 
+        var success = await service.GetSuccessAsync(null, booking.Code);
+        Assert.NotNull(success);
+        Assert.True(success!.IsPay2SPaid);
+        Assert.Equal(120_000m, success.PaidAmount);
+
         Assert.Null(await service.LookupAsync(booking.Code, "0900000000"));
         Assert.Null(await service.LookupAsync("BK-NOT-FOUND", customer.Phone));
 
@@ -262,5 +267,6 @@ public sealed class SiteCmsAndLookupTests
         await db.SaveChangesAsync();
         Assert.Null(await service.LookupAsync(booking.Code, customer.Phone));
         Assert.Null(await service.GetSuccessGuideAsync(null, booking.Code));
+        Assert.Null(await service.GetSuccessAsync(null, booking.Code));
     }
 }

@@ -101,6 +101,26 @@
                 <div class="payment-summary-card"><span>Đã thanh toán</span><strong class="text-success">{{ money(selectedBooking.paidAmount) }}</strong></div>
                 <div class="payment-summary-card"><span>Còn lại</span><strong v-bind:class="selectedBooking.balanceAmount > 0 ? 'text-danger' : 'text-success'">{{ money(selectedBooking.balanceAmount) }}</strong></div>
             </div>
+            <section class="notice danger" v-if="pay2sIntent?.status === 'PaidAfterExpiry' && !pay2sIntent.latePaymentResolution">
+                <h3>Tiền Pay2S đến sau khi phòng đã được giải phóng</h3>
+                <p>Đã nhận {{ money(pay2sIntent.amount) }} · mã giao dịch {{ pay2sIntent.transactionId }}. Booking không được tự xác nhận lại. Quản trị viên bắt buộc chọn cách xử lý.</p>
+                <div class="form-grid two-col">
+                    <div class="field"><label>Cách xử lý</label><select v-model="lateResolution.action"><option value="refund">Đã hoàn tiền</option><option value="confirm">Xác nhận thủ công nếu phòng còn trống</option><option value="move">Chuyển phòng hoặc thời gian khác</option></select></div>
+                    <div class="field"><label>Ghi chú xử lý</label><input v-model.trim="lateResolution.note" placeholder="Mã hoàn tiền hoặc nội dung trao đổi với khách" /></div>
+                    <template v-if="lateResolution.action === 'move'">
+                        <div class="field"><label>Phòng mới</label><select v-model="lateResolution.roomId"><option value="">Chọn phòng</option><option v-for="room in editableStayRooms" v-bind:key="room.id" v-bind:value="room.id">{{ room.name }}</option></select></div>
+                        <div class="field"><label>Nhận phòng mới</label><input type="datetime-local" v-model="lateResolution.checkInUtc" /></div>
+                        <div class="field"><label>Trả phòng mới</label><input type="datetime-local" v-model="lateResolution.checkOutUtc" /></div>
+                    </template>
+                </div>
+                <button class="btn btn-danger" type="button" v-bind:disabled="saving" v-on:click="resolveLatePay2S">Xác nhận xử lý tiền đến muộn</button>
+            </section>
+            <section class="notice" v-else-if="pay2sIntent?.latePaymentResolution">
+                Khoản tiền đến muộn đã xử lý: <strong>{{ pay2sIntent.latePaymentResolution }}</strong><span v-if="pay2sIntent.latePaymentResolutionNote"> · {{ pay2sIntent.latePaymentResolutionNote }}</span>
+            </section>
+            <section class="notice danger" v-else-if="pay2sIntent?.lastCallbackErrorCode">
+                Callback Pay2S gần nhất bị từ chối: <strong>{{ pay2sIntent.lastCallbackErrorCode }}</strong>. Kiểm tra khóa cấu hình, chữ ký, mã đơn và số tiền.
+            </section>
             <div class="detail-list booking-detail-list">
                 <div><span>Kiểu đặt</span><strong>{{ selectedBooking.type === 1 ? 'Lưu trú nhiều ngày' : 'Theo khung giờ' }}</strong></div>
                 <div><span>Phòng</span><strong>{{ selectedBooking.roomName }}</strong></div>
@@ -113,7 +133,7 @@
             <div class="panel modal-panel">
                 <div class="panel-head">
                     <div><h3>Giao dịch thanh toán</h3><span class="tiny muted">Lịch sử thu và hoàn tiền</span></div>
-                    <button v-if="canManage" class="btn btn-primary btn-sm" type="button" v-on:click="openPayment"><svg><use href="#i-plus" /></svg>Ghi nhận</button>
+                    <div class="booking-inline-actions" v-if="canManage"><button class="btn btn-light btn-sm" type="button" v-on:click="createPay2SIntent">Tạo QR Pay2S</button><button class="btn btn-primary btn-sm" type="button" v-on:click="openPayment"><svg><use href="#i-plus" /></svg>Ghi nhận</button></div>
                 </div>
                 <div class="panel-body">
                     <p v-if="loadingPayments" class="small muted">Đang tải giao dịch...</p>
@@ -131,6 +151,14 @@
                 <button v-if="canEditStay(selectedBooking)" class="btn btn-light" type="button" v-on:click="openStayEditor">Sửa lưu trú</button>
                 <button v-for="action in nextActions(selectedBooking)" v-bind:key="action.status" type="button" class="btn" v-bind:class="action.className" v-bind:disabled="saving" v-on:click="requestStatus(action)">{{ action.label }}</button>
             </div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop modal-top" v-if="pay2sEditor.open">
+        <section class="modal-card modal-small" role="dialog" aria-modal="true" aria-labelledby="pay2s-admin-title">
+            <div class="modal-head"><div><h2 id="pay2s-admin-title">Thanh toán Pay2S</h2><p class="small muted">{{ selectedBooking?.code }} · {{ money(pay2sEditor.amount) }}</p></div><button class="icon-btn" type="button" v-on:click="pay2sEditor.open = false" aria-label="Đóng">×</button></div>
+            <div class="notice">Liên kết có hiệu lực đến {{ dateTimeText(pay2sEditor.expiresAtUtc) }}. Phòng được khóa đến {{ dateTimeText(pay2sEditor.releaseAtUtc) }} để chờ IPN đang truyền về.</div>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="copyPay2SLink">Sao chép liên kết</button><a class="btn btn-primary" v-bind:href="pay2sEditor.payUrl" target="_blank" rel="noopener">Mở mã QR</a></div>
         </section>
     </div>
 

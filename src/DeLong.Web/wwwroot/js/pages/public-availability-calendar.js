@@ -1,0 +1,241 @@
+(function () {
+    const calendars = document.querySelectorAll('[data-public-availability-calendar]');
+    if (!calendars.length) return;
+
+    const parseDate = value => {
+        const [year, month, day] = String(value || '').split('-').map(Number);
+        return new Date(Date.UTC(year, month - 1, day));
+    };
+    const dateKey = value => `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
+    const addDays = (value, amount) => { const date = parseDate(value); date.setUTCDate(date.getUTCDate() + amount); return dateKey(date); };
+    const localDateKey = (value, timeZone) => {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).formatToParts(value).reduce((result, part) => {
+            result[part.type] = part.value;
+            return result;
+        }, {});
+        return `${parts.year}-${parts.month}-${parts.day}`;
+    };
+    const today = localDateKey(new Date(), 'Asia/Ho_Chi_Minh');
+    const dateLabel = value => {
+        const date = parseDate(value);
+        const weekday = date.getUTCDay() === 0 ? 'CN' : `T${date.getUTCDay() + 1}`;
+        return `${weekday} - ${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+    };
+    const money = value => `${Number(value || 0).toLocaleString('vi-VN')}đ`;
+
+    function createBookingModal() {
+        const backdrop = document.createElement('div');
+        backdrop.className = 'public-slot-booking-backdrop';
+        backdrop.hidden = true;
+        backdrop.innerHTML = '<section class="public-slot-booking-modal" role="dialog" aria-modal="true" aria-labelledby="public-slot-booking-title"><header><div><span>ĐẶT PHÒNG</span><h2 id="public-slot-booking-title">Hoàn tất thông tin đặt phòng</h2><p data-booking-modal-summary></p></div><button type="button" data-booking-modal-close aria-label="Đóng form đặt phòng">×</button></header><div class="public-slot-booking-frame-wrap"><div class="public-slot-booking-loading">Đang tải form đặt phòng…</div><iframe data-booking-modal-frame title="Form đặt phòng" loading="eager"></iframe></div></section>';
+        document.body.appendChild(backdrop);
+        const frame = backdrop.querySelector('[data-booking-modal-frame]');
+        const summary = backdrop.querySelector('[data-booking-modal-summary]');
+        const loading = backdrop.querySelector('.public-slot-booking-loading');
+        const close = () => {
+            backdrop.hidden = true;
+            document.body.classList.remove('public-booking-modal-open');
+            frame.removeAttribute('src');
+        };
+        backdrop.querySelector('[data-booking-modal-close]').addEventListener('click', close);
+        frame.addEventListener('load', () => { loading.hidden = true; });
+        return {
+            open(url, text) {
+                summary.textContent = text;
+                loading.hidden = false;
+                backdrop.hidden = false;
+                document.body.classList.add('public-booking-modal-open');
+                frame.src = url;
+                backdrop.querySelector('[data-booking-modal-close]').focus();
+            }
+        };
+    }
+
+    const bookingModal = createBookingModal();
+
+    calendars.forEach(section => {
+        const host = section.querySelector('[data-availability-calendar-host]');
+        let rooms = [];
+        try { rooms = JSON.parse(section.querySelector('[data-availability-rooms]')?.textContent || '[]'); } catch { rooms = []; }
+
+        const batchSize = 14;
+        const rowHeight = 52;
+        const overscan = 5;
+        const state = {
+            roomIndex: 0,
+            timeZone: 'Asia/Ho_Chi_Minh',
+            days: [],
+            nextFrom: today,
+            loading: false,
+            requestVersion: 0,
+            renderQueued: false
+        };
+
+        host.innerHTML = '<div class="public-v2-roombar"><button type="button" data-room-prev aria-label="Phòng trước">‹</button><div><small>PHÒNG</small><strong data-room-name>—</strong><span data-room-meta></span></div><button type="button" data-room-next aria-label="Phòng tiếp theo">›</button></div><div class="public-v2-legend"><span><i class="available"></i>Còn trống</span><span><i class="partial"></i>Trống một phần</span><span><i class="occupied"></i>Đã có khách</span></div><div class="public-v2-status" data-calendar-status></div><div class="public-v2-viewport" data-calendar-viewport tabindex="0" aria-label="Lịch phòng, kéo xuống để xem thêm ngày"><div class="public-v2-grid-head" data-calendar-head></div><div class="public-v2-virtual-spacer" data-calendar-top></div><div class="public-v2-virtual-rows" data-calendar-rows></div><div class="public-v2-virtual-spacer" data-calendar-bottom></div><div class="public-v2-load-sentinel" data-calendar-sentinel>Đang tải thêm ngày…</div></div>';
+        const name = host.querySelector('[data-room-name]');
+        const meta = host.querySelector('[data-room-meta]');
+        const status = host.querySelector('[data-calendar-status]');
+        const viewport = host.querySelector('[data-calendar-viewport]');
+        const head = host.querySelector('[data-calendar-head]');
+        const topSpacer = host.querySelector('[data-calendar-top]');
+        const rows = host.querySelector('[data-calendar-rows]');
+        const bottomSpacer = host.querySelector('[data-calendar-bottom]');
+        const sentinel = host.querySelector('[data-calendar-sentinel]');
+
+        const timeLabel = value => new Intl.DateTimeFormat('vi-VN', { timeZone: state.timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value));
+        const currentRoom = () => rooms[state.roomIndex];
+        const visibleSlots = day => (day?.slots || []).filter(slot => Number(slot.rateType) !== 2);
+        const gridTemplate = count => `clamp(74px, 18%, 104px) repeat(${Math.max(1, count)}, minmax(0, 1fr))`;
+
+        function bookingUrl(room, day, slot) {
+            const url = new URL(room.bookingUrl, window.location.origin);
+            url.searchParams.set('date', day.date);
+            url.searchParams.set('room', room.code);
+            url.searchParams.set('rate', slot.rateId);
+            url.searchParams.set('embed', '1');
+            return `${url.pathname}${url.search}`;
+        }
+
+        function renderHeader() {
+            const slots = visibleSlots(state.days[0]);
+            head.style.gridTemplateColumns = gridTemplate(slots.length);
+            head.replaceChildren();
+            const dateCell = document.createElement('strong');
+            dateCell.className = 'public-v2-date-column';
+            dateCell.textContent = 'Ngày';
+            head.appendChild(dateCell);
+            slots.forEach(slot => {
+                const cell = document.createElement('div');
+                cell.innerHTML = `<strong>${timeLabel(slot.startUtc)}–${timeLabel(slot.endUtc)}</strong><small>${slot.rateName}</small>`;
+                head.appendChild(cell);
+            });
+        }
+
+        function renderVirtualRows() {
+            state.renderQueued = false;
+            if (!state.days.length) return;
+            const first = Math.max(0, Math.floor(viewport.scrollTop / rowHeight) - overscan);
+            const visibleCount = Math.ceil(viewport.clientHeight / rowHeight) + (overscan * 2);
+            const last = Math.min(state.days.length, first + visibleCount);
+            const slotCount = visibleSlots(state.days[0]).length;
+            topSpacer.style.height = `${first * rowHeight}px`;
+            bottomSpacer.style.height = `${Math.max(0, state.days.length - last) * rowHeight}px`;
+            rows.replaceChildren();
+
+            state.days.slice(first, last).forEach(day => {
+                const row = document.createElement('div');
+                row.className = `public-v2-grid-row${day.date === today ? ' is-today' : ''}`;
+                row.style.gridTemplateColumns = gridTemplate(slotCount);
+                const dateCell = document.createElement('div');
+                dateCell.className = 'public-v2-date-column';
+                dateCell.innerHTML = `<strong>${dateLabel(day.date)}</strong>${day.date === today ? '<small>Hôm nay</small>' : ''}`;
+                row.appendChild(dateCell);
+
+                visibleSlots(day).forEach(slot => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = `public-v2-slot-bar state-${slot.state}`;
+                    const freeText = (slot.free || []).map(item => `${timeLabel(item.startUtc)}–${timeLabel(item.endUtc)}`).join(', ');
+                    const stateText = slot.state === 'available' ? 'Còn trống' : slot.state === 'partial' ? `Còn ${freeText}` : 'Đã có khách';
+                    button.innerHTML = `<span>${stateText}</span><small>${money(slot.price)}</small>`;
+                    button.title = `${stateText} · ${money(slot.price)}`;
+                    button.setAttribute('aria-label', `${dateLabel(day.date)}, ${slot.rateName}, ${stateText}, ${money(slot.price)}`);
+                    if (slot.state === 'available') {
+                        button.addEventListener('click', () => bookingModal.open(
+                            bookingUrl(currentRoom(), day, slot),
+                            `${name.textContent} · ${dateLabel(day.date)} · ${timeLabel(slot.startUtc)}–${timeLabel(slot.endUtc)}`));
+                    } else button.disabled = true;
+                    row.appendChild(button);
+                });
+                rows.appendChild(row);
+            });
+
+            if (viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - (rowHeight * 5)) void loadNextBatch();
+        }
+
+        function queueRender() {
+            if (state.renderQueued) return;
+            state.renderQueued = true;
+            window.requestAnimationFrame(renderVirtualRows);
+        }
+
+        async function loadNextBatch() {
+            const room = currentRoom();
+            if (!room || state.loading) return;
+            const version = state.requestVersion;
+            state.loading = true;
+            sentinel.classList.add('show');
+            try {
+                const query = new URLSearchParams({ roomId: room.id, from: state.nextFrom, days: String(batchSize) });
+                if (room.siteSlug) query.set('siteSlug', room.siteSlug);
+                const response = await fetch(`/api/public/room-availability?${query}`, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                if (version !== state.requestVersion) return;
+                state.timeZone = data.timeZoneId || state.timeZone;
+                const calendar = Array.isArray(data.calendar) ? data.calendar : [];
+                if (!calendar.length) {
+                    status.textContent = 'Phòng này chưa có khung giờ đang hoạt động.';
+                    status.className = 'public-v2-status show';
+                    return;
+                }
+                state.days.push(...calendar);
+                state.nextFrom = addDays(calendar[calendar.length - 1].date, 1);
+                status.className = 'public-v2-status';
+                if (state.days.length === calendar.length) renderHeader();
+                queueRender();
+            } catch {
+                if (version !== state.requestVersion) return;
+                status.textContent = 'Chưa thể tải thêm lịch phòng. Kéo lại để thử lần nữa.';
+                status.className = 'public-v2-status show error';
+            } finally {
+                if (version === state.requestVersion) {
+                    state.loading = false;
+                    sentinel.classList.remove('show');
+                    section.classList.remove('loading');
+                }
+            }
+        }
+
+        function resetRoom() {
+            const room = currentRoom();
+            state.requestVersion += 1;
+            state.days = [];
+            state.nextFrom = today;
+            state.loading = false;
+            state.renderQueued = false;
+            viewport.scrollTop = 0;
+            head.replaceChildren();
+            rows.replaceChildren();
+            topSpacer.style.height = '0';
+            bottomSpacer.style.height = '0';
+            name.textContent = room?.name || '—';
+            meta.textContent = room ? `${room.propertyName || ''} · ${room.code}` : '';
+            status.textContent = 'Đang tải lịch phòng…';
+            status.className = 'public-v2-status show';
+            section.classList.add('loading');
+            void loadNextBatch();
+        }
+
+        const changeRoom = amount => {
+            if (!rooms.length) return;
+            state.roomIndex = (state.roomIndex + amount + rooms.length) % rooms.length;
+            resetRoom();
+        };
+        host.querySelector('[data-room-prev]').addEventListener('click', () => changeRoom(-1));
+        host.querySelector('[data-room-next]').addEventListener('click', () => changeRoom(1));
+        viewport.addEventListener('scroll', queueRender, { passive: true });
+        if ('ResizeObserver' in window) new ResizeObserver(queueRender).observe(viewport);
+        else window.addEventListener('resize', queueRender, { passive: true });
+
+        if (!rooms.length) {
+            status.textContent = 'Chưa có phòng được xuất bản để hiển thị.';
+            status.className = 'public-v2-status show';
+        } else resetRoom();
+    });
+})();

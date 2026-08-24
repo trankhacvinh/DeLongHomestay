@@ -197,6 +197,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AddPageRoute("/Booking/Index", "h/{siteSlug}/booking");
     options.Conventions.AddPageRoute("/Booking/Lookup", "h/{siteSlug}/booking/lookup");
     options.Conventions.AddPageRoute("/Booking/Success", "h/{siteSlug}/booking/success");
+    options.Conventions.AddPageRoute("/Payment/Pay2SReturn", "payment/pay2s/return");
     options.Conventions.AddPageRoute("/Customer/Account", "h/{siteSlug}/customer/account");
     options.Conventions.AddPageRoute("/Customer/Account", "customer/login");
     options.Conventions.AddPageRoute("/Customer/Account", "h/{siteSlug}/customer/login");
@@ -238,6 +239,26 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("pay2s-status", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"{httpContext.Connection.RemoteIpAddress}:{httpContext.Request.RouteValues["orderId"]}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+    options.AddPolicy("pay2s-ipn", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"{httpContext.Connection.RemoteIpAddress}:pay2s-ipn",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
     options.AddPolicy("account-login", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             $"{httpContext.Connection.RemoteIpAddress}:account",
@@ -273,6 +294,11 @@ builder.Services.AddScoped<BookingMoveService>();
 builder.Services.AddScoped<ExcelBookingImportService>();
 builder.Services.AddScoped<LegacyCalendarConversionService>();
 builder.Services.AddScoped<PaymentService>();
+builder.Services.AddSingleton<Pay2SCredentialProtector>();
+builder.Services.AddScoped<Pay2SSettingsService>();
+builder.Services.AddHttpClient<Pay2SClient>(client => client.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddScoped<Pay2SService>();
+builder.Services.AddHostedService<Pay2SExpiryWorker>();
 builder.Services.AddScoped<HousekeepingService>();
 builder.Services.AddScoped<ExpenseService>();
 builder.Services.AddScoped<FinanceService>();
@@ -399,6 +425,7 @@ app.MapCustomerEndpoints();
 app.MapBookingEndpoints();
 app.MapImportEndpoints();
 app.MapPaymentEndpoints();
+app.MapPay2SEndpoints();
 app.MapHousekeepingEndpoints();
 app.MapExpenseEndpoints();
 app.MapAuditEndpoints();

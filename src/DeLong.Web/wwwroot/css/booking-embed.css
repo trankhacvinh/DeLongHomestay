@@ -1,0 +1,177 @@
+/* Booking form rendered inside the public availability modal. */
+.public-embedded-page,
+.public-embedded-page #main-content,
+.public-embedded-page .public-booking-page,
+.public-embedded-page .public-booking-section,
+.public-embedded-page .public-booking-grid,
+.public-embedded-page .public-booking-main {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.public-embedded-page {
+    overflow-x: hidden;
+    background: #f6f8f7;
+}
+
+.public-embedded-page *,
+.public-embedded-page *::before,
+.public-embedded-page *::after {
+    box-sizing: border-box;
+}
+
+.public-embedded-page .public-page-hero,
+.public-embedded-page .public-booking-journey-wrap,
+.public-embedded-page .public-booking-summary {
+    display: none !important;
+}
+
+.public-embedded-page .public-booking-section {
+    padding: 10px;
+}
+
+.public-embedded-page .public-container.public-booking-grid {
+    display: block;
+    width: 100%;
+    max-width: none;
+}
+
+.public-embedded-page .public-booking-main {
+    display: grid;
+    gap: 10px;
+}
+
+.public-embedded-page .public-booking-mode,
+.public-embedded-page .public-step-card {
+    min-width: 0;
+    margin: 0;
+}
+
+.public-embedded-page .public-step-card {
+    padding: 18px;
+    border-radius: 16px;
+    box-shadow: none;
+}
+
+.public-embedded-page .public-step-head {
+    min-width: 0;
+    margin-bottom: 14px;
+}
+
+.public-embedded-page .public-step-head > div,
+.public-embedded-page .public-form-grid,
+.public-embedded-page .public-form-grid > label,
+.public-embedded-page .public-rate-choice-grid,
+.public-embedded-page .public-rate-choice,
+.public-embedded-page .public-rate-choice > span {
+    min-width: 0;
+}
+
+.public-embedded-page .public-form-grid {
+    grid-template-columns: 1fr;
+}
+
+.public-embedded-page .public-form-grid input,
+.public-embedded-page .public-form-grid textarea,
+.public-embedded-page .public-date-field input {
+    width: 100%;
+    max-width: 100%;
+}
+
+@media (max-width: 560px) {
+    .public-embedded-page .public-booking-section {
+        padding: 8px 0 calc(86px + env(safe-area-inset-bottom));
+    }
+
+    .public-embedded-page .public-booking-main {
+        gap: 8px;
+    }
+
+    .public-embedded-page .public-booking-mode,
+    .public-embedded-page .public-step-card {
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+    }
+
+    .public-embedded-page .public-booking-mode {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        padding: 6px;
+    }
+
+    .public-embedded-page .public-booking-mode button {
+        min-width: 0;
+        min-height: 54px;
+        padding: 9px 10px;
+    }
+
+    .public-embedded-page .public-booking-mode button small {
+        display: none;
+    }
+
+    .public-embedded-page .public-step-card {
+        padding: 16px;
+    }
+
+    .public-embedded-page .public-step-head {
+        gap: 10px;
+    }
+
+    .public-embedded-page .public-step-head > span {
+        width: 36px;
+        height: 36px;
+        flex-basis: 36px;
+    }
+
+    .public-embedded-page .public-step-head h2 {
+        font-size: 18px;
+        line-height: 1.15;
+    }
+
+    .public-embedded-page .public-step-head p {
+        margin-top: 3px;
+        font-size: 10px;
+    }
+
+    .public-embedded-page .public-rate-choice-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .public-embedded-page .public-rate-choice {
+        min-height: 82px;
+        padding: 11px;
+        align-items: flex-start;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 7px;
+    }
+
+    .public-embedded-page .public-rate-choice > strong {
+        font-size: 13px;
+        white-space: normal;
+    }
+
+    .public-embedded-page .public-form-grid {
+        gap: 12px;
+    }
+
+    .public-embedded-page .public-form-grid input,
+    .public-embedded-page .public-form-grid textarea {
+        font-size: 16px;
+    }
+
+    .public-embedded-page .public-booking-notice {
+        margin-top: 12px;
+    }
+}
+
+@media (max-width: 350px) {
+    .public-embedded-page .public-rate-choice-grid {
+        grid-template-columns: 1fr;
+    }
+}

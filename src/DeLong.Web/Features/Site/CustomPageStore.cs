@@ -550,7 +550,7 @@ public sealed class CustomPageStore(AppDbContext db)
     }
     private static string SectionLabel(string type) => type switch
     {
-        "Hero" => "Mở đầu", "AvailabilitySearch" => "Kiểm tra phòng nhanh", "BranchGrid" => "Danh sách cơ sở",
+        "Hero" => "Mở đầu", "AvailabilitySearch" => "Kiểm tra phòng nhanh", "AvailabilityCalendar" => "Lịch phòng trống V2", "BranchGrid" => "Danh sách cơ sở",
         "RoomGrid" => "Danh sách phòng", "FeatureGrid" => "Điểm nổi bật", "Faq" => "Câu hỏi thường gặp",
         "Location" => "Vị trí & chỉ đường", "PolicyGrid" => "Quy định lưu trú", "Cta" => "Kêu gọi hành động", _ => "Nội dung"
     };

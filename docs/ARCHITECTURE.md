@@ -92,6 +92,9 @@ Mỗi page có app scope nhỏ (`#rooms-page`, `#calendar-page`...), không moun
 - `Held`, `Confirmed`, `CheckedIn` khóa khoảng thời gian.
 - Conflict phải được kiểm tra ở service và bảo vệ ở PostgreSQL/transaction.
 - Booking/payment/expense đã phát sinh không hard-delete; dùng cancel/void/archive + audit.
+- Pay2S dùng `PropertyPay2SSettings` theo từng cơ sở; access/secret key được bảo vệ bằng ASP.NET Core Data Protection. `Pay2SPaymentIntent` là trạng thái kỹ thuật riêng, còn `Payment` chỉ được ghi khi IPN có chữ ký hợp lệ xác nhận tiền đã đến.
+- Booking công khai thanh toán toàn bộ và được giữ bằng payment intent bền vững trong DB. `PaymentExpiresAt` đóng quyền mở/tạo thanh toán; `ReleaseAt` mặc định muộn hơn 3 phút để chờ IPN đang truyền về trước khi hủy booking và giải phóng phòng. IPN hợp lệ trong khoảng đệm vẫn xác nhận bình thường; IPN thành công sau `ReleaseAt` vẫn tạo `Payment`, đánh dấu `PaidAfterExpiry`, không tự giành lại phòng và tạo cảnh báo bắt buộc quản trị xử lý.
+- Khoản `PaidAfterExpiry` chỉ được kết thúc bằng một quyết định có lưu dấu: hoàn tiền, chuyển phòng/thời gian khác, hoặc xác nhận thủ công sau khi server kiểm tra phòng còn trống.
 
 ## Phân quyền mục tiêu
 

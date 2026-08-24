@@ -3,6 +3,7 @@ using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Customers;
+using DeLong.Web.Features.Payments;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -74,12 +75,20 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
 
         var checkInUtc = request.CheckIn.UtcDateTime; var checkOutUtc = request.CheckOut.UtcDateTime;
         if (BookingRules.LocksRoom(booking.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, booking.Id, cancellationToken)) return (null, ConflictError());
+        var paymentTermsChanged = booking.RoomId != request.RoomId ||
+                                  booking.CheckInUtc != checkInUtc ||
+                                  booking.CheckOutUtc != checkOutUtc ||
+                                  booking.RoomAmount != request.RoomAmount ||
+                                  booking.ExtraAmount != request.ExtraAmount ||
+                                  booking.DiscountAmount != request.DiscountAmount;
         var before = Snapshot(booking);
         customer.Name = request.CustomerName.Trim(); customer.Phone = request.CustomerPhone.Trim(); customer.NormalizedPhone = normalizedPhone;
         booking.RoomId = request.RoomId; booking.CustomerId = customer.Id; booking.Type = request.Type; booking.RoomRateId = request.RoomRateId;
         booking.RateName = Clean(request.RateName); booking.UnitPrice = request.UnitPrice; booking.NightCount = request.NightCount;
         booking.CheckInUtc = checkInUtc; booking.CheckOutUtc = checkOutUtc; booking.RoomAmount = request.RoomAmount;
         booking.ExtraAmount = request.ExtraAmount; booking.DiscountAmount = request.DiscountAmount; booking.Source = Clean(request.Source); booking.Note = Clean(request.Note);
+        if (paymentTermsChanged)
+            await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, bookingId, cancellationToken);
         auditService.Add(propertyId, "Booking", booking.Id, "Updated", actorUserId, before, Snapshot(booking));
         var saveError = await SaveWithConflictGuardAsync(cancellationToken); if (saveError is not null) return (null, saveError);
         return (await GetAsync(propertyId, bookingId, cancellationToken), null);
@@ -92,6 +101,8 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         if (!BookingRules.CanTransition(booking.Status, nextStatus)) return (null, new("invalid_transition", $"Không thể chuyển trạng thái từ {booking.Status} sang {nextStatus}."));
         if (BookingRules.LocksRoom(nextStatus) && await HasConflictAsync(propertyId, booking.RoomId, booking.CheckInUtc, booking.CheckOutUtc, booking.Id, cancellationToken)) return (null, ConflictError());
         var before = Snapshot(booking); booking.Status = nextStatus;
+        if (nextStatus is BookingStatus.Cancelled or BookingStatus.Completed or BookingStatus.NoShow)
+            await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, bookingId, cancellationToken);
         if (nextStatus == BookingStatus.Completed)
         {
             var room = await db.Rooms.SingleAsync(x => x.PropertyId == propertyId && x.Id == booking.RoomId, cancellationToken);

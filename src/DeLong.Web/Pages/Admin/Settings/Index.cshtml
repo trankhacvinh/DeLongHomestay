@@ -34,6 +34,9 @@
         <button id="settings-tab-customer-accounts" type="button" role="tab" v-bind:aria-selected="activeTab === 'customer-accounts'" aria-controls="settings-panel-customer-accounts" v-bind:class="{ active: activeTab === 'customer-accounts' }" v-on:click="selectTab('customer-accounts')">
             <svg aria-hidden="true"><use href="#i-users" /></svg><span>Tài khoản khách</span>
         </button>
+        <button id="settings-tab-pay2s" type="button" role="tab" v-bind:aria-selected="activeTab === 'pay2s'" aria-controls="settings-panel-pay2s" v-bind:class="{ active: activeTab === 'pay2s' }" v-on:click="selectTab('pay2s')">
+            <svg aria-hidden="true"><use href="#i-wallet" /></svg><span>Thanh toán Pay2S</span>
+        </button>
         <button id="settings-tab-notifications" type="button" role="tab" v-bind:aria-selected="activeTab === 'notifications'" aria-controls="settings-panel-notifications" v-bind:class="{ active: activeTab === 'notifications' }" v-on:click="selectTab('notifications')">
             <svg aria-hidden="true"><use href="#i-bell" /></svg><span>Thông báo & email</span>
         </button>
@@ -104,6 +107,29 @@
             <div class="notification-settings-actions">
                 <button class="btn btn-primary" type="button" v-bind:disabled="savingHousekeeping" v-on:click="saveHousekeepingSettings">{{ savingHousekeeping ? 'Đang lưu...' : 'Lưu thời điểm dọn phòng' }}</button>
             </div>
+        </div>
+    </section>
+
+    <section id="settings-panel-pay2s" class="panel notification-settings-panel settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-pay2s" v-show="activeTab === 'pay2s'">
+        <div class="panel-head"><div><h2>Hồ sơ Pay2S của cơ sở</h2><p class="small muted">Mỗi cơ sở lưu hồ sơ riêng. Hai cơ sở muốn dùng chung tài khoản thì nhập cùng thông tin tại từng cơ sở.</p></div><span class="pill success" v-if="pay2s.enabled">Đang bật</span></div>
+        <div class="panel-body">
+            <div class="notification-settings-grid">
+                <label class="check-row full"><input type="checkbox" v-model="pay2s.enabled" /> Bật thanh toán Pay2S cho cơ sở này</label>
+                <label class="check-row full"><input type="checkbox" v-model="pay2s.sandbox" /> Đây là tài khoản demo Pay2S</label>
+                <div class="field"><label for="pay2s-partner-code">Partner code</label><input id="pay2s-partner-code" v-model.trim="pay2s.partnerCode" autocomplete="off" /></div>
+                <div class="field"><label for="pay2s-partner-name">Tên đối tác</label><input id="pay2s-partner-name" v-model.trim="pay2s.partnerName" autocomplete="organization" /></div>
+                <div class="field"><label for="pay2s-access-key">Access key</label><div class="notification-settings-secret"><input id="pay2s-access-key" type="password" v-model="pay2s.accessKey" autocomplete="new-password" placeholder="Để trống để giữ khóa hiện tại" /><small>{{ pay2s.accessKeyConfigured ? 'Đã lưu mã hóa' : 'Chưa có' }}</small></div></div>
+                <div class="field"><label for="pay2s-secret-key">Secret key</label><div class="notification-settings-secret"><input id="pay2s-secret-key" type="password" v-model="pay2s.secretKey" autocomplete="new-password" placeholder="Để trống để giữ khóa hiện tại" /><small>{{ pay2s.secretKeyConfigured ? 'Đã lưu mã hóa' : 'Chưa có' }}</small></div></div>
+                <div class="field"><label for="pay2s-bank">Ngân hàng</label><input id="pay2s-bank" v-model.trim="pay2s.bankId" placeholder="ACB" /></div>
+                <div class="field"><label for="pay2s-account">Số tài khoản nhận tiền</label><input id="pay2s-account" v-model.trim="pay2s.bankAccountNumber" inputmode="numeric" autocomplete="off" /></div>
+                <div class="field full"><label for="pay2s-api">API endpoint dùng chung</label><input id="pay2s-api" type="url" v-model.trim="pay2s.apiEndpoint" /><small>Tài khoản demo và thật đều dùng payment.pay2s.vn; chỉ khác bộ thông tin tích hợp.</small></div>
+                <div class="field full"><label for="pay2s-callback">Domain callback công khai</label><input id="pay2s-callback" type="url" v-model.trim="pay2s.callbackBaseUrl" placeholder="https://delong.pmedia.vn" /><small>Pay2S gửi IPN về domain này; không dùng localhost.</small></div>
+                <div class="field"><label for="pay2s-hold">Thời gian giữ phòng</label><div class="housekeeping-minute-input"><input id="pay2s-hold" type="number" min="1" max="60" v-model.number="pay2s.holdMinutes" /><span>phút</span></div></div>
+                <div class="field"><label for="pay2s-grace">Đệm chờ IPN ngân hàng</label><div class="housekeeping-minute-input"><input id="pay2s-grace" type="number" min="0" max="15" v-model.number="pay2s.settlementGraceMinutes" /><span>phút</span></div><small>Hết thời gian thanh toán, phòng vẫn khóa thêm khoảng này nhưng khách không thể mở lại QR.</small></div>
+            </div>
+            <label v-if="pay2s.accessKeyConfigured || pay2s.secretKeyConfigured" class="check-row"><input type="checkbox" v-model="pay2s.clearCredentials" /> Xóa hai khóa đang lưu</label>
+            <div class="notice mt-16">Khách phải thanh toán toàn bộ. Đóng trang QR không làm mất phiên: server vẫn giữ phòng và nhận IPN đến hết thời hạn.</div>
+            <div class="notification-settings-actions"><button class="btn btn-primary" type="button" v-bind:disabled="savingPay2s" v-on:click="savePay2SSettings">{{ savingPay2s ? 'Đang lưu...' : 'Lưu Pay2S cho cơ sở' }}</button></div>
         </div>
     </section>
 

@@ -16,7 +16,7 @@ public sealed class AdminBookingAndCustomerSourceContractTests
         Assert.Contains("data-native-booking-guest-details", page, StringComparison.Ordinal);
         Assert.Contains("guestDetails.customerEmail", page, StringComparison.Ordinal);
         Assert.Contains("identityUrl(selectedBooking.id, side)", page, StringComparison.Ordinal);
-        Assert.Contains("await Promise.all([this.loadPayments(), this.loadGuestDetails(booking.id)])", script, StringComparison.Ordinal);
+        Assert.Contains("await Promise.all([this.loadPayments(), this.loadGuestDetails(booking.id), this.loadPay2SIntent(booking.id)])", script, StringComparison.Ordinal);
         Assert.Contains("/guest-details", script, StringComparison.Ordinal);
     }
 

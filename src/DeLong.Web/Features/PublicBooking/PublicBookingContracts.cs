@@ -78,6 +78,8 @@ public sealed record PublicBookingResult(
     DateTime CheckInUtc,
     DateTime CheckOutUtc,
     decimal TotalAmount,
-    DateTime? HoldExpiresAtUtc = null);
+    DateTime? HoldExpiresAtUtc = null,
+    string? PaymentOrderId = null,
+    string? PaymentUrl = null);
 
 public sealed record PublicBookingError(string Code, string Message);

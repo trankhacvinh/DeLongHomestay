@@ -13,6 +13,8 @@ public sealed class SuccessModel(
     public string Code { get; private set; } = string.Empty;
     public string Room { get; private set; } = string.Empty;
     public decimal Amount { get; private set; }
+    public decimal PaidAmount { get; private set; }
+    public bool IsPay2SPaid { get; private set; }
     public string Phone { get; private set; } = string.Empty;
     public string SiteName { get; private set; } = string.Empty;
     public string? SiteSlug { get; private set; }
@@ -32,13 +34,15 @@ public sealed class SuccessModel(
         Phone = site?.Settings.Phone ?? string.Empty;
         if (!string.IsNullOrWhiteSpace(Code))
         {
-            var guide = await lookupService.GetSuccessGuideAsync(SiteSlug, Code, ct);
-            if (guide is not null)
+            var booking = await lookupService.GetSuccessAsync(SiteSlug, Code, ct);
+            if (booking is not null)
             {
-                Room = guide.RoomName;
-                GuestGuideHtml = guide.GuestGuideHtml;
+                Room = booking.RoomName;
+                GuestGuideHtml = booking.GuestGuideHtml;
+                IsPay2SPaid = booking.IsPay2SPaid;
+                PaidAmount = booking.PaidAmount;
                 var scope = string.IsNullOrWhiteSpace(SiteSlug) ? string.Empty : $"&siteSlug={Uri.EscapeDataString(SiteSlug)}";
-                GuidePdfUrl = $"/api/public/booking-guide-pdf?code={Uri.EscapeDataString(guide.Code)}{scope}";
+                GuidePdfUrl = $"/api/public/booking-guide-pdf?code={Uri.EscapeDataString(booking.Code)}{scope}";
             }
         }
         return Page();

@@ -16,6 +16,7 @@
         ['.public-branch-section', 'BranchGrid'],
         ['.public-cms-room-grid', 'RoomGrid'],
         ['.public-cms-availability', 'AvailabilitySearch'],
+        ['.public-cms-availability-calendar', 'AvailabilityCalendar'],
         ['.public-cms-feature', 'FeatureGrid'],
         ['.public-story-faq', 'Faq'],
         ['.public-story-location', 'Location'],
