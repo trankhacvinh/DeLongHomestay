@@ -3,6 +3,7 @@ using DeLong.Web.Common.Operations;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
+using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Operations;
 using DeLong.Web.Features.Site;
 using Microsoft.EntityFrameworkCore;
@@ -116,6 +117,14 @@ public sealed class PublicBookingCoreV2Service(
     {
         if (!IsValidEmail(request.CustomerEmail))
             return (new("validation", "Vui lòng nhập email hợp lệ."), 0m, 0);
+        var normalizedPhone = CustomerService.NormalizePhone(request.CustomerPhone);
+        var cleanEmail = request.CustomerEmail.Trim();
+        if (await db.Customers.AsNoTracking().AnyAsync(x =>
+                x.PropertyId == propertyId && x.IsBlocked &&
+                (x.NormalizedPhone == normalizedPhone ||
+                 (x.Email != null && EF.Functions.ILike(x.Email, cleanEmail))),
+                cancellationToken))
+            return (new("customer_blocked", "Thông tin liên hệ này không thể gửi yêu cầu đặt phòng. Vui lòng liên hệ trực tiếp cơ sở."), 0m, 0);
         if (!request.PolicyAccepted)
             return (new("policy_required", "Bạn cần đọc và đồng ý với Nội quy & Chính sách trước khi đặt phòng."), 0m, 0);
         if (request.PolicyVersion != policy.PolicyVersion)

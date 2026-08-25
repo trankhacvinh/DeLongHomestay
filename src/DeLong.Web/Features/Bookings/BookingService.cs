@@ -36,6 +36,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         if (BookingRules.LocksRoom(request.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken)) return (null, ConflictError());
         var customer = await customerService.FindOrCreateEntityAsync(propertyId, request.CustomerId, request.CustomerName, request.CustomerPhone, cancellationToken);
         if (customer is null) return (null, new("customer_invalid", "Không tìm thấy khách hàng hoặc thông tin khách chưa hợp lệ."));
+        if (customer.IsBlocked) return (null, new("customer_blocked", "Khách hàng đã bị chặn. Vui lòng kiểm tra hồ sơ khách trước khi tạo booking."));
 
         var booking = new Booking
         {
@@ -70,6 +71,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
 
         var customer = await db.Customers.SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == request.CustomerId && x.IsActive, cancellationToken);
         if (customer is null) return (null, new("customer_invalid", "Không tìm thấy khách hàng."));
+        if (customer.IsBlocked) return (null, new("customer_blocked", "Khách hàng đã bị chặn. Vui lòng kiểm tra hồ sơ khách trước khi cập nhật booking."));
         var normalizedPhone = CustomerService.NormalizePhone(request.CustomerPhone);
         if (await db.Customers.AnyAsync(x => x.PropertyId == propertyId && x.NormalizedPhone == normalizedPhone && x.Id != customer.Id, cancellationToken)) return (null, new("customer_invalid", "Số điện thoại đang thuộc một khách hàng khác."));
 
@@ -145,6 +147,7 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
 
     private static IQueryable<BookingDto> Project(IQueryable<Booking> query) => query.Select(x => new BookingDto(
         x.Id, x.PropertyId, x.Code, x.Type, x.RoomId, x.Room.Code, x.Room.Name, x.CustomerId, x.Customer.Name, x.Customer.Phone,
+        x.Customer.Note, x.Customer.IsBlacklisted, x.Customer.BlacklistReason, x.Customer.IsBlocked,
         x.RoomRateId, x.RateName, x.UnitPrice, x.NightCount, x.CheckInUtc, x.CheckOutUtc, x.Status,
         x.RoomAmount, x.ExtraAmount, x.DiscountAmount, x.RoomAmount + x.ExtraAmount - x.DiscountAmount,
         x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),

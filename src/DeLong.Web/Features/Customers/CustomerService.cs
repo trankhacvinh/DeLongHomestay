@@ -25,7 +25,8 @@ public sealed class CustomerService(AppDbContext db)
         return await customers
             .OrderByDescending(x => x.CreatedAtUtc)
             .Select(x => new CustomerDto(
-                x.Id, x.PropertyId, x.Name, x.Phone, x.Email, x.IdentityNumber, x.Note, x.IsActive, x.CreatedAtUtc))
+                x.Id, x.PropertyId, x.Name, x.Phone, x.Email, x.IdentityNumber, x.Note,
+                x.IsBlacklisted, x.BlacklistReason, x.IsBlocked, x.IsActive, x.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
 
@@ -35,7 +36,8 @@ public sealed class CustomerService(AppDbContext db)
             .AsNoTracking()
             .Where(x => x.PropertyId == propertyId && x.Id == customerId)
             .Select(x => new CustomerDto(
-                x.Id, x.PropertyId, x.Name, x.Phone, x.Email, x.IdentityNumber, x.Note, x.IsActive, x.CreatedAtUtc))
+                x.Id, x.PropertyId, x.Name, x.Phone, x.Email, x.IdentityNumber, x.Note,
+                x.IsBlacklisted, x.BlacklistReason, x.IsBlocked, x.IsActive, x.CreatedAtUtc))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -80,6 +82,8 @@ public sealed class CustomerService(AppDbContext db)
     {
         var validation = Validate(request.Name, request.Phone, request.Email);
         if (validation is not null) return (null, validation);
+        var riskError = ValidateRisk(request.IsBlacklisted, request.BlacklistReason, request.IsBlocked);
+        if (riskError is not null) return (null, riskError);
 
         var normalizedPhone = NormalizePhone(request.Phone);
         if (await db.Customers.AnyAsync(
@@ -98,6 +102,9 @@ public sealed class CustomerService(AppDbContext db)
             Email = Clean(request.Email),
             IdentityNumber = Clean(request.IdentityNumber),
             Note = Clean(request.Note),
+            IsBlacklisted = request.IsBlacklisted,
+            BlacklistReason = request.IsBlacklisted ? Clean(request.BlacklistReason) : null,
+            IsBlocked = request.IsBlacklisted && request.IsBlocked,
             IsActive = true
         };
 
@@ -114,6 +121,8 @@ public sealed class CustomerService(AppDbContext db)
     {
         var validation = Validate(request.Name, request.Phone, request.Email);
         if (validation is not null) return (null, validation);
+        var riskError = ValidateRisk(request.IsBlacklisted, request.BlacklistReason, request.IsBlocked);
+        if (riskError is not null) return (null, riskError);
 
         var customer = await db.Customers.SingleOrDefaultAsync(
             x => x.PropertyId == propertyId && x.Id == customerId,
@@ -134,9 +143,47 @@ public sealed class CustomerService(AppDbContext db)
         customer.Email = Clean(request.Email);
         customer.IdentityNumber = Clean(request.IdentityNumber);
         customer.Note = Clean(request.Note);
+        customer.IsBlacklisted = request.IsBlacklisted;
+        customer.BlacklistReason = request.IsBlacklisted ? Clean(request.BlacklistReason) : null;
+        customer.IsBlocked = request.IsBlacklisted && request.IsBlocked;
         customer.IsActive = request.IsActive;
         await db.SaveChangesAsync(cancellationToken);
         return (await GetAsync(propertyId, customerId, cancellationToken), null);
+    }
+
+    public async Task<(CustomerDto? Customer, string? Error)> UpdateInternalProfileAsync(
+        Guid propertyId,
+        Guid customerId,
+        UpdateCustomerInternalProfileRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var riskError = ValidateRisk(request.IsBlacklisted, request.BlacklistReason, request.IsBlocked);
+        if (riskError is not null) return (null, riskError);
+        var customer = await db.Customers.SingleOrDefaultAsync(
+            x => x.PropertyId == propertyId && x.Id == customerId,
+            cancellationToken);
+        if (customer is null) return (null, "Không tìm thấy khách hàng.");
+        customer.Note = Clean(request.Note);
+        customer.IsBlacklisted = request.IsBlacklisted;
+        customer.BlacklistReason = request.IsBlacklisted ? Clean(request.BlacklistReason) : null;
+        customer.IsBlocked = request.IsBlacklisted && request.IsBlocked;
+        await db.SaveChangesAsync(cancellationToken);
+        return (await GetAsync(propertyId, customerId, cancellationToken), null);
+    }
+
+    public Task<bool> IsBlockedAsync(
+        Guid propertyId,
+        string? phone,
+        string? email,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedPhone = NormalizePhone(phone);
+        var cleanEmail = Clean(email);
+        return db.Customers.AsNoTracking().AnyAsync(x =>
+            x.PropertyId == propertyId && x.IsBlocked &&
+            ((normalizedPhone != string.Empty && x.NormalizedPhone == normalizedPhone) ||
+             (cleanEmail != null && x.Email != null && EF.Functions.ILike(x.Email, cleanEmail))),
+            cancellationToken);
     }
 
     public async Task<Customer?> FindOrCreateEntityAsync(
@@ -196,6 +243,14 @@ public sealed class CustomerService(AppDbContext db)
         var normalizedPhone = NormalizePhone(phone);
         if (normalizedPhone.Length < 8 || normalizedPhone.Length > 20) return "Số điện thoại không hợp lệ.";
         if (!string.IsNullOrWhiteSpace(email) && email.Trim().Length > 254) return "Email quá dài.";
+        return null;
+    }
+
+    private static string? ValidateRisk(bool isBlacklisted, string? reason, bool isBlocked)
+    {
+        if (isBlocked && !isBlacklisted) return "Khách bị chặn phải được đánh dấu trong danh sách đen.";
+        if (isBlacklisted && string.IsNullOrWhiteSpace(reason)) return "Vui lòng nhập lý do đưa khách vào danh sách đen.";
+        if (reason?.Trim().Length > 1000) return "Lý do danh sách đen tối đa 1000 ký tự.";
         return null;
     }
 

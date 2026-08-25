@@ -26,6 +26,7 @@ using DeLong.Web.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -35,6 +36,11 @@ using Microsoft.Extensions.FileProviders;
 using ZiggyCreatures.Caching.Fusion;
 
 var builder = WebApplication.CreateBuilder(args);
+var roomConditionMaxRequestBytes = Math.Clamp(
+    builder.Configuration.GetValue<long?>("RoomConditionUploads:MaxRequestBytes") ?? 1024L * 1024 * 1024,
+    10L * 1024 * 1024,
+    2L * 1024 * 1024 * 1024);
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = roomConditionMaxRequestBytes);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -82,6 +88,11 @@ else
 }
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.Configure<FormOptions>(options =>
+{
+    // Không giới hạn số lượng file nghiệp vụ; vẫn giữ trần tổng request để bảo vệ máy chủ.
+    options.MultipartBodyLengthLimit = roomConditionMaxRequestBytes;
+});
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
     .AddCheck<StorageHealthCheck>("storage", tags: ["ready"]);
@@ -288,6 +299,7 @@ builder.Services.AddScoped<RoomService>();
 builder.Services.AddScoped<RoomRateService>();
 builder.Services.AddScoped<RoomContentService>();
 builder.Services.AddSingleton<IRoomImageStorage, LocalRoomImageStorage>();
+builder.Services.AddSingleton<IRoomConditionMediaStorage, LocalRoomConditionMediaStorage>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<BookingMoveService>();
@@ -345,7 +357,7 @@ app.Use(async (context, next) =>
         headers.TryAdd("X-Content-Type-Options", "nosniff");
         headers.TryAdd("X-Frame-Options", "SAMEORIGIN");
         headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
-        headers.TryAdd("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
+        headers.TryAdd("Permissions-Policy", "camera=(self), microphone=(self), geolocation=()");
         return Task.CompletedTask;
     });
     await next();

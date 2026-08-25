@@ -58,6 +58,7 @@ Hướng dẫn khách là nội dung hiện hành trên `Room`, được làm s�
 - Password/connection string nằm trong User Secrets/environment, không commit Git.
 ## Báo cáo tình trạng phòng
 
-- Trang `/Admin/Housekeeping` progressive-enhance bằng Vue và có tab `Báo cáo phòng` tối ưu cho điện thoại.
-- Camera/multi-file input chỉ tạo preview phía client; server luôn giải mã, sửa orientation, resize và xuất WebP lại.
+- Trang độc lập `/Admin/RoomConditionReports` progressive-enhance bằng Vue, có bảng lọc/trạng thái/chi tiết và form mobile bottom-sheet; `/Admin/Housekeeping` chỉ liên kết sang chức năng này.
+- Camera/multi-file input hỗ trợ ảnh và video, không giới hạn số lượng file nghiệp vụ. Ảnh chỉ tạo preview/tối ưu sơ bộ phía client; server luôn giải mã, sửa orientation, resize và xuất WebP lại. Video MP4/WebM/MOV được kiểm tra định dạng và giới hạn 250 MB mỗi file.
+- Tag mẫu được chép trực tiếp vào nội dung có thể sửa; báo cáo bắt buộc đánh giá 1–5 sao và hiển thị rõ trạng thái xử lý trong bảng.
 - Form upload dùng `DeLongApi.postForm`, antiforgery và kiểm tra quyền cơ sở phía server.

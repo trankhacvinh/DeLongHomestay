@@ -121,6 +121,8 @@ public static class HousekeepingEndpoints
                 return Results.BadRequest(new { message = "Loại kiểm tra không hợp lệ." });
             if (!Enum.TryParse<RoomConditionSeverity>(form["severity"].FirstOrDefault(), true, out var severity))
                 return Results.BadRequest(new { message = "Mức độ tình trạng không hợp lệ." });
+            if (!int.TryParse(form["rating"].FirstOrDefault(), out var rating))
+                return Results.BadRequest(new { message = "Vui lòng đánh giá tình trạng phòng." });
             var actorUserId = GetUserId(user);
             if (!actorUserId.HasValue) return Results.Unauthorized();
 
@@ -130,6 +132,7 @@ public static class HousekeepingEndpoints
                 actorUserId.Value,
                 inspectionType,
                 severity,
+                rating,
                 form["content"].FirstOrDefault(),
                 form["tags"].Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).ToArray(),
                 form.Files.ToArray(),

@@ -11,6 +11,7 @@ public sealed class RoomConditionReport : EntityBase
     public Guid ReportedByUserId { get; set; }
     public RoomInspectionType InspectionType { get; set; }
     public RoomConditionSeverity Severity { get; set; }
+    public int Rating { get; set; } = 5;
     public RoomConditionReportStatus Status { get; set; } = RoomConditionReportStatus.New;
     public string Content { get; set; } = string.Empty;
     public string TagsJson { get; set; } = "[]";
@@ -27,6 +28,7 @@ public sealed class RoomConditionReportImage : EntityBase
     public string CardPath { get; set; } = string.Empty;
     public string ThumbnailPath { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
+    public bool IsVideo { get; set; }
     public long OriginalBytes { get; set; }
     public int Width { get; set; }
     public int Height { get; set; }

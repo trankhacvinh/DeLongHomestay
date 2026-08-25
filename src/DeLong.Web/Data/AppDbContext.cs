@@ -86,12 +86,14 @@ public sealed class AppDbContext
             entity.HasIndex(x => new { x.RoomId, x.CreatedAtUtc });
             entity.Property(x => x.InspectionType).HasConversion<string>().HasMaxLength(30).IsRequired();
             entity.Property(x => x.Severity).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Rating).HasDefaultValue(5).IsRequired();
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(x => x.Content).HasMaxLength(4000).IsRequired();
             entity.Property(x => x.TagsJson).HasColumnType("jsonb").IsRequired();
             entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Room).WithMany().HasForeignKey(x => x.RoomId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.ReportedByUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table => table.HasCheckConstraint("ck_room_condition_reports_rating", "rating BETWEEN 1 AND 5"));
         });
 
         modelBuilder.Entity<RoomConditionReportImage>(entity =>
@@ -103,6 +105,7 @@ public sealed class AppDbContext
             entity.Property(x => x.CardPath).HasMaxLength(1000).IsRequired();
             entity.Property(x => x.ThumbnailPath).HasMaxLength(1000).IsRequired();
             entity.Property(x => x.ContentType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.IsVideo).HasDefaultValue(false).IsRequired();
             entity.HasOne(x => x.Report).WithMany(x => x.Images).HasForeignKey(x => x.ReportId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -133,7 +136,11 @@ public sealed class AppDbContext
             entity.Property(x => x.Email).HasMaxLength(254);
             entity.Property(x => x.IdentityNumber).HasMaxLength(100);
             entity.Property(x => x.Note).HasMaxLength(2000);
+            entity.Property(x => x.BlacklistReason).HasMaxLength(1000);
             entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table => table.HasCheckConstraint(
+                "ck_customers_blacklist_state",
+                "NOT is_blocked OR (is_blacklisted AND blacklist_reason IS NOT NULL AND length(btrim(blacklist_reason)) > 0)"));
         });
 
         modelBuilder.Entity<CustomerAccountLink>(entity =>

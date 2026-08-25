@@ -44,6 +44,10 @@
 Preset không phải booking slot cứng. Booking được phép dùng giờ khác preset.
 
 ## Customer
+
+- `Note` là ghi chú nội bộ dùng chung cho mọi booking của cùng hồ sơ khách tại cơ sở.
+- `IsBlacklisted` + `BlacklistReason` tạo cảnh báo vận hành; cảnh báo không tự chặn khách.
+- `IsBlocked` chỉ hợp lệ khi khách thuộc danh sách đen và có lý do. Server từ chối đăng ký, đăng nhập và tạo booking khi số điện thoại hoặc email trùng hồ sơ bị chặn.
 - id
 - name
 - phone (normalized/indexed)

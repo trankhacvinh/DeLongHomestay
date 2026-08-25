@@ -59,6 +59,8 @@
                 statusFilter: '',
                 sortMode: 'operations',
                 selectedBooking: null,
+                customerRiskForm: { note: '', isBlacklisted: false, blacklistReason: '', isBlocked: false },
+                savingCustomerRisk: false,
                 detail: { open: false },
                 guestDetails: { loading: false, error: '', customerEmail: '', guestCount: 1, maxGuests: 1, policyAccepted: false, documents: [] },
                 stayEditor: { open: false },
@@ -197,8 +199,48 @@
             },
             async openBooking(booking) {
                 this.selectedBooking = booking;
+                this.syncCustomerRiskForm(booking);
                 this.detail.open = true;
                 await Promise.all([this.loadPayments(), this.loadGuestDetails(booking.id), this.loadPay2SIntent(booking.id)]);
+            },
+            syncCustomerRiskForm(booking) {
+                this.customerRiskForm = {
+                    note: booking?.customerNote || '',
+                    isBlacklisted: booking?.customerIsBlacklisted === true,
+                    blacklistReason: booking?.customerBlacklistReason || '',
+                    isBlocked: booking?.customerIsBlocked === true
+                };
+            },
+            async saveCustomerRisk() {
+                if (!this.selectedBooking || this.savingCustomerRisk) return;
+                if (this.customerRiskForm.isBlacklisted && !this.customerRiskForm.blacklistReason.trim()) {
+                    return this.notify('Vui lòng nhập lý do đưa khách vào danh sách đen.', 'error');
+                }
+                this.savingCustomerRisk = true;
+                try {
+                    const customer = await DeLongApi.put(
+                        `/api/admin/properties/${this.propertyId}/customers/${this.selectedBooking.customerId}/internal-profile`,
+                        {
+                            note: this.customerRiskForm.note || null,
+                            isBlacklisted: this.customerRiskForm.isBlacklisted,
+                            blacklistReason: this.customerRiskForm.isBlacklisted ? (this.customerRiskForm.blacklistReason || null) : null,
+                            isBlocked: this.customerRiskForm.isBlacklisted && this.customerRiskForm.isBlocked
+                        });
+                    const apply = booking => {
+                        booking.customerNote = customer.note;
+                        booking.customerIsBlacklisted = customer.isBlacklisted;
+                        booking.customerBlacklistReason = customer.blacklistReason;
+                        booking.customerIsBlocked = customer.isBlocked;
+                    };
+                    this.bookings.filter(x => x.customerId === customer.id).forEach(apply);
+                    apply(this.selectedBooking);
+                    this.syncCustomerRiskForm(this.selectedBooking);
+                    this.notify('Đã lưu ghi chú và trạng thái khách hàng.', 'success');
+                } catch (error) {
+                    this.notify(this.friendlyError(error, 'Không thể lưu ghi chú khách hàng.'), 'error');
+                } finally {
+                    this.savingCustomerRisk = false;
+                }
             },
             async loadPay2SIntent(bookingId) {
                 try {

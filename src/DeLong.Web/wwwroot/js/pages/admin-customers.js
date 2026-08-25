@@ -12,10 +12,11 @@
                 customers: initial.customers || [],
                 search: '',
                 showInactive: false,
+                blacklistOnly: false,
                 saving: false,
                 detail: { open: false, loading: false, error: '', customer: null, bookings: [] },
                 editor: { open: false, mode: 'create', customerId: null },
-                form: { name: '', phone: '', email: '', identityNumber: '', note: '', isActive: true },
+                form: { name: '', phone: '', email: '', identityNumber: '', note: '', isBlacklisted: false, blacklistReason: '', isBlocked: false, isActive: true },
                 toast: { show: false, message: '', type: 'success', timer: null }
             };
         },
@@ -24,6 +25,7 @@
                 const q = this.search.toLowerCase();
                 return this.customers.filter(customer => {
                     if (!this.showInactive && !customer.isActive) return false;
+                    if (this.blacklistOnly && !customer.isBlacklisted) return false;
                     return !q || customer.name.toLowerCase().includes(q) || customer.phone.toLowerCase().includes(q);
                 });
             }
@@ -73,7 +75,7 @@
                 if (customer) this.openEdit(customer);
             },
             openCreate() {
-                this.form = { name: '', phone: '', email: '', identityNumber: '', note: '', isActive: true };
+                this.form = { name: '', phone: '', email: '', identityNumber: '', note: '', isBlacklisted: false, blacklistReason: '', isBlocked: false, isActive: true };
                 this.editor = { open: true, mode: 'create', customerId: null };
             },
             openEdit(customer) {
@@ -83,6 +85,9 @@
                     email: customer.email || '',
                     identityNumber: customer.identityNumber || '',
                     note: customer.note || '',
+                    isBlacklisted: customer.isBlacklisted === true,
+                    blacklistReason: customer.blacklistReason || '',
+                    isBlocked: customer.isBlocked === true,
                     isActive: customer.isActive
                 };
                 this.editor = { open: true, mode: 'edit', customerId: customer.id };
@@ -91,6 +96,7 @@
             validate() {
                 if (!this.form.name.trim()) return 'Vui lòng nhập tên khách.';
                 if (this.form.phone.replace(/\D/g, '').length < 8) return 'Số điện thoại không hợp lệ.';
+                if (this.form.isBlacklisted && !this.form.blacklistReason.trim()) return 'Vui lòng nhập lý do đưa khách vào danh sách đen.';
                 return null;
             },
             async saveCustomer() {
@@ -105,6 +111,9 @@
                         email: this.form.email || null,
                         identityNumber: this.form.identityNumber || null,
                         note: this.form.note || null,
+                        isBlacklisted: this.form.isBlacklisted,
+                        blacklistReason: this.form.isBlacklisted ? (this.form.blacklistReason || null) : null,
+                        isBlocked: this.form.isBlacklisted && this.form.isBlocked,
                         isActive: this.form.isActive
                     };
                     let customer;

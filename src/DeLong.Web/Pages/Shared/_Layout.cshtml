@@ -319,6 +319,10 @@
                             <use href="#i-sparkles"/>
                         </svg>
                         <span>Dọn phòng</span></a>
+                    <a class="@NavClass("/Admin/RoomConditionReports")" asp-page="/Admin/RoomConditionReports/Index"
+                       asp-route-propertyId="@propertyId">
+                        <svg><use href="#i-image"/></svg>
+                        <span>Tình trạng phòng</span></a>
                 </div>
                 @if (canViewRooms || canManageSettings || canManageStaff || canManageProperties || canManageSite)
                 {

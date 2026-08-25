@@ -11,5 +11,8 @@ public sealed class Customer : EntityBase
     public string? Email { get; set; }
     public string? IdentityNumber { get; set; }
     public string? Note { get; set; }
+    public bool IsBlacklisted { get; set; }
+    public string? BlacklistReason { get; set; }
+    public bool IsBlocked { get; set; }
     public bool IsActive { get; set; } = true;
 }

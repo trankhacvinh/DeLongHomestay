@@ -23,8 +23,6 @@ public sealed class IndexModel(
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
         var schedule = await housekeepingService.GetScheduleAsync(PropertyId, today, 1, cancellationToken);
-        var conditionTags = await housekeepingService.GetConditionTagsAsync(PropertyId, cancellationToken);
-        var conditionReports = await housekeepingService.GetConditionReportsAsync(PropertyId, take: 30, cancellationToken: cancellationToken);
         PageDataJson = JsonSerializer.Serialize(
             new
             {
@@ -33,9 +31,7 @@ public sealed class IndexModel(
                 timeZoneId = property.TimeZoneId,
                 today = today.ToString("yyyy-MM-dd"),
                 rooms,
-                schedule,
-                conditionTags,
-                conditionReports
+                schedule
             },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return Page();

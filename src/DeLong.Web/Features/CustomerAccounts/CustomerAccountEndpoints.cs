@@ -49,9 +49,11 @@ public static class CustomerAccountEndpoints
         {
             var property = await resolver.ResolveAsync(siteSlug, ct);
             if (property is null) return Results.NotFound();
+            var isBlocked = await service.IsBlockedAsync(property.Id, phone, ct);
+            if (isBlocked) return Results.Ok(new { exists = true, hasAccount = false, isBlocked = true });
             var hasAccount = await service.CustomerAccountExistsAsync(property.Id, phone, ct);
             var exists = hasAccount || await service.CustomerProfileExistsAsync(property.Id, phone, ct);
-            return Results.Ok(new { exists, hasAccount });
+            return Results.Ok(new { exists, hasAccount, isBlocked = false });
         }).AllowAnonymous().RequireRateLimiting("account-login").WithTags("Customer Accounts");
 
         app.MapPost("/api/public/customer-account/register", async (

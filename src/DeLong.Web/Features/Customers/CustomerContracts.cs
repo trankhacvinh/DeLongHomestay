@@ -8,6 +8,9 @@ public sealed record CustomerDto(
     string? Email,
     string? IdentityNumber,
     string? Note,
+    bool IsBlacklisted,
+    string? BlacklistReason,
+    bool IsBlocked,
     bool IsActive,
     DateTime CreatedAtUtc);
 
@@ -37,7 +40,10 @@ public sealed record CreateCustomerRequest(
     string Phone,
     string? Email,
     string? IdentityNumber,
-    string? Note);
+    string? Note,
+    bool IsBlacklisted = false,
+    string? BlacklistReason = null,
+    bool IsBlocked = false);
 
 public sealed record UpdateCustomerRequest(
     string Name,
@@ -45,4 +51,13 @@ public sealed record UpdateCustomerRequest(
     string? Email,
     string? IdentityNumber,
     string? Note,
+    bool IsBlacklisted,
+    string? BlacklistReason,
+    bool IsBlocked,
     bool IsActive);
+
+public sealed record UpdateCustomerInternalProfileRequest(
+    string? Note,
+    bool IsBlacklisted,
+    string? BlacklistReason,
+    bool IsBlocked);

@@ -1,0 +1,93 @@
+@page
+@model DeLong.Web.Pages.Admin.RoomConditionReports.IndexModel
+@{
+    ViewData["Title"] = "Tình trạng phòng";
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/housekeeping-schedule.css" asp-append-version="true" />
+}
+<div id="room-condition-page" v-cloak>
+    <script id="room-condition-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+
+    <div class="page-title-row room-condition-title">
+        <div><div class="page-eyebrow">Vận hành phòng</div><h1>Tình trạng phòng</h1><p>Ghi nhận bằng ảnh, video, nội dung mẫu và đánh giá 5 sao ngay tại phòng.</p></div>
+        <button class="btn btn-primary" type="button" v-if="canManage" v-on:click="openForm()">＋ Tạo báo cáo</button>
+    </div>
+
+    <section class="panel room-condition-panel">
+        <div class="room-condition-filters">
+            <label><span>Phòng</span><select v-model="filters.roomId"><option value="">Tất cả phòng</option><option v-for="room in rooms" v-bind:key="room.roomId" v-bind:value="room.roomId">{{ room.roomName }}</option></select></label>
+            <label><span>Trạng thái</span><select v-model="filters.status"><option value="">Tất cả trạng thái</option><option value="0">Mới báo</option><option value="1">Đang xử lý</option><option value="2">Đã hoàn thành</option></select></label>
+            <span class="pill">{{ filteredReports.length }} báo cáo</span>
+        </div>
+        <div class="table-responsive" v-if="filteredReports.length">
+            <table class="data-table room-condition-table">
+                <thead><tr><th>Phòng</th><th>Thời gian</th><th>Loại kiểm tra</th><th>Đánh giá</th><th>Mức độ</th><th>Trạng thái</th><th>Media</th><th></th></tr></thead>
+                <tbody>
+                    <template v-for="report in filteredReports" v-bind:key="report.id">
+                        <tr class="room-condition-row" v-on:click="toggle(report.id)">
+                            <td><strong>{{ report.roomName }}</strong><small>{{ report.roomCode }}</small></td>
+                            <td>{{ dateText(report.createdAtUtc) }}</td>
+                            <td>{{ inspectionText(report.inspectionType) }}</td>
+                            <td><span class="room-rating" v-bind:aria-label="report.rating + ' trên 5 sao'">{{ stars(report.rating) }}</span></td>
+                            <td><span v-bind:class="['pill', severityClass(report.severity)]">{{ severityText(report.severity) }}</span></td>
+                            <td><span v-bind:class="['pill', statusClass(report.status)]">{{ statusText(report.status) }}</span></td>
+                            <td>{{ report.images.length }} file</td>
+                            <td><button class="btn btn-light btn-sm" type="button">{{ expandedId === report.id ? 'Đóng' : 'Chi tiết' }}</button></td>
+                        </tr>
+                        <tr class="room-condition-detail-row" v-if="expandedId === report.id"><td colspan="8">
+                            <div class="room-condition-detail">
+                                <div class="room-report-author">Báo bởi <strong>{{ report.reportedBy }}</strong></div>
+                                <div class="room-report-tags" v-if="report.tags.length"><span v-for="tag in report.tags" v-bind:key="tag">{{ tag }}</span></div>
+                                <p>{{ report.content || 'Không có mô tả riêng.' }}</p>
+                                <div class="room-report-gallery">
+                                    <template v-for="media in report.images" v-bind:key="media.id">
+                                        <video v-if="media.isVideo" v-bind:src="media.largeUrl" controls preload="metadata"></video>
+                                        <a v-else v-bind:href="media.largeUrl" target="_blank" rel="noopener"><img v-bind:src="media.thumbnailUrl" v-bind:alt="'Ảnh ' + report.roomName" loading="lazy" /></a>
+                                    </template>
+                                </div>
+                                <div class="room-report-status-actions" v-if="canManage">
+                                    <button class="btn btn-light btn-sm" type="button" v-if="report.status !== 1" v-on:click.stop="changeStatus(report, 1)">Đang xử lý</button>
+                                    <button class="btn btn-primary btn-sm" type="button" v-if="report.status !== 2" v-on:click.stop="changeStatus(report, 2)">Đã hoàn thành</button>
+                                </div>
+                            </div>
+                        </td></tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+        <div class="empty-state" v-else><strong>Chưa có báo cáo phù hợp</strong>Thay đổi bộ lọc hoặc tạo báo cáo mới.</div>
+    </section>
+
+    <div class="modal-backdrop room-report-modal" v-if="form.open">
+        <section class="modal-card room-report-form-card" role="dialog" aria-modal="true" aria-labelledby="condition-form-title">
+            <div class="modal-head"><div><span class="page-eyebrow">Báo cáo tại phòng</span><h2 id="condition-form-title">Ghi nhận tình trạng</h2></div><button class="icon-btn" type="button" v-on:click="closeForm" aria-label="Đóng">×</button></div>
+            <div class="room-report-form-body">
+                <div class="room-report-form-grid">
+                    <label><span>Phòng *</span><select v-model="form.roomId"><option value="">Chọn phòng</option><option v-for="room in rooms" v-bind:key="room.roomId" v-bind:value="room.roomId">{{ room.roomName }} · {{ room.roomCode }}</option></select></label>
+                    <label><span>Loại kiểm tra *</span><select v-model="form.inspectionType"><option value="PreCheckIn">Trước nhận phòng</option><option value="PostCheckOut">Sau trả phòng</option><option value="Routine">Kiểm tra định kỳ</option><option value="Incident">Báo sự cố</option></select></label>
+                    <label><span>Mức độ *</span><select v-model="form.severity"><option value="Normal">Bình thường</option><option value="Attention">Cần theo dõi</option><option value="Urgent">Cần xử lý gấp</option></select></label>
+                </div>
+                <section class="room-rating-field"><strong>Đánh giá tình trạng phòng *</strong><div><button v-for="value in 5" type="button" v-bind:class="{ active: value <= form.rating }" v-on:click="form.rating = value" v-bind:aria-label="value + ' sao'">★</button><span>{{ form.rating }}/5</span></div></section>
+                <section class="room-report-photo-section">
+                    <div class="room-report-section-head"><div><strong>Ảnh và video *</strong><span>Không giới hạn số lượng. Ảnh được tối ưu; mỗi video tối đa 250 MB.</span></div><small>{{ form.media.length }} file</small></div>
+                    <div class="room-report-photo-actions">
+                        <button class="btn btn-primary" type="button" v-on:click="$refs.capture.click()">📷 Chụp / quay</button>
+                        <button class="btn btn-light" type="button" v-on:click="$refs.gallery.click()">▧ Chọn nhiều file</button>
+                        <input ref="capture" hidden type="file" accept="image/*,video/*" capture="environment" v-on:change="addMedia" />
+                        <input ref="gallery" hidden type="file" accept="image/*,video/*" multiple v-on:change="addMedia" />
+                    </div>
+                    <div class="room-report-photo-grid" v-if="form.media.length"><figure v-for="(media,index) in form.media" v-bind:key="media.previewUrl"><video v-if="media.isVideo" v-bind:src="media.previewUrl" muted></video><img v-else v-bind:src="media.previewUrl" v-bind:alt="'Ảnh ' + (index+1)"/><button type="button" v-on:click="removeMedia(index)">×</button><figcaption>{{ media.optimizing ? 'Đang tối ưu…' : bytes(media.file.size) }}</figcaption></figure></div>
+                </section>
+                <section class="room-report-tag-section"><div class="room-report-section-head"><div><strong>Nội dung mẫu</strong><span>Chọn mẫu sẽ tự điền vào nội dung; có thể sửa lại.</span></div></div><div class="room-report-tag-groups"><div v-for="group in tagGroups" v-bind:key="group.category"><small>{{ group.category }}</small><div><button type="button" v-for="tag in group.tags" v-bind:key="tag.id" v-bind:class="{active:form.tags.includes(tag.name)}" v-on:click="toggleTag(tag.name)">{{ tag.name }}</button></div></div></div></section>
+                <label class="room-report-content"><span>Nội dung báo cáo *</span><textarea maxlength="4000" v-model="form.content" placeholder="Chọn nội dung mẫu hoặc nhập mô tả hiện trạng…"></textarea><small>{{ form.content.length }}/4000</small></label>
+            </div>
+            <div class="modal-actions room-report-form-actions"><button class="btn btn-light" type="button" v-on:click="closeForm">Đóng</button><button class="btn btn-primary" type="button" v-bind:disabled="form.saving || form.media.some(x=>x.optimizing)" v-on:click="submit">{{ form.saving ? 'Đang tải lên…' : 'Gửi báo cáo' }}</button></div>
+        </section>
+    </div>
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+</div>
+@section Scripts {
+    <script>window.DeLongRoomConditionCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") || User.IsInRole("Housekeeping") ? "true" : "false");</script>
+    <script src="~/js/pages/admin-room-condition-reports.js" asp-append-version="true"></script>
+}

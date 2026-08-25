@@ -3,6 +3,7 @@ using System;
 using DeLong.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DeLong.Web.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260825075843_AddRoomConditionReportRatingAndVideo")]
+    partial class AddRoomConditionReportRatingAndVideo
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -401,11 +404,6 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("BlacklistReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("blacklist_reason");
-
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
@@ -423,14 +421,6 @@ namespace DeLong.Web.Data.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
-
-                    b.Property<bool>("IsBlacklisted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_blacklisted");
-
-                    b.Property<bool>("IsBlocked")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_blocked");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -473,10 +463,7 @@ namespace DeLong.Web.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("i_x_customers_property_id_normalized_phone");
 
-                    b.ToTable("customers", t =>
-                        {
-                            t.HasCheckConstraint("ck_customers_blacklist_state", "NOT is_blocked OR (is_blacklisted AND blacklist_reason IS NOT NULL AND length(btrim(blacklist_reason)) > 0)");
-                        });
+                    b.ToTable("customers");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.CustomerAccountLink", b =>

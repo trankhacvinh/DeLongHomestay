@@ -96,6 +96,16 @@
                     </div>
                 </template>
             </section>
+            <section class="admin-customer-risk" v-bind:class="{ 'is-blacklisted': selectedBooking.customerIsBlacklisted }">
+                <div class="admin-booking-detail-head"><div><strong>Ghi chú khách hàng</strong><small>Thông tin nội bộ dùng cho mọi booking của khách này</small></div><span v-if="selectedBooking.customerIsBlocked" class="pill danger">Đã chặn</span><span v-else-if="selectedBooking.customerIsBlacklisted" class="pill danger">Danh sách đen</span></div>
+                <div v-if="canManage" class="form-grid">
+                    <div class="field full"><label>Ghi chú</label><textarea v-model.trim="customerRiskForm.note" maxlength="2000" placeholder="Sở thích, lưu ý phục vụ hoặc thông tin cần nhớ..."></textarea></div>
+                    <label class="check-row full"><input type="checkbox" v-model="customerRiskForm.isBlacklisted" /> Đưa khách vào danh sách đen</label>
+                    <div class="field full" v-if="customerRiskForm.isBlacklisted"><label>Lý do *</label><textarea v-model.trim="customerRiskForm.blacklistReason" maxlength="1000" placeholder="Lý do cảnh báo khách..."></textarea><label class="check-row"><input type="checkbox" v-model="customerRiskForm.isBlocked" /> Chặn đăng nhập và đặt phòng bằng số điện thoại hoặc email này</label></div>
+                    <div class="full"><button class="btn btn-light btn-sm" type="button" v-bind:disabled="savingCustomerRisk" v-on:click="saveCustomerRisk">{{ savingCustomerRisk ? 'Đang lưu...' : 'Lưu ghi chú khách' }}</button></div>
+                </div>
+                <div v-else><strong>{{ selectedBooking.customerNote || 'Chưa có ghi chú' }}</strong><p v-if="selectedBooking.customerIsBlacklisted">{{ selectedBooking.customerBlacklistReason }}</p></div>
+            </section>
             <div class="payment-summary-grid">
                 <div class="payment-summary-card"><span>Tổng tiền phòng</span><strong>{{ money(selectedBooking.totalAmount) }}</strong></div>
                 <div class="payment-summary-card"><span>Đã thanh toán</span><strong class="text-success">{{ money(selectedBooking.paidAmount) }}</strong></div>

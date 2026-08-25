@@ -30,6 +30,13 @@ public sealed class CustomerAccountService(
         var customer = await db.Customers.SingleOrDefaultAsync(
             x => x.PropertyId == propertyId && x.NormalizedPhone == phone,
             cancellationToken);
+        var requestedEmail = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
+        if (await db.Customers.AsNoTracking().AnyAsync(x =>
+                x.PropertyId == propertyId && x.IsBlocked &&
+                (x.NormalizedPhone == phone ||
+                 (requestedEmail != null && x.Email != null && EF.Functions.ILike(x.Email, requestedEmail))),
+                cancellationToken))
+            return (null, "Thông tin liên hệ này không thể đăng ký hoặc đăng nhập. Vui lòng liên hệ trực tiếp cơ sở.");
         var name = string.IsNullOrWhiteSpace(request.Name) ? customer?.Name?.Trim() : request.Name.Trim();
         if (string.IsNullOrWhiteSpace(name) || name.Length > 200) return (null, "Tên khách không hợp lệ.");
         if (request.Password.Length < 8) return (null, "Mật khẩu phải có ít nhất 8 ký tự.");
@@ -123,7 +130,21 @@ public sealed class CustomerAccountService(
                 .Select(x => x.User)
                 .FirstOrDefaultAsync(cancellationToken);
         }
-        return user is { IsActive: true, IsCustomerAccount: true } ? user : null;
+        if (user is not { IsActive: true, IsCustomerAccount: true }) return null;
+        var isBlocked = await db.CustomerAccountLinks.AsNoTracking().AnyAsync(
+            x => x.UserId == user.Id && x.Customer.IsBlocked,
+            cancellationToken);
+        if (!isBlocked)
+        {
+            var phone = CustomerService.NormalizePhone(user.PhoneNumber ?? user.UserName);
+            var email = user.Email;
+            isBlocked = await db.Customers.AsNoTracking().AnyAsync(x =>
+                x.IsBlocked &&
+                ((phone != string.Empty && x.NormalizedPhone == phone) ||
+                 (email != null && x.Email != null && EF.Functions.ILike(x.Email, email))),
+                cancellationToken);
+        }
+        return isBlocked ? null : user;
     }
 
     public async Task<bool> CustomerAccountExistsAsync(Guid propertyId, string phone, CancellationToken cancellationToken = default)
@@ -147,6 +168,16 @@ public sealed class CustomerAccountService(
         return normalizedPhone.Length >= 8 && await db.Customers.AsNoTracking().AnyAsync(
             x => x.PropertyId == propertyId && x.NormalizedPhone == normalizedPhone,
             cancellationToken);
+    }
+
+    public Task<bool> IsBlockedAsync(Guid propertyId, string phone, CancellationToken cancellationToken = default)
+    {
+        var normalizedPhone = CustomerService.NormalizePhone(phone);
+        return normalizedPhone.Length < 8
+            ? Task.FromResult(false)
+            : db.Customers.AsNoTracking().AnyAsync(
+                x => x.PropertyId == propertyId && x.NormalizedPhone == normalizedPhone && x.IsBlocked,
+                cancellationToken);
     }
 
     public async Task LinkBookingCustomerAsync(Guid userId, Guid propertyId, Guid bookingId, CancellationToken cancellationToken = default)

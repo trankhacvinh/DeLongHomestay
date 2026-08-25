@@ -43,7 +43,8 @@ public sealed class CustomerAccountAndLoyaltyTests
         Assert.Contains("customer?.Email?.Trim()", service, StringComparison.Ordinal);
         Assert.Contains("identityEmail = null", service, StringComparison.Ordinal);
         var endpoints = ReadRepositoryFile("src/DeLong.Web/Features/CustomerAccounts/CustomerAccountEndpoints.cs");
-        Assert.Contains("new { exists, hasAccount }", endpoints, StringComparison.Ordinal);
+        Assert.Contains("new { exists, hasAccount, isBlocked = false }", endpoints, StringComparison.Ordinal);
+        Assert.Contains("isBlocked = true", endpoints, StringComparison.Ordinal);
     }
 
     [Fact]

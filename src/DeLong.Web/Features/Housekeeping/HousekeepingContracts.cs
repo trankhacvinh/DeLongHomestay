@@ -49,7 +49,9 @@ public sealed record RoomConditionReportImageDto(
     string LargeUrl,
     string ThumbnailUrl,
     int Width,
-    int Height);
+    int Height,
+    bool IsVideo,
+    string ContentType);
 
 public sealed record RoomConditionReportDto(
     Guid Id,
@@ -58,6 +60,7 @@ public sealed record RoomConditionReportDto(
     string RoomName,
     RoomInspectionType InspectionType,
     RoomConditionSeverity Severity,
+    int Rating,
     RoomConditionReportStatus Status,
     string Content,
     IReadOnlyList<string> Tags,

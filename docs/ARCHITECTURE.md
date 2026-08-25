@@ -102,6 +102,7 @@ Admin, Manager, Staff, Housekeeping, Viewer. Ngoài role còn có `UserPropertyA
 ## Room condition reports
 
 - `RoomConditionReport` is a property- and room-scoped operational record, separate from booking and housekeeping room status.
-- `RoomConditionReportImage` stores optimized image metadata; binary originals and WebP variants remain in persistent storage through `IRoomImageStorage`.
+- `RoomConditionReportImage` lưu metadata cho cả ảnh và video. Ảnh được sửa orientation/resize/WebP qua `IRoomImageStorage`; video MP4/WebM/MOV được kiểm tra chữ ký file và lưu qua `IRoomConditionMediaStorage`.
+- Mỗi báo cáo có `Rating` từ 1–5 sao, mức độ nghiệp vụ và trạng thái `New`/`InProgress`/`Resolved`; đây là chức năng quản trị độc lập tại `/Admin/RoomConditionReports`.
 - `RoomConditionTag` contains reusable property-scoped presets. Each report stores the selected tag names as a JSON snapshot so historical wording does not change when presets are edited later.
 - Staff mutations use the `ManageHousekeeping` policy, `PropertyAccessFilter`, antiforgery validation and server-side file validation.

@@ -103,6 +103,6 @@
 - [ ] Tài khoản/role nhân viên thật.
 - [ ] Hướng dẫn nhân viên.
 - [ ] Go-live.
-- [x] MVP báo cáo tình trạng phòng: nhiều ảnh tối ưu, nội dung, tag mẫu, mức độ, trạng thái xử lý và lịch sử theo cơ sở.
+- [x] Chức năng độc lập báo cáo tình trạng phòng: ảnh/video nhiều file, ảnh tối ưu, tag tự điền nội dung, đánh giá 5 sao, bảng lọc, trạng thái xử lý và lịch sử theo cơ sở.
 - [ ] UAT thực tế camera trên iOS Safari và Android Chrome; kiểm tra retry khi mạng di động yếu.
 - [ ] Màn hình quản lý đầy đủ cho thêm, sắp xếp và ngừng dùng tag mẫu.

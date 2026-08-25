@@ -91,6 +91,10 @@
             if (siteSlug) query.set('siteSlug', siteSlug);
             const status = await DeLongApi.get(`/api/public/customer-account/status?${query}`);
             panel.hidden = false;
+            if (status.isBlocked) {
+                panel.innerHTML = '<div class="booking-account-message is-error"><strong>Không thể đặt phòng bằng thông tin liên hệ này.</strong><small>Vui lòng liên hệ trực tiếp cơ sở để được hỗ trợ.</small></div>';
+                return;
+            }
             const hasAccount = status.hasAccount ?? status.exists;
             if (hasAccount) {
                 panel.innerHTML = `<div class="booking-account-summary"><div><strong>Đã tìm thấy tài khoản</strong><small>Đăng nhập để tự điền hồ sơ và dùng CCCD đã lưu.</small></div></div><div class="booking-account-form"><label><span>Mật khẩu</span><input type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" data-quick-password /></label><button type="button" data-quick-login>Đăng nhập & điền nhanh</button></div><p class="booking-account-message" data-account-message hidden></p>`;

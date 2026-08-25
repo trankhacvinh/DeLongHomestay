@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace DeLong.Web.Features.Housekeeping;
 
-public sealed class HousekeepingService(AppDbContext db, IRoomImageStorage? imageStorage = null)
+public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStorage? mediaStorage = null)
 {
     private static readonly BookingStatus[] ScheduleStatuses =
         [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed];
@@ -230,7 +230,9 @@ public sealed class HousekeepingService(AppDbContext db, IRoomImageStorage? imag
                     image.LargePath,
                     image.ThumbnailPath,
                     image.Width,
-                    image.Height)).ToList()
+                    image.Height,
+                    image.IsVideo,
+                    image.ContentType)).ToList()
             })
             .ToListAsync(cancellationToken);
 
@@ -241,6 +243,7 @@ public sealed class HousekeepingService(AppDbContext db, IRoomImageStorage? imag
             x.Name,
             x.Report.InspectionType,
             x.Report.Severity,
+            x.Report.Rating,
             x.Report.Status,
             x.Report.Content,
             DeserializeTags(x.Report.TagsJson),
@@ -255,6 +258,7 @@ public sealed class HousekeepingService(AppDbContext db, IRoomImageStorage? imag
         Guid actorUserId,
         RoomInspectionType inspectionType,
         RoomConditionSeverity severity,
+        int rating,
         string? content,
         IReadOnlyList<string> selectedTags,
         IReadOnlyList<IFormFile> files,
@@ -264,8 +268,9 @@ public sealed class HousekeepingService(AppDbContext db, IRoomImageStorage? imag
             x => x.Id == roomId && x.PropertyId == propertyId && x.IsActive,
             cancellationToken);
         if (room is null) return (null, "Không tìm thấy phòng trong cơ sở đang chọn.");
-        if (imageStorage is null) return (null, "Dịch vụ lưu ảnh chưa sẵn sàng.");
-        if (files.Count is < 1 or > 12) return (null, "Mỗi báo cáo cần từ 1 đến 12 ảnh.");
+        if (mediaStorage is null) return (null, "Dịch vụ lưu ảnh và video chưa sẵn sàng.");
+        if (files.Count < 1) return (null, "Mỗi báo cáo cần ít nhất một ảnh hoặc video.");
+        if (rating is < 1 or > 5) return (null, "Điểm đánh giá phải từ 1 đến 5 sao.");
 
         var normalizedTags = selectedTags
             .Select(x => x.Trim())
@@ -293,25 +298,26 @@ public sealed class HousekeepingService(AppDbContext db, IRoomImageStorage? imag
             ReportedByUserId = actorUserId,
             InspectionType = inspectionType,
             Severity = severity,
+            Rating = rating,
             Status = RoomConditionReportStatus.New,
             Content = normalizedContent,
             TagsJson = JsonSerializer.Serialize(normalizedTags)
         };
 
-        var storedImages = new List<StoredRoomImage>();
+        var storedMedia = new List<StoredRoomConditionMedia>();
         try
         {
             for (var index = 0; index < files.Count; index++)
             {
                 var imageId = Guid.CreateVersion7();
-                var (stored, error) = await imageStorage.SaveAsync(roomId, imageId, files[index], cancellationToken);
+                var (stored, error) = await mediaStorage.SaveAsync(roomId, imageId, files[index], cancellationToken);
                 if (stored is null)
                 {
-                    foreach (var saved in storedImages)
-                        await imageStorage.DeleteAsync(saved, CancellationToken.None);
-                    return (null, $"Ảnh {index + 1}: {error}");
+                    foreach (var saved in storedMedia)
+                        await mediaStorage.DeleteAsync(saved, CancellationToken.None);
+                    return (null, $"File {index + 1}: {error}");
                 }
-                storedImages.Add(stored);
+                storedMedia.Add(stored);
                 report.Images.Add(new RoomConditionReportImage
                 {
                     Id = imageId,
@@ -321,6 +327,7 @@ public sealed class HousekeepingService(AppDbContext db, IRoomImageStorage? imag
                     CardPath = stored.CardUrl,
                     ThumbnailPath = stored.ThumbnailUrl,
                     ContentType = stored.ContentType,
+                    IsVideo = stored.IsVideo,
                     OriginalBytes = stored.OriginalBytes,
                     Width = stored.Width,
                     Height = stored.Height,
@@ -333,8 +340,8 @@ public sealed class HousekeepingService(AppDbContext db, IRoomImageStorage? imag
         }
         catch
         {
-            foreach (var stored in storedImages)
-                await imageStorage.DeleteAsync(stored, CancellationToken.None);
+            foreach (var stored in storedMedia)
+                await mediaStorage.DeleteAsync(stored, CancellationToken.None);
             throw;
         }
 

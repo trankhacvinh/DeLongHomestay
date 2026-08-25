@@ -30,6 +30,10 @@
 
 ## Customer + Booking
 
+- [x] Ghi chú khách dùng chung giữa hồ sơ và chi tiết booking.
+- [x] Danh sách đen có lý do, trạng thái chặn độc lập và lọc/cảnh báo trong danh sách khách.
+- [x] Chặn server-side đăng ký, đăng nhập và đặt phòng theo số điện thoại hoặc email.
+
 - [x] Customer entity/service/API.
 - [x] Nhận diện khách cũ theo normalized phone trong cùng cơ sở.
 - [x] Booking status/rules.
@@ -54,7 +58,8 @@
 - [ ] Chốt logic thanh toán/cọc/hoàn tiền.
 - [ ] Thêm Payment ledger thay vì số tiền thanh toán nằm trong Booking.
 - [ ] Check-out tự tạo housekeeping task/trạng thái Bẩn.
-- [ ] Áp dụng migration `AddRoomConditionReports` trước khi mở chức năng báo cáo phòng.
+- [ ] Áp dụng migration `AddRoomConditionReports`, sau đó migration bổ sung rating/video trước khi mở chức năng báo cáo phòng.
 - [ ] Kiểm tra nhân viên chỉ thấy/tạo báo cáo tại cơ sở được cấp quyền.
-- [ ] Chụp trực tiếp và chọn nhiều ảnh trên iPhone/Android; xác nhận ảnh xoay đúng và WebP tải nhanh.
-- [ ] Xác nhận báo cáo cần 1-12 ảnh và không mất nội dung khi server trả lỗi validation.
+- [ ] Chụp/quay trực tiếp và chọn nhiều ảnh/video trên iPhone/Android; xác nhận ảnh xoay đúng, WebP tải nhanh và video phát được.
+- [ ] Xác nhận báo cáo cần ít nhất 1 file, không giới hạn số file nghiệp vụ, video tối đa 250 MB/file và không mất nội dung khi server trả lỗi validation.
+- [ ] Xác nhận tag mẫu tự điền nội dung, điểm 1–5 sao và trạng thái Mới báo/Đang xử lý/Đã hoàn thành hiển thị đúng trong bảng.

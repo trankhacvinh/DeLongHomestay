@@ -26,6 +26,7 @@
             <div class="entity-toolbar-main">
                 <input class="search-input" v-model.trim="search" placeholder="Tìm tên hoặc số điện thoại..." aria-label="Tìm khách hàng" />
                 <label class="check-row"><input type="checkbox" v-model="showInactive" /> Hiện hồ sơ đã ngừng</label>
+                <label class="check-row"><input type="checkbox" v-model="blacklistOnly" /> Chỉ danh sách đen</label>
             </div>
             <span class="entity-count">{{ filteredCustomers.length }} khách</span>
         </div>
@@ -33,12 +34,12 @@
             <table class="data-table">
                 <thead><tr><th>Khách hàng</th><th>Điện thoại</th><th>Liên hệ / định danh</th><th>Ngày thêm</th><th>Trạng thái</th><th></th></tr></thead>
                 <tbody>
-                    <tr v-for="customer in filteredCustomers" v-bind:key="customer.id" class="clickable-row" tabindex="0" v-bind:aria-label="`Xem hồ sơ ${customer.name}`" v-on:click="openDetail(customer)" v-on:keydown.enter="openDetail(customer)" v-on:keydown.space.prevent="openDetail(customer)">
-                        <td><div class="entity-cell"><span class="entity-avatar">{{ (customer.name || '?').charAt(0) }}</span><div class="entity-copy"><strong>{{ customer.name }}</strong><span>{{ customer.note || 'Chưa có ghi chú' }}</span></div></div></td>
+                    <tr v-for="customer in filteredCustomers" v-bind:key="customer.id" class="clickable-row" v-bind:class="{ 'customer-blacklisted-row': customer.isBlacklisted }" tabindex="0" v-bind:aria-label="`Xem hồ sơ ${customer.name}`" v-on:click="openDetail(customer)" v-on:keydown.enter="openDetail(customer)" v-on:keydown.space.prevent="openDetail(customer)">
+                        <td><div class="entity-cell"><span class="entity-avatar">{{ (customer.name || '?').charAt(0) }}</span><div class="entity-copy"><strong>{{ customer.name }} <span v-if="customer.note" class="customer-note-icon" title="Khách có ghi chú" aria-label="Khách có ghi chú">✎</span></strong><span>{{ customer.note || 'Chưa có ghi chú' }}</span></div></div></td>
                         <td><strong>{{ customer.phone }}</strong></td>
                         <td><span>{{ customer.email || '—' }}</span><div v-if="customer.identityNumber" class="tiny muted">CCCD/Hộ chiếu: {{ customer.identityNumber }}</div></td>
                         <td>{{ dateText(customer.createdAtUtc) }}</td>
-                        <td><span class="pill" v-bind:class="customer.isActive ? 'success' : 'danger'">{{ customer.isActive ? 'Hoạt động' : 'Ngừng' }}</span></td>
+                        <td><span v-if="customer.isBlocked" class="pill danger">Đã chặn</span><span v-else-if="customer.isBlacklisted" class="pill danger">Danh sách đen</span><span v-else class="pill" v-bind:class="customer.isActive ? 'success' : 'danger'">{{ customer.isActive ? 'Hoạt động' : 'Ngừng' }}</span></td>
                         <td>
                             <button class="btn btn-light btn-sm row-action" type="button" v-on:click.stop="openDetail(customer)">Chi tiết</button>
                             @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff"))
@@ -62,6 +63,7 @@
             <div v-if="detail.loading" class="empty-state"><strong>Đang tải hồ sơ…</strong>Lịch sử đặt phòng đang được tổng hợp.</div>
             <div v-else-if="detail.error" class="notice danger">{{ detail.error }}</div>
             <template v-else-if="detail.customer">
+                <div v-if="detail.customer.isBlacklisted" class="notice danger"><strong>{{ detail.customer.isBlocked ? 'Khách đã bị chặn' : 'Khách thuộc danh sách đen' }}</strong><br />{{ detail.customer.blacklistReason }}</div>
                 <div class="customer-profile-grid">
                     <div><span>Họ tên</span><strong>{{ detail.customer.name }}</strong></div>
                     <div><span>Điện thoại</span><strong>{{ detail.customer.phone }}</strong></div>
@@ -103,6 +105,8 @@
                 <div class="field"><label>Email</label><input type="email" v-model.trim="form.email" maxlength="254" autocomplete="email" placeholder="email@example.com" /></div>
                 <div class="field"><label>CCCD / Hộ chiếu</label><input v-model.trim="form.identityNumber" maxlength="100" placeholder="Không bắt buộc" /></div>
                 <div class="field full"><label>Ghi chú</label><textarea v-model.trim="form.note" maxlength="2000" placeholder="Sở thích phòng, yêu cầu đặc biệt, ghi chú nội bộ..."></textarea></div>
+                <label class="check-row full customer-risk-check"><input type="checkbox" v-model="form.isBlacklisted" /> Đưa khách vào danh sách đen</label>
+                <div v-if="form.isBlacklisted" class="field full customer-risk-box"><label>Lý do *</label><textarea v-model.trim="form.blacklistReason" maxlength="1000" placeholder="Mô tả vấn đề để nhân viên nhận biết ở lần đặt sau..."></textarea><label class="check-row"><input type="checkbox" v-model="form.isBlocked" /> Chặn đăng nhập và đặt phòng bằng số điện thoại hoặc email này</label></div>
                 <label v-if="editor.mode === 'edit'" class="check-row full"><input type="checkbox" v-model="form.isActive" /> Hồ sơ đang hoạt động</label>
             </div>
             <div class="modal-actions">

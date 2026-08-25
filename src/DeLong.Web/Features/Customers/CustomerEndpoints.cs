@@ -79,6 +79,22 @@ public static class CustomerEndpoints
         .RequireAuthorization("ManageBookings")
         .AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        group.MapPut("/{customerId:guid}/internal-profile", async (
+            Guid propertyId,
+            Guid customerId,
+            UpdateCustomerInternalProfileRequest request,
+            CustomerService service,
+            CancellationToken cancellationToken) =>
+        {
+            var (customer, error) = await service.UpdateInternalProfileAsync(propertyId, customerId, request, cancellationToken);
+            if (customer is null && error == "Không tìm thấy khách hàng.") return Results.NotFound();
+            return error is not null
+                ? Results.Problem(title: "Không thể cập nhật ghi chú khách", detail: error, statusCode: 400)
+                : Results.Ok(customer);
+        })
+        .RequireAuthorization("ManageBookings")
+        .AddEndpointFilter<ApiAntiforgeryFilter>();
+
         return app;
     }
 }

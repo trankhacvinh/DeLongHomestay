@@ -412,3 +412,11 @@
     .customer-history-item { grid-template-columns: 1fr auto; }
     .customer-history-item > div:nth-child(2), .customer-history-money { grid-column: 1 / -1; text-align: left; }
 }
+.customer-blacklisted-row > td { background: #fff1f1; }
+.customer-blacklisted-row:hover > td { background: #ffe5e5; }
+.customer-note-icon { display: inline-grid; width: 1.25rem; height: 1.25rem; place-items: center; border-radius: 50%; color: #fff; background: #2b746d; font-size: .8rem; vertical-align: middle; }
+.customer-risk-box { padding: 1rem; border: 1px solid #efc3c3; border-radius: 1rem; background: #fff7f7; }
+.customer-risk-check { color: #a83d3d; font-weight: 700; }
+.admin-customer-risk { margin: 1rem 0; padding: 1rem; border: 1px solid #d7e3e0; border-radius: 1rem; background: #f8fbfa; }
+.admin-customer-risk.is-blacklisted { border-color: #efbcbc; background: #fff5f5; }
+.admin-customer-risk .form-grid { margin-top: 1rem; }
