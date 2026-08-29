@@ -31,6 +31,8 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         if (!await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id == request.RoomId && x.IsActive, cancellationToken)) return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
         var rateError = await ValidateRateReferenceAsync(request.Type, request.RoomId, request.RoomRateId, cancellationToken);
         if (rateError is not null) return (null, rateError);
+        var segmentError = await ValidateRateSegmentsAsync(request, cancellationToken);
+        if (segmentError is not null) return (null, segmentError);
 
         var checkInUtc = request.CheckIn.UtcDateTime; var checkOutUtc = request.CheckOut.UtcDateTime;
         if (BookingRules.LocksRoom(request.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken)) return (null, ConflictError());
@@ -46,6 +48,21 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
             RoomAmount = request.RoomAmount, ExtraAmount = request.ExtraAmount, DiscountAmount = request.DiscountAmount,
             Source = Clean(request.Source), PublicRequestKey = Clean(request.PublicRequestKey), Note = Clean(request.Note)
         };
+        foreach (var segment in request.RateSegments.OrderBy(x => x.SortOrder))
+        {
+            booking.RateSegments.Add(new BookingRateSegment
+            {
+                RoomRateId = segment.RoomRateId,
+                ServiceDate = segment.ServiceDate,
+                CheckInUtc = segment.CheckInUtc,
+                CheckOutUtc = segment.CheckOutUtc,
+                SortOrder = segment.SortOrder,
+                RateName = segment.RateName.Trim(),
+                ListPrice = segment.ListPrice,
+                AppliedAmount = segment.AppliedAmount,
+                PricingRule = segment.PricingRule.Trim()
+            });
+        }
         booking.Code = CreateBookingCode(booking.CreatedAtUtc);
         db.Bookings.Add(booking);
         auditService.Add(propertyId, "Booking", booking.Id, "Created", actorUserId, after: Snapshot(booking));
@@ -135,6 +152,23 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         if (type == BookingType.TimeSlot && rateType.Value == RoomRateType.Nightly)
             return new("rate_type_invalid", "Đặt theo khung giờ không thể dùng mức giá lưu trú theo đêm.");
         return null;
+    }
+
+    private async Task<BookingOperationError?> ValidateRateSegmentsAsync(CreateBookingRequest request, CancellationToken cancellationToken)
+    {
+        if (request.RateSegments.Count == 0) return null;
+        if (request.Type != BookingType.TimeSlot) return new("validation", "Chỉ booking theo khung giờ mới có danh sách khung.");
+        var ordered = request.RateSegments.OrderBy(x => x.SortOrder).ToList();
+        if (ordered.Select(x => x.SortOrder).Distinct().Count() != ordered.Count || ordered[0].SortOrder != 0 || ordered[^1].SortOrder != ordered.Count - 1)
+            return new("validation", "Thứ tự snapshot khung giờ không hợp lệ.");
+        if (ordered.Any(x => x.CheckOutUtc <= x.CheckInUtc || x.ListPrice < 0 || x.AppliedAmount < 0) ||
+            ordered[0].CheckInUtc != request.CheckIn.UtcDateTime || ordered[^1].CheckOutUtc != request.CheckOut.UtcDateTime ||
+            ordered.Sum(x => x.AppliedAmount) != request.RoomAmount)
+            return new("validation", "Snapshot khung giờ không khớp thời gian hoặc giá booking.");
+        var rateIds = ordered.Select(x => x.RoomRateId).Distinct().ToArray();
+        var validRateCount = await db.RoomRates.AsNoTracking()
+            .CountAsync(x => rateIds.Contains(x.Id) && x.RoomId == request.RoomId && x.IsActive && x.Type != RoomRateType.Nightly, cancellationToken);
+        return validRateCount == rateIds.Length ? null : new("rate_not_found", "Một khung giờ không còn thuộc phòng này.");
     }
 
     private async Task<BookingOperationError?> SaveWithConflictGuardAsync(CancellationToken cancellationToken, bool publicRequest = false)

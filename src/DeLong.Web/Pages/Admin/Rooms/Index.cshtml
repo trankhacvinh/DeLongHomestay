@@ -98,6 +98,8 @@
                 <div class="field"><label for="room-name">Tên phòng</label><input id="room-name" v-model.trim="form.name" maxlength="200" autocomplete="off" /></div>
                 <div class="field"><label for="room-capacity">Sức chứa</label><input id="room-capacity" v-model.number="form.capacity" type="number" inputmode="numeric" min="1" max="50" /></div>
                 <div class="field"><label for="room-sort-order">Thứ tự hiển thị</label><input id="room-sort-order" v-model.number="form.sortOrder" type="number" inputmode="numeric" min="0" /></div>
+                <label v-if="editor.mode === 'edit'" class="check-row full"><input type="checkbox" v-model="form.fullDayPricingEnabled" /> Dùng giá riêng khi khách chọn đủ tất cả khung trong ngày</label>
+                <div v-if="editor.mode === 'edit' && form.fullDayPricingEnabled" class="field full"><label for="room-full-day-price">Giá cả ngày</label><input id="room-full-day-price" v-model.number="form.fullDayPrice" type="number" inputmode="numeric" min="1" step="1000" /></div>
                 <label v-if="editor.mode === 'edit'" class="check-row full"><input type="checkbox" v-model="form.isActive" /> Phòng đang hoạt động</label>
                 <label v-if="editor.mode === 'edit'" class="check-row full"><input type="checkbox" v-model="form.isPublished" /> Hiển thị phòng trên website và trang đặt phòng</label>
                 <p v-if="editor.mode === 'edit' && form.isActive && !form.isPublished" class="room-publish-help full">Phòng vẫn dùng được trong quản trị nhưng khách sẽ không thấy phòng này cho tới khi bật hiển thị.</p>

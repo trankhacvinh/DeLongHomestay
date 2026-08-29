@@ -366,6 +366,24 @@
                         }
                     </div>
                 }
+                @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Viewer"))
+                {
+                    <div class="nav-group">
+                        <div class="nav-label">Tài chính</div>
+                        <a class="@NavClass("/Admin/Finance")" asp-page="/Admin/Finance/Index"
+                           asp-route-propertyId="@propertyId">
+                            <svg>
+                                <use href="#i-wallet"/>
+                            </svg>
+                            <span>Thu chi</span></a>
+                        <a class="@NavClass("/Admin/Reports")" asp-page="/Admin/Reports/Index"
+                           asp-route-propertyId="@propertyId">
+                            <svg>
+                                <use href="#i-chart"/>
+                            </svg>
+                            <span>Báo cáo</span></a>
+                    </div>
+                }
                 @if (canManageSite)
                 {
                     <div class="nav-group">
@@ -407,24 +425,6 @@
                                 <use href="#i-external"/>
                             </svg>
                             <span>Xem website</span></a>
-                    </div>
-                }
-                @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Viewer"))
-                {
-                    <div class="nav-group">
-                        <div class="nav-label">Tài chính</div>
-                        <a class="@NavClass("/Admin/Finance")" asp-page="/Admin/Finance/Index"
-                           asp-route-propertyId="@propertyId">
-                            <svg>
-                                <use href="#i-wallet"/>
-                            </svg>
-                            <span>Thu chi</span></a>
-                        <a class="@NavClass("/Admin/Reports")" asp-page="/Admin/Reports/Index"
-                           asp-route-propertyId="@propertyId">
-                            <svg>
-                                <use href="#i-chart"/>
-                            </svg>
-                            <span>Báo cáo</span></a>
                     </div>
                 }
             </nav>
@@ -629,6 +629,7 @@ else
     <script src="https://cdn.jsdelivr.net/npm/vue@3.5.40/dist/vue.global.prod.js"></script>
 }
 <script src="~/js/core/api.js" asp-append-version="true"></script>
+<script src="~/js/core/password-strength.js" asp-append-version="true"></script>
 <script src="~/js/core/shell.js" asp-append-version="true"></script>
 @if (isAdmin)
 {

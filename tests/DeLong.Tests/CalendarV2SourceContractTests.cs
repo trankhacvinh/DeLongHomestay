@@ -48,6 +48,22 @@ public sealed class CalendarV2SourceContractTests
         Assert.Contains("element.style.setProperty('display', 'none', 'important')", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Consecutive_slots_from_the_same_booking_are_joined_visually()
+    {
+        var source = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar-v2.js");
+        var styles = ReadRepositoryFile("src/DeLong.Web/wwwroot/css/admin-calendar-v2.css");
+
+        Assert.Contains("function sameBookingAtBoundary", source, StringComparison.Ordinal);
+        Assert.Contains("adjacent.bookingId !== range.bookingId", source, StringComparison.Ordinal);
+        Assert.Contains("segment.classList.add('continues-left')", source, StringComparison.Ordinal);
+        Assert.Contains("segment.classList.add('continues-right')", source, StringComparison.Ordinal);
+        Assert.Contains("renderSlot(slot, day, previousSlot, nextSlot)", source, StringComparison.Ordinal);
+        Assert.Contains(".calendar-v2-segment.occupied.continues-right::after", styles, StringComparison.Ordinal);
+        Assert.Contains("--calendar-v2-cell-bridge:21px", styles, StringComparison.Ordinal);
+    }
+
     private static string ReadRepositoryFile(string relativePath)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

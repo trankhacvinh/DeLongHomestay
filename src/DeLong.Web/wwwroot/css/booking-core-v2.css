@@ -12,6 +12,7 @@
 .booking-guest-stepper strong{display:grid;place-items:center;min-width:0;font-size:1.03rem;color:#172625;background:#fff}
 .booking-guest-field small{display:block;min-height:2.7em;margin-top:8px;color:#687b79;line-height:1.35}
 .booking-id-section{grid-column:1/-1;border:1px solid #d5e2df;border-radius:18px;padding:16px;background:#f9fbfa;min-width:0}
+.booking-identity-warning{grid-column:1/-1;margin:0;color:#b42318;font-weight:800;font-size:.92rem}
 .booking-id-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:13px}
 .booking-id-heading>div{display:grid;gap:3px;min-width:0}.booking-id-heading strong{font-size:.94rem}.booking-id-heading small{color:#6a7b79;line-height:1.4}
 .booking-id-heading>span{flex:0 0 auto;justify-self:start;padding:5px 9px;border-radius:999px;background:#e7f4ef;color:#217258;font-size:.72rem;font-weight:800;white-space:nowrap}

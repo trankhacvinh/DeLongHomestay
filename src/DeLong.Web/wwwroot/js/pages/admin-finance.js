@@ -6,10 +6,19 @@
     const { createApp } = Vue;
     const defaultTimeZone = initial.timeZoneId || 'Asia/Ho_Chi_Minh';
 
-    function shiftMonth(value, delta) {
-        const [year, month] = value.split('-').map(Number);
-        const date = new Date(Date.UTC(year, month - 1 + delta, 1));
-        return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+    function isoDate(value) {
+        return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
+    }
+
+    function shiftPeriod(value, period, delta) {
+        const date = new Date(`${value}T00:00:00Z`);
+        if (period === 'day') date.setUTCDate(date.getUTCDate() + delta);
+        else if (period === 'week') date.setUTCDate(date.getUTCDate() + delta * 7);
+        else {
+            date.setUTCDate(1);
+            date.setUTCMonth(date.getUTCMonth() + delta * (period === 'quarter' ? 3 : 1));
+        }
+        return isoDate(date);
     }
 
     createApp({
@@ -20,10 +29,14 @@
                 scopeName: initial.scopeName || initial.propertyName || '',
                 properties: initial.properties || [],
                 canMutateScope: initial.canMutateScope === true,
-                month: initial.month,
+                period: initial.period || 'month',
+                anchorDate: initial.anchorDate,
+                rangeStart: initial.rangeStart,
+                rangeEnd: initial.rangeEnd,
                 payments: initial.payments || [],
                 expenses: initial.expenses || [],
                 outstanding: Number(initial.summary?.outstanding || 0),
+                ledgerFilter: 'all',
                 canManage: window.DeLongFinanceCanManage === true,
                 saving: false,
                 expenseEditor: { open: false },
@@ -33,11 +46,60 @@
             };
         },
         computed: {
-            monthLabel() {
-                const [year, month] = this.month.split('-').map(Number);
-                return new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-                    .format(new Date(Date.UTC(year, month - 1, 1)));
+            periodLabel() {
+                const start = new Date(`${this.rangeStart}T00:00:00Z`);
+                const end = new Date(`${this.rangeEnd}T00:00:00Z`);
+                const fullDate = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+                if (this.period === 'day') return fullDate.format(start);
+                if (this.period === 'week') return `${fullDate.format(start)} – ${fullDate.format(end)}`;
+                if (this.period === 'quarter') return `Quý ${Math.floor(start.getUTCMonth() / 3) + 1}/${start.getUTCFullYear()}`;
+                return new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(start);
             },
+            periodName() {
+                return ({ day: 'ngày', week: 'tuần', month: 'tháng', quarter: 'quý' })[this.period] || 'kỳ';
+            },
+            exportUrl() {
+                const query = new URLSearchParams({ handler: 'Export', propertyId: this.propertyId, date: this.anchorDate, period: this.period, scope: this.scope });
+                return `/Admin/Finance?${query.toString()}`;
+            },
+            ledgerEntries() {
+                const paymentRows = this.payments.map(payment => ({
+                    id: `payment-${payment.id}`,
+                    occurredAtUtc: payment.occurredAtUtc,
+                    propertyId: payment.propertyId,
+                    kind: payment.type === 0 ? 'receipt' : 'refund',
+                    typeLabel: payment.type === 0 ? 'Thu booking' : 'Hoàn tiền',
+                    title: payment.bookingCode,
+                    description: payment.customerName,
+                    method: payment.method,
+                    reference: payment.reference,
+                    receipt: payment.type === 0 && !payment.isVoided ? Number(payment.amount || 0) : 0,
+                    outflow: payment.type === 1 && !payment.isVoided ? Number(payment.amount || 0) : 0,
+                    isVoided: payment.isVoided === true
+                }));
+                const expenseRows = this.expenses.map(expense => ({
+                    id: `expense-${expense.id}`,
+                    occurredAtUtc: expense.occurredAtUtc,
+                    propertyId: expense.propertyId,
+                    kind: 'expense',
+                    typeLabel: 'Chi phí',
+                    title: expense.category,
+                    description: expense.description,
+                    method: expense.method,
+                    reference: expense.reference,
+                    receipt: 0,
+                    outflow: expense.isVoided ? 0 : Number(expense.amount || 0),
+                    isVoided: expense.isVoided === true
+                }));
+                return [...paymentRows, ...expenseRows].sort((left, right) => new Date(right.occurredAtUtc) - new Date(left.occurredAtUtc));
+            },
+            filteredLedgerEntries() {
+                if (this.ledgerFilter === 'in') return this.ledgerEntries.filter(x => x.receipt > 0);
+                if (this.ledgerFilter === 'out') return this.ledgerEntries.filter(x => x.outflow > 0);
+                if (this.ledgerFilter === 'void') return this.ledgerEntries.filter(x => x.isVoided);
+                return this.ledgerEntries;
+            },
+            ledgerNet() { return this.ledgerEntries.reduce((sum, item) => sum + item.receipt - item.outflow, 0); },
             receipts() { return this.payments.filter(x => !x.isVoided && x.type === 0).reduce((sum, x) => sum + Number(x.amount || 0), 0); },
             refunds() { return this.payments.filter(x => !x.isVoided && x.type === 1).reduce((sum, x) => sum + Number(x.amount || 0), 0); },
             expenseTotal() { return this.expenses.filter(x => !x.isVoided).reduce((sum, x) => sum + Number(x.amount || 0), 0); },
@@ -62,17 +124,30 @@
                 }).format(new Date(value));
             },
             paymentMethodText(method) {
-                return ({ 0: 'Tiền mặt', 1: 'Chuyển khoản', 2: 'Thẻ', 3: 'Khác' })[method] || 'Khác';
+                return ({ 0: 'Tiền mặt', 1: 'Chuyển khoản', 2: 'Thẻ', 3: 'Khác', 4: 'Pay2S' })[method] || 'Khác';
             },
-            navigate(month, scope) {
-                const query = new URLSearchParams({ propertyId: this.propertyId, month, scope });
+            navigate(anchorDate, scope, period) {
+                const query = new URLSearchParams({ propertyId: this.propertyId, date: anchorDate, period, scope });
                 window.location.assign(`/Admin/Finance?${query.toString()}`);
             },
-            moveMonth(delta) {
-                this.navigate(shiftMonth(this.month, delta), this.scope);
+            movePeriod(delta) {
+                this.navigate(shiftPeriod(this.anchorDate, this.period, delta), this.scope, this.period);
             },
             changeScope() {
-                this.navigate(this.month, this.scope);
+                this.navigate(this.anchorDate, this.scope, this.period);
+            },
+            changePeriod() {
+                this.navigate(this.anchorDate, this.scope, this.period);
+            },
+            changeAnchor() {
+                this.navigate(this.anchorDate, this.scope, this.period);
+            },
+            isInActivePeriod(value, propertyId) {
+                const timeZone = this.propertyFor(propertyId)?.timeZoneId || defaultTimeZone;
+                const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(value));
+                const get = type => parts.find(part => part.type === type)?.value || '';
+                const localDate = `${get('year')}-${get('month')}-${get('day')}`;
+                return localDate >= this.rangeStart && localDate <= this.rangeEnd;
             },
             openExpense() {
                 if (!this.canManage || !this.canMutateScope) return;
@@ -98,9 +173,11 @@
                             reference: this.expenseForm.reference || null,
                             note: this.expenseForm.note || null
                         });
-                    this.expenses.unshift(expense);
+                    if (this.isInActivePeriod(expense.occurredAtUtc, expense.propertyId)) this.expenses.unshift(expense);
                     this.expenseEditor.open = false;
-                    this.notify('Đã ghi chi phí.', 'success');
+                    this.notify(this.isInActivePeriod(expense.occurredAtUtc, expense.propertyId)
+                        ? 'Đã ghi chi phí.'
+                        : `Đã ghi chi phí vào ngày hiện tại; khoản này nằm ngoài ${this.periodName} đang xem.`, 'success');
                 } catch (error) {
                     this.notify(error.message || 'Không thể ghi chi phí.', 'error');
                 } finally {

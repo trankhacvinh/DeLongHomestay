@@ -35,6 +35,7 @@ public sealed class Booking : EntityBase
     public string? Note { get; set; }
 
     public ICollection<Payment> Payments { get; set; } = [];
+    public ICollection<BookingRateSegment> RateSegments { get; set; } = [];
 
     public decimal TotalAmount => RoomAmount + ExtraAmount - DiscountAmount;
 }

@@ -19,6 +19,8 @@ public sealed record PublicRoomDto(
     int Capacity,
     bool HasBathtub,
     decimal FromPrice,
+    bool FullDayPricingEnabled,
+    decimal? FullDayPrice,
     IReadOnlyList<PublicRateDto> Rates);
 
 public sealed record PublicCatalogDto(
@@ -64,9 +66,14 @@ public sealed class PublicBookingRequest
     public int PolicyVersion { get; init; }
     public bool HasIdentityFront { get; init; }
     public bool HasIdentityBack { get; init; }
+    public bool HasSecondIdentityFront { get; init; }
+    public bool HasSecondIdentityBack { get; init; }
+    public IReadOnlyList<PublicBookingSlotRequest> Slots { get; init; } = [];
     public string? Note { get; init; }
     public string? Website { get; init; }
 }
+
+public sealed record PublicBookingSlotRequest(string StayDate, Guid RateId);
 
 public sealed record PublicBookingResult(
     Guid BookingId,

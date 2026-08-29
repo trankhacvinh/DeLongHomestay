@@ -278,3 +278,15 @@ input:disabled,select:disabled,textarea:disabled { background:#f3f5f4; color:#7d
 @media (prefers-reduced-motion:reduce) {
     *,*::before,*::after { scroll-behavior:auto!important; transition-duration:.01ms!important; animation-duration:.01ms!important; animation-iteration-count:1!important; }
 }
+
+.password-strength-meter { display:grid; gap:6px; margin-top:7px; font-weight:600; }
+.password-strength-bars { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
+.password-strength-bars i { height:5px; border-radius:99px; background:#dfe6e4; transition:background-color .18s ease; }
+.password-strength-meter small { display:grid; gap:2px; color:#697976; font-size:.74rem; line-height:1.35; }
+.password-strength-meter small strong { color:#8b4239; font-size:.76rem; }
+.password-strength-meter[data-level="1"] .password-strength-bars i:nth-child(-n+1) { background:#c94f45; }
+.password-strength-meter[data-level="2"] .password-strength-bars i:nth-child(-n+2) { background:#d69a32; }
+.password-strength-meter[data-level="3"] .password-strength-bars i:nth-child(-n+3) { background:#2e8a70; }
+.password-strength-meter[data-level="4"] .password-strength-bars i { background:#176b60; }
+.password-strength-meter[data-level="2"] small strong { color:#9a681c; }
+.password-strength-meter[data-level="3"] small strong,.password-strength-meter[data-level="4"] small strong { color:#23735f; }

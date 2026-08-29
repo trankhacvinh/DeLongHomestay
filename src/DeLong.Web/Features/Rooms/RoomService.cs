@@ -9,7 +9,7 @@ public sealed class RoomService(AppDbContext db)
     public async Task<IReadOnlyList<RoomDto>> GetAllAsync(Guid propertyId, CancellationToken cancellationToken = default)
     {
         return await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId).OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
-            .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive, x.IsPublished,
+            .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive, x.IsPublished, x.FullDayPricingEnabled, x.FullDayPrice,
                 x.HousekeepingStatus, x.HousekeepingUpdatedAtUtc,
                 x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder).Select(i => i.ThumbnailPath).FirstOrDefault(),
                 x.Images.Count,
@@ -22,7 +22,7 @@ public sealed class RoomService(AppDbContext db)
     public async Task<RoomDto?> GetAsync(Guid propertyId, Guid roomId, CancellationToken cancellationToken = default)
     {
         return await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Id == roomId)
-            .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive, x.IsPublished,
+            .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive, x.IsPublished, x.FullDayPricingEnabled, x.FullDayPrice,
                 x.HousekeepingStatus, x.HousekeepingUpdatedAtUtc,
                 x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder).Select(i => i.ThumbnailPath).FirstOrDefault(),
                 x.Images.Count,
@@ -77,6 +77,13 @@ public sealed class RoomService(AppDbContext db)
         room.SortOrder = request.SortOrder;
         room.IsActive = request.IsActive;
         if (request.IsPublished.HasValue) room.IsPublished = request.IsPublished.Value;
+        if (request.FullDayPricingEnabled.HasValue)
+        {
+            if (request.FullDayPricingEnabled.Value && request.FullDayPrice is not > 0)
+                return (null, "Giá cả ngày phải lớn hơn 0 khi bật giá riêng.");
+            room.FullDayPricingEnabled = request.FullDayPricingEnabled.Value;
+            room.FullDayPrice = request.FullDayPricingEnabled.Value ? request.FullDayPrice : null;
+        }
         await db.SaveChangesAsync(cancellationToken);
         return (await GetAsync(propertyId, roomId, cancellationToken), null);
     }

@@ -83,6 +83,8 @@
 - [x] Success page.
 - [x] Dashboard Admin inbox cho yêu cầu website mới.
 - [x] Public multi-day booking.
+- [x] Public chọn nhiều khung liền nhau, sticky tổng tiền, giá cả ngày/giảm theo số khung và khóa cạnh tranh trước khi tạo Pay2S.
+- [x] CCCD người thứ hai cho booking từ 3 khách trở lên.
 - [x] Room Content V2: gallery, cover/focal, optimized images, rich editor, amenities/tags/highlights.
 - [x] Hướng dẫn phòng soạn bằng editor, hiển thị sau đặt/tra cứu, tải PDF và khóa tra cứu sau checkout hoặc trạng thái terminal.
 - [x] Visual UAT public desktop/mobile vòng chính.

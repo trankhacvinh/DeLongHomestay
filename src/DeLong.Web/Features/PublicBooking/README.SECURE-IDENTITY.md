@@ -8,7 +8,7 @@ CCCD/identity images are intentionally **not** stored in `wwwroot`, Media Librar
 - Master key: one random 32-byte key stored at `DataRoot/security/identity-master.key`.
 - Nonce: 12 random bytes per write.
 - Authentication tag: 16 bytes.
-- Associated data binds ciphertext to property id, booking id, and side (`front`/`back`) so encrypted files cannot be swapped between bookings.
+- Associated data binds ciphertext to property id, booking id, and side (`front`/`back`/`second-front`/`second-back`) so encrypted files cannot be swapped between bookings.
 - Content type, original filename, and the image itself are inside the encrypted payload.
 - File extension on disk: `.dlid`.
 

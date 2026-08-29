@@ -25,11 +25,13 @@
         panel.innerHTML = `
             <div class="panel-head">
                 <div><h2>Quy tắc đặt phòng online</h2><p class="small muted">Giới hạn dành cho khách đặt trên website. Nhân viên đặt trong quản trị không bị giới hạn số đêm.</p></div>
-                <span class="pill">Giữ phòng ${Number(policy.publicHoldMinutes || 3)} phút</span>
+                <span class="pill">Giữ phòng khi tạo thanh toán</span>
             </div>
             <div class="panel-body">
                 <div class="booking-policy-settings-grid">
                     <div class="field"><label>Đặt tối đa</label><input data-policy-field="publicMaxNights" type="number" min="1" max="14" value="${Number(policy.publicMaxNights || 3)}" /><small>đêm / một lượt online</small></div>
+                    <div class="field"><label>Chọn khung liên tiếp tối đa</label><input data-policy-field="publicMaxConsecutiveSlotDays" type="number" min="1" max="14" value="${Number(policy.publicMaxConsecutiveSlotDays || 3)}" /><small>ngày / một lượt online</small></div>
+                    <div class="field wide"><label>Giảm giá nhiều khung</label><input data-policy-field="multiSlotDiscountTiers" value="${escapeAttribute(formatTiers(policy.multiSlotDiscountTiers))}" placeholder="Ví dụ: 2:5, 3:10" /><small>Định dạng số khung:phần trăm, cách nhau bằng dấu phẩy. Ví dụ 2:5, 3:10.</small></div>
                     <div class="field"><label>Đã gồm trong giá</label><input data-policy-field="includedGuests" type="number" min="1" max="50" value="${Number(policy.includedGuests || 2)}" /><small>khách trước khi tính phụ thu</small></div>
                     <div class="field"><label>Phụ thu mỗi khách</label><input data-policy-field="extraGuestFeePerPerson" type="number" min="0" step="1000" value="${Number(policy.extraGuestFeePerPerson || 0)}" /><small>áp dụng tới sức chứa tối đa của phòng</small></div>
                     <div class="booking-policy-required-identity full"><span>CCCD khách web</span><strong>Bắt buộc mặt trước + mặt sau</strong><small>Nhân viên tạo booking trong Admin có thể bỏ qua email và CCCD; khách tự đặt trên website phải cung cấp đầy đủ.</small></div>
@@ -58,12 +60,31 @@
         return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    function formatTiers(tiers) {
+        return Array.isArray(tiers) ? tiers.map(x => `${Number(x.minimumSlots)}:${Number(x.discountPercent)}`).join(', ') : '';
+    }
+
+    function parseTiers(value) {
+        if (!String(value || '').trim()) return [];
+        return String(value).split(',').map(part => {
+            const [minimumSlots, discountPercent] = part.trim().split(':').map(Number);
+            if (!Number.isInteger(minimumSlots) || minimumSlots < 2 || !Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100)
+                throw new Error('Mức giảm nhiều khung không đúng định dạng. Ví dụ hợp lệ: 2:5, 3:10.');
+            return { minimumSlots, discountPercent };
+        });
+    }
+
     async function save(panel) {
         if (saving) return;
         panel._policyEditor?.sync();
         const button = panel.querySelector('[data-policy-save]');
+        let tiers;
+        try { tiers = parseTiers(panel.querySelector('[data-policy-field="multiSlotDiscountTiers"]')?.value); }
+        catch (error) { button.textContent = error.message; setTimeout(() => { button.textContent = 'Lưu quy tắc đặt phòng'; }, 3000); return; }
         const payload = {
             publicMaxNights: numberValue(panel, 'publicMaxNights', 3),
+            publicMaxConsecutiveSlotDays: numberValue(panel, 'publicMaxConsecutiveSlotDays', 3),
+            multiSlotDiscountTiers: tiers,
             includedGuests: numberValue(panel, 'includedGuests', 2),
             extraGuestFeePerPerson: numberValue(panel, 'extraGuestFeePerPerson', 100000),
             requireIdentityDocuments: true,

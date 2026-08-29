@@ -27,15 +27,9 @@ public static class PublicBookingEndpoints
             [FromQuery] string date,
             [FromQuery] string? siteSlug,
             PublicBookingService service,
-            BookingService bookingService,
-            AppDbContext db,
-            PublicPropertyResolver resolver,
-            StoragePaths paths,
-            IConfiguration configuration,
             CancellationToken ct) =>
         {
             if (!DateOnly.TryParse(date, out var stayDate)) return Results.ValidationProblem(new Dictionary<string, string[]> { ["date"] = ["Ngày không hợp lệ."] });
-            await new PublicBookingCoreV2Service(db, resolver, service, bookingService, paths, configuration).ReleaseExpiredHoldsAsync(siteSlug, ct);
             var availability = await service.GetAvailabilityAsync(siteSlug, stayDate, ct);
             return availability is null ? Results.NotFound() : Results.Ok(availability);
         });
@@ -44,8 +38,6 @@ public static class PublicBookingEndpoints
             [FromQuery] string checkOut,
             [FromQuery] string? siteSlug,
             PublicBookingService service,
-            BookingService bookingService,
-            AppDbContext db,
             PublicPropertyResolver resolver,
             StoragePaths paths,
             IConfiguration configuration,
@@ -59,7 +51,6 @@ public static class PublicBookingEndpoints
             var nights = departure.DayNumber - arrival.DayNumber;
             if (nights > policy.PublicMaxNights)
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["dates"] = [$"Khách đặt online tối đa {policy.PublicMaxNights} đêm mỗi lượt."] });
-            await new PublicBookingCoreV2Service(db, resolver, service, bookingService, paths, configuration).ReleaseExpiredHoldsAsync(siteSlug, ct);
             var (availability, error) = await service.GetStayAvailabilityAsync(siteSlug, arrival, departure, ct);
             return error is not null ? Results.ValidationProblem(new Dictionary<string, string[]> { ["dates"] = [error.Message] }) : availability is null ? Results.NotFound() : Results.Ok(availability);
         });
@@ -68,7 +59,6 @@ public static class PublicBookingEndpoints
             [FromQuery] string? siteSlug,
             PublicBookingRequest request,
             PublicBookingService service,
-            BookingService bookingService,
             AppDbContext db,
             PublicPropertyResolver resolver,
             StoragePaths paths,
@@ -78,7 +68,7 @@ public static class PublicBookingEndpoints
             CancellationToken ct) =>
         {
             var idempotencyKey = http.Request.Headers["Idempotency-Key"].FirstOrDefault();
-            var core = new PublicBookingCoreV2Service(db, resolver, service, bookingService, paths, configuration);
+            var core = new PublicBookingCoreV2Service(db, resolver, service, paths, configuration);
             var (result, error) = await core.CreateRequestAsync(siteSlug, request, idempotencyKey, ct);
             if (result is not null)
             {
@@ -109,7 +99,6 @@ public static class PublicBookingEndpoints
                     await db.SaveChangesAsync(ct);
                     return Results.Problem(statusCode: 503, title: "Chưa thể tạo thanh toán", detail: paymentError?.Message, type: "pay2s_unavailable");
                 }
-                await new PublicBookingHoldStore(paths).CompleteAsync(paymentProperty.Id, result.BookingId);
                 result = result with { HoldExpiresAtUtc = intent.ExpiresAtUtc, PaymentOrderId = intent.OrderId, PaymentUrl = intent.PayUrl };
                 var prefix = PublicPropertyResolver.ScopePrefix(siteSlug);
                 return Results.Created($"{prefix}/booking/success?code={Uri.EscapeDataString(result.Code)}", result);

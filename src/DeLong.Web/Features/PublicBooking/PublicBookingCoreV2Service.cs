@@ -14,7 +14,6 @@ public sealed class PublicBookingCoreV2Service(
     AppDbContext db,
     PublicPropertyResolver propertyResolver,
     PublicBookingService publicBookingService,
-    BookingService bookingService,
     StoragePaths storagePaths,
     IConfiguration configuration)
 {
@@ -28,15 +27,13 @@ public sealed class PublicBookingCoreV2Service(
         if (property is null) return (null, new("property_not_found", "Không tìm thấy cơ sở."));
 
         var policyStore = new BookingPolicyStore(storagePaths, configuration);
-        var holdStore = new PublicBookingHoldStore(storagePaths);
         var guestDetailsStore = new BookingGuestDetailsStore(storagePaths);
-        await holdStore.ReleaseExpiredAsync(db, property.Id, cancellationToken);
         var policy = await policyStore.GetAsync(property.Id, cancellationToken);
 
         var validation = await ValidateAsync(property.Id, request, policy, cancellationToken);
         if (validation.Error is not null) return (null, validation.Error);
 
-        var (result, error) = await publicBookingService.CreateRequestAsync(siteSlug, request, requestKey, cancellationToken);
+        var (result, error) = await publicBookingService.CreateRequestAsync(siteSlug, request, requestKey, policy, cancellationToken);
         if (error is not null || result is null) return (result, error);
 
         var booking = await db.Bookings.Include(x => x.Customer)
@@ -58,48 +55,13 @@ public sealed class PublicBookingCoreV2Service(
             cancellationToken);
         await RefreshNotificationTotalAsync(property.Id, booking.Id, booking.TotalAmount, request.CustomerEmail, request.GuestCount, cancellationToken);
 
-        DateTime? holdExpiresAtUtc = null;
-        if (booking.Status == BookingStatus.Requested)
-        {
-            // Write the expiry marker before changing the booking to Held. If the process stops
-            // between these operations, the booking is still Requested and the stale marker is
-            // harmless. If it stops after the status change, the marker still exists so a later
-            // availability request can release the hold instead of leaving it locked forever.
-            holdExpiresAtUtc = await holdStore.StartAsync(
-                property.Id,
-                booking.Id,
-                TimeSpan.FromMinutes(BookingPolicyStore.HoldMinutes),
-                cancellationToken);
-
-            var (_, holdError) = await bookingService.ChangeStatusAsync(property.Id, booking.Id, BookingStatus.Held, null, cancellationToken);
-            if (holdError is not null)
-            {
-                await holdStore.CompleteAsync(property.Id, booking.Id);
-                booking = await db.Bookings.SingleAsync(x => x.Id == booking.Id, cancellationToken);
-                booking.Status = BookingStatus.Cancelled;
-                booking.Note = AppendLine(booking.Note, "Tự hủy vì phòng vừa được giữ bởi một yêu cầu khác.");
-                await db.SaveChangesAsync(cancellationToken);
-                await RemoveNotificationAsync(property.Id, booking.Id, cancellationToken);
-                OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
-                    property.Id,
-                    OperationsEventTypes.BookingStatusChanged,
-                    booking.Id,
-                    booking.RoomId));
-                return (null, new("booking_conflict", "Phòng vừa được khách khác giữ. Vui lòng chọn khung giờ hoặc phòng khác."));
-            }
-        }
-
         OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
             property.Id,
             OperationsEventTypes.BookingCreated,
             booking.Id,
             booking.RoomId));
 
-        return (result with
-        {
-            TotalAmount = booking.TotalAmount,
-            HoldExpiresAtUtc = holdExpiresAtUtc
-        }, null);
+        return (result with { TotalAmount = booking.TotalAmount }, null);
     }
 
     public async Task ReleaseExpiredHoldsAsync(string? siteSlug, CancellationToken cancellationToken = default)
@@ -131,6 +93,8 @@ public sealed class PublicBookingCoreV2Service(
             return (new("policy_changed", "Nội quy & Chính sách vừa được cập nhật. Vui lòng đọc lại trước khi tiếp tục."), 0m, 0);
         if (!request.HasIdentityFront || !request.HasIdentityBack)
             return (new("identity_required", "Khách đặt online phải cung cấp ảnh CCCD mặt trước và mặt sau."), 0m, 0);
+        if (request.GuestCount >= 3 && (!request.HasSecondIdentityFront || !request.HasSecondIdentityBack))
+            return (new("second_identity_required", "Từ 3 khách trở lên cần thêm CCCD mặt trước và mặt sau của người thứ hai."), 0m, 0);
         if (!policy.IdentityEncryptionConfigured)
             return (new("identity_storage_unavailable", "Hệ thống lưu CCCD bảo mật chưa sẵn sàng. Vui lòng liên hệ cơ sở."), 0m, 0);
 

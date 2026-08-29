@@ -26,6 +26,7 @@ public sealed class AppDbContext
     public DbSet<RoomHighlight> RoomHighlights => Set<RoomHighlight>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<BookingRateSegment> BookingRateSegments => Set<BookingRateSegment>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Pay2SPaymentIntent> Pay2SPaymentIntents => Set<Pay2SPaymentIntent>();
     public DbSet<PropertyPay2SSettings> PropertyPay2SSettings => Set<PropertyPay2SSettings>();
@@ -76,6 +77,7 @@ public sealed class AppDbContext
             entity.HasIndex(x => new { x.PropertyId, x.Code }).IsUnique();
             entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.FullDayPrice).HasPrecision(18, 2);
             entity.Property(x => x.HousekeepingStatus).HasConversion<string>().HasMaxLength(20).HasDefaultValue(HousekeepingStatus.Clean).IsRequired();
             entity.HasOne(x => x.Property).WithMany(x => x.Rooms).HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -202,6 +204,23 @@ public sealed class AppDbContext
             entity.HasOne(x => x.Room).WithMany().HasForeignKey(x => x.RoomId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.RoomRate).WithMany().HasForeignKey(x => x.RoomRateId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<BookingRateSegment>(entity =>
+        {
+            entity.HasIndex(x => new { x.BookingId, x.SortOrder }).IsUnique();
+            entity.HasIndex(x => new { x.RoomRateId, x.ServiceDate });
+            entity.Property(x => x.RateName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.ListPrice).HasPrecision(18, 2);
+            entity.Property(x => x.AppliedAmount).HasPrecision(18, 2);
+            entity.Property(x => x.PricingRule).HasMaxLength(60).IsRequired();
+            entity.HasOne(x => x.Booking).WithMany(x => x.RateSegments).HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.RoomRate).WithMany().HasForeignKey(x => x.RoomRateId).OnDelete(DeleteBehavior.SetNull);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("ck_booking_rate_segments_interval", "check_out_utc > check_in_utc");
+                table.HasCheckConstraint("ck_booking_rate_segments_amounts", "list_price >= 0 AND applied_amount >= 0");
+            });
         });
 
         modelBuilder.Entity<Payment>(entity =>

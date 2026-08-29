@@ -25,6 +25,10 @@
                 toast: { show: false, message: '', type: 'success', timer: null }
             };
         },
+        computed: {
+            registerPasswordStrength() { return DeLongPassword.evaluate(this.register.password); },
+            newPasswordStrength() { return DeLongPassword.evaluate(this.password.newPassword); }
+        },
         async mounted() {
             try { this.settings = await DeLongApi.get(publicUrl('/api/public/customer-account/settings')); } catch { }
             await this.loadProfile();
@@ -73,7 +77,8 @@
                 finally { this.saving = false; }
             },
             async signUp() {
-                if (!this.register.name || !this.register.phone || this.register.password.length < 8) return this.notify('Vui lòng nhập đủ tên, số điện thoại và mật khẩu ít nhất 8 ký tự.', 'error');
+                if (!this.register.name || !this.register.phone) return this.notify('Vui lòng nhập đủ tên và số điện thoại.', 'error');
+                if (!this.registerPasswordStrength.valid) return this.notify(DeLongPassword.requirement, 'error');
                 if (!this.register.termsAccepted) return this.notify('Bạn cần đồng ý điều khoản tài khoản.', 'error');
                 this.saving = true;
                 try {
@@ -90,7 +95,7 @@
                 finally { this.saving = false; }
             },
             async changePassword() {
-                if (this.password.newPassword.length < 8) return this.notify('Mật khẩu mới phải có ít nhất 8 ký tự.', 'error');
+                if (!this.newPasswordStrength.valid) return this.notify(DeLongPassword.requirement, 'error');
                 try {
                     await DeLongApi.post('/api/customer/account/change-password', this.password);
                     this.password = { currentPassword: '', newPassword: '' };

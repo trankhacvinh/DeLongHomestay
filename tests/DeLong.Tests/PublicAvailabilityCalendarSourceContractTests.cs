@@ -20,12 +20,26 @@ public sealed class PublicAvailabilityCalendarSourceContractTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void Free_slot_uses_the_existing_booking_flow_inside_a_static_modal()
+    public void Consecutive_slots_open_the_existing_booking_flow_inside_a_static_modal()
     {
         var source = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/public-availability-calendar.js");
+        var styles = ReadRepositoryFile("src/DeLong.Web/wwwroot/css/public-availability-calendar.css");
 
         Assert.Contains("/api/public/room-availability", source, StringComparison.Ordinal);
-        Assert.Contains("url.searchParams.set('rate', slot.rateId)", source, StringComparison.Ordinal);
+        Assert.Contains("url.searchParams.set('slots'", source, StringComparison.Ordinal);
+        Assert.Contains("function nextCandidate()", source, StringComparison.Ordinal);
+        Assert.Contains("data-selection-book", source, StringComparison.Ordinal);
+        Assert.Contains("selectSlot(day, slot, button)", source, StringComparison.Ordinal);
+        Assert.Contains("trigger?.classList.toggle('is-selected', selected)", source, StringComparison.Ordinal);
+        Assert.Contains("existing >= 0 && existing === state.selected.length - 1", source, StringComparison.Ordinal);
+        Assert.Contains("button.setAttribute('aria-pressed', String(selected))", source, StringComparison.Ordinal);
+        Assert.Contains(".public-v2-selection{position:fixed", styles, StringComparison.Ordinal);
+        Assert.Contains(".public-v2-slot-bar.state-available.is-selected::after{content:'✓'", styles, StringComparison.Ordinal);
+        Assert.Contains("public-v2-viewport-shell", source, StringComparison.Ordinal);
+        Assert.Contains("remainingIndicatorTime", source, StringComparison.Ordinal);
+        Assert.Contains("Vuốt thêm để tải tiếp", source, StringComparison.Ordinal);
+        Assert.Contains("public-v2-loader-spin", styles, StringComparison.Ordinal);
+        Assert.Contains(".public-v2-load-sentinel.ready", styles, StringComparison.Ordinal);
         Assert.Contains("url.searchParams.set('embed', '1')", source, StringComparison.Ordinal);
         Assert.Contains("bookingModal.open", source, StringComparison.Ordinal);
         Assert.Contains("<iframe", source, StringComparison.Ordinal);
@@ -60,6 +74,10 @@ public sealed class PublicAvailabilityCalendarSourceContractTests
         Assert.Contains("viewport.scrollTop / rowHeight", source, StringComparison.Ordinal);
         Assert.Contains("window.requestAnimationFrame(renderVirtualRows)", source, StringComparison.Ordinal);
         Assert.Contains("void loadNextBatch()", source, StringComparison.Ordinal);
+        Assert.Contains("batchRequestedInGesture", source, StringComparison.Ordinal);
+        Assert.Contains("function beginScrollGesture(forceNew = false)", source, StringComparison.Ordinal);
+        Assert.Contains("viewport.addEventListener('scroll', handleViewportScroll", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("if (viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - (rowHeight * 5)) void loadNextBatch();", source, StringComparison.Ordinal);
         Assert.Contains("repeat(${Math.max(1, count)}, minmax(0, 1fr))", source, StringComparison.Ordinal);
         Assert.DoesNotContain("data-calendar-date", source, StringComparison.Ordinal);
         Assert.DoesNotContain("data-calendar-prev", source, StringComparison.Ordinal);

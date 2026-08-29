@@ -6,6 +6,7 @@
 - Hồ sơ Pay2S không dùng cấu hình chung rồi override. Mỗi `property_id` có đúng một hồ sơ; cơ sở muốn dùng chung thì tự nhập cùng thông tin.
 - Migration `AddPay2SPayments` thêm `property_pay2_s_settings` và `pay2_s_payment_intents`; phải áp dụng trước khi bật Pay2S.
 - Migration `AddPay2SSettlementGrace` bổ sung `release_at_utc`, mặc định đệm IPN 3 phút, dấu vết callback và quyết định xử lý `PaidAfterExpiry`.
+- Migration `AddConsecutiveSlotBookings` thêm giá cả ngày trên `Room` và bảng snapshot `booking_rate_segments`. Phải áp dụng trước khi bật UI chọn nhiều khung.
 
 ## Nguyên tắc
 

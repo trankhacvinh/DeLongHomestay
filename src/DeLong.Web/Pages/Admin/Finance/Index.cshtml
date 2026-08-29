@@ -13,13 +13,21 @@
             <p>Theo dõi tiền khách đã trả, hoàn tiền, chi phí và công nợ theo từng cơ sở hoặc toàn bộ cơ sở được phân quyền.</p>
         </div>
         <div class="toolbar finance-toolbar" aria-label="Bộ lọc tài chính">
+            <a class="btn btn-light finance-export-btn" v-bind:href="exportUrl" title="Xuất sổ thu chi đang xem ra Excel">Xuất Excel</a>
             <select class="property-scope-select" v-model="scope" v-on:change="changeScope" aria-label="Phạm vi cơ sở">
                 <option v-if="properties.length > 1" value="all">Tất cả cơ sở</option>
                 <option v-for="property in properties" v-bind:key="property.id" v-bind:value="property.id">{{ property.name }}</option>
             </select>
-            <button class="btn-icon" type="button" v-on:click="moveMonth(-1)" aria-label="Tháng trước"><svg><use href="#i-chevron-left" /></svg></button>
-            <div class="month-selector"><svg><use href="#i-calendar" /></svg><strong>{{ monthLabel }}</strong></div>
-            <button class="btn-icon" type="button" v-on:click="moveMonth(1)" aria-label="Tháng sau"><svg><use href="#i-chevron-right" /></svg></button>
+            <select class="finance-period-select" v-model="period" v-on:change="changePeriod" aria-label="Kỳ xem thu chi">
+                <option value="day">Theo ngày</option>
+                <option value="week">Theo tuần</option>
+                <option value="month">Theo tháng</option>
+                <option value="quarter">Theo quý</option>
+            </select>
+            <input class="finance-anchor-input" type="date" v-model="anchorDate" v-on:change="changeAnchor" aria-label="Chọn ngày làm mốc" />
+            <button class="btn-icon" type="button" v-on:click="movePeriod(-1)" aria-label="Kỳ trước"><svg><use href="#i-chevron-left" /></svg></button>
+            <div class="month-selector finance-period-label"><svg><use href="#i-calendar" /></svg><strong>{{ periodLabel }}</strong></div>
+            <button class="btn-icon" type="button" v-on:click="movePeriod(1)" aria-label="Kỳ sau"><svg><use href="#i-chevron-right" /></svg></button>
             @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
             {
                 <button v-if="canMutateScope" class="btn btn-primary" type="button" v-on:click="openExpense"><svg><use href="#i-plus" /></svg> Ghi chi phí</button>
@@ -32,16 +40,16 @@
         <span>Để ghi hoặc void chi phí, hãy chuyển “cơ sở đang làm việc” trên thanh trên sang đúng cơ sở rồi mở lại Thu chi.</span>
     </div>
 
-    <section class="finance-overview" aria-label="Tổng quan tài chính tháng">
+    <section class="finance-overview" v-bind:aria-label="'Tổng quan tài chính theo ' + periodName">
         <article class="finance-stat receipt">
             <div class="finance-stat-top"><span class="finance-stat-label">Thu khách</span><span class="finance-stat-icon"><svg><use href="#i-wallet" /></svg></span></div>
             <strong class="finance-stat-value text-success">{{ money(receipts) }}</strong>
-            <span class="finance-stat-note">Receipt hợp lệ trong tháng</span>
+            <span class="finance-stat-note">Receipt hợp lệ trong {{ periodName }} đang xem</span>
         </article>
         <article class="finance-stat refund">
             <div class="finance-stat-top"><span class="finance-stat-label">Hoàn tiền</span><span class="finance-stat-icon"><svg><use href="#i-wallet" /></svg></span></div>
             <strong class="finance-stat-value text-danger">{{ money(refunds) }}</strong>
-            <span class="finance-stat-note">Refund hợp lệ trong tháng</span>
+            <span class="finance-stat-note">Refund hợp lệ trong {{ periodName }} đang xem</span>
         </article>
         <article class="finance-stat expense">
             <div class="finance-stat-top"><span class="finance-stat-label">Chi phí</span><span class="finance-stat-icon"><svg><use href="#i-chart" /></svg></span></div>
@@ -64,6 +72,39 @@
         <a class="btn btn-light btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Mở booking cơ sở đang làm việc</a>
     </div>
 
+    <section class="panel finance-combined-ledger">
+        <div class="panel-head finance-panel-head finance-ledger-head">
+            <div><h2>Sổ thu chi chi tiết</h2><span>Hợp nhất tiền thu, hoàn tiền và chi phí theo thời gian phát sinh</span></div>
+            <div class="finance-ledger-tools">
+                <strong v-bind:class="ledgerNet >= 0 ? 'text-success' : 'text-danger'">Ròng {{ money(ledgerNet) }}</strong>
+                <select v-model="ledgerFilter" aria-label="Lọc sổ thu chi">
+                    <option value="all">Tất cả ({{ ledgerEntries.length }})</option>
+                    <option value="in">Tiền vào</option>
+                    <option value="out">Tiền ra</option>
+                    <option value="void">Đã void</option>
+                </select>
+            </div>
+        </div>
+        <div class="table-wrap finance-detail-table-wrap">
+            <table class="data-table responsive-ledger finance-detail-table">
+                <thead><tr><th>Thời gian</th><th>Loại</th><th>Nội dung</th><th>Cơ sở</th><th>Phương thức</th><th class="text-right">Thu</th><th class="text-right">Chi</th><th>Trạng thái</th></tr></thead>
+                <tbody>
+                    <tr v-for="entry in filteredLedgerEntries" v-bind:key="entry.id" v-bind:class="{ 'row-voided': entry.isVoided }">
+                        <td data-label="Thời gian"><span class="ledger-date">{{ dateTimeText(entry.occurredAtUtc, entry.propertyId) }}</span></td>
+                        <td data-label="Loại"><span class="ledger-type" v-bind:class="entry.kind">{{ entry.typeLabel }}</span></td>
+                        <td data-label="Nội dung"><div class="ledger-primary"><strong>{{ entry.title }}</strong><span>{{ entry.description }}</span><small v-if="entry.reference">Ref: {{ entry.reference }}</small></div></td>
+                        <td data-label="Cơ sở"><span class="ledger-method">{{ propertyLabel(entry.propertyId) }}</span></td>
+                        <td data-label="Phương thức"><span class="ledger-method">{{ paymentMethodText(entry.method) }}</span></td>
+                        <td data-label="Thu" class="text-right"><strong v-if="entry.receipt" class="ledger-amount text-success">+{{ money(entry.receipt) }}</strong><span v-else>—</span></td>
+                        <td data-label="Chi" class="text-right"><strong v-if="entry.outflow" class="ledger-amount text-danger">−{{ money(entry.outflow) }}</strong><span v-else>—</span></td>
+                        <td data-label="Trạng thái"><span v-if="entry.isVoided" class="void-badge">VOID</span><span v-else class="ledger-valid">Hợp lệ</span></td>
+                    </tr>
+                    <tr v-if="filteredLedgerEntries.length === 0" class="ledger-empty-row"><td colspan="8" class="empty-state"><strong>Không có dữ liệu phù hợp</strong>Hãy đổi bộ lọc hoặc kỳ đang xem.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
     <div class="finance-ledger-grid">
         <section class="panel finance-ledger-panel">
             <div class="panel-head finance-panel-head">
@@ -80,7 +121,7 @@
                             <td data-label="Phương thức"><div class="ledger-primary"><strong>{{ paymentMethodText(payment.method) }}</strong><span v-if="payment.reference">{{ payment.reference }}</span></div></td>
                             <td data-label="Số tiền" class="text-right"><strong class="ledger-amount" v-bind:class="payment.type === 0 ? 'text-success' : 'text-danger'">{{ payment.type === 0 ? '+' : '−' }}{{ money(payment.amount) }}</strong><span v-if="payment.isVoided" class="void-badge">VOID</span></td>
                         </tr>
-                        <tr v-if="payments.length === 0" class="ledger-empty-row"><td colspan="4" class="empty-state"><strong>Chưa có giao dịch</strong>Thanh toán booking trong tháng sẽ xuất hiện ở đây.</td></tr>
+                        <tr v-if="payments.length === 0" class="ledger-empty-row"><td colspan="4" class="empty-state"><strong>Chưa có giao dịch</strong>Không có thanh toán booking trong {{ periodName }} đang xem.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -107,7 +148,7 @@
                                 }
                             </td>
                         </tr>
-                        <tr v-if="expenses.length === 0" class="ledger-empty-row"><td colspan="5" class="empty-state"><strong>Chưa có chi phí</strong>Các khoản chi vận hành trong tháng sẽ xuất hiện ở đây.</td></tr>
+                        <tr v-if="expenses.length === 0" class="ledger-empty-row"><td colspan="5" class="empty-state"><strong>Chưa có chi phí</strong>Không có khoản chi vận hành trong {{ periodName }} đang xem.</td></tr>
                     </tbody>
                 </table>
             </div>

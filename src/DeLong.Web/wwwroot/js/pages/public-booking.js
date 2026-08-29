@@ -5,6 +5,24 @@
     const initial = JSON.parse(document.getElementById('public-booking-data')?.textContent || '{}');
     const { createApp } = Vue;
 
+    function querySlotSelection() {
+        const query = new URLSearchParams(window.location.search);
+        if (query.get('embed') !== '1') return [];
+        return (query.get('slots') || '').split(',').map(value => {
+            const separator = value.lastIndexOf(':');
+            const stayDate = separator > 0 ? value.slice(0, separator) : '';
+            const rateId = separator > 0 ? value.slice(separator + 1) : '';
+            return /^\d{4}-\d{2}-\d{2}$/.test(stayDate) && /^[0-9a-f-]{36}$/i.test(rateId)
+                ? { stayDate, rateId }
+                : null;
+        }).filter(Boolean);
+    }
+
+    const querySlots = querySlotSelection();
+    const initialSlots = Array.isArray(initial.initialSlots) && initial.initialSlots.length
+        ? initial.initialSlots
+        : querySlots;
+
     function parseIsoDate(value) {
         if (!value) return null;
         const [year, month, day] = value.split('-').map(Number);
@@ -32,6 +50,8 @@
                 siteSlug: initial.siteSlug || '',
                 scopePrefix: initial.scopePrefix || '',
                 bookingType: 0,
+                embeddedSlotSelection: initial.embeddedSlotSelection === true || querySlots.length > 0,
+                selectedSlots: initialSlots,
                 today,
                 date: arrival,
                 checkInDate: arrival,
@@ -98,7 +118,54 @@
             },
             bookingTotalText() {
                 if (!this.selectedRoom || !this.selectedRate) return '';
-                return this.money(this.bookingType === 0 ? this.selectedRate.price : this.selectedRoom.totalAmount);
+                return this.money(this.bookingType === 0 ? this.selectedSlotsTotal : this.selectedRoom.totalAmount);
+            },
+            selectedSlotDetails() {
+                if (!this.embeddedSlotSelection || !this.selectedRoom) return [];
+                const rates = this.timeSlotRates(this.selectedRoom);
+                return this.selectedSlots
+                    .map(item => ({ ...item, rate: rates.find(rate => rate.id === item.rateId) }))
+                    .filter(item => item.rate)
+                    .sort((left, right) => `${left.stayDate}T${left.rate.startTime}`.localeCompare(`${right.stayDate}T${right.rate.startTime}`));
+            },
+            embeddedSlotCountText() {
+                const count = this.selectedSlotDetails.length;
+                return `${count} khung giờ`;
+            },
+            embeddedSelectionHasOvernight() {
+                return this.selectedSlotDetails.some(item => Number(item.rate.type) === 1 || item.rate.endTime <= item.rate.startTime);
+            },
+            embeddedSelectionRangeText() {
+                if (!this.selectedSlotDetails.length) return '';
+                const first = this.selectedSlotDetails[0];
+                const last = this.selectedSlotDetails[this.selectedSlotDetails.length - 1];
+                const lastIsOvernight = Number(last.rate.type) === 1 || last.rate.endTime <= last.rate.startTime;
+                const endDate = lastIsOvernight ? addDays(last.stayDate, 1) : last.stayDate;
+                const startDateText = this.shortDateText(first.stayDate);
+                const endDateText = this.shortDateText(endDate);
+                return first.stayDate === endDate
+                    ? `${startDateText} · ${first.rate.startTime} → ${last.rate.endTime}`
+                    : `${startDateText} · ${first.rate.startTime} → ${endDateText} · ${last.rate.endTime}`;
+            },
+            selectedSlotsTotal() {
+                if (!this.embeddedSlotSelection || !this.selectedSlots.length || !this.selectedRoom) return Number(this.selectedRate?.price || 0);
+                const rates = this.timeSlotRates(this.selectedRoom);
+                const selected = this.selectedSlots.map(item => ({ ...item, rate: rates.find(x => x.id === item.rateId) })).filter(x => x.rate);
+                const slotsPerDay = rates.length;
+                let total = 0;
+                const fullDates = new Set();
+                if (this.selectedRoom.fullDayPricingEnabled && Number(this.selectedRoom.fullDayPrice || 0) > 0) {
+                    [...new Set(selected.map(x => x.stayDate))].forEach(date => {
+                        if (selected.filter(x => x.stayDate === date).length === slotsPerDay) fullDates.add(date);
+                    });
+                }
+                total += fullDates.size * Number(this.selectedRoom.fullDayPrice || 0);
+                const remaining = selected.filter(x => !fullDates.has(x.stayDate));
+                let remainingTotal = remaining.reduce((sum, x) => sum + Number(x.rate.price || 0), 0);
+                const tiers = initial.bookingPolicy?.multiSlotDiscountTiers || [];
+                const tier = tiers.filter(x => Number(x.minimumSlots) <= remaining.length).sort((a, b) => Number(b.minimumSlots) - Number(a.minimumSlots))[0];
+                if (tier) remainingTotal *= (100 - Number(tier.discountPercent || 0)) / 100;
+                return Math.round(total + remainingTotal);
             },
             dateText() {
                 return this.stayDateText(this.date);
@@ -137,6 +204,11 @@
                 return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
             },
             stayDateText(value) {
+                const date = parseIsoDate(value);
+                if (!date) return '';
+                return new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+            },
+            shortDateText(value) {
                 const date = parseIsoDate(value);
                 if (!date) return '';
                 return new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
@@ -422,6 +494,7 @@
                         roomId: this.selectedRoomId,
                         rateId: this.selectedRate.id,
                         stayDate: this.bookingType === 0 ? this.date : '',
+                        slots: this.bookingType === 0 && this.embeddedSlotSelection ? this.selectedSlots : [],
                         checkInDate: this.bookingType === 1 ? this.checkInDate : '',
                         checkOutDate: this.bookingType === 1 ? this.checkOutDate : '',
                         customerName: this.form.customerName,
@@ -444,6 +517,8 @@
                     if (error.status) this.requestKey = null;
                     if (error.status === 409) {
                         await this.handleBookingConflict(attemptedRoomId, attemptedRateId, message);
+                        if (this.embeddedSlotSelection && window.parent !== window)
+                            window.parent.postMessage({ type: 'delong-booking-conflict' }, window.location.origin);
                     } else {
                         this.errorMessage = message;
                     }

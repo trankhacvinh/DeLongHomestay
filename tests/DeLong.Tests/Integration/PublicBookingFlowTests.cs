@@ -110,7 +110,7 @@ public sealed class PublicBookingFlowTests
         Assert.Equal(123_000m, result.TotalAmount);
 
         var booking = await db.Bookings.SingleAsync(x => x.Id == result.BookingId);
-        Assert.Equal(BookingStatus.Requested, booking.Status);
+        Assert.Equal(BookingStatus.Held, booking.Status);
         Assert.Equal(BookingType.TimeSlot, booking.Type);
         Assert.Equal(rate.Id, booking.RoomRateId);
         Assert.Equal(123_000m, booking.UnitPrice);
@@ -135,12 +135,9 @@ public sealed class PublicBookingFlowTests
             Note = "Second integration request"
         });
 
-        Assert.Null(secondError);
-        Assert.NotNull(secondResult);
-        Assert.NotEqual(result.Code, secondResult!.Code);
-
-        booking.Status = BookingStatus.Held;
-        await db.SaveChangesAsync();
+        Assert.Null(secondResult);
+        Assert.NotNull(secondError);
+        Assert.Equal("booking_conflict", secondError!.Code);
 
         var availability = await publicService.GetAvailabilityAsync(stayDate);
         var availabilityRoom = Assert.Single(availability!.Rooms.Where(x => x.Id == room.Id));
@@ -178,7 +175,7 @@ public sealed class PublicBookingFlowTests
         Assert.Equal(1_500_000m, multiDayResult.TotalAmount);
 
         var multiDayBooking = await db.Bookings.SingleAsync(x => x.Id == multiDayResult.BookingId);
-        Assert.Equal(BookingStatus.Requested, multiDayBooking.Status);
+        Assert.Equal(BookingStatus.Held, multiDayBooking.Status);
         Assert.Equal(BookingType.MultiDay, multiDayBooking.Type);
         Assert.Equal(nightlyRate.Id, multiDayBooking.RoomRateId);
         Assert.Equal("Lưu trú theo đêm", multiDayBooking.RateName);
@@ -188,10 +185,8 @@ public sealed class PublicBookingFlowTests
 
         var (stillAvailable, stillAvailableError) = await publicService.GetStayAvailabilityAsync(checkInDate, checkOutDate);
         Assert.Null(stillAvailableError);
-        Assert.True(Assert.Single(stillAvailable!.Rooms.Where(x => x.Id == room.Id)).Available);
+        Assert.False(Assert.Single(stillAvailable!.Rooms.Where(x => x.Id == room.Id)).Available);
 
-        multiDayBooking.Status = BookingStatus.Held;
-        await db.SaveChangesAsync();
         var (lockedStay, lockedStayError) = await publicService.GetStayAvailabilityAsync(checkInDate, checkOutDate);
         Assert.Null(lockedStayError);
         Assert.False(Assert.Single(lockedStay!.Rooms.Where(x => x.Id == room.Id)).Available);

@@ -66,6 +66,7 @@
         const batchSize = 14;
         const rowHeight = 52;
         const overscan = 5;
+        const scrollGestureGapMs = 240;
         const state = {
             roomIndex: 0,
             timeZone: 'Asia/Ho_Chi_Minh',
@@ -73,10 +74,22 @@
             nextFrom: today,
             loading: false,
             requestVersion: 0,
-            renderQueued: false
+            renderQueued: false,
+            batchRequestedInGesture: false,
+            lastScrollInputAt: 0,
+            selected: [],
+            policy: { publicMaxConsecutiveSlotDays: 3, multiSlotDiscountTiers: [] }
         };
 
-        host.innerHTML = '<div class="public-v2-roombar"><button type="button" data-room-prev aria-label="Phòng trước">‹</button><div><small>PHÒNG</small><strong data-room-name>—</strong><span data-room-meta></span></div><button type="button" data-room-next aria-label="Phòng tiếp theo">›</button></div><div class="public-v2-legend"><span><i class="available"></i>Còn trống</span><span><i class="partial"></i>Trống một phần</span><span><i class="occupied"></i>Đã có khách</span></div><div class="public-v2-status" data-calendar-status></div><div class="public-v2-viewport" data-calendar-viewport tabindex="0" aria-label="Lịch phòng, kéo xuống để xem thêm ngày"><div class="public-v2-grid-head" data-calendar-head></div><div class="public-v2-virtual-spacer" data-calendar-top></div><div class="public-v2-virtual-rows" data-calendar-rows></div><div class="public-v2-virtual-spacer" data-calendar-bottom></div><div class="public-v2-load-sentinel" data-calendar-sentinel>Đang tải thêm ngày…</div></div>';
+        host.innerHTML = `
+            <div class="public-v2-roombar"><button type="button" data-room-prev aria-label="Phòng trước">‹</button><div><small>PHÒNG</small><strong data-room-name>—</strong><span data-room-meta></span></div><button type="button" data-room-next aria-label="Phòng tiếp theo">›</button></div>
+            <div class="public-v2-legend"><span><i class="available"></i>Còn trống</span><span><i class="selected"></i>Đang chọn</span><span><i class="partial"></i>Trống một phần</span><span><i class="occupied"></i>Đã có khách</span></div>
+            <div class="public-v2-status" data-calendar-status></div>
+            <div class="public-v2-viewport-shell">
+                <div class="public-v2-viewport" data-calendar-viewport tabindex="0" aria-label="Lịch phòng, kéo xuống để xem thêm ngày"><div class="public-v2-grid-head" data-calendar-head></div><div class="public-v2-virtual-spacer" data-calendar-top></div><div class="public-v2-virtual-rows" data-calendar-rows></div><div class="public-v2-virtual-spacer" data-calendar-bottom></div></div>
+                <div class="public-v2-load-sentinel" data-calendar-sentinel role="status" aria-live="polite"><span>Đang tải thêm ngày…</span></div>
+            </div>
+            <div class="public-v2-selection" data-calendar-selection hidden><div><small data-selection-label></small><strong data-selection-total></strong></div><button type="button" class="clear" data-selection-clear>Xóa</button><button type="button" class="book" data-selection-book>Đặt phòng</button></div>`;
         const name = host.querySelector('[data-room-name]');
         const meta = host.querySelector('[data-room-meta]');
         const status = host.querySelector('[data-calendar-status]');
@@ -86,19 +99,88 @@
         const rows = host.querySelector('[data-calendar-rows]');
         const bottomSpacer = host.querySelector('[data-calendar-bottom]');
         const sentinel = host.querySelector('[data-calendar-sentinel]');
+        const sentinelText = sentinel.querySelector('span');
+        const selectionBar = host.querySelector('[data-calendar-selection]');
+        const selectionLabel = host.querySelector('[data-selection-label]');
+        const selectionTotal = host.querySelector('[data-selection-total]');
 
         const timeLabel = value => new Intl.DateTimeFormat('vi-VN', { timeZone: state.timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value));
         const currentRoom = () => rooms[state.roomIndex];
         const visibleSlots = day => (day?.slots || []).filter(slot => Number(slot.rateType) !== 2);
         const gridTemplate = count => `clamp(74px, 18%, 104px) repeat(${Math.max(1, count)}, minmax(0, 1fr))`;
 
-        function bookingUrl(room, day, slot) {
+        function bookingUrl(room) {
             const url = new URL(room.bookingUrl, window.location.origin);
-            url.searchParams.set('date', day.date);
+            const first = state.selected[0];
+            url.searchParams.set('date', first.date);
             url.searchParams.set('room', room.code);
-            url.searchParams.set('rate', slot.rateId);
+            url.searchParams.set('rate', first.slot.rateId);
+            url.searchParams.set('slots', state.selected.map(x => `${x.date}:${x.slot.rateId}`).join(','));
             url.searchParams.set('embed', '1');
             return `${url.pathname}${url.search}`;
+        }
+
+        const slotKey = (date, slot) => `${date}:${slot.rateId}`;
+        const isSelected = (date, slot) => state.selected.some(x => slotKey(x.date, x.slot) === slotKey(date, slot));
+        function flatSlots() {
+            return state.days.flatMap(day => visibleSlots(day).map(slot => ({ date: day.date, slot })));
+        }
+        function nextCandidate() {
+            if (!state.selected.length) return null;
+            const all = flatSlots();
+            const last = state.selected[state.selected.length - 1];
+            const index = all.findIndex(x => slotKey(x.date, x.slot) === slotKey(last.date, last.slot));
+            return index >= 0 ? all[index + 1] || null : null;
+        }
+        function estimatedTotal() {
+            const room = currentRoom();
+            const selected = state.selected.map(x => ({ ...x, amount: Number(x.slot.price || 0), rule: 'standard' }));
+            const slotsPerDay = visibleSlots(state.days[0]).length;
+            if (room?.fullDayPricingEnabled && Number(room.fullDayPrice || 0) > 0 && slotsPerDay > 0) {
+                const dates = [...new Set(selected.map(x => x.date))];
+                dates.forEach(date => {
+                    const group = selected.filter(x => x.date === date);
+                    if (group.length !== slotsPerDay) return;
+                    const list = group.reduce((sum, x) => sum + x.amount, 0);
+                    group.forEach(x => { x.amount = list > 0 ? Number(room.fullDayPrice) * Number(x.slot.price || 0) / list : Number(room.fullDayPrice) / group.length; x.rule = 'full-day'; });
+                });
+            }
+            const remaining = selected.filter(x => x.rule === 'standard');
+            const tier = (state.policy.multiSlotDiscountTiers || []).filter(x => Number(x.minimumSlots) <= remaining.length).sort((a, b) => Number(b.minimumSlots) - Number(a.minimumSlots))[0];
+            if (tier) remaining.forEach(x => { x.amount *= (100 - Number(tier.discountPercent || 0)) / 100; });
+            return Math.round(selected.reduce((sum, x) => sum + x.amount, 0));
+        }
+        function updateSelectionBar() {
+            selectionBar.hidden = state.selected.length === 0;
+            if (!state.selected.length) return;
+            const first = state.selected[0];
+            const last = state.selected[state.selected.length - 1];
+            selectionLabel.textContent = `${state.selected.length} khung · ${dateLabel(first.date)}${last.date !== first.date ? ` → ${dateLabel(last.date)}` : ''}`;
+            selectionTotal.textContent = money(estimatedTotal());
+        }
+        function selectSlot(day, slot, trigger) {
+            const existing = state.selected.findIndex(x => slotKey(x.date, x.slot) === slotKey(day.date, slot));
+            if (existing >= 0 && existing === state.selected.length - 1) state.selected.pop();
+            else if (state.selected.length === 0) state.selected.push({ date: day.date, slot });
+            else {
+                const next = nextCandidate();
+                if (!next || slotKey(next.date, next.slot) !== slotKey(day.date, slot)) return;
+                const firstDate = parseDate(state.selected[0].date);
+                const currentDate = parseDate(day.date);
+                const daySpan = Math.round((currentDate - firstDate) / 86400000) + 1;
+                if (daySpan > Number(state.policy.publicMaxConsecutiveSlotDays || 3)) {
+                    status.textContent = `Chỉ được chọn tối đa ${Number(state.policy.publicMaxConsecutiveSlotDays || 3)} ngày liên tiếp.`;
+                    status.className = 'public-v2-status show error';
+                    return;
+                }
+                state.selected.push({ date: day.date, slot });
+            }
+            const selected = isSelected(day.date, slot);
+            trigger?.classList.toggle('is-selected', selected);
+            trigger?.setAttribute('aria-pressed', String(selected));
+            status.className = 'public-v2-status';
+            updateSelectionBar();
+            queueRender();
         }
 
         function renderHeader() {
@@ -140,22 +222,25 @@
                     const button = document.createElement('button');
                     button.type = 'button';
                     button.className = `public-v2-slot-bar state-${slot.state}`;
+                    const selected = isSelected(day.date, slot);
+                    const next = nextCandidate();
+                    const eligible = state.selected.length === 0 || selected || (next && slotKey(next.date, next.slot) === slotKey(day.date, slot));
+                    if (selected) button.classList.add('is-selected');
+                    if (slot.state === 'available' && !eligible) button.classList.add('is-ineligible');
                     const freeText = (slot.free || []).map(item => `${timeLabel(item.startUtc)}–${timeLabel(item.endUtc)}`).join(', ');
                     const stateText = slot.state === 'available' ? 'Còn trống' : slot.state === 'partial' ? `Còn ${freeText}` : 'Đã có khách';
                     button.innerHTML = `<span>${stateText}</span><small>${money(slot.price)}</small>`;
                     button.title = `${stateText} · ${money(slot.price)}`;
                     button.setAttribute('aria-label', `${dateLabel(day.date)}, ${slot.rateName}, ${stateText}, ${money(slot.price)}`);
+                    button.setAttribute('aria-pressed', String(selected));
                     if (slot.state === 'available') {
-                        button.addEventListener('click', () => bookingModal.open(
-                            bookingUrl(currentRoom(), day, slot),
-                            `${name.textContent} · ${dateLabel(day.date)} · ${timeLabel(slot.startUtc)}–${timeLabel(slot.endUtc)}`));
+                        button.addEventListener('click', () => selectSlot(day, slot, button));
                     } else button.disabled = true;
                     row.appendChild(button);
                 });
                 rows.appendChild(row);
             });
 
-            if (viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - (rowHeight * 5)) void loadNextBatch();
         }
 
         function queueRender() {
@@ -164,11 +249,45 @@
             window.requestAnimationFrame(renderVirtualRows);
         }
 
+        function isNearLoadedEnd() {
+            return viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - (rowHeight * 5);
+        }
+
+        function beginScrollGesture(forceNew = false) {
+            const now = window.performance.now();
+            const isNewGesture = forceNew || now - state.lastScrollInputAt > scrollGestureGapMs;
+            if (isNewGesture) {
+                state.batchRequestedInGesture = false;
+                sentinel.classList.remove('ready');
+                if (isNearLoadedEnd() && !state.loading) window.requestAnimationFrame(handleViewportScroll);
+            }
+            state.lastScrollInputAt = now;
+        }
+
+        function handleViewportScroll() {
+            queueRender();
+            if (!isNearLoadedEnd()) {
+                if (!state.loading) sentinel.classList.remove('ready');
+                return;
+            }
+            if (state.loading) return;
+            if (state.batchRequestedInGesture) {
+                sentinelText.textContent = 'Vuốt thêm để tải tiếp';
+                sentinel.classList.add('ready');
+                return;
+            }
+            state.batchRequestedInGesture = true;
+            void loadNextBatch();
+        }
+
         async function loadNextBatch() {
             const room = currentRoom();
             if (!room || state.loading) return;
             const version = state.requestVersion;
+            const loadingStartedAt = window.performance.now();
             state.loading = true;
+            sentinelText.textContent = 'Đang tải thêm ngày…';
+            sentinel.classList.remove('ready');
             sentinel.classList.add('show');
             try {
                 const query = new URLSearchParams({ roomId: room.id, from: state.nextFrom, days: String(batchSize) });
@@ -177,6 +296,8 @@
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 if (version !== state.requestVersion) return;
+                room.fullDayPricingEnabled = data.fullDayPricingEnabled === true;
+                room.fullDayPrice = data.fullDayPrice;
                 state.timeZone = data.timeZoneId || state.timeZone;
                 const calendar = Array.isArray(data.calendar) ? data.calendar : [];
                 if (!calendar.length) {
@@ -194,9 +315,17 @@
                 status.textContent = 'Chưa thể tải thêm lịch phòng. Kéo lại để thử lần nữa.';
                 status.className = 'public-v2-status show error';
             } finally {
+                const remainingIndicatorTime = 350 - (window.performance.now() - loadingStartedAt);
+                if (remainingIndicatorTime > 0) {
+                    await new Promise(resolve => window.setTimeout(resolve, remainingIndicatorTime));
+                }
                 if (version === state.requestVersion) {
                     state.loading = false;
                     sentinel.classList.remove('show');
+                    if (isNearLoadedEnd() && state.batchRequestedInGesture) {
+                        sentinelText.textContent = 'Vuốt thêm để tải tiếp';
+                        sentinel.classList.add('ready');
+                    }
                     section.classList.remove('loading');
                 }
             }
@@ -209,6 +338,10 @@
             state.nextFrom = today;
             state.loading = false;
             state.renderQueued = false;
+            state.batchRequestedInGesture = false;
+            state.lastScrollInputAt = 0;
+            state.selected = [];
+            updateSelectionBar();
             viewport.scrollTop = 0;
             head.replaceChildren();
             rows.replaceChildren();
@@ -229,13 +362,38 @@
         };
         host.querySelector('[data-room-prev]').addEventListener('click', () => changeRoom(-1));
         host.querySelector('[data-room-next]').addEventListener('click', () => changeRoom(1));
-        viewport.addEventListener('scroll', queueRender, { passive: true });
+        viewport.addEventListener('wheel', () => beginScrollGesture(), { passive: true });
+        viewport.addEventListener('touchstart', () => beginScrollGesture(true), { passive: true });
+        viewport.addEventListener('pointerdown', event => {
+            if (event.pointerType !== 'touch') beginScrollGesture(true);
+        }, { passive: true });
+        viewport.addEventListener('keydown', event => {
+            if (['ArrowDown', 'PageDown', 'End', ' '].includes(event.key)) beginScrollGesture(true);
+        });
+        viewport.addEventListener('scroll', handleViewportScroll, { passive: true });
+        host.querySelector('[data-selection-clear]').addEventListener('click', () => { state.selected = []; updateSelectionBar(); queueRender(); });
+        host.querySelector('[data-selection-book]').addEventListener('click', () => {
+            if (!state.selected.length) return;
+            const first = state.selected[0];
+            const last = state.selected[state.selected.length - 1];
+            bookingModal.open(bookingUrl(currentRoom()), `${name.textContent} · ${state.selected.length} khung · ${dateLabel(first.date)}${last.date !== first.date ? ` → ${dateLabel(last.date)}` : ''}`);
+        });
+        window.addEventListener('message', event => {
+            if (event.origin !== window.location.origin || event.data?.type !== 'delong-booking-conflict') return;
+            resetRoom();
+            status.textContent = 'Một khung vừa được khách khác giữ. Lịch đã được cập nhật, vui lòng chọn lại.';
+            status.className = 'public-v2-status show error';
+        });
         if ('ResizeObserver' in window) new ResizeObserver(queueRender).observe(viewport);
         else window.addEventListener('resize', queueRender, { passive: true });
 
         if (!rooms.length) {
             status.textContent = 'Chưa có phòng được xuất bản để hiển thị.';
             status.className = 'public-v2-status show';
-        } else resetRoom();
+        } else {
+            const policyUrl = rooms[0]?.siteSlug ? `/api/public/booking-policy?siteSlug=${encodeURIComponent(rooms[0].siteSlug)}` : '/api/public/booking-policy';
+            fetch(policyUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' } }).then(x => x.ok ? x.json() : null).then(x => { if (x) state.policy = x; }).catch(() => {});
+            resetRoom();
+        }
     });
 })();

@@ -10,6 +10,7 @@ namespace DeLong.Web.Pages.Admin.Reports;
 [Authorize(Policy = "ViewReports")]
 public sealed class IndexModel(
     ReportService reportService,
+    ReportExcelExportService excelExportService,
     CurrentPropertyService currentPropertyService) : PageModel
 {
     public Guid PropertyId { get; private set; }
@@ -21,9 +22,46 @@ public sealed class IndexModel(
         string? scope,
         CancellationToken cancellationToken)
     {
+        var context = await LoadReportAsync(month, propertyId, scope, cancellationToken);
+        if (context is null) return Forbid();
+        PropertyId = context.WorkingProperty.Id;
+
+        PageDataJson = JsonSerializer.Serialize(
+            new
+            {
+                propertyId = PropertyId,
+                propertyName = context.WorkingProperty.Name,
+                timeZoneId = context.WorkingProperty.TimeZoneId,
+                month = context.Month.ToString("yyyy-MM"),
+                scope = context.ScopeKey,
+                scopeName = context.ScopeName,
+                properties = context.AccessibleProperties,
+                report = context.Report
+            },
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        return Page();
+    }
+
+    public async Task<IActionResult> OnGetExportAsync(
+        string? month,
+        Guid? propertyId,
+        string? scope,
+        CancellationToken cancellationToken)
+    {
+        var context = await LoadReportAsync(month, propertyId, scope, cancellationToken);
+        if (context is null) return Forbid();
+        var file = excelExportService.Create(context.Report, context.ScopeName, context.Month);
+        return File(file.Content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", file.FileName);
+    }
+
+    private async Task<ReportPageContext?> LoadReportAsync(
+        string? month,
+        Guid? propertyId,
+        string? scope,
+        CancellationToken cancellationToken)
+    {
         var workingProperty = await currentPropertyService.ResolveAsync(User, propertyId, cancellationToken);
-        if (workingProperty is null) return Forbid();
-        PropertyId = workingProperty.Id;
+        if (workingProperty is null) return null;
 
         var accessible = await currentPropertyService.GetAccessibleAsync(User, cancellationToken);
         var allScope = string.Equals(scope, "all", StringComparison.OrdinalIgnoreCase) && accessible.Count > 1;
@@ -37,10 +75,7 @@ public sealed class IndexModel(
         var selectedMonth = TryParseMonth(month, out var parsedMonth)
             ? parsedMonth
             : new DateOnly(localNow.Year, localNow.Month, 1);
-
-        IReadOnlyList<CurrentPropertyDto> targetProperties = allScope
-            ? accessible
-            : new[] { selectedProperty! };
+        IReadOnlyList<CurrentPropertyDto> targetProperties = allScope ? accessible : [selectedProperty];
         var scopedReports = new List<ScopedReport>();
         foreach (var property in targetProperties)
         {
@@ -54,24 +89,13 @@ public sealed class IndexModel(
             scopedReports.Add(new ScopedReport(property, report));
         }
 
-        var combined = allScope ? Combine(scopedReports) : scopedReports[0].Report;
-        var scopeKey = allScope ? "all" : selectedProperty.Id.ToString();
-        var scopeName = allScope ? "Tất cả cơ sở" : selectedProperty.Name;
-
-        PageDataJson = JsonSerializer.Serialize(
-            new
-            {
-                propertyId = PropertyId,
-                propertyName = workingProperty.Name,
-                timeZoneId = workingProperty.TimeZoneId,
-                month = selectedMonth.ToString("yyyy-MM"),
-                scope = scopeKey,
-                scopeName,
-                properties = accessible,
-                report = combined
-            },
-            new JsonSerializerOptions(JsonSerializerDefaults.Web));
-        return Page();
+        return new ReportPageContext(
+            workingProperty,
+            accessible,
+            selectedMonth,
+            allScope ? "all" : selectedProperty.Id.ToString(),
+            allScope ? "Tất cả cơ sở" : selectedProperty.Name,
+            allScope ? Combine(scopedReports) : scopedReports[0].Report);
     }
 
     private static ReportSnapshotDto Combine(IReadOnlyList<ScopedReport> reports)
@@ -105,16 +129,129 @@ public sealed class IndexModel(
                 group.Sum(x => x.NetCashFlow)))
             .ToList();
 
+        var byStatus = reports
+            .SelectMany(x => x.Report.ByStatus)
+            .GroupBy(x => x.Status)
+            .Select(group => new ReportStatusDto(
+                group.Key,
+                group.Sum(x => x.BookingCount),
+                group.Sum(x => x.BookingValue)))
+            .OrderByDescending(x => x.BookingCount)
+            .ToList();
+
+        var byPaymentMethod = reports
+            .SelectMany(x => x.Report.ByPaymentMethod)
+            .GroupBy(x => x.Method)
+            .Select(group => new ReportPaymentMethodDto(
+                group.Key,
+                group.Sum(x => x.TransactionCount),
+                group.Sum(x => x.GrossReceipts)))
+            .OrderByDescending(x => x.GrossReceipts)
+            .ToList();
+
+        var byExpenseCategory = reports
+            .SelectMany(x => x.Report.ByExpenseCategory)
+            .GroupBy(x => x.Category)
+            .Select(group => new ReportExpenseCategoryDto(
+                group.Key,
+                group.Sum(x => x.TransactionCount),
+                group.Sum(x => x.Amount)))
+            .OrderByDescending(x => x.Amount)
+            .ToList();
+
+        var byWeekday = reports
+            .SelectMany(x => x.Report.ByWeekday)
+            .GroupBy(x => new { x.DayOfWeek, x.Label })
+            .OrderBy(group => group.Key.DayOfWeek)
+            .Select(group => new ReportWeekdayDto(
+                group.Key.DayOfWeek,
+                group.Key.Label,
+                group.Sum(x => x.BookingCount),
+                group.Sum(x => x.BookingValue),
+                group.Sum(x => x.NetReceipts),
+                Math.Round(group.Sum(x => x.BookedHours), 1)))
+            .ToList();
+
+        var outstandingBuckets = reports
+            .SelectMany(x => x.Report.OutstandingBuckets)
+            .GroupBy(x => new { x.Key, x.Label })
+            .Select(group => new ReportOutstandingBucketDto(
+                group.Key.Key,
+                group.Key.Label,
+                group.Sum(x => x.BookingCount),
+                group.Sum(x => x.Amount)))
+            .OrderBy(x => Array.IndexOf(["upcoming", "current", "overdue30", "overdue31"], x.Key))
+            .ToList();
+
+        var daily = reports
+            .SelectMany(x => x.Report.Daily)
+            .GroupBy(x => x.Date)
+            .OrderBy(group => group.Key)
+            .Select(group => new ReportDailyDto(
+                group.Key,
+                group.Sum(x => x.BookingCount),
+                group.Sum(x => x.BookingValue),
+                group.Sum(x => x.NetReceipts),
+                group.Sum(x => x.Expenses),
+                group.Sum(x => x.NetCashFlow)))
+            .ToList();
+
+        var weekly = reports
+            .SelectMany(x => x.Report.Weekly)
+            .GroupBy(x => new { x.WeekStart, x.WeekEnd })
+            .OrderBy(group => group.Key.WeekStart)
+            .Select(group => new ReportWeeklyDto(
+                group.Key.WeekStart,
+                group.Key.WeekEnd,
+                group.Sum(x => x.BookingValue),
+                group.Sum(x => x.NetReceipts),
+                group.Sum(x => x.Expenses)))
+            .ToList();
+
+        var bookingCount = reports.Sum(x => x.Report.BookingCount);
+        var cancelledCount = reports.Sum(x => x.Report.CancelledBookingCount);
+        var bookingValue = reports.Sum(x => x.Report.BookingValue);
+        var roomCount = reports.Sum(x => x.Report.ActiveRoomCount);
+        var totalBookingCount = bookingCount + cancelledCount;
+        var periodReceipts = new ReportPeriodReceiptsDto(
+            reports.Sum(x => x.Report.PeriodReceipts.Today),
+            reports.Sum(x => x.Report.PeriodReceipts.ThisWeek),
+            reports.Sum(x => x.Report.PeriodReceipts.SelectedMonth),
+            reports.Sum(x => x.Report.PeriodReceipts.PreviousMonth),
+            null);
+        periodReceipts = periodReceipts with
+        {
+            MonthChangePercent = periodReceipts.PreviousMonth == 0
+                ? (periodReceipts.SelectedMonth == 0 ? 0d : null)
+                : Math.Round((double)((periodReceipts.SelectedMonth - periodReceipts.PreviousMonth) /
+                                      Math.Abs(periodReceipts.PreviousMonth) * 100), 1)
+        };
+
         return new ReportSnapshotDto(
-            reports.Sum(x => x.Report.BookingCount),
-            reports.Sum(x => x.Report.BookingValue),
+            bookingCount,
+            cancelledCount,
+            bookingValue,
+            bookingCount == 0 ? 0 : Math.Round(bookingValue / bookingCount, 0),
             Math.Round(reports.Sum(x => x.Report.BookedHours), 1),
+            roomCount,
+            roomCount == 0 ? 0 : Math.Round(reports.Sum(x => x.Report.OccupancyRate * x.Report.ActiveRoomCount) / roomCount, 1),
+            totalBookingCount == 0 ? 0 : Math.Round((double)cancelledCount / totalBookingCount * 100, 1),
+            reports.Sum(x => x.Report.GrossReceipts),
+            reports.Sum(x => x.Report.Refunds),
             reports.Sum(x => x.Report.NetReceipts),
             reports.Sum(x => x.Report.Expenses),
             reports.Sum(x => x.Report.NetCashFlow),
             reports.Sum(x => x.Report.Outstanding),
+            periodReceipts,
             byRoom,
             bySource,
+            byStatus,
+            byPaymentMethod,
+            byExpenseCategory,
+            byWeekday,
+            outstandingBuckets,
+            daily,
+            weekly,
             trend);
     }
 
@@ -126,4 +263,11 @@ public sealed class IndexModel(
     }
 
     private sealed record ScopedReport(CurrentPropertyDto Property, ReportSnapshotDto Report);
+    private sealed record ReportPageContext(
+        CurrentPropertyDto WorkingProperty,
+        IReadOnlyList<CurrentPropertyDto> AccessibleProperties,
+        DateOnly Month,
+        string ScopeKey,
+        string ScopeName,
+        ReportSnapshotDto Report);
 }

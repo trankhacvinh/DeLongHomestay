@@ -44,6 +44,93 @@
     gap: 10px;
 }
 
+.public-embedded-page .public-embedded-selection-summary {
+    display: grid;
+    gap: 16px;
+    padding: 20px;
+    border: 1px solid #cfe0dd;
+    border-radius: 18px;
+    background: #fff;
+}
+
+.public-embedded-page .public-embedded-selection-heading,
+.public-embedded-page .public-embedded-selection-timeline {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.public-embedded-page .public-embedded-selection-heading h2 {
+    margin: 4px 0 2px;
+    font-size: clamp(22px, 3vw, 30px);
+    line-height: 1.1;
+}
+
+.public-embedded-page .public-embedded-selection-heading p,
+.public-embedded-page .public-embedded-selection-note {
+    margin: 0;
+    color: #6d7c79;
+}
+
+.public-embedded-page .public-embedded-selection-price {
+    display: grid;
+    gap: 2px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.public-embedded-page .public-embedded-selection-price small,
+.public-embedded-page .public-embedded-selection-timeline small {
+    color: #73827f;
+    font-size: 12px;
+}
+
+.public-embedded-page .public-embedded-selection-price strong {
+    color: #145c5f;
+    font-size: clamp(22px, 3vw, 30px);
+}
+
+.public-embedded-page .public-embedded-selection-timeline {
+    align-items: center;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: #eef7f4;
+}
+
+.public-embedded-page .public-embedded-selection-timeline > div:first-child {
+    display: grid;
+    gap: 4px;
+}
+
+.public-embedded-page .public-embedded-selection-timeline strong {
+    color: #193936;
+    font-size: 16px;
+}
+
+.public-embedded-page .public-embedded-selection-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.public-embedded-page .public-embedded-selection-badges span {
+    padding: 6px 9px;
+    border-radius: 999px;
+    color: #17615a;
+    background: #d9eee8;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.public-embedded-page .public-embedded-selection-note {
+    padding-top: 14px;
+    border-top: 1px solid #e3ecea;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
 .public-embedded-page .public-booking-mode,
 .public-embedded-page .public-step-card {
     min-width: 0;
@@ -88,6 +175,32 @@
 
     .public-embedded-page .public-booking-main {
         gap: 8px;
+    }
+
+    .public-embedded-page .public-embedded-selection-summary {
+        gap: 12px;
+        padding: 16px;
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+    }
+
+    .public-embedded-page .public-embedded-selection-heading {
+        align-items: flex-end;
+    }
+
+    .public-embedded-page .public-embedded-selection-heading p {
+        font-size: 12px;
+    }
+
+    .public-embedded-page .public-embedded-selection-timeline {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .public-embedded-page .public-embedded-selection-badges {
+        justify-content: flex-start;
     }
 
     .public-embedded-page .public-booking-mode,

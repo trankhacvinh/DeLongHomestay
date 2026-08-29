@@ -62,6 +62,8 @@ public sealed record PublicRoomAvailabilityDto(
     Guid RoomId,
     string RoomCode,
     string RoomName,
+    bool FullDayPricingEnabled,
+    decimal? FullDayPrice,
     string TimeZoneId,
     DateOnly From,
     int Days,
@@ -150,7 +152,7 @@ public sealed class AvailabilityIntervalService(
 
         var room = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == propertyId && x.Id == roomId && x.IsActive)
-            .Select(x => new { x.Id, x.Code, x.Name })
+            .Select(x => new { x.Id, x.Code, x.Name, x.FullDayPricingEnabled, x.FullDayPrice })
             .SingleOrDefaultAsync(cancellationToken);
         if (room is null) return null;
 
@@ -181,13 +183,13 @@ public sealed class AvailabilityIntervalService(
         await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, property.Id, cancellationToken);
         var room = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == property.Id && x.Id == roomId && x.IsActive && x.IsPublished)
-            .Select(x => new { x.Id, x.Code, x.Name })
+            .Select(x => new { x.Id, x.Code, x.Name, x.FullDayPricingEnabled, x.FullDayPrice })
             .SingleOrDefaultAsync(cancellationToken);
         if (room is null) return null;
 
         var calendar = await BuildAsync(property.Id, roomId, property.TimeZoneId, from, days, cancellationToken);
         return new PublicRoomAvailabilityDto(
-            room.Id, room.Code, room.Name, property.TimeZoneId, from, days,
+            room.Id, room.Code, room.Name, room.FullDayPricingEnabled, room.FullDayPrice, property.TimeZoneId, from, days,
             calendar.Select(day => new PublicAvailabilityDayDto(
                 day.Date,
                 day.Slots.Select(slot => new PublicAvailabilitySlotDto(

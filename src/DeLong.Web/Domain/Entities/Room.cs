@@ -14,6 +14,8 @@ public sealed class Room : EntityBase
     public string? DescriptionHtml { get; set; }
     public string? GuestGuideHtml { get; set; }
     public bool IsPublished { get; set; }
+    public bool FullDayPricingEnabled { get; set; }
+    public decimal? FullDayPrice { get; set; }
     public int Capacity { get; set; } = 2;
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;

@@ -148,8 +148,8 @@ public sealed class IdentityDocumentStorage
         Guid bookingId,
         CancellationToken cancellationToken = default)
     {
-        var result = new List<IdentityDocumentInfo>(2);
-        foreach (var side in new[] { "front", "back" })
+        var result = new List<IdentityDocumentInfo>(4);
+        foreach (var side in new[] { "front", "back", "second-front", "second-back" })
         {
             var document = await ReadAsync(propertyId, bookingId, side, cancellationToken);
             if (document is not null)
@@ -267,6 +267,8 @@ public sealed class IdentityDocumentStorage
     {
         "front" => "front",
         "back" => "back",
+        "second-front" => "second-front",
+        "second-back" => "second-back",
         _ => null
     };
 

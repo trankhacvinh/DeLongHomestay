@@ -39,7 +39,8 @@ public sealed class CustomerAccountService(
             return (null, "Thông tin liên hệ này không thể đăng ký hoặc đăng nhập. Vui lòng liên hệ trực tiếp cơ sở.");
         var name = string.IsNullOrWhiteSpace(request.Name) ? customer?.Name?.Trim() : request.Name.Trim();
         if (string.IsNullOrWhiteSpace(name) || name.Length > 200) return (null, "Tên khách không hợp lệ.");
-        if (request.Password.Length < 8) return (null, "Mật khẩu phải có ít nhất 8 ký tự.");
+        var passwordError = CustomerPasswordPolicy.Validate(request.Password);
+        if (passwordError is not null) return (null, passwordError);
         if (!request.TermsAccepted || request.TermsVersion != settings.TermsVersion)
             return (null, "Bạn cần đọc và đồng ý phiên bản điều khoản hiện tại.");
         if (await userManager.FindByNameAsync(phone) is not null) return (null, "Không thể tạo tài khoản với thông tin đã nhập.");

@@ -394,6 +394,85 @@ namespace DeLong.Web.Data.Migrations
                     b.ToTable("bookings");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.BookingRateSegment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("AppliedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("applied_amount");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_id");
+
+                    b.Property<DateTime>("CheckInUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("check_in_utc");
+
+                    b.Property<DateTime>("CheckOutUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("check_out_utc");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<decimal>("ListPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("list_price");
+
+                    b.Property<string>("PricingRule")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("pricing_rule");
+
+                    b.Property<string>("RateName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("rate_name");
+
+                    b.Property<Guid?>("RoomRateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("room_rate_id");
+
+                    b.Property<DateOnly>("ServiceDate")
+                        .HasColumnType("date")
+                        .HasColumnName("service_date");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_booking_rate_segments");
+
+                    b.HasIndex("BookingId", "SortOrder")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_booking_rate_segments_booking_id_sort_order");
+
+                    b.HasIndex("RoomRateId", "ServiceDate")
+                        .HasDatabaseName("i_x_booking_rate_segments_room_rate_id_service_date");
+
+                    b.ToTable("booking_rate_segments", t =>
+                        {
+                            t.HasCheckConstraint("ck_booking_rate_segments_amounts", "list_price >= 0 AND applied_amount >= 0");
+
+                            t.HasCheckConstraint("ck_booking_rate_segments_interval", "check_out_utc > check_in_utc");
+                        });
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Customer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1898,6 +1977,15 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description_html");
 
+                    b.Property<decimal?>("FullDayPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("full_day_price");
+
+                    b.Property<bool>("FullDayPricingEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("full_day_pricing_enabled");
+
                     b.Property<string>("GuestGuideHtml")
                         .HasColumnType("text")
                         .HasColumnName("guest_guide_html");
@@ -2865,6 +2953,26 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("RoomRate");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.BookingRateSegment", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Booking", "Booking")
+                        .WithMany("RateSegments")
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_booking_rate_segments_bookings_booking_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.RoomRate", "RoomRate")
+                        .WithMany()
+                        .HasForeignKey("RoomRateId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_booking_rate_segments_room_rates_room_rate_id");
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("RoomRate");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Customer", b =>
                 {
                     b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
@@ -3408,6 +3516,8 @@ namespace DeLong.Web.Data.Migrations
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Booking", b =>
                 {
                     b.Navigation("Payments");
+
+                    b.Navigation("RateSegments");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Property", b =>

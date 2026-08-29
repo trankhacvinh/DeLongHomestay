@@ -1,5 +1,7 @@
 
 using System.Text.Json;
+using DeLong.Web.Common.Operations;
+using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Site;
@@ -11,13 +13,15 @@ namespace DeLong.Web.Pages.Booking;
 public sealed class IndexModel(
     PublicBookingService publicBookingService,
     PublicPropertyResolver publicPropertyResolver,
-    PublicRoomContentService publicRoomContentService) : PageModel
+    PublicRoomContentService publicRoomContentService,
+    StoragePaths storagePaths,
+    IConfiguration configuration) : PageModel
 {
     public string PageDataJson { get; private set; } = "{}";
     public bool RequiresPropertySelection { get; private set; }
     public IReadOnlyList<PublicPropertyCardDto> Properties { get; private set; } = [];
 
-    public async Task<IActionResult> OnGetAsync(string? siteSlug, string? site, string? date, string? room, Guid? rate, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(string? siteSlug, string? site, string? date, string? room, Guid? rate, string? slots, bool embed, CancellationToken cancellationToken)
     {
         var globalCatalog = await publicRoomContentService.GetGlobalCatalogAsync(cancellationToken);
         Properties = globalCatalog.Properties;
@@ -47,6 +51,7 @@ public sealed class IndexModel(
         var effectiveSlug = property.SiteSlug;
         var catalog = await publicBookingService.GetCatalogAsync(effectiveSlug, null, cancellationToken);
         if (catalog is null) return NotFound();
+        var bookingPolicy = await new BookingPolicyStore(storagePaths, configuration).GetAsync(property.Id, cancellationToken);
 
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(catalog.TimeZoneId);
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
@@ -72,6 +77,19 @@ public sealed class IndexModel(
             }
         }
 
+        var initialSlots = new List<object>();
+        if (selectedRoom is not null && !string.IsNullOrWhiteSpace(slots))
+        {
+            foreach (var item in slots.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var separator = item.LastIndexOf(':');
+                if (separator <= 0 || !DateOnly.TryParse(item[..separator], out var slotDate) || !Guid.TryParse(item[(separator + 1)..], out var slotRateId)) continue;
+                var slotRate = selectedRoom.Rates.FirstOrDefault(x => x.Id == slotRateId && x.Type != RoomRateType.Nightly);
+                if (slotRate is null) continue;
+                initialSlots.Add(new { stayDate = slotDate.ToString("yyyy-MM-dd"), rateId = slotRateId });
+            }
+        }
+
         PageDataJson = JsonSerializer.Serialize(new
         {
             propertyName = catalog.PropertyName,
@@ -83,6 +101,9 @@ public sealed class IndexModel(
             rooms = catalog.Rooms,
             initialRoomId = selectedRoom?.Id,
             initialRateId = selectedRate?.Id,
+            initialSlots,
+            embeddedSlotSelection = embed && initialSlots.Count > 0,
+            bookingPolicy,
             properties = Properties.Select(x => new
             {
                 x.Id,

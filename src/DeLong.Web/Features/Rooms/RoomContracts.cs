@@ -22,6 +22,8 @@ public sealed record RoomDto(
     int SortOrder,
     bool IsActive,
     bool IsPublished,
+    bool FullDayPricingEnabled,
+    decimal? FullDayPrice,
     HousekeepingStatus HousekeepingStatus,
     DateTime? HousekeepingUpdatedAtUtc,
     string? CoverThumbnailUrl,
@@ -40,4 +42,6 @@ public sealed record UpdateRoomRequest(
     int Capacity,
     int SortOrder,
     bool IsActive,
-    bool? IsPublished = null);
+    bool? IsPublished = null,
+    bool? FullDayPricingEnabled = null,
+    decimal? FullDayPrice = null);

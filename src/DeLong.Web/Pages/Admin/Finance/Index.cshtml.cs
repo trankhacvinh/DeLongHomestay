@@ -10,6 +10,7 @@ namespace DeLong.Web.Pages.Admin.Finance;
 [Authorize(Policy = "ViewFinance")]
 public sealed class IndexModel(
     FinanceService financeService,
+    FinanceExcelExportService excelExportService,
     CurrentPropertyService currentPropertyService) : PageModel
 {
     public Guid PropertyId { get; private set; }
@@ -17,13 +18,65 @@ public sealed class IndexModel(
 
     public async Task<IActionResult> OnGetAsync(
         string? month,
+        string? period,
+        string? date,
+        Guid? propertyId,
+        string? scope,
+        CancellationToken cancellationToken)
+    {
+        var context = await LoadFinanceAsync(month, period, date, propertyId, scope, cancellationToken);
+        if (context is null) return Forbid();
+        PropertyId = context.WorkingProperty.Id;
+
+        PageDataJson = JsonSerializer.Serialize(
+            new
+            {
+                propertyId = PropertyId,
+                propertyName = context.WorkingProperty.Name,
+                timeZoneId = context.WorkingProperty.TimeZoneId,
+                period = context.Range.Period,
+                anchorDate = context.Range.Anchor.ToString("yyyy-MM-dd"),
+                rangeStart = context.Range.Start.ToString("yyyy-MM-dd"),
+                rangeEnd = context.Range.EndExclusive.AddDays(-1).ToString("yyyy-MM-dd"),
+                scope = context.ScopeKey,
+                scopeName = context.ScopeName,
+                canMutateScope = context.CanMutateScope,
+                properties = context.AccessibleProperties,
+                context.Snapshot.Summary,
+                context.Snapshot.Payments,
+                context.Snapshot.Expenses
+            },
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        return Page();
+    }
+
+    public async Task<IActionResult> OnGetExportAsync(
+        string? month,
+        string? period,
+        string? date,
+        Guid? propertyId,
+        string? scope,
+        CancellationToken cancellationToken)
+    {
+        var context = await LoadFinanceAsync(month, period, date, propertyId, scope, cancellationToken);
+        if (context is null) return Forbid();
+        var propertyNames = context.AccessibleProperties.ToDictionary(x => x.Id, x => x.Name);
+        var propertyTimeZones = context.AccessibleProperties.ToDictionary(x => x.Id, x => TimeZoneInfo.FindSystemTimeZoneById(x.TimeZoneId));
+        var file = excelExportService.Create(context.Snapshot, context.ScopeName, context.Range, propertyNames, propertyTimeZones);
+        return File(file.Content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", file.FileName);
+    }
+
+    private async Task<FinancePageContext?> LoadFinanceAsync(
+        string? month,
+        string? period,
+        string? date,
         Guid? propertyId,
         string? scope,
         CancellationToken cancellationToken)
     {
         var workingProperty = await currentPropertyService.ResolveAsync(User, propertyId, cancellationToken);
-        if (workingProperty is null) return Forbid();
-        PropertyId = workingProperty.Id;
+        if (workingProperty is null) return null;
 
         var accessible = await currentPropertyService.GetAccessibleAsync(User, cancellationToken);
         var allScope = string.Equals(scope, "all", StringComparison.OrdinalIgnoreCase) && accessible.Count > 1;
@@ -34,9 +87,7 @@ public sealed class IndexModel(
 
         var workingTimeZone = TimeZoneInfo.FindSystemTimeZoneById(workingProperty.TimeZoneId);
         var localNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, workingTimeZone);
-        var selectedMonth = TryParseMonth(month, out var parsedMonth)
-            ? parsedMonth
-            : new DateOnly(localNow.Year, localNow.Month, 1);
+        var selectedRange = FinancePeriodResolver.Resolve(period, date, month, DateOnly.FromDateTime(localNow));
 
         IReadOnlyList<CurrentPropertyDto> targetProperties = allScope
             ? accessible
@@ -45,9 +96,8 @@ public sealed class IndexModel(
         foreach (var property in targetProperties)
         {
             var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
-            var nextMonth = selectedMonth.AddMonths(1);
-            var localFrom = DateTime.SpecifyKind(selectedMonth.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
-            var localTo = DateTime.SpecifyKind(nextMonth.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
+            var localFrom = DateTime.SpecifyKind(selectedRange.Start.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
+            var localTo = DateTime.SpecifyKind(selectedRange.EndExclusive.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
             var fromUtc = TimeZoneInfo.ConvertTimeToUtc(localFrom, timeZone);
             var toUtc = TimeZoneInfo.ConvertTimeToUtc(localTo, timeZone);
             snapshots.Add(await financeService.GetSnapshotAsync(property.Id, fromUtc, toUtc, cancellationToken));
@@ -66,30 +116,22 @@ public sealed class IndexModel(
         var scopeName = allScope ? "Tất cả cơ sở" : selectedProperty.Name;
         var canMutateScope = !allScope && selectedProperty.Id == workingProperty.Id;
 
-        PageDataJson = JsonSerializer.Serialize(
-            new
-            {
-                propertyId = PropertyId,
-                propertyName = workingProperty.Name,
-                timeZoneId = workingProperty.TimeZoneId,
-                month = selectedMonth.ToString("yyyy-MM"),
-                scope = scopeKey,
-                scopeName,
-                canMutateScope,
-                properties = accessible,
-                summary,
-                payments,
-                expenses
-            },
-            new JsonSerializerOptions(JsonSerializerDefaults.Web));
-
-        return Page();
+        return new FinancePageContext(
+            workingProperty,
+            accessible,
+            selectedRange,
+            scopeKey,
+            scopeName,
+            canMutateScope,
+            new FinanceSnapshotDto(summary, payments, expenses));
     }
 
-    private static bool TryParseMonth(string? value, out DateOnly month)
-    {
-        month = default;
-        if (string.IsNullOrWhiteSpace(value) || value.Length != 7) return false;
-        return DateOnly.TryParseExact($"{value}-01", "yyyy-MM-dd", out month);
-    }
+    private sealed record FinancePageContext(
+        CurrentPropertyDto WorkingProperty,
+        IReadOnlyList<CurrentPropertyDto> AccessibleProperties,
+        FinancePeriodRange Range,
+        string ScopeKey,
+        string ScopeName,
+        bool CanMutateScope,
+        FinanceSnapshotDto Snapshot);
 }

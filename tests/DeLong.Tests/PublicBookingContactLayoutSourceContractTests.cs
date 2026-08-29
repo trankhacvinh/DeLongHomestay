@@ -26,7 +26,8 @@ public sealed class PublicBookingContactLayoutSourceContractTests
         Assert.DoesNotContain("data-quick-register>Đăng ký & điền nhanh", script, StringComparison.Ordinal);
         Assert.DoesNotContain("delong.booking.contact.v1", script, StringComparison.Ordinal);
         Assert.DoesNotContain("localStorage", script, StringComparison.Ordinal);
-        Assert.Contains("root.querySelector('.booking-id-section')", script, StringComparison.Ordinal);
+        Assert.Contains("root.querySelector('.booking-primary-id-section')", script, StringComparison.Ordinal);
+        Assert.Contains("data-second-identity", script, StringComparison.Ordinal);
         Assert.Equal(3, CountOccurrences(script, "restoreCustomerAccount()"));
         Assert.Contains("ref=\"customerPhone\"", page, StringComparison.Ordinal);
         Assert.Contains("data-booking-customer-phone", page, StringComparison.Ordinal);
@@ -40,6 +41,28 @@ public sealed class PublicBookingContactLayoutSourceContractTests
         Assert.DoesNotContain("input[autocomplete=\"name\"]", script, StringComparison.Ordinal);
         Assert.Contains("maxlength=\"30\" inputmode=\"tel\" autocomplete=\"off\"", page, StringComparison.Ordinal);
         Assert.DoesNotContain("target=\"_blank\" rel=\"noopener\">${escapeHtml(state.accountSettings.termsTitle", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Calendar_booking_modal_reuses_the_locked_selection_and_only_asks_for_customer_data()
+    {
+        var page = ReadRepositoryFile("src/DeLong.Web/Pages/Booking/Index.cshtml");
+        var script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/public-booking.js");
+        var enhancement = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/public-booking-core-v2.js");
+        var css = ReadRepositoryFile("src/DeLong.Web/wwwroot/css/booking-embed.css");
+
+        Assert.Contains("public-embedded-selection-summary", page, StringComparison.Ordinal);
+        Assert.Contains("v-if=\"!embeddedSlotSelection\" aria-label=\"Kiểu đặt phòng\"", page, StringComparison.Ordinal);
+        Assert.Contains("id=\"booking-room-step\" class=\"public-step-card\" v-if=\"!embeddedSlotSelection\"", page, StringComparison.Ordinal);
+        Assert.Contains("v-if=\"selectedRoom && !embeddedSlotSelection\"", page, StringComparison.Ordinal);
+        Assert.Contains("embeddedSelectionRangeText", script, StringComparison.Ordinal);
+        Assert.Contains("embeddedSelectionHasOvernight", script, StringComparison.Ordinal);
+        Assert.Contains("function querySlotSelection()", script, StringComparison.Ordinal);
+        Assert.Contains("initial.embeddedSlotSelection === true || querySlots.length > 0", script, StringComparison.Ordinal);
+        Assert.Contains("v-bind:data-room-capacity=\"selectedRoom.capacity\"", page, StringComparison.Ordinal);
+        Assert.Contains("embeddedCapacity", enhancement, StringComparison.Ordinal);
+        Assert.Contains("public-embedded-selection-total", enhancement, StringComparison.Ordinal);
+        Assert.Contains(".public-embedded-selection-summary", css, StringComparison.Ordinal);
     }
 
     [Fact]

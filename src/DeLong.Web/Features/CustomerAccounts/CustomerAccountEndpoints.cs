@@ -173,7 +173,9 @@ public static class CustomerAccountEndpoints
         {
             var user = await userManager.GetUserAsync(principal);
             if (user is null) return Results.Unauthorized();
-            if (request.NewPassword.Length < 8) return Results.Problem(title: "Mật khẩu không hợp lệ", detail: "Mật khẩu mới phải có ít nhất 8 ký tự.", statusCode: 400);
+            var passwordError = CustomerPasswordPolicy.Validate(request.NewPassword);
+            if (passwordError is not null)
+                return Results.Problem(title: "Mật khẩu không hợp lệ", detail: passwordError, statusCode: 400);
             var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
             if (!result.Succeeded) return Results.Problem(title: "Không thể đổi mật khẩu", detail: string.Join(" ", result.Errors.Select(x => x.Description)), statusCode: 400);
             await signInManager.RefreshSignInAsync(user);

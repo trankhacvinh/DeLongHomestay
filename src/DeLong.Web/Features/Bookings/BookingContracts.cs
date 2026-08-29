@@ -54,7 +54,19 @@ public sealed class CreateBookingRequest
     public string? Source { get; init; }
     public string? PublicRequestKey { get; init; }
     public string? Note { get; init; }
+    public IReadOnlyList<CreateBookingRateSegmentRequest> RateSegments { get; init; } = [];
 }
+
+public sealed record CreateBookingRateSegmentRequest(
+    Guid RoomRateId,
+    DateOnly ServiceDate,
+    DateTime CheckInUtc,
+    DateTime CheckOutUtc,
+    int SortOrder,
+    string RateName,
+    decimal ListPrice,
+    decimal AppliedAmount,
+    string PricingRule);
 
 public sealed class UpdateBookingRequest
 {

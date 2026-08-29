@@ -14,8 +14,12 @@
         guestCount: 2,
         front: null,
         back: null,
+        secondFront: null,
+        secondBack: null,
         frontUrl: '',
         backUrl: '',
+        secondFrontUrl: '',
+        secondBackUrl: '',
         savedIdentity: false,
         accountHasIdentity: false,
         authenticatedPhone: '',
@@ -39,7 +43,7 @@
     }
 
     function updateSavedIdentityUi() {
-        const identitySection = root.querySelector('.booking-id-section');
+        const identitySection = root.querySelector('.booking-primary-id-section');
         const existingNote = root.querySelector('.booking-saved-identity-note');
         if (!identitySection) return;
         identitySection.hidden = state.savedIdentity;
@@ -117,7 +121,8 @@
                 const accountDescription = status.exists
                     ? 'Hồ sơ khách đã có, nhưng chưa có tài khoản đăng nhập. Tạo mật khẩu để dùng lại thông tin lần sau.'
                     : (state.accountSettings.benefitText || 'Lưu hồ sơ và không phải nhập lại thông tin.');
-                panel.innerHTML = `<div class="booking-account-summary"><div><strong>${escapeHtml(accountTitle)}</strong><small>${escapeHtml(accountDescription)}</small></div><button type="button" data-quick-register-open>Tạo tài khoản</button></div><div class="booking-account-register" data-quick-register-form hidden><label><span>Tạo mật khẩu</span><input type="password" autocomplete="new-password" placeholder="Ít nhất 8 ký tự" data-quick-new-password /></label><label class="booking-account-terms"><input type="checkbox" data-quick-terms /><span>Tôi đồng ý <button type="button" data-account-terms-open>${escapeHtml(state.accountSettings.termsTitle || 'điều khoản tài khoản')}</button></span></label><p class="booking-account-submit-note">Tài khoản sẽ được tạo cùng lúc khi bạn gửi yêu cầu đặt phòng.</p><p class="booking-account-message" data-account-message hidden></p></div>`;
+                panel.innerHTML = `<div class="booking-account-summary"><div><strong>${escapeHtml(accountTitle)}</strong><small>${escapeHtml(accountDescription)}</small></div><button type="button" data-quick-register-open>Tạo tài khoản</button></div><div class="booking-account-register" data-quick-register-form hidden><label><span>Tạo mật khẩu</span><input type="password" minlength="8" autocomplete="new-password" placeholder="Ít nhất 8 ký tự" data-quick-new-password /></label><label class="booking-account-terms"><input type="checkbox" data-quick-terms /><span>Tôi đồng ý <button type="button" data-account-terms-open>${escapeHtml(state.accountSettings.termsTitle || 'điều khoản tài khoản')}</button></span></label><p class="booking-account-submit-note">Tài khoản sẽ được tạo cùng lúc khi bạn gửi yêu cầu đặt phòng.</p><p class="booking-account-message" data-account-message hidden></p></div>`;
+                DeLongPassword.mount(panel.querySelector('[data-quick-new-password]'));
                 panel.querySelector('[data-quick-register-open]').addEventListener('click', event => { event.currentTarget.hidden = true; panel.querySelector('[data-quick-register-form]').hidden = false; });
                 panel.querySelector('[data-account-terms-open]').addEventListener('click', openAccountTerms);
             } else panel.hidden = true;
@@ -125,6 +130,8 @@
     }
 
     function currentCapacity() {
+        const embeddedCapacity = Number(root.querySelector('.public-embedded-selection-summary')?.dataset.roomCapacity || 0);
+        if (Number.isFinite(embeddedCapacity) && embeddedCapacity > 0) return embeddedCapacity;
         const text = root.querySelector('.public-booking-room.active .public-booking-room-copy small')?.textContent || '';
         const match = text.match(/(\d+)\s*người/i);
         const capacity = match ? Number(match[1]) : 0;
@@ -145,7 +152,9 @@
     }
 
     function renderedBaseTotal() {
-        return parseMoneyText(root.querySelector('.public-summary-content dl .total dd')?.textContent || '');
+        return parseMoneyText(root.querySelector('.public-embedded-selection-total')?.textContent
+            || root.querySelector('.public-summary-content dl .total dd')?.textContent
+            || '');
     }
 
     function syncSelection() {
@@ -177,6 +186,7 @@
     function syncDisplayedTotal() {
         if (!state.baseTotal) return;
         const text = money(currentEstimatedTotal());
+        setText(root.querySelector('.public-embedded-selection-total'), text);
         setText(root.querySelector('.public-summary-content dl .total dd'), text);
         setText(root.querySelector('.public-booking-mobile-bar strong'), text);
     }
@@ -194,6 +204,8 @@
             plus.disabled = state.guestCount >= capacity;
             plus.title = state.guestCount >= capacity ? `Phòng này tối đa ${capacity} khách.` : 'Tăng số khách';
         }
+        const secondIdentity = container.querySelector('[data-second-identity]');
+        if (secondIdentity) secondIdentity.hidden = state.guestCount < 3;
 
         const summary = container.querySelector('[data-booking-guest-summary]');
         const included = Math.min(Number(state.policy.includedGuests || 2), capacity);
@@ -208,7 +220,7 @@
     }
 
     function revokePreview(side) {
-        const key = side === 'front' ? 'frontUrl' : 'backUrl';
+        const key = `${side}Url`;
         if (state[key]) URL.revokeObjectURL(state[key]);
         state[key] = '';
     }
@@ -220,7 +232,7 @@
         const empty = card.querySelector('.booking-id-empty');
         const remove = card.querySelector('[data-remove-id]');
         if (file) {
-            const key = side === 'front' ? 'frontUrl' : 'backUrl';
+            const key = `${side}Url`;
             state[key] = URL.createObjectURL(file);
             preview.src = state[key];
             preview.hidden = false;
@@ -344,9 +356,14 @@
                     <small data-booking-guest-summary></small>
                 </div>
             </div>
-            <div class="booking-id-section">
+            <p class="booking-identity-warning">Vui lòng dùng số điện thoại và CCCD chính chủ để đặt phòng.</p>
+            <div class="booking-id-section booking-primary-id-section">
                 <div class="booking-id-heading"><div><strong>CCCD / giấy tờ tùy thân${state.policy.requireIdentityDocuments ? ' *' : ''}</strong><small>Ảnh được mã hóa trước khi lưu xuống ổ đĩa; không đưa vào thư viện ảnh công khai.</small></div><span>${state.policy.requireIdentityDocuments ? 'Bắt buộc' : 'Không bắt buộc'}</span></div>
                 <div class="booking-id-grid" data-id-grid></div>
+            </div>
+            <div class="booking-id-section" data-second-identity hidden>
+                <div class="booking-id-heading"><div><strong>CCCD của người thứ hai *</strong><small>Từ 3 khách trở lên cần thêm căn cước của một người đi cùng.</small></div><span>Bắt buộc</span></div>
+                <div class="booking-id-grid" data-second-id-grid></div>
             </div>
             <label class="booking-policy-check"><input type="checkbox" data-policy-accepted /><span>Tôi đã đọc và đồng ý với <button type="button" data-open-policy>${escapeHtml(state.policy.policyTitle || 'Nội quy & Chính sách')}</button>.</span></label>`;
 
@@ -380,6 +397,9 @@
         const idGrid = wrapper.querySelector('[data-id-grid]');
         idGrid.appendChild(createIdentityCard('front', 'Mặt trước'));
         idGrid.appendChild(createIdentityCard('back', 'Mặt sau'));
+        const secondIdGrid = wrapper.querySelector('[data-second-id-grid]');
+        secondIdGrid.appendChild(createIdentityCard('secondFront', 'Mặt trước người thứ hai'));
+        secondIdGrid.appendChild(createIdentityCard('secondBack', 'Mặt sau người thứ hai'));
         updateGuestSummary(wrapper);
         updateSavedIdentityUi();
 
@@ -389,7 +409,7 @@
         }
 
         const notice = root.querySelector('.public-booking-notice');
-        if (notice) notice.innerHTML = `Sau khi gửi, hệ thống <strong>giữ phòng tạm ${Number(state.policy.publicHoldMinutes || 3)} phút</strong> trên server để tránh người khác đặt trùng. Nhân viên vẫn cần xác nhận lượt đặt.`;
+        if (notice) notice.innerHTML = 'Phòng chỉ được giữ khi bạn gửi thông tin và hệ thống tạo phiên thanh toán thành công.';
     }
 
     function validateExtraFields() {
@@ -402,10 +422,11 @@
         if (state.guestCount > capacity) return `Phòng này tối đa ${capacity} khách.`;
         if (!wrapper.querySelector('[data-policy-accepted]').checked) return `Bạn cần đọc và đồng ý với ${state.policy.policyTitle || 'Nội quy & Chính sách'}.`;
         if (state.policy.requireIdentityDocuments && !state.savedIdentity && (!state.front || !state.back)) return 'Vui lòng chọn ảnh CCCD mặt trước và mặt sau.';
+        if (state.guestCount >= 3 && (!state.secondFront || !state.secondBack)) return 'Từ 3 khách trở lên, vui lòng tải đủ hai mặt CCCD của người thứ hai.';
         const registrationForm = wrapper.querySelector('[data-quick-register-form]');
         if (registrationForm && !registrationForm.hidden && !state.accountRegistrationCompleted) {
-            if ((registrationForm.querySelector('[data-quick-new-password]')?.value || '').length < 8)
-                return 'Mật khẩu tài khoản cần ít nhất 8 ký tự.';
+            const password = registrationForm.querySelector('[data-quick-new-password]')?.value || '';
+            if (!DeLongPassword.evaluate(password).valid) return DeLongPassword.requirement;
             if (!registrationForm.querySelector('[data-quick-terms]')?.checked)
                 return 'Bạn cần đồng ý điều khoản tài khoản khách.';
         }
@@ -483,13 +504,17 @@
                 policyAccepted: true,
                 policyVersion: Number(state.policy.policyVersion || 1),
                 hasIdentityFront: !!state.front || state.savedIdentity,
-                hasIdentityBack: !!state.back || state.savedIdentity
+                hasIdentityBack: !!state.back || state.savedIdentity,
+                hasSecondIdentityFront: !!state.secondFront,
+                hasSecondIdentityBack: !!state.secondBack
             };
             const result = await originalPost(url, payload, headers);
             const requestKey = headers?.['Idempotency-Key'] || headers?.['idempotency-key'] || '';
             if (result?.bookingId && requestKey) {
                 if (state.front) await uploadIdentity(result.bookingId, 'front', state.front, requestKey);
                 if (state.back) await uploadIdentity(result.bookingId, 'back', state.back, requestKey);
+                if (state.secondFront) await uploadIdentity(result.bookingId, 'second-front', state.secondFront, requestKey);
+                if (state.secondBack) await uploadIdentity(result.bookingId, 'second-back', state.secondBack, requestKey);
             }
             return result;
         };
@@ -526,7 +551,7 @@
                 policyTitle: 'Nội quy & Chính sách',
                 policyText: 'Vui lòng liên hệ cơ sở để xem nội quy hiện hành.',
                 policyVersion: 1,
-                publicHoldMinutes: 3
+                publicHoldMinutes: 0
             };
             injectFields();
         });

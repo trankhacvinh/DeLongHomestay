@@ -14,6 +14,25 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
     private readonly PublicPropertyResolver publicPropertyResolver = resolver ?? new PublicPropertyResolver(db);
     private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
     private sealed record BookingConflictWindow(Guid RoomId, DateTime CheckInUtc, DateTime CheckOutUtc);
+    private sealed class ResolvedPublicSlot(
+        DateOnly serviceDate,
+        int rateIndex,
+        Guid rateId,
+        string rateName,
+        decimal listPrice,
+        DateTime checkInUtc,
+        DateTime checkOutUtc)
+    {
+        public DateOnly ServiceDate { get; } = serviceDate;
+        public int RateIndex { get; } = rateIndex;
+        public Guid RateId { get; } = rateId;
+        public string RateName { get; } = rateName;
+        public decimal ListPrice { get; } = listPrice;
+        public DateTime CheckInUtc { get; } = checkInUtc;
+        public DateTime CheckOutUtc { get; } = checkOutUtc;
+        public decimal AppliedAmount { get; set; } = listPrice;
+        public string PricingRule { get; set; } = "standard";
+    }
 
     public Task<PublicCatalogDto?> GetCatalogAsync(DateOnly? availabilityDate = null, CancellationToken cancellationToken = default) =>
         GetCatalogAsync(null, availabilityDate, cancellationToken);
@@ -24,12 +43,12 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         if (property is null) return null;
         HashSet<(Guid RoomId, Guid RateId)> unavailable = availabilityDate.HasValue ? await GetUnavailableRateKeysAsync(property.Id, property.TimeZoneId, availabilityDate.Value, cancellationToken) : [];
         var rooms = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == property.Id && x.IsActive && x.IsPublished).OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
-            .Select(x => new { x.Id, x.Code, x.Name, x.Capacity, Rates = x.Rates.Where(r => r.IsActive).OrderBy(r => r.SortOrder).Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Type, r.IsOvernight, r.Price }).ToList() }).ToListAsync(cancellationToken);
+            .Select(x => new { x.Id, x.Code, x.Name, x.Capacity, x.FullDayPricingEnabled, x.FullDayPrice, Rates = x.Rates.Where(r => r.IsActive).OrderBy(r => r.SortOrder).Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Type, r.IsOvernight, r.Price }).ToList() }).ToListAsync(cancellationToken);
         var roomDtos = rooms.Select(room =>
         {
             var rates = room.Rates.Select(rate => new PublicRateDto(rate.Id, rate.Name, rate.StartTime.ToString("HH:mm"), rate.EndTime.ToString("HH:mm"), rate.Type, rate.IsOvernight, rate.Price, !availabilityDate.HasValue || !unavailable.Contains((room.Id, rate.Id)))).ToList();
             var publicPrices = rates.Where(r => r.Price > 0).Select(r => r.Price).ToList();
-            return new PublicRoomDto(room.Id, room.Code, room.Name, room.Capacity, HasBathtub(room.Code), publicPrices.Count == 0 ? 0 : publicPrices.Min(), rates);
+            return new PublicRoomDto(room.Id, room.Code, room.Name, room.Capacity, HasBathtub(room.Code), publicPrices.Count == 0 ? 0 : publicPrices.Min(), room.FullDayPricingEnabled, room.FullDayPrice, rates);
         }).ToList();
         return new PublicCatalogDto(property.Id, property.Name, property.TimeZoneId, roomDtos);
     }
@@ -102,27 +121,77 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         CreateRequestAsync(siteSlug, request, null, cancellationToken);
 
     public async Task<(PublicBookingResult? Result, PublicBookingError? Error)> CreateRequestAsync(string? siteSlug, PublicBookingRequest request, string? idempotencyKey, CancellationToken cancellationToken = default)
+        => await CreateRequestAsync(siteSlug, request, idempotencyKey, null, cancellationToken);
+
+    public async Task<(PublicBookingResult? Result, PublicBookingError? Error)> CreateRequestAsync(
+        string? siteSlug,
+        PublicBookingRequest request,
+        string? idempotencyKey,
+        BookingPolicyDto? bookingPolicy,
+        CancellationToken cancellationToken = default)
     {
         if (!string.IsNullOrWhiteSpace(request.Website)) return (null, new("spam", "Không thể gửi yêu cầu."));
         var key = NormalizeIdempotencyKey(idempotencyKey);
         if (idempotencyKey is not null && key is null) return (null, new("validation", "Idempotency-Key không hợp lệ."));
         return request.Type == BookingType.MultiDay
             ? await CreateMultiDayRequestAsync(siteSlug, request, key, cancellationToken)
-            : await CreateTimeSlotRequestAsync(siteSlug, request, key, cancellationToken);
+            : await CreateTimeSlotRequestAsync(siteSlug, request, key, bookingPolicy, cancellationToken);
     }
 
-    private async Task<(PublicBookingResult?, PublicBookingError?)> CreateTimeSlotRequestAsync(string? siteSlug, PublicBookingRequest request, string? idempotencyKey, CancellationToken ct)
+    private async Task<(PublicBookingResult?, PublicBookingError?)> CreateTimeSlotRequestAsync(string? siteSlug, PublicBookingRequest request, string? idempotencyKey, BookingPolicyDto? policy, CancellationToken ct)
     {
-        if (!DateOnly.TryParseExact(request.StayDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var stayDate)) return (null, new("validation", "Ngày đặt phòng không hợp lệ."));
         var context = await GetRequestContextAsync(siteSlug, request.CustomerName, request.CustomerPhone, ct); if (context.Error is not null) return (null, context.Error);
         if (idempotencyKey is not null && await FindIdempotentResultAsync(context.PropertyId, idempotencyKey, ct) is { } replay) return (replay, null);
-        if (ValidateDateWindow(stayDate, context.TodayLocal) is { } dateError) return (null, dateError);
-        var rate = await db.RoomRates.AsNoTracking().Where(x => x.Id == request.RateId && x.RoomId == request.RoomId && x.IsActive && x.Type != RoomRateType.Nightly && x.Room.IsActive && x.Room.IsPublished && x.Room.PropertyId == context.PropertyId)
-            .Select(x => new { x.Id, x.Name, x.StartTime, x.EndTime, x.Type, x.Price, RoomId = x.Room.Id, RoomName = x.Room.Name }).SingleOrDefaultAsync(ct);
-        if (rate is null) return (null, new("rate_not_found", "Khung giờ hoặc phòng không còn khả dụng."));
-        var (checkInUtc, checkOutUtc) = ToUtcTimeSlotRange(stayDate, rate.StartTime, rate.EndTime, rate.Type == RoomRateType.Overnight, context.TimeZone);
-        if (await bookingService.HasConflictAsync(context.PropertyId, rate.RoomId, checkInUtc, checkOutUtc, null, ct)) return (null, new("booking_conflict", "Phòng vừa được giữ hoặc xác nhận trong khung giờ này. Vui lòng chọn khung khác."));
-        var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = rate.RoomId, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.TimeSlot, RoomRateId = rate.Id, RateName = rate.Name, UnitPrice = rate.Price, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Requested, RoomAmount = rate.Price, Source = "Website", PublicRequestKey = idempotencyKey, Note = Clean(request.Note) }, null, ct);
+        var selected = request.Slots.Count > 0
+            ? request.Slots
+            : [new PublicBookingSlotRequest(request.StayDate, request.RateId)];
+        if (selected.Count > 60) return (null, new("validation", "Số khung giờ được chọn quá lớn."));
+
+        var room = await db.Rooms.AsNoTracking()
+            .Where(x => x.Id == request.RoomId && x.PropertyId == context.PropertyId && x.IsActive && x.IsPublished)
+            .Select(x => new
+            {
+                x.Id, x.Name, x.FullDayPricingEnabled, x.FullDayPrice,
+                Rates = x.Rates.Where(r => r.IsActive && r.Type != RoomRateType.Nightly)
+                    .OrderBy(r => r.SortOrder).ThenBy(r => r.StartTime).ThenBy(r => r.Name)
+                    .Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Type, r.IsOvernight, r.Price }).ToList()
+            }).SingleOrDefaultAsync(ct);
+        if (room is null || room.Rates.Count == 0) return (null, new("rate_not_found", "Khung giờ hoặc phòng không còn khả dụng."));
+
+        var rateIndexes = room.Rates.Select((rate, index) => (rate.Id, index)).ToDictionary(x => x.Id, x => x.index);
+        var resolved = new List<ResolvedPublicSlot>(selected.Count);
+        foreach (var slot in selected)
+        {
+            if (!DateOnly.TryParseExact(slot.StayDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                return (null, new("validation", "Ngày đặt phòng không hợp lệ."));
+            if (ValidateDateWindow(date, context.TodayLocal) is { } dateError) return (null, dateError);
+            if (!rateIndexes.TryGetValue(slot.RateId, out var rateIndex))
+                return (null, new("rate_not_found", "Một khung giờ đã ngừng áp dụng."));
+            var rate = room.Rates[rateIndex];
+            var (startUtc, endUtc) = ToUtcTimeSlotRange(date, rate.StartTime, rate.EndTime, rate.Type == RoomRateType.Overnight || rate.IsOvernight, context.TimeZone);
+            resolved.Add(new ResolvedPublicSlot(date, rateIndex, rate.Id, rate.Name, rate.Price, startUtc, endUtc));
+        }
+
+        if (resolved.Select(x => (x.ServiceDate, x.RateId)).Distinct().Count() != resolved.Count)
+            return (null, new("validation", "Danh sách khung giờ bị trùng."));
+        var submittedOrder = resolved.Select(x => (x.ServiceDate, x.RateId)).ToList();
+        resolved = resolved.OrderBy(x => x.ServiceDate).ThenBy(x => x.RateIndex).ToList();
+        if (!submittedOrder.SequenceEqual(resolved.Select(x => (x.ServiceDate, x.RateId))))
+            return (null, new("slots_not_consecutive", "Các khung giờ chỉ được chọn theo thứ tự về phía sau."));
+        var maxDays = policy?.PublicMaxConsecutiveSlotDays ?? 3;
+        var selectionError = PublicSlotSelectionRules.ValidateConsecutive(
+            resolved.Select(x => (x.ServiceDate, x.RateIndex)).ToList(), room.Rates.Count, maxDays);
+        if (selectionError is not null) return (null, selectionError);
+
+        ApplyPricing(resolved, room.Rates.Count, room.FullDayPricingEnabled, room.FullDayPrice, policy?.MultiSlotDiscountTiers ?? []);
+        var checkInUtc = resolved[0].CheckInUtc;
+        var checkOutUtc = resolved[^1].CheckOutUtc;
+        if (await bookingService.HasConflictAsync(context.PropertyId, room.Id, checkInUtc, checkOutUtc, null, ct)) return (null, new("booking_conflict", "Phòng vừa được giữ hoặc xác nhận trong khoảng thời gian này. Vui lòng chọn lại."));
+        var amount = resolved.Sum(x => x.AppliedAmount);
+        var rateLabel = resolved.Count == 1 ? resolved[0].RateName : $"{resolved.Count} khung liên tiếp";
+        var segments = resolved.Select((x, index) => new CreateBookingRateSegmentRequest(
+            x.RateId, x.ServiceDate, x.CheckInUtc, x.CheckOutUtc, index, x.RateName, x.ListPrice, x.AppliedAmount, x.PricingRule)).ToList();
+        var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = room.Id, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.TimeSlot, RoomRateId = resolved.Count == 1 ? resolved[0].RateId : null, RateName = rateLabel, UnitPrice = resolved.Count == 1 ? resolved[0].ListPrice : null, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Held, RoomAmount = amount, Source = "Website", PublicRequestKey = idempotencyKey, Note = Clean(request.Note), RateSegments = segments }, null, ct);
         if (booking is null && error?.Code == "public_request_retry" && idempotencyKey is not null)
         {
             db.ChangeTracker.Clear();
@@ -130,7 +199,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         }
         if (booking is null) return (null, new(error?.Code ?? "booking_failed", error?.Message ?? "Không thể tạo yêu cầu đặt phòng."));
         if (notificationService is not null) await notificationService.NotifyBookingCreatedAsync(context.PropertyId, booking.Id, ct);
-        return (new PublicBookingResult(booking.Id, booking.Code, booking.Type, rate.RoomName, rate.Name, null, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
+        return (new PublicBookingResult(booking.Id, booking.Code, booking.Type, room.Name, rateLabel, null, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
     }
 
     private async Task<(PublicBookingResult?, PublicBookingError?)> CreateMultiDayRequestAsync(string? siteSlug, PublicBookingRequest request, string? idempotencyKey, CancellationToken ct)
@@ -146,7 +215,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var (checkInUtc, checkOutUtc) = ToUtcStayRange(checkInDate, checkOutDate, rate.StartTime, rate.EndTime, context.TimeZone);
         if (await bookingService.HasConflictAsync(context.PropertyId, rate.RoomId, checkInUtc, checkOutUtc, null, ct)) return (null, new("booking_conflict", "Phòng đã có lượt đặt giao với khoảng lưu trú này. Vui lòng chọn ngày hoặc phòng khác."));
         var amount = rate.Price * nights;
-        var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = rate.RoomId, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.MultiDay, RoomRateId = rate.Id, RateName = rate.Name, UnitPrice = rate.Price, NightCount = nights, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Requested, RoomAmount = amount, Source = "Website", PublicRequestKey = idempotencyKey, Note = Clean(request.Note) }, null, ct);
+        var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = rate.RoomId, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.MultiDay, RoomRateId = rate.Id, RateName = rate.Name, UnitPrice = rate.Price, NightCount = nights, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Held, RoomAmount = amount, Source = "Website", PublicRequestKey = idempotencyKey, Note = Clean(request.Note) }, null, ct);
         if (booking is null && error?.Code == "public_request_retry" && idempotencyKey is not null)
         {
             db.ChangeTracker.Clear();
@@ -173,6 +242,23 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var key = value.Trim();
         if (key.Length > 100 || key.Any(ch => !(char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.' or ':'))) return null;
         return key;
+    }
+
+    private static void ApplyPricing(
+        IReadOnlyList<ResolvedPublicSlot> slots,
+        int ratesPerDay,
+        bool fullDayPricingEnabled,
+        decimal? fullDayPrice,
+        IReadOnlyList<MultiSlotDiscountTierDto> tiers)
+    {
+        var calculated = PublicSlotPricingCalculator.Calculate(
+            slots.Select(x => new PublicSlotPricingItem(x.ServiceDate, x.RateIndex, x.ListPrice)).ToList(),
+            ratesPerDay, fullDayPricingEnabled, fullDayPrice, tiers);
+        for (var index = 0; index < slots.Count; index++)
+        {
+            slots[index].AppliedAmount = calculated[index].AppliedAmount;
+            slots[index].PricingRule = calculated[index].PricingRule;
+        }
     }
 
     private async Task<(Guid PropertyId, TimeZoneInfo TimeZone, DateOnly TodayLocal, string Name, string Phone, PublicBookingError? Error)> GetRequestContextAsync(string? siteSlug, string rawName, string rawPhone, CancellationToken ct)

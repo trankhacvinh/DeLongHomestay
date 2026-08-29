@@ -236,6 +236,21 @@
         return (slots || []).filter(slot => Number(slot.rateType) !== 2);
     }
 
+    function sameBookingAtBoundary(range, slot, adjacentSlot, direction) {
+        if (!range?.bookingId || !slot || !adjacentSlot) return false;
+        const touchesCurrentBoundary = direction === 'left'
+            ? new Date(range.startUtc).getTime() <= new Date(slot.startUtc).getTime()
+            : new Date(range.endUtc).getTime() >= new Date(slot.endUtc).getTime();
+        if (!touchesCurrentBoundary) return false;
+
+        return (adjacentSlot.occupied || []).some(adjacent => {
+            if (adjacent.bookingId !== range.bookingId) return false;
+            return direction === 'left'
+                ? new Date(adjacent.endUtc).getTime() >= new Date(adjacentSlot.endUtc).getTime()
+                : new Date(adjacent.startUtc).getTime() <= new Date(adjacentSlot.startUtc).getTime();
+        });
+    }
+
     async function openBooking(bookingId) {
         const app = vm();
         if (!app || typeof app.openBooking !== 'function') return;
@@ -269,7 +284,7 @@
         });
     }
 
-    function renderSlot(slot, day) {
+    function renderSlot(slot, day, previousSlot, nextSlot) {
         const cell = document.createElement('div');
         cell.className = `calendar-v2-slot state-${slot.state}`;
 
@@ -294,6 +309,12 @@
             const segment = document.createElement('button');
             segment.type = 'button';
             segment.className = `calendar-v2-segment occupied ${bookingClass(range.status)}`;
+            const continuesLeft = sameBookingAtBoundary(range, slot, previousSlot, 'left');
+            const continuesRight = sameBookingAtBoundary(range, slot, nextSlot, 'right');
+            if (continuesLeft) segment.classList.add('continues-left');
+            if (continuesRight) segment.classList.add('continues-right');
+            if (continuesLeft || continuesRight) cell.classList.add('has-joined-booking');
+            segment.dataset.bookingId = range.bookingId;
             segment.setAttribute('style', segmentStyle(range.startUtc, range.endUtc, slot.startUtc, slot.endUtc));
             segment.title = `${Number(range.status) === 1 ? 'Giữ phòng' : 'Đã đặt'} ${timeText(range.startUtc)}–${timeText(range.endUtc)} · bấm để xem booking`;
             segment.addEventListener('click', event => {
@@ -360,10 +381,12 @@
             if (day.date === today) th.classList.add('today');
             tr.appendChild(th);
             const byRate = new Map(visibleSlots(day.slots).map(slot => [slot.rateId, slot]));
-            headerSlots.forEach(header => {
+            headerSlots.forEach((header, index) => {
                 const td = document.createElement('td');
                 const slot = byRate.get(header.rateId);
-                if (slot) td.appendChild(renderSlot(slot, day));
+                const previousSlot = index > 0 ? byRate.get(headerSlots[index - 1].rateId) : null;
+                const nextSlot = index < headerSlots.length - 1 ? byRate.get(headerSlots[index + 1].rateId) : null;
+                if (slot) td.appendChild(renderSlot(slot, day, previousSlot, nextSlot));
                 else td.innerHTML = '<span class="calendar-v2-missing">—</span>';
                 tr.appendChild(td);
             });

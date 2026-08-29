@@ -16,7 +16,7 @@
                 saving: false,
                 statusSavingId: null,
                 editor: { open: false, mode: 'create', roomId: null },
-                form: { code: '', name: '', capacity: 2, sortOrder: 1, isActive: true, isPublished: false },
+                form: { code: '', name: '', capacity: 2, sortOrder: 1, isActive: true, isPublished: false, fullDayPricingEnabled: false, fullDayPrice: null },
                 toast: { show: false, message: '', type: 'success', timer: null }
             };
         },
@@ -34,7 +34,7 @@
                 return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
             },
             openCreate() {
-                this.form = { code: '', name: '', capacity: 2, sortOrder: this.rooms.length + 1, isActive: true, isPublished: false };
+                this.form = { code: '', name: '', capacity: 2, sortOrder: this.rooms.length + 1, isActive: true, isPublished: false, fullDayPricingEnabled: false, fullDayPrice: null };
                 this.editor = { open: true, mode: 'create', roomId: null };
             },
             openEdit(room) {
@@ -44,7 +44,9 @@
                     capacity: room.capacity,
                     sortOrder: room.sortOrder,
                     isActive: room.isActive,
-                    isPublished: room.isPublished === true
+                    isPublished: room.isPublished === true,
+                    fullDayPricingEnabled: room.fullDayPricingEnabled === true,
+                    fullDayPrice: room.fullDayPrice
                 };
                 this.editor = { open: true, mode: 'edit', roomId: room.id };
             },
@@ -53,6 +55,7 @@
                 if (!this.form.code.trim()) return 'Vui lòng nhập mã phòng.';
                 if (!this.form.name.trim()) return 'Vui lòng nhập tên phòng.';
                 if (this.form.capacity < 1 || this.form.capacity > 50) return 'Sức chứa không hợp lệ.';
+                if (this.form.fullDayPricingEnabled && Number(this.form.fullDayPrice || 0) <= 0) return 'Vui lòng nhập giá cả ngày lớn hơn 0.';
                 return null;
             },
             async saveRoom() {
@@ -87,7 +90,9 @@
                         capacity: room.capacity,
                         sortOrder: room.sortOrder,
                         isActive: changes.isActive ?? room.isActive,
-                        isPublished: changes.isPublished ?? room.isPublished
+                        isPublished: changes.isPublished ?? room.isPublished,
+                        fullDayPricingEnabled: room.fullDayPricingEnabled === true,
+                        fullDayPrice: room.fullDayPrice
                     });
                     const index = this.rooms.findIndex(x => x.id === updated.id);
                     if (index >= 0) this.rooms.splice(index, 1, updated);

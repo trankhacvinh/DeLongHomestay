@@ -8,6 +8,8 @@ namespace DeLong.Web.Features.PublicBooking;
 
 public sealed record BookingPolicyDto(
     int PublicMaxNights,
+    int PublicMaxConsecutiveSlotDays,
+    IReadOnlyList<MultiSlotDiscountTierDto> MultiSlotDiscountTiers,
     int IncludedGuests,
     decimal ExtraGuestFeePerPerson,
     bool RequireIdentityDocuments,
@@ -17,9 +19,13 @@ public sealed record BookingPolicyDto(
     int PublicHoldMinutes,
     bool IdentityEncryptionConfigured);
 
+public sealed record MultiSlotDiscountTierDto(int MinimumSlots, decimal DiscountPercent);
+
 public sealed class UpdateBookingPolicyRequest
 {
     public int PublicMaxNights { get; init; } = 3;
+    public int PublicMaxConsecutiveSlotDays { get; init; } = 3;
+    public IReadOnlyList<MultiSlotDiscountTierDto> MultiSlotDiscountTiers { get; init; } = [];
     public int IncludedGuests { get; init; } = 2;
     public decimal ExtraGuestFeePerPerson { get; init; } = 100_000m;
     public bool RequireIdentityDocuments { get; init; } = true;
@@ -29,7 +35,7 @@ public sealed class UpdateBookingPolicyRequest
 
 public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration configuration)
 {
-    public const int HoldMinutes = 3;
+    public const int HoldMinutes = 0;
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> Gates = new();
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private static readonly HtmlSanitizer PolicySanitizer = CreatePolicySanitizer();
@@ -56,6 +62,9 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
     public async Task<(BookingPolicyDto? Policy, string? Error)> SaveAsync(Guid propertyId, UpdateBookingPolicyRequest request, CancellationToken cancellationToken = default)
     {
         if (request.PublicMaxNights is < 1 or > 14) return (null, "Số đêm tối đa cho khách online phải từ 1 đến 14.");
+        if (request.PublicMaxConsecutiveSlotDays is < 1 or > 14) return (null, "Số ngày chọn khung liên tiếp phải từ 1 đến 14.");
+        var tiers = NormalizeTiers(request.MultiSlotDiscountTiers);
+        if (tiers is null) return (null, "Mức giảm nhiều khung phải có số khung từ 2 trở lên, phần trăm từ 0 đến 100 và không trùng số khung.");
         if (request.IncludedGuests is < 1 or > 50) return (null, "Số khách đã gồm trong giá phải từ 1 đến 50.");
         if (request.ExtraGuestFeePerPerson is < 0 or > 10_000_000m) return (null, "Phụ thu mỗi khách không hợp lệ.");
         if (!IdentityEncryptionConfigured())
@@ -75,6 +84,8 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
             var stored = new StoredBookingPolicy
             {
                 PublicMaxNights = request.PublicMaxNights,
+                PublicMaxConsecutiveSlotDays = request.PublicMaxConsecutiveSlotDays,
+                MultiSlotDiscountTiers = tiers,
                 IncludedGuests = request.IncludedGuests,
                 ExtraGuestFeePerPerson = request.ExtraGuestFeePerPerson,
                 RequireIdentityDocuments = true,
@@ -110,6 +121,8 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
         var encryptionReady = IdentityEncryptionConfigured();
         return new BookingPolicyDto(
             3,
+            3,
+            [],
             2,
             100_000m,
             true,
@@ -126,6 +139,8 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
         var encryptionReady = IdentityEncryptionConfigured();
         return new BookingPolicyDto(
             Math.Clamp(stored.PublicMaxNights <= 0 ? 3 : stored.PublicMaxNights, 1, 14),
+            Math.Clamp(stored.PublicMaxConsecutiveSlotDays <= 0 ? 3 : stored.PublicMaxConsecutiveSlotDays, 1, 14),
+            NormalizeTiers(stored.MultiSlotDiscountTiers) ?? [],
             Math.Clamp(stored.IncludedGuests <= 0 ? 2 : stored.IncludedGuests, 1, 50),
             Math.Clamp(stored.ExtraGuestFeePerPerson, 0m, 10_000_000m),
             true,
@@ -140,6 +155,16 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
         new IdentityDocumentStorage(paths, configuration).IsConfigured;
 
     private string PathFor(Guid propertyId) => Path.Combine(root, propertyId.ToString("N") + ".json");
+
+    private static IReadOnlyList<MultiSlotDiscountTierDto>? NormalizeTiers(IReadOnlyList<MultiSlotDiscountTierDto>? source)
+    {
+        if (source is null || source.Count == 0) return [];
+        if (source.Any(x => x.MinimumSlots < 2 || x.MinimumSlots > 100 || x.DiscountPercent < 0 || x.DiscountPercent > 100) ||
+            source.GroupBy(x => x.MinimumSlots).Any(x => x.Count() > 1)) return null;
+        return source.OrderBy(x => x.MinimumSlots)
+            .Select(x => new MultiSlotDiscountTierDto(x.MinimumSlots, decimal.Round(x.DiscountPercent, 2)))
+            .ToList();
+    }
 
     private static string? Clean(string? value, int maxLength)
     {
@@ -183,6 +208,8 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
     private sealed class StoredBookingPolicy
     {
         public int PublicMaxNights { get; init; } = 3;
+        public int PublicMaxConsecutiveSlotDays { get; init; } = 3;
+        public IReadOnlyList<MultiSlotDiscountTierDto> MultiSlotDiscountTiers { get; init; } = [];
         public int IncludedGuests { get; init; } = 2;
         public decimal ExtraGuestFeePerPerson { get; init; } = 100_000m;
         public bool RequireIdentityDocuments { get; init; } = true;

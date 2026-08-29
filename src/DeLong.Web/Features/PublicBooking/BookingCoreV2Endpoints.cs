@@ -70,7 +70,7 @@ public static class BookingCoreV2Endpoints
             if (error is null)
             {
                 var userIdValue = httpRequest.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (Guid.TryParse(userIdValue, out var userId) && httpRequest.HttpContext.User.IsInRole(CustomerAccountService.CustomerRole))
+                if (side is "front" or "back" && Guid.TryParse(userIdValue, out var userId) && httpRequest.HttpContext.User.IsInRole(CustomerAccountService.CustomerRole))
                 {
                     var (_, accountError) = await storage.SaveAsync(property.Id, userId, side, file, cancellationToken);
                     if (accountError is not null)
