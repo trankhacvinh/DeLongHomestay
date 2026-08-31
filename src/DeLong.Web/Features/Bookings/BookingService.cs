@@ -4,12 +4,17 @@ using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Payments;
+using DeLong.Web.Features.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
 namespace DeLong.Web.Features.Bookings;
 
-public sealed class BookingService(AppDbContext db, CustomerService customerService, AuditService auditService)
+public sealed class BookingService(
+    AppDbContext db,
+    CustomerService customerService,
+    AuditService auditService,
+    BookingGuestGuideEmailService? guestGuideEmailService = null)
 {
     private const string BookingCodeUniqueConstraint = "i_x_bookings_property_id_code";
     private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
@@ -67,6 +72,8 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         db.Bookings.Add(booking);
         auditService.Add(propertyId, "Booking", booking.Id, "Created", actorUserId, after: Snapshot(booking));
         var saveError = await SaveWithConflictGuardAsync(cancellationToken, !string.IsNullOrWhiteSpace(request.PublicRequestKey)); if (saveError is not null) return (null, saveError);
+        if (request.Status == BookingStatus.Confirmed && guestGuideEmailService is not null)
+            await guestGuideEmailService.QueueAutomaticAsync(propertyId, booking.Id, cancellationToken);
         return (await GetAsync(propertyId, booking.Id, cancellationToken), null);
     }
 
@@ -130,6 +137,10 @@ public sealed class BookingService(AppDbContext db, CustomerService customerServ
         }
         auditService.Add(propertyId, "Booking", booking.Id, "StatusChanged", actorUserId, before, Snapshot(booking));
         var saveError = await SaveWithConflictGuardAsync(cancellationToken); if (saveError is not null) return (null, saveError);
+        if (nextStatus == BookingStatus.Confirmed && guestGuideEmailService is not null)
+            await guestGuideEmailService.QueueAutomaticAsync(propertyId, bookingId, cancellationToken);
+        if (nextStatus == BookingStatus.Cancelled && guestGuideEmailService is not null)
+            await guestGuideEmailService.QueueCancellationAsync(propertyId, bookingId, actorUserId, cancellationToken: cancellationToken);
         return (await GetAsync(propertyId, bookingId, cancellationToken), null);
     }
 

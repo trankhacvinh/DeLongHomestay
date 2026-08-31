@@ -7,6 +7,7 @@
 - Migration `AddPay2SPayments` thêm `property_pay2_s_settings` và `pay2_s_payment_intents`; phải áp dụng trước khi bật Pay2S.
 - Migration `AddPay2SSettlementGrace` bổ sung `release_at_utc`, mặc định đệm IPN 3 phút, dấu vết callback và quyết định xử lý `PaidAfterExpiry`.
 - Migration `AddConsecutiveSlotBookings` thêm giá cả ngày trên `Room` và bảng snapshot `booking_rate_segments`. Phải áp dụng trước khi bật UI chọn nhiều khung.
+- Migration `AddBookingEmailAndTelegramNotifications` thêm cấu hình Telegram/email hướng dẫn khách và hai outbox `notification_telegram_outbox`, `booking_guest_guide_emails`. Phải áp dụng trước khi bật các kênh thông báo mới.
 
 ## Nguyên tắc
 

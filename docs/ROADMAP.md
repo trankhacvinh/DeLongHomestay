@@ -91,7 +91,10 @@
 - [ ] End-to-end UAT cuối: public request → Pay2S Sandbox/IPN → Confirmed → checkout.
 - [x] Nền tảng Pay2S theo từng cơ sở: cấu hình mã hóa, payment intent, tách hạn thanh toán và hạn giải phóng phòng, đệm chờ IPN, ghi Payment và quy trình xử lý thanh toán muộn.
 - [ ] UAT Pay2S thực tế trên `delong.pmedia.vn`: tạo QR Sandbox, webhook công khai, đóng/mở lại trang, hết hạn và IPN đến muộn.
-- [ ] Notification ngoài hệ thống (email/Zalo/SMS) — chỉ làm khi cần.
+- [x] Notification booking ngoài hệ thống qua danh sách email và Telegram theo từng cơ sở, có outbox/retry và gửi thử.
+- [x] Email hướng dẫn check-in cho khách khi booking xác nhận, có trạng thái gửi trong chi tiết lịch/booking và gửi lại thủ công.
+- [x] Email báo hủy cho khách và bộ mẫu email booking/check-in/hủy tùy chỉnh theo từng cơ sở.
+- [ ] Kênh Zalo/SMS — chỉ làm khi cần.
 
 ## Phase 6 — Migration & go-live (đang thực hiện)
 

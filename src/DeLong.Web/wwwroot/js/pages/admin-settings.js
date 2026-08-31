@@ -12,7 +12,22 @@
                 activeTab: 'rooms',
                 rooms: initial.rooms || [],
                 housekeeping: { beforeCheckInMinutes: 0, afterCheckOutMinutes: 0, ...(initial.housekeepingSettings || {}) },
-                notification: { ...(initial.notificationSettings || {}), smtpPassword: '', clearSmtpPassword: false },
+                notification: { guestCheckInEmailEnabled: false, guestCancellationEmailEnabled: true, telegramBookingEnabled: false, telegramBotTokenConfigured: false, telegramChatIds: '', ...(initial.notificationSettings || {}), smtpPassword: '', clearSmtpPassword: false, telegramBotToken: '', clearTelegramBotToken: false },
+                emailVariables: [
+                    { code: '{{PropertyName}}', meaning: 'Tên cơ sở' },
+                    { code: '{{BookingCode}}', meaning: 'Mã booking' },
+                    { code: '{{CustomerName}}', meaning: 'Họ tên khách' },
+                    { code: '{{CustomerPhone}}', meaning: 'Số điện thoại khách' },
+                    { code: '{{CustomerEmail}}', meaning: 'Email khách' },
+                    { code: '{{RoomName}}', meaning: 'Tên phòng' },
+                    { code: '{{CheckIn}}', meaning: 'Ngày giờ nhận phòng' },
+                    { code: '{{CheckOut}}', meaning: 'Ngày giờ trả phòng' },
+                    { code: '{{TotalAmount}}', meaning: 'Tổng tiền booking' },
+                    { code: '{{GuestGuide}}', meaning: 'Hướng dẫn check-in của phòng' },
+                    { code: '{{CancellationReason}}', meaning: 'Lý do hủy booking' }
+                ],
+                emailTemplateEditors: [],
+                activeEmailTemplateTab: 'internal',
                 customerAccounts: { registrationEnabled: true, authenticatorEnabled: true, loyaltyEnabled: false, loyaltySpendPerPoint: 10000, benefitText: '', termsTitle: '', termsHtml: '', termsVersion: 1, ...(initial.customerAccountSettings || {}) },
                 pay2s: { enabled: false, sandbox: true, partnerCode: '', partnerName: 'De Long Homestay', accessKey: '', secretKey: '', accessKeyConfigured: false, secretKeyConfigured: false, bankAccountNumber: '', bankId: 'ACB', apiEndpoint: 'https://payment.pay2s.vn/v1/gateway/api/create', callbackBaseUrl: '', holdMinutes: 15, settlementGraceMinutes: 3, clearCredentials: false, ...(initial.pay2SSettings || {}) },
                 savingHousekeeping: false,
@@ -21,6 +36,7 @@
                 savingPay2s: false,
                 customerTermsEditor: null,
                 testingEmail: false,
+                testingTelegram: false,
                 saving: false,
                 editor: { open: false, mode: 'create', rateId: null },
                 archiveEditor: { open: false, room: null, rate: null },
@@ -38,6 +54,56 @@
                 if (!['rooms', 'housekeeping', 'booking', 'customer-accounts', 'pay2s', 'notifications'].includes(tab)) return;
                 this.activeTab = tab;
                 if (tab === 'customer-accounts') this.$nextTick(() => this.enhanceCustomerTerms());
+                if (tab === 'notifications') this.$nextTick(() => this.enhanceEmailTemplates());
+            },
+            enhanceEmailTemplates() {
+                root.querySelectorAll(`[data-email-template-panel="${this.activeEmailTemplateTab}"] [data-email-template-editor]`).forEach(textarea => {
+                    const editor = window.DeLongRichEditor?.enhance(textarea, {
+                        allowImages: false,
+                        placeholder: 'Soạn nội dung email…',
+                        helpText: 'Soạn trực quan hoặc chuyển sang HTML. Nội dung được làm sạch khi lưu.'
+                    });
+                    if (editor && !this.emailTemplateEditors.includes(editor)) this.emailTemplateEditors.push(editor);
+                });
+            },
+            selectEmailTemplateTab(tab) {
+                if (!['internal', 'checkin', 'cancellation'].includes(tab)) return;
+                this.syncEmailTemplates();
+                this.activeEmailTemplateTab = tab;
+                this.$nextTick(() => this.enhanceEmailTemplates());
+            },
+            syncEmailTemplates() {
+                this.emailTemplateEditors.forEach(editor => editor?.sync());
+            },
+            previewEmailSubject(template) {
+                return this.replaceEmailPreviewVariables(template || '');
+            },
+            previewEmailHtml(template) {
+                const html = this.replaceEmailPreviewVariables(template || '<p>Chưa có nội dung.</p>');
+                return window.DeLongRichEditor?.cleanForVisual(html) || '';
+            },
+            replaceEmailPreviewVariables(template) {
+                const samples = {
+                    '{{PropertyName}}': 'De Long Homestay', '{{BookingCode}}': 'BK-260831-ABC123',
+                    '{{CustomerName}}': 'Nguyễn Minh Anh', '{{CustomerPhone}}': '0979 745 945',
+                    '{{CustomerEmail}}': 'minhanh@example.com', '{{RoomName}}': 'Coco Blue #1',
+                    '{{CheckIn}}': '31/08/2026 14:00', '{{CheckOut}}': '01/09/2026 10:00',
+                    '{{TotalAmount}}': '750.000', '{{GuestGuide}}': 'Nhận khóa tại quầy lễ tân. Wi-Fi: DeLongGuest.',
+                    '{{CancellationReason}}': 'Booking đã được hủy theo yêu cầu.'
+                };
+                let output = String(template || '');
+                Object.entries(samples).forEach(([code, value]) => { output = output.split(code).join(value); });
+                return output;
+            },
+            async copyEmailVariable(code) {
+                try {
+                    await navigator.clipboard.writeText(code);
+                } catch {
+                    const input = document.createElement('textarea');
+                    input.value = code; input.style.position = 'fixed'; input.style.opacity = '0';
+                    document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove();
+                }
+                this.notify(`Đã sao chép ${code}`, 'success');
             },
             async savePay2SSettings() {
                 this.savingPay2s = true;
@@ -119,11 +185,20 @@
                 }
             },
             async saveNotificationSettings() {
+                this.syncEmailTemplates();
                 this.savingNotifications = true;
                 try {
                     const payload = {
                         inAppBookingEnabled: this.notification.inAppBookingEnabled === true,
                         emailBookingEnabled: this.notification.emailBookingEnabled === true,
+                        guestCheckInEmailEnabled: this.notification.guestCheckInEmailEnabled === true,
+                        guestCancellationEmailEnabled: this.notification.guestCancellationEmailEnabled === true,
+                        internalBookingEmailSubjectTemplate: this.notification.internalBookingEmailSubjectTemplate || null,
+                        internalBookingEmailBodyTemplate: this.notification.internalBookingEmailBodyTemplate || null,
+                        guestCheckInEmailSubjectTemplate: this.notification.guestCheckInEmailSubjectTemplate || null,
+                        guestCheckInEmailBodyTemplate: this.notification.guestCheckInEmailBodyTemplate || null,
+                        guestCancellationEmailSubjectTemplate: this.notification.guestCancellationEmailSubjectTemplate || null,
+                        guestCancellationEmailBodyTemplate: this.notification.guestCancellationEmailBodyTemplate || null,
                         emailRecipients: this.notification.emailRecipients || null,
                         smtpHost: this.notification.smtpHost || null,
                         smtpPort: Number(this.notification.smtpPort || 587),
@@ -132,10 +207,14 @@
                         smtpPassword: this.notification.smtpPassword || null,
                         clearSmtpPassword: this.notification.clearSmtpPassword === true,
                         smtpFromEmail: this.notification.smtpFromEmail || null,
-                        smtpFromName: this.notification.smtpFromName || null
+                        smtpFromName: this.notification.smtpFromName || null,
+                        telegramBookingEnabled: this.notification.telegramBookingEnabled === true,
+                        telegramBotToken: this.notification.telegramBotToken || null,
+                        clearTelegramBotToken: this.notification.clearTelegramBotToken === true,
+                        telegramChatIds: this.notification.telegramChatIds || null
                     };
                     const saved = await DeLongApi.put(`/api/admin/properties/${this.propertyId}/notifications/settings`, payload);
-                    this.notification = { ...saved, smtpPassword: '', clearSmtpPassword: false };
+                    this.notification = { ...saved, smtpPassword: '', clearSmtpPassword: false, telegramBotToken: '', clearTelegramBotToken: false };
                     this.notify('Đã lưu cấu hình thông báo.', 'success');
                 } catch (error) {
                     this.notify(error.message || 'Không thể lưu cấu hình thông báo.', 'error');
@@ -161,6 +240,26 @@
                     this.notify(this.notification.lastEmailError, 'error');
                 } finally {
                     this.testingEmail = false;
+                }
+            },
+            async sendTestTelegram() {
+                if (this.notification.telegramBotToken) {
+                    this.notify('Hãy lưu cấu hình trước khi gửi Telegram thử.', 'error');
+                    return;
+                }
+                this.testingTelegram = true;
+                try {
+                    await DeLongApi.post(`/api/admin/properties/${this.propertyId}/notifications/settings/test-telegram`, {});
+                    this.notification.lastTelegramError = null;
+                    this.notification.lastTelegramErrorAtUtc = null;
+                    this.notification.lastTelegramSentAtUtc = new Date().toISOString();
+                    this.notify('Đã gửi Telegram thử.', 'success');
+                } catch (error) {
+                    this.notification.lastTelegramError = error.message || 'Không gửi được Telegram thử.';
+                    this.notification.lastTelegramErrorAtUtc = new Date().toISOString();
+                    this.notify(this.notification.lastTelegramError, 'error');
+                } finally {
+                    this.testingTelegram = false;
                 }
             },
             money(value) {

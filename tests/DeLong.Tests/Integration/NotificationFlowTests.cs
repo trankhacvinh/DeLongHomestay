@@ -49,7 +49,10 @@ public sealed class NotificationFlowTests
             Property = property,
             InAppBookingEnabled = true,
             EmailBookingEnabled = true,
-            EmailRecipients = "ops@example.test"
+            EmailRecipients = "ops@example.test",
+            TelegramBookingEnabled = true,
+            TelegramBotTokenProtected = "dp:v1:test-protected-token",
+            TelegramChatIds = "-1001234567890"
         });
         await db.SaveChangesAsync();
 
@@ -59,6 +62,7 @@ public sealed class NotificationFlowTests
 
         Assert.Equal(1, await db.Set<PropertyNotification>().CountAsync(x => x.BookingId == booking.Id));
         Assert.Equal(1, await db.Set<NotificationEmailOutbox>().CountAsync(x => x.PropertyId == property.Id));
+        Assert.Equal(1, await db.Set<NotificationTelegramOutbox>().CountAsync(x => x.PropertyId == property.Id));
 
         var feed1 = await service.GetFeedAsync(property.Id, user1.Id);
         var feed2 = await service.GetFeedAsync(property.Id, user2.Id);
@@ -142,7 +146,7 @@ public sealed class NotificationFlowTests
         await db.SaveChangesAsync();
 
         var protector = new SmtpCredentialProtector(new EphemeralDataProtectionProvider());
-        var service = new NotificationSettingsService(db, protector);
+        var service = new NotificationSettingsService(db, protector, new TelegramCredentialProtector(new EphemeralDataProtectionProvider()));
         const string password = "smtp-test-password";
         var (saved, error) = await service.SaveAsync(property.Id, new UpdateNotificationSettingsRequest
         {

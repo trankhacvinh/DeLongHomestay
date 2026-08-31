@@ -117,6 +117,45 @@ public static class NotificationEndpoints
             .RequireAuthorization("ManageNotifications")
             .AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        group.MapPost("/settings/test-telegram", async (
+            Guid propertyId,
+            NotificationSettingsService settingsService,
+            TelegramNotificationSender sender,
+            AppDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var (profile, error) = await settingsService.GetTelegramProfileAsync(propertyId, false, cancellationToken);
+            if (error is not null || profile is null) return ToProblem(error ?? new("telegram_not_configured", "Telegram chưa được cấu hình."));
+            var settings = await db.PropertyNotificationSettings.SingleAsync(x => x.PropertyId == propertyId, cancellationToken);
+            try
+            {
+                await sender.SendAsync(
+                    profile.BotToken,
+                    profile.ChatIds,
+                    "✅ De Long Homestay · Kết nối Telegram thành công. Nhóm này sẽ nhận thông báo booking mới.",
+                    cancellationToken);
+                settings.LastTelegramSentAtUtc = DateTime.UtcNow;
+                settings.LastTelegramError = null;
+                settings.LastTelegramErrorAtUtc = null;
+                await db.SaveChangesAsync(cancellationToken);
+                return Results.Ok(new { sent = true, chatIds = profile.ChatIds });
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                settings.LastTelegramError = ex.Message.Length <= 2000 ? ex.Message : ex.Message[..2000];
+                settings.LastTelegramErrorAtUtc = DateTime.UtcNow;
+                await db.SaveChangesAsync(cancellationToken);
+                return Results.Problem(
+                    type: "https://delong.local/problems/telegram_test_failed",
+                    title: "Không gửi được Telegram thử",
+                    detail: "Kiểm tra bot token, chat ID và đảm bảo bot đã được thêm vào nhóm.",
+                    statusCode: StatusCodes.Status502BadGateway,
+                    extensions: new Dictionary<string, object?> { ["code"] = "telegram_test_failed" });
+            }
+        })
+            .RequireAuthorization("ManageNotifications")
+            .AddEndpointFilter<ApiAntiforgeryFilter>();
+
         return app;
     }
 

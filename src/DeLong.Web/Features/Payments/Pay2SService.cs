@@ -13,7 +13,8 @@ public sealed class Pay2SService(
     Pay2SSettingsService settingsService,
     Pay2SClient client,
     BookingService bookingService,
-    BookingNotificationService notificationService)
+    BookingNotificationService notificationService,
+    BookingGuestGuideEmailService guestGuideEmailService)
 {
     public async Task<(Pay2SIntentDto? Intent, Pay2SOperationError? Error)> CreateIntentAsync(
         Guid propertyId,
@@ -256,6 +257,7 @@ public sealed class Pay2SService(
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         if (late) await notificationService.NotifyLatePay2SPaymentAsync(intent.PropertyId, intent.BookingId, intent.Amount, ct);
+        else await guestGuideEmailService.QueueAutomaticAsync(intent.PropertyId, intent.BookingId, ct);
         return (ToDto(intent), null);
     }
 
@@ -272,14 +274,20 @@ public sealed class Pay2SService(
                 """)
             .Include(x => x.Booking)
             .ToListAsync(ct);
+        var cancelledBookingIds = new List<(Guid PropertyId, Guid BookingId)>();
         foreach (var intent in intents)
         {
             intent.Status = Pay2SPaymentIntentStatus.Expired;
             if (intent.CancelBookingOnExpiry && intent.Booking.Status is BookingStatus.Held or BookingStatus.Requested)
+            {
                 intent.Booking.Status = BookingStatus.Cancelled;
+                cancelledBookingIds.Add((intent.PropertyId, intent.BookingId));
+            }
         }
         if (intents.Count > 0) await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        foreach (var cancelled in cancelledBookingIds)
+            await guestGuideEmailService.QueueCancellationAsync(cancelled.PropertyId, cancelled.BookingId, null, "Booking đã bị hủy do hết thời gian thanh toán.", ct);
         return intents.Count;
     }
 
@@ -334,6 +342,8 @@ public sealed class Pay2SService(
         intent.LatePaymentResolvedAtUtc = DateTime.UtcNow;
         intent.LatePaymentResolvedByUserId = actorUserId;
         await db.SaveChangesAsync(ct);
+        if (action is "confirm" or "move")
+            await guestGuideEmailService.QueueAutomaticAsync(propertyId, intent.BookingId, ct);
         return (ToDto(intent), null);
     }
 

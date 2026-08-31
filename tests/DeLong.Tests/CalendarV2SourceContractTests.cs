@@ -64,6 +64,21 @@ public sealed class CalendarV2SourceContractTests
         Assert.Contains("--calendar-v2-cell-bridge:21px", styles, StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Occupied_segments_show_admin_guest_identity()
+    {
+        var source = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar-v2.js");
+        var styles = ReadRepositoryFile("src/DeLong.Web/wwwroot/css/admin-calendar-v2.css");
+
+        Assert.Contains("range?.customerName", source, StringComparison.Ordinal);
+        Assert.Contains("range?.customerPhone", source, StringComparison.Ordinal);
+        Assert.Contains("calendar-v2-booking-guest", source, StringComparison.Ordinal);
+        Assert.Contains("if (guestText && !continuesLeft)", source, StringComparison.Ordinal);
+        Assert.Contains("label.textContent = guestText", source, StringComparison.Ordinal);
+        Assert.Contains(".calendar-v2-booking-guest", styles, StringComparison.Ordinal);
+    }
+
     private static string ReadRepositoryFile(string relativePath)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

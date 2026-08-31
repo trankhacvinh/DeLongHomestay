@@ -53,7 +53,8 @@ public sealed class BookingNotificationService(
                 .SingleOrDefaultAsync(x => x.PropertyId == propertyId, cancellationToken);
             var inAppEnabled = settings?.InAppBookingEnabled ?? true;
             var emailEnabled = settings?.EmailBookingEnabled ?? false;
-            if (!inAppEnabled && !emailEnabled) return;
+            var telegramEnabled = settings?.TelegramBookingEnabled ?? false;
+            if (!inAppEnabled && !emailEnabled && !telegramEnabled) return;
 
             if (await db.Set<PropertyNotification>().AsNoTracking()
                 .AnyAsync(x => x.PropertyId == propertyId && x.BookingId == bookingId &&
@@ -73,7 +74,9 @@ public sealed class BookingNotificationService(
                     x.DiscountAmount,
                     CustomerName = x.Customer.Name,
                     CustomerPhone = x.Customer.Phone,
+                    CustomerEmail = x.Customer.Email,
                     RoomName = x.Room.Name,
+                    GuestGuideHtml = x.Room.GuestGuideHtml,
                     PropertyName = x.Property.Name,
                     TimeZoneId = x.Property.TimeZoneId
                 })
@@ -84,6 +87,18 @@ public sealed class BookingNotificationService(
             var checkInLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(booking.CheckInUtc, DateTimeKind.Utc), timeZone);
             var checkOutLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(booking.CheckOutUtc, DateTimeKind.Utc), timeZone);
             var total = booking.RoomAmount + booking.ExtraAmount - booking.DiscountAmount;
+            var templateData = new BookingEmailTemplateData(
+                booking.PropertyName,
+                booking.Code,
+                booking.CustomerName,
+                booking.CustomerPhone,
+                booking.CustomerEmail ?? string.Empty,
+                booking.RoomName,
+                checkInLocal,
+                checkOutLocal,
+                total,
+                BookingGuestGuideEmailService.HtmlToText(booking.GuestGuideHtml),
+                string.Empty);
             var notification = new PropertyNotification
             {
                 PropertyId = propertyId,
@@ -102,19 +117,32 @@ public sealed class BookingNotificationService(
                     PropertyId = propertyId,
                     NotificationId = notification.Id,
                     ToRecipients = settings.EmailRecipients,
-                    Subject = $"[{booking.PropertyName}] Yêu cầu đặt phòng mới {booking.Code}",
-                    BodyText = string.Join(Environment.NewLine,
+                    Subject = NotificationEmailTemplateRenderer.Render(settings.InternalBookingEmailSubjectTemplate, NotificationEmailTemplateRenderer.DefaultInternalBookingSubject, templateData),
+                    BodyHtml = NotificationEmailTemplateRenderer.RenderHtml(settings.InternalBookingEmailBodyTemplate, NotificationEmailTemplateRenderer.DefaultInternalBookingBody, templateData),
+                    BodyText = NotificationEmailTemplateRenderer.ToPlainText(NotificationEmailTemplateRenderer.RenderHtml(settings.InternalBookingEmailBodyTemplate, NotificationEmailTemplateRenderer.DefaultInternalBookingBody, templateData)),
+                    NextAttemptAtUtc = DateTime.UtcNow
+                });
+            }
+
+            if (telegramEnabled && !string.IsNullOrWhiteSpace(settings?.TelegramChatIds) &&
+                !string.IsNullOrWhiteSpace(settings.TelegramBotTokenProtected))
+            {
+                db.Add(new NotificationTelegramOutbox
+                {
+                    PropertyId = propertyId,
+                    NotificationId = notification.Id,
+                    ChatIds = settings.TelegramChatIds,
+                    MessageText = string.Join(Environment.NewLine,
                     [
-                        $"Cơ sở: {booking.PropertyName}",
-                        $"Mã booking: {booking.Code}",
+                        $"🏡 {booking.PropertyName} · BOOKING MỚI",
+                        $"Mã: {booking.Code}",
                         $"Khách: {booking.CustomerName}",
-                        $"Điện thoại: {booking.CustomerPhone}",
+                        $"SĐT: {booking.CustomerPhone}",
                         $"Phòng: {booking.RoomName}",
                         $"Nhận: {checkInLocal:dd/MM/yyyy HH:mm}",
                         $"Trả: {checkOutLocal:dd/MM/yyyy HH:mm}",
                         $"Tổng tiền: {total:N0} VND",
-                        string.Empty,
-                        "Vui lòng mở trang quản trị De Long Homestay để xử lý yêu cầu."
+                        "Vui lòng mở trang quản trị để xử lý."
                     ]),
                     NextAttemptAtUtc = DateTime.UtcNow
                 });
@@ -127,7 +155,7 @@ public sealed class BookingNotificationService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Could not create booking notification for booking {BookingId} in property {PropertyId}.", bookingId, propertyId);
-            foreach (var entry in db.ChangeTracker.Entries().Where(x => x.Entity is PropertyNotification or NotificationEmailOutbox && x.State == EntityState.Added))
+            foreach (var entry in db.ChangeTracker.Entries().Where(x => x.Entity is PropertyNotification or NotificationEmailOutbox or NotificationTelegramOutbox && x.State == EntityState.Added))
                 entry.State = EntityState.Detached;
         }
     }

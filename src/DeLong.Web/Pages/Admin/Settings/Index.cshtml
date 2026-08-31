@@ -155,7 +155,7 @@
         <div class="panel-head">
             <div>
                 <h2>Thông báo đặt phòng</h2>
-                <p class="small muted">Thông báo realtime trong trang quản trị và gửi email khi khách gửi yêu cầu đặt phòng từ website.</p>
+                <p class="small muted">Gửi booking mới cho đội xử lý qua trang quản trị, email hoặc Telegram; gửi hướng dẫn check-in cho khách sau khi xác nhận.</p>
             </div>
             <span class="pill success" v-if="notification.inAppBookingEnabled">Realtime</span>
         </div>
@@ -163,7 +163,9 @@
             <div class="notification-settings-grid">
                 <label class="check-row full"><input type="checkbox" v-model="notification.inAppBookingEnabled" /> Hiện thông báo realtime trong trang quản trị</label>
                 <label class="check-row full"><input type="checkbox" v-model="notification.emailBookingEnabled" /> Gửi email khi có yêu cầu đặt phòng mới</label>
-                <div class="field full"><label for="notification-recipients">Email nhận thông báo</label><textarea id="notification-recipients" rows="2" v-model.trim="notification.emailRecipients" placeholder="owner@example.com; staff@example.com"></textarea></div>
+                <div class="field full"><label for="notification-recipients">Danh sách thành viên nhận email booking</label><textarea id="notification-recipients" rows="2" v-model.trim="notification.emailRecipients" placeholder="owner@example.com; staff@example.com"></textarea><small>Mỗi email cách nhau bằng dấu phẩy, chấm phẩy hoặc xuống dòng.</small></div>
+                <label class="check-row full"><input type="checkbox" v-model="notification.guestCheckInEmailEnabled" /> Tự gửi hướng dẫn check-in cho khách có email khi booking được xác nhận</label>
+                <label class="check-row full"><input type="checkbox" v-model="notification.guestCancellationEmailEnabled" /> Gửi email cho khách có email khi booking bị hủy</label>
                 <div class="field"><label for="smtp-host">SMTP host</label><input id="smtp-host" v-model.trim="notification.smtpHost" maxlength="300" autocomplete="off" placeholder="smtp.gmail.com" /></div>
                 <div class="field"><label for="smtp-port">Port</label><input id="smtp-port" type="number" min="1" max="65535" v-model.number="notification.smtpPort" /></div>
                 <label class="check-row full"><input type="checkbox" v-model="notification.smtpUseSsl" /> Bật SSL/TLS (STARTTLS với port 587)</label>
@@ -172,13 +174,53 @@
                 <label v-if="notification.smtpPasswordConfigured" class="check-row full"><input type="checkbox" v-model="notification.clearSmtpPassword" /> Xóa SMTP password đang lưu</label>
                 <div class="field"><label for="smtp-from-email">Email người gửi</label><input id="smtp-from-email" type="email" v-model.trim="notification.smtpFromEmail" maxlength="320" autocomplete="email" placeholder="booking@example.com" /></div>
                 <div class="field"><label for="smtp-from-name">Tên người gửi</label><input id="smtp-from-name" v-model.trim="notification.smtpFromName" maxlength="240" placeholder="De Long Homestay" /></div>
+                <div class="field full notification-settings-divider">
+                    <strong>Mẫu email HTML tùy chỉnh</strong>
+                    <small>Chạm vào mã biến trong bảng để sao chép rồi dán vào tiêu đề hoặc nội dung.</small>
+                </div>
+                <div class="full notification-variable-table-wrap">
+                    <table class="notification-variable-table">
+                        <thead><tr><th>Mã biến hỗ trợ</th><th>Ý nghĩa</th></tr></thead>
+                        <tbody><tr v-for="variable in emailVariables" v-bind:key="variable.code"><td><button type="button" v-on:click="copyEmailVariable(variable.code)"><code>{{ variable.code }}</code><span>Copy</span></button></td><td>{{ variable.meaning }}</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="field full notification-template-tabs">
+                    <div class="notification-template-tab-list" role="tablist" aria-label="Chọn mẫu email">
+                        <button id="email-template-tab-internal" type="button" role="tab" v-bind:aria-selected="activeEmailTemplateTab === 'internal'" aria-controls="email-template-panel-internal" v-bind:class="{ active: activeEmailTemplateTab === 'internal' }" v-on:click="selectEmailTemplateTab('internal')">Booking mới</button>
+                        <button id="email-template-tab-checkin" type="button" role="tab" v-bind:aria-selected="activeEmailTemplateTab === 'checkin'" aria-controls="email-template-panel-checkin" v-bind:class="{ active: activeEmailTemplateTab === 'checkin' }" v-on:click="selectEmailTemplateTab('checkin')">Hướng dẫn check-in</button>
+                        <button id="email-template-tab-cancellation" type="button" role="tab" v-bind:aria-selected="activeEmailTemplateTab === 'cancellation'" aria-controls="email-template-panel-cancellation" v-bind:class="{ active: activeEmailTemplateTab === 'cancellation' }" v-on:click="selectEmailTemplateTab('cancellation')">Hủy booking</button>
+                    </div>
+                    <section id="email-template-panel-internal" class="notification-template-editor" role="tabpanel" aria-labelledby="email-template-tab-internal" v-show="activeEmailTemplateTab === 'internal'" data-email-template-panel="internal">
+                        <label for="internal-booking-subject">Tiêu đề</label><input id="internal-booking-subject" v-model="notification.internalBookingEmailSubjectTemplate" maxlength="300" />
+                        <label for="internal-booking-body">Nội dung HTML</label><textarea id="internal-booking-body" rows="9" v-model="notification.internalBookingEmailBodyTemplate" maxlength="20000" data-email-template-editor></textarea>
+                        <div class="notification-email-preview"><strong>Xem trước</strong><div class="notification-email-preview-subject">{{ previewEmailSubject(notification.internalBookingEmailSubjectTemplate) }}</div><div class="notification-email-preview-body" v-html="previewEmailHtml(notification.internalBookingEmailBodyTemplate)"></div></div>
+                    </section>
+                    <section id="email-template-panel-checkin" class="notification-template-editor" role="tabpanel" aria-labelledby="email-template-tab-checkin" v-show="activeEmailTemplateTab === 'checkin'" data-email-template-panel="checkin">
+                        <label for="guest-checkin-subject">Tiêu đề</label><input id="guest-checkin-subject" v-model="notification.guestCheckInEmailSubjectTemplate" maxlength="300" />
+                        <label for="guest-checkin-body">Nội dung HTML</label><textarea id="guest-checkin-body" rows="11" v-model="notification.guestCheckInEmailBodyTemplate" maxlength="20000" data-email-template-editor></textarea>
+                        <div class="notification-email-preview"><strong>Xem trước</strong><div class="notification-email-preview-subject">{{ previewEmailSubject(notification.guestCheckInEmailSubjectTemplate) }}</div><div class="notification-email-preview-body" v-html="previewEmailHtml(notification.guestCheckInEmailBodyTemplate)"></div></div>
+                    </section>
+                    <section id="email-template-panel-cancellation" class="notification-template-editor" role="tabpanel" aria-labelledby="email-template-tab-cancellation" v-show="activeEmailTemplateTab === 'cancellation'" data-email-template-panel="cancellation">
+                        <label for="guest-cancel-subject">Tiêu đề</label><input id="guest-cancel-subject" v-model="notification.guestCancellationEmailSubjectTemplate" maxlength="300" />
+                        <label for="guest-cancel-body">Nội dung HTML</label><textarea id="guest-cancel-body" rows="9" v-model="notification.guestCancellationEmailBodyTemplate" maxlength="20000" data-email-template-editor></textarea>
+                        <div class="notification-email-preview"><strong>Xem trước</strong><div class="notification-email-preview-subject">{{ previewEmailSubject(notification.guestCancellationEmailSubjectTemplate) }}</div><div class="notification-email-preview-body" v-html="previewEmailHtml(notification.guestCancellationEmailBodyTemplate)"></div></div>
+                    </section>
+                </div>
+                <div class="field full notification-settings-divider"><strong>Telegram cho đội xử lý</strong><small>Tạo bot bằng BotFather, thêm bot vào nhóm rồi nhập bot token và chat ID của nhóm.</small></div>
+                <label class="check-row full"><input type="checkbox" v-model="notification.telegramBookingEnabled" /> Gửi booking mới vào Telegram</label>
+                <div class="field"><label for="telegram-token">Bot token</label><div class="notification-settings-secret"><input id="telegram-token" type="password" v-model="notification.telegramBotToken" autocomplete="new-password" placeholder="Để trống để giữ token hiện tại" /><small>{{ notification.telegramBotTokenConfigured ? 'Đã lưu mã hóa' : 'Chưa có' }}</small></div></div>
+                <div class="field"><label for="telegram-chat-ids">Chat ID / @@username</label><textarea id="telegram-chat-ids" rows="2" v-model.trim="notification.telegramChatIds" placeholder="-1001234567890"></textarea><small>Có thể nhập nhiều nhóm, cách nhau bằng dấu phẩy hoặc xuống dòng.</small></div>
+                <label v-if="notification.telegramBotTokenConfigured" class="check-row full"><input type="checkbox" v-model="notification.clearTelegramBotToken" /> Xóa bot token Telegram đang lưu</label>
             </div>
             <div class="notification-settings-status error" v-if="notification.lastEmailError"><strong>Lỗi email gần nhất:</strong><span>{{ notification.lastEmailError }}</span></div>
             <div class="notification-settings-status" v-else-if="notification.lastEmailSentAtUtc"><strong>Email hoạt động:</strong><span>Gửi thành công {{ notificationDate(notification.lastEmailSentAtUtc) }}</span></div>
             <div class="notification-settings-status" v-else><strong>SMTP:</strong><span>{{ notification.smtpHost && notification.smtpFromEmail ? 'Đã nhập cấu hình. Hãy gửi email thử để xác nhận.' : 'Chưa cấu hình đầy đủ.' }}</span></div>
+            <div class="notification-settings-status error" v-if="notification.lastTelegramError"><strong>Lỗi Telegram gần nhất:</strong><span>{{ notification.lastTelegramError }}</span></div>
+            <div class="notification-settings-status" v-else-if="notification.lastTelegramSentAtUtc"><strong>Telegram hoạt động:</strong><span>Gửi thành công {{ notificationDate(notification.lastTelegramSentAtUtc) }}</span></div>
             <div class="notification-settings-actions">
                 <button class="btn btn-light" type="button" v-bind:disabled="testingEmail || savingNotifications" v-on:click="sendTestEmail">{{ testingEmail ? 'Đang gửi...' : 'Gửi email thử' }}</button>
-                <button class="btn btn-primary" type="button" v-bind:disabled="savingNotifications || testingEmail" v-on:click="saveNotificationSettings">{{ savingNotifications ? 'Đang lưu...' : 'Lưu thông báo' }}</button>
+                <button class="btn btn-light" type="button" v-bind:disabled="testingTelegram || savingNotifications" v-on:click="sendTestTelegram">{{ testingTelegram ? 'Đang gửi...' : 'Gửi Telegram thử' }}</button>
+                <button class="btn btn-primary" type="button" v-bind:disabled="savingNotifications || testingEmail || testingTelegram" v-on:click="saveNotificationSettings">{{ savingNotifications ? 'Đang lưu...' : 'Lưu thông báo' }}</button>
             </div>
         </div>
     </section>

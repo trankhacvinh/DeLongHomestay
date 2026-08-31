@@ -10,14 +10,15 @@ public sealed class NotificationEmailSender
         IEnumerable<string> recipients,
         string subject,
         string bodyText,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? bodyHtml = null)
     {
         using var message = new MailMessage
         {
             From = new MailAddress(profile.FromEmail, profile.FromName),
             Subject = subject,
-            Body = bodyText,
-            IsBodyHtml = false
+            Body = string.IsNullOrWhiteSpace(bodyHtml) ? bodyText : bodyHtml,
+            IsBodyHtml = !string.IsNullOrWhiteSpace(bodyHtml)
         };
         foreach (var recipient in recipients) message.To.Add(new MailAddress(recipient));
         if (message.To.Count == 0) throw new InvalidOperationException("Email notification has no recipients.");

@@ -7,6 +7,7 @@ using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Site;
 using DeLong.Web.Features.CustomerAccounts;
+using DeLong.Web.Features.Notifications;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 
@@ -120,6 +121,7 @@ public static class BookingCoreV2Endpoints
             AppDbContext db,
             StoragePaths paths,
             IConfiguration configuration,
+            BookingGuestGuideEmailService guestGuideEmailService,
             CancellationToken cancellationToken) =>
         {
             var booking = await db.Bookings
@@ -143,6 +145,7 @@ public static class BookingCoreV2Endpoints
                 }
             }
 
+            var checkInEmail = await guestGuideEmailService.GetStatusAsync(propertyId, bookingId, cancellationToken);
             return Results.Ok(new
             {
                 customerEmail = booking.Customer.Email ?? string.Empty,
@@ -153,9 +156,23 @@ public static class BookingCoreV2Endpoints
                 policyAcceptedAtUtc = details.PolicyAcceptedAtUtc,
                 note = cleanNote,
                 identityConfigured = storage.IsConfigured,
-                documents
+                documents,
+                checkInEmail
             });
         });
+
+        bookingDetailsGroup.MapPost("/check-in-email", async (
+            Guid propertyId,
+            Guid bookingId,
+            ClaimsPrincipal user,
+            BookingGuestGuideEmailService service,
+            CancellationToken cancellationToken) =>
+        {
+            var rawUserId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = Guid.TryParse(rawUserId, out var parsedUserId) ? parsedUserId : (Guid?)null;
+            var (status, error) = await service.ResendAsync(propertyId, bookingId, userId, cancellationToken);
+            return error is null ? Results.Ok(status) : Problem(error.Code, error.Message, StatusCodes.Status400BadRequest);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
         bookingDetailsGroup.MapPut("/", async (
             Guid propertyId,
@@ -163,6 +180,7 @@ public static class BookingCoreV2Endpoints
             UpdateAdminBookingGuestDetailsRequest request,
             AppDbContext db,
             StoragePaths paths,
+            BookingGuestGuideEmailService guestGuideEmailService,
             CancellationToken cancellationToken) =>
         {
             var booking = await db.Bookings
@@ -184,6 +202,8 @@ public static class BookingCoreV2Endpoints
 
             var updated = current with { GuestCount = request.GuestCount };
             await new BookingGuestDetailsStore(paths).SaveAsync(propertyId, bookingId, updated, cancellationToken);
+            if (booking.Status == BookingStatus.Confirmed && email is not null)
+                await guestGuideEmailService.QueueAutomaticAsync(propertyId, bookingId, cancellationToken);
             return Results.Ok(new
             {
                 customerEmail = booking.Customer.Email ?? string.Empty,

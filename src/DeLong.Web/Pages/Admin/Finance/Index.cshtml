@@ -13,7 +13,6 @@
             <p>Theo dõi tiền khách đã trả, hoàn tiền, chi phí và công nợ theo từng cơ sở hoặc toàn bộ cơ sở được phân quyền.</p>
         </div>
         <div class="toolbar finance-toolbar" aria-label="Bộ lọc tài chính">
-            <a class="btn btn-light finance-export-btn" v-bind:href="exportUrl" title="Xuất sổ thu chi đang xem ra Excel">Xuất Excel</a>
             <select class="property-scope-select" v-model="scope" v-on:change="changeScope" aria-label="Phạm vi cơ sở">
                 <option v-if="properties.length > 1" value="all">Tất cả cơ sở</option>
                 <option v-for="property in properties" v-bind:key="property.id" v-bind:value="property.id">{{ property.name }}</option>
@@ -28,6 +27,7 @@
             <button class="btn-icon" type="button" v-on:click="movePeriod(-1)" aria-label="Kỳ trước"><svg><use href="#i-chevron-left" /></svg></button>
             <div class="month-selector finance-period-label"><svg><use href="#i-calendar" /></svg><strong>{{ periodLabel }}</strong></div>
             <button class="btn-icon" type="button" v-on:click="movePeriod(1)" aria-label="Kỳ sau"><svg><use href="#i-chevron-right" /></svg></button>
+            <a class="btn btn-light finance-export-btn" v-bind:href="exportUrl" title="Xuất sổ thu chi đang xem ra Excel">Xuất Excel</a>
             @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
             {
                 <button v-if="canMutateScope" class="btn btn-primary" type="button" v-on:click="openExpense"><svg><use href="#i-plus" /></svg> Ghi chi phí</button>

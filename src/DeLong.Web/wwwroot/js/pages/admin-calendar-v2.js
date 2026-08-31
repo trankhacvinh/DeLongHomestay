@@ -232,6 +232,13 @@
         return Number(status) === 1 ? 'held' : 'booked';
     }
 
+    function bookingGuestText(range) {
+        return [range?.customerName, range?.customerPhone]
+            .map(value => String(value || '').trim())
+            .filter(Boolean)
+            .join(' · ');
+    }
+
     function visibleSlots(slots) {
         return (slots || []).filter(slot => Number(slot.rateType) !== 2);
     }
@@ -316,7 +323,16 @@
             if (continuesLeft || continuesRight) cell.classList.add('has-joined-booking');
             segment.dataset.bookingId = range.bookingId;
             segment.setAttribute('style', segmentStyle(range.startUtc, range.endUtc, slot.startUtc, slot.endUtc));
-            segment.title = `${Number(range.status) === 1 ? 'Giữ phòng' : 'Đã đặt'} ${timeText(range.startUtc)}–${timeText(range.endUtc)} · bấm để xem booking`;
+            const guestText = bookingGuestText(range);
+            const stateText = Number(range.status) === 1 ? 'Giữ phòng' : 'Đã đặt';
+            segment.title = `${stateText}${guestText ? ` · ${guestText}` : ''} · ${timeText(range.startUtc)}–${timeText(range.endUtc)} · bấm để xem booking`;
+            segment.setAttribute('aria-label', segment.title);
+            if (guestText && !continuesLeft) {
+                const label = document.createElement('span');
+                label.className = 'calendar-v2-booking-guest';
+                label.textContent = guestText;
+                segment.appendChild(label);
+            }
             segment.addEventListener('click', event => {
                 event.stopPropagation();
                 openBooking(range.bookingId);

@@ -40,6 +40,8 @@ public sealed class AppDbContext
     public DbSet<PropertyNotificationRead> PropertyNotificationReads => Set<PropertyNotificationRead>();
     public DbSet<PropertyNotificationSettings> PropertyNotificationSettings => Set<PropertyNotificationSettings>();
     public DbSet<NotificationEmailOutbox> NotificationEmailOutbox => Set<NotificationEmailOutbox>();
+    public DbSet<NotificationTelegramOutbox> NotificationTelegramOutbox => Set<NotificationTelegramOutbox>();
+    public DbSet<BookingGuestGuideEmail> BookingGuestGuideEmails => Set<BookingGuestGuideEmail>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<CustomerAccountLink> CustomerAccountLinks => Set<CustomerAccountLink>();
     public DbSet<CustomerAccountSettings> CustomerAccountSettings => Set<CustomerAccountSettings>();
@@ -375,8 +377,42 @@ public sealed class AppDbContext
             entity.Property(x => x.SmtpUsername).HasMaxLength(300);
             entity.Property(x => x.SmtpFromEmail).HasMaxLength(320);
             entity.Property(x => x.SmtpFromName).HasMaxLength(240);
+            entity.Property(x => x.InternalBookingEmailSubjectTemplate).HasMaxLength(300);
+            entity.Property(x => x.InternalBookingEmailBodyTemplate).HasColumnType("text");
+            entity.Property(x => x.GuestCheckInEmailSubjectTemplate).HasMaxLength(300);
+            entity.Property(x => x.GuestCheckInEmailBodyTemplate).HasColumnType("text");
+            entity.Property(x => x.GuestCancellationEmailSubjectTemplate).HasMaxLength(300);
+            entity.Property(x => x.GuestCancellationEmailBodyTemplate).HasColumnType("text");
+            entity.Property(x => x.TelegramChatIds).HasMaxLength(2000);
             entity.Property(x => x.LastEmailError).HasMaxLength(2000);
+            entity.Property(x => x.LastTelegramError).HasMaxLength(2000);
             entity.HasOne(x => x.Property).WithOne().HasForeignKey<PropertyNotificationSettings>(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotificationTelegramOutbox>(entity =>
+        {
+            entity.HasIndex(x => x.NotificationId).IsUnique();
+            entity.HasIndex(x => new { x.SentAtUtc, x.NextAttemptAtUtc });
+            entity.Property(x => x.ChatIds).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.MessageText).HasMaxLength(4096).IsRequired();
+            entity.Property(x => x.LastError).HasMaxLength(2000);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Notification).WithMany().HasForeignKey(x => x.NotificationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BookingGuestGuideEmail>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.BookingId, x.CreatedAtUtc });
+            entity.HasIndex(x => new { x.SentAtUtc, x.NextAttemptAtUtc });
+            entity.Property(x => x.RecipientEmail).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.Trigger).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.TemplateKey).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Subject).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.BodyText).HasColumnType("text").IsRequired();
+            entity.Property(x => x.BodyHtml).HasColumnType("text");
+            entity.Property(x => x.LastError).HasMaxLength(2000);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Booking).WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<NotificationEmailOutbox>(entity =>
@@ -386,6 +422,7 @@ public sealed class AppDbContext
             entity.Property(x => x.ToRecipients).HasMaxLength(2000).IsRequired();
             entity.Property(x => x.Subject).HasMaxLength(300).IsRequired();
             entity.Property(x => x.BodyText).HasColumnType("text").IsRequired();
+            entity.Property(x => x.BodyHtml).HasColumnType("text");
             entity.Property(x => x.LastError).HasMaxLength(2000);
             entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Notification).WithMany().HasForeignKey(x => x.NotificationId).OnDelete(DeleteBehavior.Cascade);

@@ -176,7 +176,8 @@
             guests: details.guestCount,
             max: details.maxGuests,
             policy: policyText,
-            docs: documents.map(item => item.side).sort()
+            docs: documents.map(item => item.side).sort(),
+            checkInEmail: details.checkInEmail || null
         });
         if (panel.dataset.renderKey === renderKey) return;
         panel.dataset.renderKey = renderKey;
@@ -197,10 +198,39 @@
             <div class="admin-booking-detail-id-grid">
                 ${identityDetailHtml(booking.id, 'front', 'Mặt trước', documents)}
                 ${identityDetailHtml(booking.id, 'back', 'Mặt sau', documents)}
-            </div>`;
+            </div>
+            ${checkInEmailHtml(booking.id, details.checkInEmail)}`;
+
+        const resend = panel.querySelector('[data-resend-checkin-email]');
+        if (resend) resend.addEventListener('click', async () => {
+            resend.disabled = true;
+            resend.textContent = 'Đang xếp hàng...';
+            try {
+                await rawPost(`${guestDetailsUrl(booking.id)}/check-in-email`, {});
+                detailsCache.delete(booking.id);
+                const refreshed = await loadDetails(booking.id, true);
+                panel.dataset.renderKey = '';
+                renderGuestDetail(currentModalContext(), refreshed, null);
+                flash('Đã xếp hàng gửi hướng dẫn check-in.', 'success');
+            } catch (error) {
+                resend.disabled = false;
+                resend.textContent = 'Gửi hướng dẫn';
+                flash(error.message || 'Không thể gửi hướng dẫn check-in.', 'error');
+            }
+        });
 
         if (webBooking && (!details.policyAccepted || documents.length < 2)) scheduleDocumentRetry(booking.id);
         else clearDocumentRetries(booking.id);
+    }
+
+    function checkInEmailHtml(bookingId, status) {
+        if (!status) return '';
+        const css = status.status === 'Sent' ? 'is-sent' : status.status === 'Failed' ? 'is-failed' : status.status === 'Queued' ? 'is-queued' : '';
+        const sentAt = status.sentAtUtc ? ` · ${formatAcceptedAt(status.sentAtUtc)}` : '';
+        const action = status.canSend
+            ? `<button type="button" class="btn btn-light btn-sm" data-resend-checkin-email="${bookingId}">${status.status === 'Sent' ? 'Gửi lại' : 'Gửi hướng dẫn'}</button>`
+            : '';
+        return `<div class="admin-checkin-email ${css}"><div><span>Email hướng dẫn check-in</span><strong>${escapeHtml(status.message || 'Chưa gửi')}</strong>${status.recipientEmail ? `<small>${escapeHtml(status.recipientEmail)}${sentAt}</small>` : ''}${status.lastError ? `<small class="text-danger">${escapeHtml(status.lastError)}</small>` : ''}</div>${action}</div>`;
     }
 
     function identityDetailHtml(bookingId, side, label, documents) {

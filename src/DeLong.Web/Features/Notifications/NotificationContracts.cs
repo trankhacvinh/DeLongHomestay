@@ -17,6 +17,14 @@ public sealed record NotificationFeedDto(
 public sealed record NotificationSettingsDto(
     bool InAppBookingEnabled,
     bool EmailBookingEnabled,
+    bool GuestCheckInEmailEnabled,
+    bool GuestCancellationEmailEnabled,
+    string InternalBookingEmailSubjectTemplate,
+    string InternalBookingEmailBodyTemplate,
+    string GuestCheckInEmailSubjectTemplate,
+    string GuestCheckInEmailBodyTemplate,
+    string GuestCancellationEmailSubjectTemplate,
+    string GuestCancellationEmailBodyTemplate,
     string EmailRecipients,
     string SmtpHost,
     int SmtpPort,
@@ -25,14 +33,28 @@ public sealed record NotificationSettingsDto(
     bool SmtpPasswordConfigured,
     string SmtpFromEmail,
     string SmtpFromName,
+    bool TelegramBookingEnabled,
+    bool TelegramBotTokenConfigured,
+    string TelegramChatIds,
     DateTime? LastEmailSentAtUtc,
     string? LastEmailError,
-    DateTime? LastEmailErrorAtUtc);
+    DateTime? LastEmailErrorAtUtc,
+    DateTime? LastTelegramSentAtUtc,
+    string? LastTelegramError,
+    DateTime? LastTelegramErrorAtUtc);
 
 public sealed class UpdateNotificationSettingsRequest
 {
     public bool InAppBookingEnabled { get; set; } = true;
     public bool EmailBookingEnabled { get; set; }
+    public bool GuestCheckInEmailEnabled { get; set; }
+    public bool GuestCancellationEmailEnabled { get; set; } = true;
+    public string? InternalBookingEmailSubjectTemplate { get; set; }
+    public string? InternalBookingEmailBodyTemplate { get; set; }
+    public string? GuestCheckInEmailSubjectTemplate { get; set; }
+    public string? GuestCheckInEmailBodyTemplate { get; set; }
+    public string? GuestCancellationEmailSubjectTemplate { get; set; }
+    public string? GuestCancellationEmailBodyTemplate { get; set; }
     public string? EmailRecipients { get; set; }
     public string? SmtpHost { get; set; }
     public int SmtpPort { get; set; } = 587;
@@ -42,6 +64,10 @@ public sealed class UpdateNotificationSettingsRequest
     public bool ClearSmtpPassword { get; set; }
     public string? SmtpFromEmail { get; set; }
     public string? SmtpFromName { get; set; }
+    public bool TelegramBookingEnabled { get; set; }
+    public string? TelegramBotToken { get; set; }
+    public bool ClearTelegramBotToken { get; set; }
+    public string? TelegramChatIds { get; set; }
 }
 
 public sealed record NotificationRealtimeEvent(
@@ -60,3 +86,15 @@ public sealed record SmtpDeliveryProfile(
     string FromName);
 
 public sealed record NotificationOperationError(string Code, string Message);
+
+public sealed record TelegramDeliveryProfile(string BotToken, IReadOnlyList<string> ChatIds);
+
+public sealed record GuestGuideEmailStatusDto(
+    string Status,
+    string? RecipientEmail,
+    DateTime? RequestedAtUtc,
+    DateTime? SentAtUtc,
+    int AttemptCount,
+    string? LastError,
+    bool CanSend,
+    string Message);

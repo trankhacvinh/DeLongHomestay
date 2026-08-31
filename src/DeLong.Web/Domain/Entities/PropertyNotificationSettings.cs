@@ -9,6 +9,24 @@ public sealed class PropertyNotificationSettings : EntityBase
 
     public bool InAppBookingEnabled { get; set; } = true;
     public bool EmailBookingEnabled { get; set; }
+    public bool GuestCheckInEmailEnabled { get; set; }
+    public bool GuestCancellationEmailEnabled { get; set; } = true;
+    public bool TelegramBookingEnabled { get; set; }
+
+    [MaxLength(300)]
+    public string? InternalBookingEmailSubjectTemplate { get; set; }
+
+    public string? InternalBookingEmailBodyTemplate { get; set; }
+
+    [MaxLength(300)]
+    public string? GuestCheckInEmailSubjectTemplate { get; set; }
+
+    public string? GuestCheckInEmailBodyTemplate { get; set; }
+
+    [MaxLength(300)]
+    public string? GuestCancellationEmailSubjectTemplate { get; set; }
+
+    public string? GuestCancellationEmailBodyTemplate { get; set; }
 
     [MaxLength(2000)]
     public string? EmailRecipients { get; set; }
@@ -30,9 +48,20 @@ public sealed class PropertyNotificationSettings : EntityBase
     [MaxLength(240)]
     public string? SmtpFromName { get; set; }
 
+    public string? TelegramBotTokenProtected { get; set; }
+
+    [MaxLength(2000)]
+    public string? TelegramChatIds { get; set; }
+
     [MaxLength(2000)]
     public string? LastEmailError { get; set; }
 
     public DateTime? LastEmailErrorAtUtc { get; set; }
     public DateTime? LastEmailSentAtUtc { get; set; }
+    public DateTime? LastTelegramSentAtUtc { get; set; }
+
+    [MaxLength(2000)]
+    public string? LastTelegramError { get; set; }
+
+    public DateTime? LastTelegramErrorAtUtc { get; set; }
 }

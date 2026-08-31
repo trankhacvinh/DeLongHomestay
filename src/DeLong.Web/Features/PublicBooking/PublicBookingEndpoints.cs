@@ -5,6 +5,7 @@ using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Site;
 using DeLong.Web.Features.CustomerAccounts;
 using DeLong.Web.Features.Payments;
+using DeLong.Web.Features.Notifications;
 using DeLong.Web.Domain.Enums;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
@@ -65,6 +66,7 @@ public static class PublicBookingEndpoints
             IConfiguration configuration,
             CustomerAccountService customerAccountService,
             Pay2SService pay2SService,
+            BookingGuestGuideEmailService guestEmailService,
             CancellationToken ct) =>
         {
             var idempotencyKey = http.Request.Headers["Idempotency-Key"].FirstOrDefault();
@@ -97,6 +99,7 @@ public static class PublicBookingEndpoints
                     var booking = await db.Bookings.SingleAsync(x => x.Id == result.BookingId, ct);
                     booking.Status = BookingStatus.Cancelled;
                     await db.SaveChangesAsync(ct);
+                    await guestEmailService.QueueCancellationAsync(paymentProperty.Id, result.BookingId, null, "Booking đã bị hủy vì chưa thể khởi tạo thanh toán.", ct);
                     return Results.Problem(statusCode: 503, title: "Chưa thể tạo thanh toán", detail: paymentError?.Message, type: "pay2s_unavailable");
                 }
                 result = result with { HoldExpiresAtUtc = intent.ExpiresAtUtc, PaymentOrderId = intent.OrderId, PaymentUrl = intent.PayUrl };

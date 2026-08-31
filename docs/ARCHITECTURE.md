@@ -85,6 +85,8 @@ Mỗi page có app scope nhỏ (`#rooms-page`, `#calendar-page`...), không moun
 - Thời điểm việc dọn phòng được suy ra từ giờ booking thật và hai offset theo cơ sở trên `Property`: số phút trước check-in và sau check-out; mặc định đều `0`.
 - `Room.GuestGuideHtml` là nội dung hướng dẫn hiện hành của phòng, được soạn bằng editor và làm sạch server-side. Trang đặt thành công và tra cứu chỉ đọc hướng dẫn của phòng, không sao chép HTML vào booking.
 - PDF hướng dẫn chỉ chứa mã đơn, tên phòng và nội dung hướng dẫn; không chứa dữ liệu cá nhân. Tra cứu và tải PDF bằng mã + số điện thoại bị từ chối khi booking đã ở trạng thái terminal (`Completed`, `Cancelled`, `NoShow`).
+- Thông báo booking nội bộ dùng outbox bền vững cho email và Telegram, retry ở background worker; lỗi kênh ngoài không rollback booking. Danh sách email, Telegram bot token và chat ID cấu hình theo cơ sở; bot token được bảo vệ bằng ASP.NET Core Data Protection.
+- Email gửi khách có outbox/audit riêng `BookingGuestGuideEmail`. Hệ thống có thể tự xếp hàng hướng dẫn khi booking chuyển `Confirmed`, gửi thông báo khi booking chuyển `Cancelled`, hiển thị trạng thái check-in trong chi tiết booking/lịch và cho phép nhân viên gửi lại. Tiêu đề/nội dung HTML mẫu được cấu hình theo cơ sở bằng tập biến cho phép; HTML được làm sạch server-side, outbox giữ cả snapshot HTML và text fallback để lịch sử không đổi theo mẫu mới.
 
 ## Booking invariant (milestone tiếp theo)
 

@@ -63,6 +63,13 @@ Dùng checklist này sau khi apply migrations/seed trên `delong_dev`.
 - [ ] Trang đặt thành công hiện đúng hướng dẫn của phòng và tải được PDF mở hợp lệ.
 - [ ] Tra cứu đúng mã + SĐT hiện hướng dẫn và tải được PDF.
 - [ ] Booking `Completed`, `Cancelled` hoặc `NoShow` không còn tra cứu hay tải PDF được.
+- [ ] Booking mới gửi email đến đúng danh sách nhân viên và gửi Telegram đúng nhóm của cơ sở.
+- [ ] Booking chuyển `Confirmed` gửi hướng dẫn check-in đến email khách; không có email thì hiển thị rõ chưa thể gửi.
+- [ ] Chi tiết booking và chi tiết trên lịch hiển thị Đang chờ/Đã gửi/Gửi lỗi cùng thời điểm, lỗi gần nhất và cho phép gửi lại.
+- [ ] SMTP/Telegram lỗi tạm thời được retry ở background và không rollback booking hoặc thanh toán.
+- [ ] Hủy booking thủ công, hết hạn thanh toán và lỗi khởi tạo thanh toán đều gửi email hủy khi công tắc bật và khách có email.
+- [ ] Sửa mẫu email theo cơ sở, gửi booking thử và xác nhận biến mã đơn/khách/phòng/thời gian/tổng tiền/lý do hủy được thay đúng.
+- [ ] Soạn email bằng editor trực quan/HTML, copy biến từ bảng, đối chiếu preview và email thực nhận; email client không thực thi script/event HTML.
 
 ## 5. Thanh toán
 

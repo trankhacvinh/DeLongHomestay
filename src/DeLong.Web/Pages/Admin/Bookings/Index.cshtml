@@ -94,6 +94,10 @@
                     <div class="admin-booking-detail-id-grid">
                         <div class="admin-booking-detail-id" v-for="side in ['front', 'back']" v-bind:key="side"><strong>{{ side === 'front' ? 'Mặt trước' : 'Mặt sau' }}</strong><a v-if="hasIdentity(side)" v-bind:href="identityUrl(selectedBooking.id, side)" target="_blank" rel="noopener"><img v-bind:src="identityUrl(selectedBooking.id, side)" v-bind:alt="side === 'front' ? 'CCCD mặt trước' : 'CCCD mặt sau'" /></a><span v-else class="empty">Chưa có ảnh</span></div>
                     </div>
+                    <div class="admin-checkin-email" v-if="guestDetails.checkInEmail" v-bind:class="checkInEmailClass(guestDetails.checkInEmail.status)">
+                        <div><span>Email hướng dẫn check-in</span><strong>{{ guestDetails.checkInEmail.message }}</strong><small v-if="guestDetails.checkInEmail.recipientEmail">{{ guestDetails.checkInEmail.recipientEmail }}<template v-if="guestDetails.checkInEmail.sentAtUtc"> · {{ dateTimeText(guestDetails.checkInEmail.sentAtUtc) }}</template></small><small v-if="guestDetails.checkInEmail.lastError" class="text-danger">{{ guestDetails.checkInEmail.lastError }}</small></div>
+                        <button v-if="canManage && guestDetails.checkInEmail.canSend" class="btn btn-light btn-sm" type="button" v-bind:disabled="sendingCheckInEmail" v-on:click="resendCheckInEmail">{{ sendingCheckInEmail ? 'Đang xếp hàng...' : (guestDetails.checkInEmail.status === 'Sent' ? 'Gửi lại' : 'Gửi hướng dẫn') }}</button>
+                    </div>
                 </template>
             </section>
             <section class="admin-customer-risk" v-bind:class="{ 'is-blacklisted': selectedBooking.customerIsBlacklisted }">

@@ -38,6 +38,7 @@ public sealed class NotificationEmailWorker(
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var settingsService = scope.ServiceProvider.GetRequiredService<NotificationSettingsService>();
         var sender = scope.ServiceProvider.GetRequiredService<NotificationEmailSender>();
+        var telegramSender = scope.ServiceProvider.GetRequiredService<TelegramNotificationSender>();
         var now = DateTime.UtcNow;
         var batch = await db.Set<NotificationEmailOutbox>()
             .Where(x => x.SentAtUtc == null && x.AttemptCount < RetryMinutes.Length && x.NextAttemptAtUtc <= now)
@@ -66,7 +67,7 @@ public sealed class NotificationEmailWorker(
             try
             {
                 var recipients = outbox.ToRecipients.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                await sender.SendAsync(profile, recipients, outbox.Subject, outbox.BodyText, cancellationToken);
+                await sender.SendAsync(profile, recipients, outbox.Subject, outbox.BodyText, cancellationToken, outbox.BodyHtml);
                 outbox.SentAtUtc = DateTime.UtcNow;
                 outbox.LastError = null;
                 if (settings is not null)
@@ -89,7 +90,89 @@ public sealed class NotificationEmailWorker(
             }
         }
 
-        return batch.Count;
+        var guestBatch = await db.BookingGuestGuideEmails
+            .Where(x => x.SentAtUtc == null && x.AttemptCount < RetryMinutes.Length && x.NextAttemptAtUtc <= now)
+            .OrderBy(x => x.NextAttemptAtUtc)
+            .Take(10)
+            .ToListAsync(cancellationToken);
+        foreach (var outbox in guestBatch)
+        {
+            var settings = await db.PropertyNotificationSettings
+                .SingleOrDefaultAsync(x => x.PropertyId == outbox.PropertyId, cancellationToken);
+            var (profile, profileError) = await settingsService.GetSmtpProfileAsync(outbox.PropertyId, cancellationToken);
+            if (profileError is not null || profile is null)
+            {
+                RecordFailure(outbox, settings, profileError?.Message ?? "Không thể đọc cấu hình SMTP.");
+                await db.SaveChangesAsync(cancellationToken);
+                continue;
+            }
+            try
+            {
+                await sender.SendAsync(profile, [outbox.RecipientEmail], outbox.Subject, outbox.BodyText, cancellationToken, outbox.BodyHtml);
+                outbox.SentAtUtc = DateTime.UtcNow;
+                outbox.LastError = null;
+                if (settings is not null)
+                {
+                    settings.LastEmailSentAtUtc = outbox.SentAtUtc;
+                    settings.LastEmailError = null;
+                    settings.LastEmailErrorAtUtc = null;
+                }
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "SMTP guest guide delivery failed for booking {BookingId}.", outbox.BookingId);
+                RecordFailure(outbox, settings, ex.Message);
+                await db.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        var telegramBatch = await db.NotificationTelegramOutbox
+            .Where(x => x.SentAtUtc == null && x.AttemptCount < RetryMinutes.Length && x.NextAttemptAtUtc <= now)
+            .OrderBy(x => x.NextAttemptAtUtc)
+            .Take(10)
+            .ToListAsync(cancellationToken);
+        foreach (var outbox in telegramBatch)
+        {
+            var settings = await db.PropertyNotificationSettings
+                .SingleOrDefaultAsync(x => x.PropertyId == outbox.PropertyId, cancellationToken);
+            var (profile, profileError) = await settingsService.GetTelegramProfileAsync(outbox.PropertyId, true, cancellationToken);
+            if (profileError?.Code == "telegram_disabled")
+            {
+                outbox.NextAttemptAtUtc = DateTime.UtcNow.AddMinutes(5);
+                await db.SaveChangesAsync(cancellationToken);
+                continue;
+            }
+            if (profileError is not null || profile is null)
+            {
+                RecordFailure(outbox, settings, profileError?.Message ?? "Không thể đọc cấu hình Telegram.");
+                await db.SaveChangesAsync(cancellationToken);
+                continue;
+            }
+            try
+            {
+                await telegramSender.SendAsync(profile.BotToken, profile.ChatIds, outbox.MessageText, cancellationToken);
+                outbox.SentAtUtc = DateTime.UtcNow;
+                outbox.LastError = null;
+                if (settings is not null)
+                {
+                    settings.LastTelegramSentAtUtc = outbox.SentAtUtc;
+                    settings.LastTelegramError = null;
+                    settings.LastTelegramErrorAtUtc = null;
+                }
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Telegram delivery failed for notification {NotificationId}.", outbox.NotificationId);
+                RecordFailure(outbox, settings, ex.Message);
+                await db.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        return batch.Count + guestBatch.Count + telegramBatch.Count;
     }
 
     private static void RecordFailure(NotificationEmailOutbox outbox, PropertyNotificationSettings? settings, string error)
@@ -102,6 +185,30 @@ public sealed class NotificationEmailWorker(
         {
             settings.LastEmailError = outbox.LastError;
             settings.LastEmailErrorAtUtc = DateTime.UtcNow;
+        }
+    }
+
+    private static void RecordFailure(BookingGuestGuideEmail outbox, PropertyNotificationSettings? settings, string error)
+    {
+        outbox.AttemptCount += 1;
+        outbox.LastError = Truncate(error, 2000);
+        outbox.NextAttemptAtUtc = DateTime.UtcNow.AddMinutes(RetryMinutes[Math.Clamp(outbox.AttemptCount - 1, 0, RetryMinutes.Length - 1)]);
+        if (settings is not null)
+        {
+            settings.LastEmailError = outbox.LastError;
+            settings.LastEmailErrorAtUtc = DateTime.UtcNow;
+        }
+    }
+
+    private static void RecordFailure(NotificationTelegramOutbox outbox, PropertyNotificationSettings? settings, string error)
+    {
+        outbox.AttemptCount += 1;
+        outbox.LastError = Truncate(error, 2000);
+        outbox.NextAttemptAtUtc = DateTime.UtcNow.AddMinutes(RetryMinutes[Math.Clamp(outbox.AttemptCount - 1, 0, RetryMinutes.Length - 1)]);
+        if (settings is not null)
+        {
+            settings.LastTelegramError = outbox.LastError;
+            settings.LastTelegramErrorAtUtc = DateTime.UtcNow;
         }
     }
 

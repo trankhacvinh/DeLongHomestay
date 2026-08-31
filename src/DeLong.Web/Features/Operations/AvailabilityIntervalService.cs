@@ -13,7 +13,9 @@ public sealed record AdminAvailabilityOccupancyDto(
     Guid BookingId,
     BookingStatus Status,
     DateTime StartUtc,
-    DateTime EndUtc);
+    DateTime EndUtc,
+    string CustomerName,
+    string CustomerPhone);
 
 public sealed record AdminAvailabilitySlotDto(
     Guid RateId,
@@ -73,7 +75,9 @@ public sealed record AvailabilityOccupancyInput(
     Guid BookingId,
     BookingStatus Status,
     DateTime StartUtc,
-    DateTime EndUtc);
+    DateTime EndUtc,
+    string CustomerName = "",
+    string CustomerPhone = "");
 
 public sealed record AvailabilityProjection(
     string State,
@@ -165,7 +169,7 @@ public sealed class AvailabilityIntervalService(
                     slot.RateId, slot.RateName, slot.RateType, slot.Price,
                     slot.StartUtc, slot.EndUtc, slot.Projection.State, slot.Projection.OccupiedRatio,
                     slot.Projection.Occupied.Select(x => new AdminAvailabilityOccupancyDto(
-                        x.BookingId, x.Status, x.StartUtc, x.EndUtc)).ToList(),
+                        x.BookingId, x.Status, x.StartUtc, x.EndUtc, x.CustomerName, x.CustomerPhone)).ToList(),
                     slot.Projection.Free)).ToList())).ToList());
     }
 
@@ -227,7 +231,13 @@ public sealed class AvailabilityIntervalService(
             .Where(x => x.PropertyId == propertyId && x.RoomId == roomId &&
                         LockingStatuses.Contains(x.Status) &&
                         x.CheckInUtc < windowEndUtc && windowStartUtc < x.CheckOutUtc)
-            .Select(x => new AvailabilityOccupancyInput(x.Id, x.Status, x.CheckInUtc, x.CheckOutUtc))
+            .Select(x => new AvailabilityOccupancyInput(
+                x.Id,
+                x.Status,
+                x.CheckInUtc,
+                x.CheckOutUtc,
+                x.Customer.Name,
+                x.Customer.Phone))
             .ToListAsync(cancellationToken);
 
         var result = new List<AvailabilityDay>(days);

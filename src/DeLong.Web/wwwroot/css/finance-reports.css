@@ -42,7 +42,30 @@
 }
 
 /* Finance */
-.finance-page-head,.reports-page-head { align-items:center; }
+.admin-body .finance-page-head {
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    align-items:start;
+    gap:16px;
+}
+.admin-body .finance-page-head>:first-child {
+    width:min(100%,760px);
+    min-width:0;
+    max-width:760px;
+}
+.admin-body .finance-page-head>:first-child p { max-width:680px; text-wrap:pretty; }
+.admin-body .finance-page-head .finance-toolbar {
+    width:100%;
+    max-width:none;
+    display:grid;
+    grid-template-columns:minmax(180px,240px) 128px 138px 40px minmax(150px,190px) 40px auto auto;
+    justify-content:start;
+    align-items:center;
+    gap:9px;
+    flex:none;
+    overflow:visible;
+}
+.reports-page-head { align-items:center; }
 .finance-period-select {
     min-height:40px;
     padding:8px 30px 8px 11px;
@@ -373,6 +396,16 @@
     .report-outstanding-panel { grid-column:1/-1; }
 }
 
+@media (max-width:1180px) {
+    .admin-body .finance-page-head .finance-toolbar {
+        display:flex;
+        width:100%;
+        flex-wrap:wrap;
+        justify-content:flex-start;
+        overflow:visible;
+    }
+}
+
 @media (max-width:980px) {
     .report-overview { grid-template-columns:repeat(2,minmax(0,1fr)); }
     .report-period-strip { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -388,7 +421,22 @@
 @media (max-width:760px) {
     .finance-page-head,.reports-page-head { align-items:flex-start; }
     .finance-toolbar,.report-toolbar { width:100%; }
-    .finance-toolbar { flex-wrap:wrap; }
+    .admin-body .finance-page-head .finance-toolbar {
+        display:grid;
+        grid-template-columns:40px minmax(0,1fr) 40px;
+        width:100%;
+        overflow:visible;
+        flex-wrap:nowrap;
+    }
+    .admin-body .finance-toolbar .property-scope-select,
+    .admin-body .finance-toolbar .finance-period-select,
+    .admin-body .finance-toolbar .finance-anchor-input,
+    .admin-body .finance-toolbar .finance-export-btn,
+    .admin-body .finance-toolbar .btn-primary {
+        grid-column:1/-1;
+        width:100%;
+        max-width:none;
+    }
     .finance-ledger-head { align-items:flex-start; }
     .finance-ledger-tools { width:100%; justify-content:space-between; }
     .month-selector { flex:1 1 auto; min-width:0; }

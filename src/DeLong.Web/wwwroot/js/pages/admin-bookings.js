@@ -62,7 +62,8 @@
                 customerRiskForm: { note: '', isBlacklisted: false, blacklistReason: '', isBlocked: false },
                 savingCustomerRisk: false,
                 detail: { open: false },
-                guestDetails: { loading: false, error: '', customerEmail: '', guestCount: 1, maxGuests: 1, policyAccepted: false, documents: [] },
+                guestDetails: { loading: false, error: '', customerEmail: '', guestCount: 1, maxGuests: 1, policyAccepted: false, documents: [], checkInEmail: null },
+                sendingCheckInEmail: false,
                 stayEditor: { open: false },
                 stayForm: { roomId: '', checkInDate: '', checkOutDate: '', unitPrice: 0, note: '' },
                 payments: [],
@@ -272,7 +273,7 @@
                 finally { this.saving = false; }
             },
             async loadGuestDetails(bookingId) {
-                this.guestDetails = { loading: true, error: '', customerEmail: '', guestCount: 1, maxGuests: 1, policyAccepted: false, documents: [] };
+                this.guestDetails = { loading: true, error: '', customerEmail: '', guestCount: 1, maxGuests: 1, policyAccepted: false, documents: [], checkInEmail: null };
                 try {
                     const details = await DeLongApi.get(
                         `/api/admin/properties/${this.propertyId}/bookings/${bookingId}/guest-details`);
@@ -288,9 +289,29 @@
                     this.guestDetails = {
                         loading: false,
                         error: error.message || 'Không thể tải dữ liệu khách.',
-                        customerEmail: '', guestCount: 1, maxGuests: 1, policyAccepted: false, documents: []
+                        customerEmail: '', guestCount: 1, maxGuests: 1, policyAccepted: false, documents: [], checkInEmail: null
                     };
                 }
+            },
+            async resendCheckInEmail() {
+                if (!this.selectedBooking || this.sendingCheckInEmail) return;
+                this.sendingCheckInEmail = true;
+                try {
+                    const status = await DeLongApi.post(
+                        `/api/admin/properties/${this.propertyId}/bookings/${this.selectedBooking.id}/guest-details/check-in-email`, {});
+                    this.guestDetails.checkInEmail = status;
+                    this.notify('Đã xếp hàng gửi hướng dẫn check-in.', 'success');
+                } catch (error) {
+                    this.notify(this.friendlyError(error, 'Không thể gửi hướng dẫn check-in.'), 'error');
+                } finally {
+                    this.sendingCheckInEmail = false;
+                }
+            },
+            checkInEmailClass(status) {
+                if (status === 'Sent') return 'is-sent';
+                if (status === 'Failed') return 'is-failed';
+                if (status === 'Queued') return 'is-queued';
+                return '';
             },
             hasIdentity(side) {
                 return this.guestDetails.documents.some(document => document.side === side);

@@ -36,6 +36,20 @@ public sealed class FinancePeriodSourceContractTests
         Assert.Contains("FinanceExcelExportService", pageModel, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Finance_header_keeps_the_title_and_filters_in_responsive_rows()
+    {
+        var page = Read("src/DeLong.Web/Pages/Admin/Finance/Index.cshtml");
+        var styles = Read("src/DeLong.Web/wwwroot/css/finance-reports.css");
+
+        Assert.Contains("finance-page-head", page, StringComparison.Ordinal);
+        Assert.Contains(".admin-body .finance-page-head {", styles, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns:minmax(0,1fr)", styles, StringComparison.Ordinal);
+        Assert.Contains(".admin-body .finance-page-head .finance-toolbar", styles, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns:40px minmax(0,1fr) 40px", styles, StringComparison.Ordinal);
+        Assert.Contains(".admin-body .finance-toolbar .finance-export-btn", styles, StringComparison.Ordinal);
+    }
+
     private static string Read(string relativePath)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

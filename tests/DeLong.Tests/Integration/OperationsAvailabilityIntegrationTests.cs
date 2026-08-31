@@ -142,6 +142,8 @@ public sealed class OperationsAvailabilityIntegrationTests
             var afternoonOccupied = Assert.Single(afternoon.Occupied);
             Assert.Equal(afternoonBooking.Id, afternoonOccupied.BookingId);
             Assert.Equal(BookingStatus.Held, afternoonOccupied.Status);
+            Assert.Equal(customer.Name, afternoonOccupied.CustomerName);
+            Assert.Equal(customer.Phone, afternoonOccupied.CustomerPhone);
             var afternoonFree = Assert.Single(afternoon.Free);
             Assert.Equal(ToUtc(targetDate, new TimeOnly(14, 0), timeZone), afternoonFree.StartUtc);
             Assert.Equal(ToUtc(targetDate, new TimeOnly(15, 0), timeZone), afternoonFree.EndUtc);

@@ -49,6 +49,13 @@
 - [x] Trang Customers add/edit modal.
 - [ ] Edit booking room/time/amount.
 - [ ] Audit log booking.
+- [ ] Áp dụng migration `AddBookingEmailAndTelegramNotifications` trước khi bật email/Telegram.
+- [ ] Danh sách email nội bộ nhận đúng thông báo booking mới; lỗi SMTP được retry và không làm hỏng booking.
+- [ ] Telegram bot gửi đúng nhóm đã cấu hình; bot token không hiển thị lại và nút gửi thử báo đúng kết quả.
+- [ ] Booking `Confirmed` có email khách nhận hướng dẫn check-in; chi tiết booking/lịch hiển thị trạng thái và gửi lại được.
+- [ ] Booking chuyển `Cancelled` xếp đúng một email báo hủy cho mỗi lần hủy và dùng snapshot mẫu tại thời điểm xếp hàng.
+- [ ] Mẫu email nội bộ/check-in/hủy thay đúng các biến cho phép; tiêu đề chặn xuống dòng và nội dung quá dài.
+- [ ] Editor HTML email, bảng click-copy biến và preview hoạt động trên desktop/mobile; script/event attribute nguy hiểm bị loại khi lưu.
 - [ ] Integration test race condition trên `delong_test`.
 - [ ] Kiểm tra calendar trực tiếp trên browser với PostgreSQL local.
 

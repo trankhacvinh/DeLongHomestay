@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DeLong.Web.Domain.Entities;
 
-public sealed class NotificationEmailOutbox : EntityBase
+public sealed class NotificationTelegramOutbox : EntityBase
 {
     public Guid PropertyId { get; set; }
     public Property Property { get; set; } = null!;
@@ -11,13 +11,10 @@ public sealed class NotificationEmailOutbox : EntityBase
     public PropertyNotification Notification { get; set; } = null!;
 
     [MaxLength(2000)]
-    public string ToRecipients { get; set; } = string.Empty;
+    public string ChatIds { get; set; } = string.Empty;
 
-    [MaxLength(300)]
-    public string Subject { get; set; } = string.Empty;
-
-    public string BodyText { get; set; } = string.Empty;
-    public string? BodyHtml { get; set; }
+    [MaxLength(4096)]
+    public string MessageText { get; set; } = string.Empty;
 
     public int AttemptCount { get; set; }
     public DateTime NextAttemptAtUtc { get; set; } = DateTime.UtcNow;

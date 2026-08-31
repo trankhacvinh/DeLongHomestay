@@ -326,9 +326,12 @@ builder.Services.AddScoped<PublicRoomContentService>();
 builder.Services.AddScoped<PublicRequestInboxService>();
 builder.Services.AddSingleton<NotificationRealtimeBroker>();
 builder.Services.AddSingleton<SmtpCredentialProtector>();
+builder.Services.AddSingleton<TelegramCredentialProtector>();
 builder.Services.AddScoped<NotificationSettingsService>();
 builder.Services.AddScoped<BookingNotificationService>();
+builder.Services.AddScoped<BookingGuestGuideEmailService>();
 builder.Services.AddSingleton<NotificationEmailSender>();
+builder.Services.AddSingleton<TelegramNotificationSender>();
 builder.Services.AddHostedService<NotificationEmailWorker>();
 
 var app = builder.Build();
