@@ -16,6 +16,18 @@ public sealed class PricingSourceContractTests
     }
 
     [Fact]
+    public void Admin_pricing_styles_use_current_tokens_and_pad_special_day_editor()
+    {
+        var root = FindRoot();
+        var styles = File.ReadAllText(Path.Combine(root, "src/DeLong.Web/wwwroot/css/admin-pricing.css"));
+
+        Assert.DoesNotContain("var(--primary)", styles, StringComparison.Ordinal);
+        Assert.DoesNotContain("var(--border)", styles, StringComparison.Ordinal);
+        Assert.Contains("background:var(--brand-800)", styles, StringComparison.Ordinal);
+        Assert.Contains(".pricing-editor .pricing-form-grid{padding:20px}", styles, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Public_calendar_handles_full_day_only_and_configurable_three_slot_discount()
     {
         var root = FindRoot();
