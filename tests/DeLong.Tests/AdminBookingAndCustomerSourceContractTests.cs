@@ -22,6 +22,16 @@ public sealed class AdminBookingAndCustomerSourceContractTests
 
     [Fact]
     [Trait("Category", "Unit")]
+    public void Booking_identity_picker_has_a_real_block_sized_click_target()
+    {
+        var styles = ReadRepositoryFile("src/DeLong.Web/wwwroot/css/admin-booking-guest-details.css");
+
+        Assert.Contains(".admin-booking-id-picker{display:block;box-sizing:border-box", styles, StringComparison.Ordinal);
+        Assert.Contains("height:170px", styles, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public void Customer_rows_open_property_scoped_profile_and_booking_history()
     {
         var page = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/Customers/Index.cshtml");

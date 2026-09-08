@@ -64,6 +64,16 @@ public sealed class AdminAiSourceContractTests
         Assert.Contains("width:min(680px,100vw)", styles);
     }
 
+    [Fact]
+    public void Ai_settings_panels_keep_form_and_usage_content_inside_panel_padding()
+    {
+        var styles = Read("src/DeLong.Web/wwwroot/css/admin-ai.css");
+
+        Assert.Contains(".ai-settings-grid>.panel{min-width:0}", styles, StringComparison.Ordinal);
+        Assert.Contains(".ai-settings-grid>.panel>.form-grid{padding:18px 20px 0}", styles, StringComparison.Ordinal);
+        Assert.Contains("margin:18px 20px", styles, StringComparison.Ordinal);
+    }
+
     private static string Read(string path) => File.ReadAllText(Path.Combine(Root, path));
     private static string FindRoot()
     {
