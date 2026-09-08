@@ -5,6 +5,9 @@
     const initial = JSON.parse(document.getElementById('vouchers-page-data').textContent || '{}');
     const { createApp } = Vue;
     const propertyTimeZone = initial.timeZoneId || 'Asia/Ho_Chi_Minh';
+    let filterPickers = [];
+    let editorPickers = [];
+
     const emptyForm = () => {
         const now = new Date();
         const end = new Date(now.getTime() + 30 * 86400000);
@@ -13,7 +16,7 @@
             startsAtLocal: zonedInput(now, propertyTimeZone), endsAtLocal: zonedInput(end, propertyTimeZone),
             timeSlot: true, overnight: true, fullDay: true,
             totalUsageLimit: null, perCustomerUsageLimit: 1,
-            customerId: '', status: 0
+            customerIds: [], status: 0
         };
     };
 
@@ -37,6 +40,10 @@
         return new Date(guess - offset).toISOString();
     }
 
+    function normalizeSearch(value) {
+        return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+
     createApp({
         data() {
             const first = new Date();
@@ -52,12 +59,36 @@
                 filters: { q: '', status: 'Active', from: zonedInput(first, propertyTimeZone).slice(0, 10), to: zonedInput(last, propertyTimeZone).slice(0, 10) },
                 editor: { open: false, mode: 'create', voucherId: null, error: '' },
                 form: emptyForm(),
+                customerSearch: '',
+                customerPickerOpen: false,
                 detail: { open: false, loading: false, voucher: null, history: [], emails: [] },
                 mailer: { open: false, voucher: null, email: '', customerName: '', sending: false, error: '' },
                 toast: { show: false, type: 'success', message: '', timer: null }
             };
         },
-        mounted() { this.load(); },
+        computed: {
+            filteredCustomers() {
+                const query = normalizeSearch(this.customerSearch);
+                const list = query
+                    ? this.customers.filter(customer => normalizeSearch(`${customer.name} ${customer.phone} ${customer.email || ''}`).includes(query))
+                    : this.customers;
+                return list.slice(0, 100);
+            },
+            selectedCustomers() {
+                const selected = new Set(this.form.customerIds || []);
+                return this.customers.filter(customer => selected.has(customer.id));
+            }
+        },
+        mounted() {
+            this.load();
+            this.$nextTick(() => this.mountFilterPickers());
+        },
+        beforeUnmount() {
+            filterPickers.forEach(picker => picker.destroy());
+            editorPickers.forEach(picker => picker.destroy());
+            filterPickers = [];
+            editorPickers = [];
+        },
         methods: {
             number(value) { return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(value || 0); },
             money(value) { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0); },
@@ -76,6 +107,50 @@
                 return parts.join(', ') || '—';
             },
             api(path = '') { return `/api/admin/properties/${this.propertyId}/vouchers${path}`; },
+            mountFilterPickers() {
+                filterPickers.forEach(picker => picker.destroy());
+                filterPickers = [];
+                if (typeof flatpickr !== 'function') return;
+                const locale = flatpickr.l10ns?.vn || flatpickr.l10ns?.default;
+                const options = { locale, dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', allowInput: true, disableMobile: true };
+                if (this.$refs.filterFromPicker) filterPickers.push(flatpickr(this.$refs.filterFromPicker, {
+                    ...options,
+                    defaultDate: this.filters.from,
+                    onChange: (_dates, value) => { this.filters.from = value; }
+                }));
+                if (this.$refs.filterToPicker) filterPickers.push(flatpickr(this.$refs.filterToPicker, {
+                    ...options,
+                    defaultDate: this.filters.to,
+                    onChange: (_dates, value) => { this.filters.to = value; }
+                }));
+            },
+            mountEditorPickers() {
+                editorPickers.forEach(picker => picker.destroy());
+                editorPickers = [];
+                if (typeof flatpickr !== 'function') return;
+                const locale = flatpickr.l10ns?.vn || flatpickr.l10ns?.default;
+                const options = {
+                    locale,
+                    enableTime: true,
+                    time_24hr: true,
+                    minuteIncrement: 1,
+                    dateFormat: 'Y-m-d\\TH:i',
+                    altInput: true,
+                    altFormat: 'd/m/Y H:i',
+                    allowInput: true,
+                    disableMobile: true
+                };
+                if (this.$refs.startsAtPicker) editorPickers.push(flatpickr(this.$refs.startsAtPicker, {
+                    ...options,
+                    defaultDate: this.form.startsAtLocal,
+                    onChange: (_dates, value) => { this.form.startsAtLocal = value; }
+                }));
+                if (this.$refs.endsAtPicker) editorPickers.push(flatpickr(this.$refs.endsAtPicker, {
+                    ...options,
+                    defaultDate: this.form.endsAtLocal,
+                    onChange: (_dates, value) => { this.form.endsAtLocal = value; }
+                }));
+            },
             async load() {
                 this.loading = true;
                 try {
@@ -92,7 +167,13 @@
                 } catch (error) { this.notify(error.message || 'Không thể tải voucher.', 'error'); }
                 finally { this.loading = false; }
             },
-            openCreate() { this.form = emptyForm(); this.editor = { open: true, mode: 'create', voucherId: null, error: '' }; },
+            openCreate() {
+                this.form = emptyForm();
+                this.customerSearch = '';
+                this.customerPickerOpen = false;
+                this.editor = { open: true, mode: 'create', voucherId: null, error: '' };
+                this.$nextTick(() => this.mountEditorPickers());
+            },
             openEdit(voucher) {
                 this.form = {
                     code: voucher.code, description: voucher.description || '', discountPercent: voucher.discountPercent,
@@ -100,35 +181,80 @@
                     timeSlot: (Number(voucher.appliesTo) & 1) === 1, overnight: (Number(voucher.appliesTo) & 2) === 2,
                     fullDay: (Number(voucher.appliesTo) & 4) === 4,
                     totalUsageLimit: voucher.totalUsageLimit, perCustomerUsageLimit: voucher.perCustomerUsageLimit,
-                    customerId: voucher.customerId || '', status: Number(voucher.status)
+                    customerIds: voucher.customerId ? [voucher.customerId] : [], status: Number(voucher.status)
                 };
+                this.customerSearch = '';
+                this.customerPickerOpen = false;
                 this.editor = { open: true, mode: 'edit', voucherId: voucher.id, error: '' };
+                this.$nextTick(() => this.mountEditorPickers());
             },
-            closeEditor() { if (!this.saving) this.editor.open = false; },
+            closeEditor() { if (!this.saving) { this.editor.open = false; this.customerPickerOpen = false; } },
             generateCode() {
                 const bytes = new Uint8Array(4);
                 crypto.getRandomValues(bytes);
                 this.form.code = `DL${Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('').toUpperCase()}`;
             },
-            payload() {
+            toggleCustomer(customerId) {
+                const current = Array.from(this.form.customerIds || []);
+                const index = current.indexOf(customerId);
+                if (index >= 0) current.splice(index, 1);
+                else if (this.editor.mode === 'edit') current.splice(0, current.length, customerId);
+                else current.push(customerId);
+                this.form.customerIds = current;
+            },
+            clearCustomers() { this.form.customerIds = []; this.customerPickerOpen = false; },
+            selectFilteredCustomers() {
+                if (this.editor.mode !== 'create') return;
+                this.form.customerIds = Array.from(new Set([...(this.form.customerIds || []), ...this.filteredCustomers.map(customer => customer.id)]));
+            },
+            batchCode(baseCode, index, count) {
+                const width = Math.max(2, String(count).length);
+                const suffix = `-${String(index + 1).padStart(width, '0')}`;
+                const base = String(baseCode || '').trim().toUpperCase().slice(0, 50 - suffix.length);
+                return `${base}${suffix}`;
+            },
+            payload(customerId = null, code = this.form.code) {
                 return {
-                    code: this.form.code, description: this.form.description || null,
+                    code,
+                    description: this.form.description || null,
                     discountPercent: Number(this.form.discountPercent),
                     appliesTo: (this.form.timeSlot ? 1 : 0) | (this.form.overnight ? 2 : 0) | (this.form.fullDay ? 4 : 0),
                     startsAtUtc: zonedToIso(this.form.startsAtLocal, this.timeZoneId),
                     endsAtUtc: zonedToIso(this.form.endsAtLocal, this.timeZoneId),
                     totalUsageLimit: this.form.totalUsageLimit ? Number(this.form.totalUsageLimit) : null,
                     perCustomerUsageLimit: this.form.perCustomerUsageLimit ? Number(this.form.perCustomerUsageLimit) : null,
-                    customerId: this.form.customerId || null, status: Number(this.form.status)
+                    customerId: customerId || null,
+                    status: Number(this.form.status)
                 };
             },
             async save() {
                 this.editor.error = '';
                 if (!this.form.code || !this.form.startsAtLocal || !this.form.endsAtLocal) { this.editor.error = 'Vui lòng nhập mã và thời gian hiệu lực.'; return; }
+                if (this.editor.mode === 'edit' && this.form.customerIds.length > 1) { this.editor.error = 'Voucher hiện có chỉ có thể gắn cho một khách.'; return; }
                 this.saving = true;
                 try {
-                    if (this.editor.mode === 'create') await DeLongApi.post(this.api('/'), this.payload());
-                    else await DeLongApi.put(this.api(`/${this.editor.voucherId}`), this.payload());
+                    if (this.editor.mode === 'create' && this.form.customerIds.length > 1) {
+                        const customerIds = [...this.form.customerIds];
+                        let created = 0;
+                        try {
+                            for (let index = 0; index < customerIds.length; index++) {
+                                await DeLongApi.post(this.api('/'), this.payload(customerIds[index], this.batchCode(this.form.code, index, customerIds.length)));
+                                created++;
+                            }
+                        } catch (error) {
+                            throw new Error(created > 0
+                                ? `Đã tạo ${created}/${customerIds.length} voucher. Các voucher còn lại chưa tạo: ${error.message || 'có lỗi xảy ra'}`
+                                : (error.message || 'Không thể tạo voucher hàng loạt.'));
+                        }
+                        this.editor.open = false;
+                        await this.load();
+                        this.notify(`Đã tạo ${created} voucher cho ${created} khách.`);
+                        return;
+                    }
+
+                    const customerId = this.form.customerIds[0] || null;
+                    if (this.editor.mode === 'create') await DeLongApi.post(this.api('/'), this.payload(customerId));
+                    else await DeLongApi.put(this.api(`/${this.editor.voucherId}`), this.payload(customerId));
                     this.editor.open = false;
                     await this.load();
                     this.notify('Đã lưu voucher.');

@@ -32,6 +32,22 @@ public sealed class VoucherSourceContractTests
         Assert.Contains("Tiền phòng", booking);
     }
 
+    [Fact]
+    public void Voucher_admin_uses_vietnamese_flatpickr_and_searchable_multi_customer_selection()
+    {
+        var admin = File.ReadAllText(Path.Combine(Root, "src/DeLong.Web/Pages/Admin/Vouchers/Index.cshtml"));
+        var script = File.ReadAllText(Path.Combine(Root, "src/DeLong.Web/wwwroot/js/pages/admin-vouchers.js"));
+        var styles = File.ReadAllText(Path.Combine(Root, "src/DeLong.Web/wwwroot/css/admin-vouchers.css"));
+
+        Assert.Contains("dist/l10n/vn.js", admin, StringComparison.Ordinal);
+        Assert.Contains("placeholder=\"dd/MM/yyyy HH:mm\"", admin, StringComparison.Ordinal);
+        Assert.Contains("Tìm theo tên hoặc số điện thoại", admin, StringComparison.Ordinal);
+        Assert.Contains("Chọn tất cả kết quả", admin, StringComparison.Ordinal);
+        Assert.Contains("altFormat: 'd/m/Y H:i'", script, StringComparison.Ordinal);
+        Assert.Contains("batchCode", script, StringComparison.Ordinal);
+        Assert.Contains("voucher-customer-options", styles, StringComparison.Ordinal);
+    }
+
     private static string FindRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
