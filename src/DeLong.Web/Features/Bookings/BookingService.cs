@@ -5,6 +5,7 @@ using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Payments;
 using DeLong.Web.Features.Notifications;
+using DeLong.Web.Features.Vouchers;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -14,7 +15,8 @@ public sealed class BookingService(
     AppDbContext db,
     CustomerService customerService,
     AuditService auditService,
-    BookingGuestGuideEmailService? guestGuideEmailService = null)
+    BookingGuestGuideEmailService? guestGuideEmailService = null,
+    VoucherService? voucherService = null)
 {
     private const string BookingCodeUniqueConstraint = "i_x_bookings_property_id_code";
     private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
@@ -50,7 +52,7 @@ public sealed class BookingService(
             PropertyId = propertyId, RoomId = request.RoomId, Customer = customer,
             Type = request.Type, RoomRateId = request.RoomRateId, RateName = Clean(request.RateName), UnitPrice = request.UnitPrice, NightCount = request.NightCount,
             CheckInUtc = checkInUtc, CheckOutUtc = checkOutUtc, Status = request.Status,
-            RoomAmount = request.RoomAmount, ExtraAmount = request.ExtraAmount, DiscountAmount = request.DiscountAmount,
+            RoomAmount = request.RoomAmount, SpecialSurchargeAmount = request.SpecialSurchargeAmount, ExtraAmount = request.ExtraAmount, DiscountAmount = request.DiscountAmount,
             Source = Clean(request.Source), PublicRequestKey = Clean(request.PublicRequestKey), Note = Clean(request.Note)
         };
         foreach (var segment in request.RateSegments.OrderBy(x => x.SortOrder))
@@ -65,6 +67,13 @@ public sealed class BookingService(
                 RateName = segment.RateName.Trim(),
                 ListPrice = segment.ListPrice,
                 AppliedAmount = segment.AppliedAmount,
+                SpecialSurchargeAmount = segment.SpecialSurchargeAmount,
+                ComboDiscountPercent = segment.ComboDiscountPercent,
+                ComboDiscountAmount = segment.ComboDiscountAmount,
+                DayProfile = segment.DayProfile,
+                SpecialPricingDayId = segment.SpecialPricingDayId,
+                SpecialDayName = segment.SpecialDayName,
+                SpecialSurchargePercent = segment.SpecialSurchargePercent,
                 PricingRule = segment.PricingRule.Trim()
             });
         }
@@ -105,6 +114,7 @@ public sealed class BookingService(
                                   booking.CheckInUtc != checkInUtc ||
                                   booking.CheckOutUtc != checkOutUtc ||
                                   booking.RoomAmount != request.RoomAmount ||
+                                  (request.SpecialSurchargeAmount.HasValue && booking.SpecialSurchargeAmount != request.SpecialSurchargeAmount.Value) ||
                                   booking.ExtraAmount != request.ExtraAmount ||
                                   booking.DiscountAmount != request.DiscountAmount;
         var before = Snapshot(booking);
@@ -112,6 +122,7 @@ public sealed class BookingService(
         booking.RoomId = request.RoomId; booking.CustomerId = customer.Id; booking.Type = request.Type; booking.RoomRateId = request.RoomRateId;
         booking.RateName = Clean(request.RateName); booking.UnitPrice = request.UnitPrice; booking.NightCount = request.NightCount;
         booking.CheckInUtc = checkInUtc; booking.CheckOutUtc = checkOutUtc; booking.RoomAmount = request.RoomAmount;
+        if (request.SpecialSurchargeAmount.HasValue) booking.SpecialSurchargeAmount = request.SpecialSurchargeAmount.Value;
         booking.ExtraAmount = request.ExtraAmount; booking.DiscountAmount = request.DiscountAmount; booking.Source = Clean(request.Source); booking.Note = Clean(request.Note);
         if (paymentTermsChanged)
             await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, bookingId, cancellationToken);
@@ -129,6 +140,8 @@ public sealed class BookingService(
         var before = Snapshot(booking); booking.Status = nextStatus;
         if (nextStatus is BookingStatus.Cancelled or BookingStatus.Completed or BookingStatus.NoShow)
             await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, bookingId, cancellationToken);
+        if (nextStatus == BookingStatus.Cancelled && voucherService is not null)
+            await voucherService.ReleaseReservedAsync(bookingId, "Booking bị hủy trước khi thanh toán hoàn tất.", cancellationToken);
         if (nextStatus == BookingStatus.Completed)
         {
             var room = await db.Rooms.SingleAsync(x => x.PropertyId == propertyId && x.Id == booking.RoomId, cancellationToken);
@@ -174,7 +187,8 @@ public sealed class BookingService(
             return new("validation", "Thứ tự snapshot khung giờ không hợp lệ.");
         if (ordered.Any(x => x.CheckOutUtc <= x.CheckInUtc || x.ListPrice < 0 || x.AppliedAmount < 0) ||
             ordered[0].CheckInUtc != request.CheckIn.UtcDateTime || ordered[^1].CheckOutUtc != request.CheckOut.UtcDateTime ||
-            ordered.Sum(x => x.AppliedAmount) != request.RoomAmount)
+            ordered.Sum(x => x.AppliedAmount) != request.RoomAmount ||
+            ordered.Sum(x => x.SpecialSurchargeAmount) != request.SpecialSurchargeAmount)
             return new("validation", "Snapshot khung giờ không khớp thời gian hoặc giá booking.");
         var rateIds = ordered.Select(x => x.RoomRateId).Distinct().ToArray();
         var validRateCount = await db.RoomRates.AsNoTracking()
@@ -194,12 +208,12 @@ public sealed class BookingService(
         x.Id, x.PropertyId, x.Code, x.Type, x.RoomId, x.Room.Code, x.Room.Name, x.CustomerId, x.Customer.Name, x.Customer.Phone,
         x.Customer.Note, x.Customer.IsBlacklisted, x.Customer.BlacklistReason, x.Customer.IsBlocked,
         x.RoomRateId, x.RateName, x.UnitPrice, x.NightCount, x.CheckInUtc, x.CheckOutUtc, x.Status,
-        x.RoomAmount, x.ExtraAmount, x.DiscountAmount, x.RoomAmount + x.ExtraAmount - x.DiscountAmount,
+        x.RoomAmount, x.SpecialSurchargeAmount, x.ExtraAmount, x.DiscountAmount, x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount,
         x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
-        x.RoomAmount + x.ExtraAmount - x.DiscountAmount - x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
+        x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount - x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
         x.Source, x.Note, x.CreatedAtUtc));
 
-    private static object Snapshot(Booking b) => new { b.Id, b.Code, Type = b.Type.ToString(), b.RoomId, b.CustomerId, b.RoomRateId, b.RateName, b.UnitPrice, b.NightCount, b.CheckInUtc, b.CheckOutUtc, Status = b.Status.ToString(), b.RoomAmount, b.ExtraAmount, b.DiscountAmount, b.Source, b.Note };
+    private static object Snapshot(Booking b) => new { b.Id, b.Code, Type = b.Type.ToString(), b.RoomId, b.CustomerId, b.RoomRateId, b.RateName, b.UnitPrice, b.NightCount, b.CheckInUtc, b.CheckOutUtc, Status = b.Status.ToString(), b.RoomAmount, b.SpecialSurchargeAmount, b.ExtraAmount, b.DiscountAmount, b.Source, b.Note };
 
     private async Task AwardLoyaltyPointsAsync(Booking booking, CancellationToken cancellationToken)
     {
@@ -228,7 +242,7 @@ public sealed class BookingService(
     {
         if (r.RoomId == Guid.Empty) return new("validation", "Vui lòng chọn phòng.");
         if (r.CheckOut <= r.CheckIn) return new("validation", "Giờ trả phòng phải sau giờ nhận phòng.");
-        if (r.RoomAmount < 0 || r.ExtraAmount < 0 || r.DiscountAmount < 0 || r.RoomAmount + r.ExtraAmount - r.DiscountAmount < 0) return new("validation", "Các khoản tiền không hợp lệ.");
+        if (r.RoomAmount < 0 || r.SpecialSurchargeAmount < 0 || r.ExtraAmount < 0 || r.DiscountAmount < 0 || r.RoomAmount + r.SpecialSurchargeAmount + r.ExtraAmount - r.DiscountAmount < 0) return new("validation", "Các khoản tiền không hợp lệ.");
         if (r.Status is not (BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed)) return new("validation", "Trạng thái tạo booking không hợp lệ.");
         if (!r.CustomerId.HasValue && (string.IsNullOrWhiteSpace(r.CustomerName) || CustomerService.NormalizePhone(r.CustomerPhone).Length < 8)) return new("validation", "Tên và số điện thoại khách là bắt buộc khi tạo khách mới.");
         return ValidatePricingSnapshot(r.Type, r.RoomRateId, r.RateName, r.UnitPrice, r.NightCount, r.RoomAmount);
@@ -239,7 +253,7 @@ public sealed class BookingService(
         if (r.RoomId == Guid.Empty || r.CustomerId == Guid.Empty) return new("validation", "Phòng hoặc khách hàng không hợp lệ.");
         if (string.IsNullOrWhiteSpace(r.CustomerName) || CustomerService.NormalizePhone(r.CustomerPhone).Length < 8) return new("validation", "Thông tin khách hàng không hợp lệ.");
         if (r.CheckOut <= r.CheckIn) return new("validation", "Giờ trả phòng phải sau giờ nhận phòng.");
-        if (r.RoomAmount < 0 || r.ExtraAmount < 0 || r.DiscountAmount < 0 || r.RoomAmount + r.ExtraAmount - r.DiscountAmount < 0) return new("validation", "Các khoản tiền không hợp lệ.");
+        if (r.RoomAmount < 0 || r.SpecialSurchargeAmount is < 0 || r.ExtraAmount < 0 || r.DiscountAmount < 0 || r.RoomAmount + (r.SpecialSurchargeAmount ?? 0) + r.ExtraAmount - r.DiscountAmount < 0) return new("validation", "Các khoản tiền không hợp lệ.");
         return ValidatePricingSnapshot(r.Type, r.RoomRateId, r.RateName, r.UnitPrice, r.NightCount, r.RoomAmount);
     }
 

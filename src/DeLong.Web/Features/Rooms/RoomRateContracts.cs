@@ -9,6 +9,8 @@ public sealed class CreateRoomRateRequest
     public string EndTime { get; init; } = string.Empty;
     public RoomRateType Type { get; init; } = RoomRateType.TimeSlot;
     public decimal Price { get; init; }
+    public bool UseWeekdayPriceOnWeekend { get; init; } = true;
+    public decimal? WeekendPrice { get; init; }
     public int SortOrder { get; init; }
 }
 
@@ -19,6 +21,8 @@ public sealed class UpdateRoomRateRequest
     public string EndTime { get; init; } = string.Empty;
     public RoomRateType Type { get; init; } = RoomRateType.TimeSlot;
     public decimal Price { get; init; }
+    public bool UseWeekdayPriceOnWeekend { get; init; } = true;
+    public decimal? WeekendPrice { get; init; }
     public int SortOrder { get; init; }
     public bool IsActive { get; init; } = true;
 }

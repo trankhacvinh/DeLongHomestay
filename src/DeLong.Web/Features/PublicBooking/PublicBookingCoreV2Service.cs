@@ -6,6 +6,7 @@ using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Operations;
 using DeLong.Web.Features.Site;
+using DeLong.Web.Features.Vouchers;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicBooking;
@@ -14,6 +15,7 @@ public sealed class PublicBookingCoreV2Service(
     AppDbContext db,
     PublicPropertyResolver propertyResolver,
     PublicBookingService publicBookingService,
+    VoucherService voucherService,
     StoragePaths storagePaths,
     IConfiguration configuration)
 {
@@ -21,6 +23,7 @@ public sealed class PublicBookingCoreV2Service(
         string? siteSlug,
         PublicBookingRequest request,
         string? requestKey,
+        Guid? customerUserId,
         CancellationToken cancellationToken = default)
     {
         var property = await propertyResolver.ResolveAsync(siteSlug, cancellationToken);
@@ -33,8 +36,21 @@ public sealed class PublicBookingCoreV2Service(
         var validation = await ValidateAsync(property.Id, request, policy, cancellationToken);
         if (validation.Error is not null) return (null, validation.Error);
 
+        await using var transaction = string.IsNullOrWhiteSpace(request.VoucherCode)
+            ? null
+            : await db.Database.BeginTransactionAsync(cancellationToken);
         var (result, error) = await publicBookingService.CreateRequestAsync(siteSlug, request, requestKey, policy, cancellationToken);
-        if (error is not null || result is null) return (result, error);
+        if (error is not null || result is null)
+        {
+            if (transaction is not null) await transaction.RollbackAsync(cancellationToken);
+            if (transaction is not null && error?.Code == "public_request_retry" && !string.IsNullOrWhiteSpace(requestKey))
+            {
+                await transaction.DisposeAsync();
+                db.ChangeTracker.Clear();
+                return await CreateRequestAsync(siteSlug, request, requestKey, customerUserId, cancellationToken);
+            }
+            return (result, error);
+        }
 
         var booking = await db.Bookings.Include(x => x.Customer)
             .SingleOrDefaultAsync(x => x.PropertyId == property.Id && x.Id == result.BookingId, cancellationToken);
@@ -43,6 +59,23 @@ public sealed class PublicBookingCoreV2Service(
         booking.ExtraAmount = validation.Surcharge;
         booking.Note = CleanNote(request.Note);
         booking.Customer.Email = request.CustomerEmail.Trim();
+        VoucherApplicationResult? voucher = null;
+        if (!string.IsNullOrWhiteSpace(request.VoucherCode))
+        {
+            var reserved = await voucherService.ReserveForBookingAsync(
+                property.Id, booking.Id, request.VoucherCode, customerUserId, cancellationToken);
+            voucher = reserved.Result;
+            if (reserved.Error is not null)
+            {
+                if (transaction is not null) await transaction.RollbackAsync(cancellationToken);
+                return (null, new(reserved.Error.Code, reserved.Error.Message));
+            }
+        }
+        if (booking.TotalAmount == 0)
+        {
+            booking.Status = BookingStatus.Confirmed;
+            await voucherService.MarkRedeemedAsync(booking.Id, cancellationToken);
+        }
         await db.SaveChangesAsync(cancellationToken);
         await guestDetailsStore.SaveAsync(
             property.Id,
@@ -54,6 +87,7 @@ public sealed class PublicBookingCoreV2Service(
                 DateTime.UtcNow),
             cancellationToken);
         await RefreshNotificationTotalAsync(property.Id, booking.Id, booking.TotalAmount, request.CustomerEmail, request.GuestCount, cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
 
         OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
             property.Id,
@@ -61,7 +95,15 @@ public sealed class PublicBookingCoreV2Service(
             booking.Id,
             booking.RoomId));
 
-        return (result with { TotalAmount = booking.TotalAmount }, null);
+        return (result with
+        {
+            TotalAmount = booking.TotalAmount,
+            VoucherCode = voucher?.Code,
+            VoucherDiscountPercent = voucher?.DiscountPercent,
+            VoucherDiscountAmount = voucher?.DiscountAmount ?? 0,
+            PriceBeforeVoucher = voucher is null ? null : booking.RoomAmount + booking.SpecialSurchargeAmount + booking.ExtraAmount,
+            PaymentRequired = booking.TotalAmount > 0
+        }, null);
     }
 
     public async Task ReleaseExpiredHoldsAsync(string? siteSlug, CancellationToken cancellationToken = default)

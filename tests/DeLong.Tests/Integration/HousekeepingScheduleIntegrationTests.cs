@@ -68,8 +68,8 @@ public sealed class HousekeepingScheduleIntegrationTests
         Assert.Equal(30, schedule!.Settings.BeforeCheckInMinutes);
         Assert.Equal(15, schedule.Settings.AfterCheckOutMinutes);
         var day = Assert.Single(schedule.Calendar);
-        Assert.Equal(2, day.Tasks.Count);
-        var turnover = Assert.Single(day.Tasks, task => task.Kind == "turnover");
+        Assert.Equal(3, day.Tasks.Count);
+        var turnover = Assert.Single(day.Tasks, task => task.Kind == "turnover" && task.BookingId == completed.Id);
         Assert.Equal("Giữ mở đèn", turnover.Action);
         Assert.Equal(ToUtc(targetDate, new TimeOnly(9, 15), timeZone), turnover.AtUtc);
         Assert.Contains("giữ mở đèn", turnover.Text, StringComparison.Ordinal);
@@ -77,6 +77,9 @@ public sealed class HousekeepingScheduleIntegrationTests
         Assert.Equal(arriving.Id, prepare.BookingId);
         Assert.Equal("Mở đèn", prepare.Action);
         Assert.Equal(ToUtc(targetDate, new TimeOnly(10, 30), timeZone), prepare.AtUtc);
+        var arrivingTurnover = Assert.Single(day.Tasks, task => task.Kind == "turnover" && task.BookingId == arriving.Id);
+        Assert.Equal("Tắt đèn", arrivingTurnover.Action);
+        Assert.Equal(ToUtc(targetDate, new TimeOnly(13, 15), timeZone), arrivingTurnover.AtUtc);
         Assert.DoesNotContain(day.Tasks, task => task.BookingId == cancelled.Id);
     }
 

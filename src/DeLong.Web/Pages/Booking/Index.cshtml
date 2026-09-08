@@ -199,6 +199,19 @@ else
                         <label class="public-form-full"><span>Ghi chú</span><textarea v-model.trim="form.note" maxlength="1000" placeholder="Ví dụ: muốn nhận phòng trễ hơn 30 phút..."></textarea></label>
                         <label class="public-honeypot" aria-hidden="true"><span>Website</span><input v-model="form.website" tabindex="-1" autocomplete="off" /></label>
                     </div>
+                    <section class="public-voucher-box" v-if="bookingType === 0">
+                        <div class="public-voucher-heading"><div><strong>Voucher ưu đãi</strong><small>Áp dụng sau giá combo/cả ngày và chỉ giảm tiền phòng.</small></div><span v-if="voucher.result">−{{ voucher.result.discountPercent }}%</span></div>
+                        <div class="public-voucher-entry">
+                            <input v-model.trim="form.voucherCode" v-on:input="voucher.error = ''; voucher.result && clearVoucher(false)" maxlength="50" autocomplete="off" placeholder="Nhập mã voucher" v-bind:disabled="voucher.loading" />
+                            <button type="button" class="public-btn public-btn-ghost" v-bind:disabled="voucher.loading" v-on:click="applyVoucher">{{ voucher.loading ? 'Đang kiểm tra…' : 'Áp dụng' }}</button>
+                        </div>
+                        <p class="public-voucher-error" v-if="voucher.error" role="alert">{{ voucher.error }}</p>
+                        <div class="public-voucher-success" v-if="voucher.result">
+                            <span><strong>{{ voucher.result.voucherCode }}</strong> đã áp dụng</span>
+                            <span>{{ money(voucher.result.roomAmount) }} − {{ money(voucher.result.discountAmount) }} = <strong>{{ money(voucher.result.totalAfterDiscount) }}</strong></span>
+                            <button type="button" v-on:click="clearVoucher">Bỏ mã</button>
+                        </div>
+                    </section>
                     <div class="public-booking-notice">Yêu cầu này <strong>chưa tự động giữ phòng</strong>. {{ propertyName }} sẽ liên hệ xác nhận trước khi lượt đặt chuyển sang trạng thái giữ/xác nhận.</div>
                     <button class="public-btn public-btn-primary public-submit-booking" type="button" v-bind:disabled="submitting" v-on:click="submitRequest">{{ submitting ? 'Đang gửi...' : 'Gửi yêu cầu đặt phòng' }}</button>
                     <p class="public-form-error" v-if="errorMessage">{{ errorMessage }}</p>
@@ -224,7 +237,9 @@ else
                         <div><dt>Ngày</dt><dd>{{ dateText }}</dd></div>
                         <div><dt>Khung giờ</dt><dd>{{ selectedRate.startTime }} → {{ selectedRate.endTime }}</dd></div>
                         <div><dt>Gói</dt><dd>{{ selectedRate.name }}</dd></div>
-                        <div class="total"><dt>Tạm tính</dt><dd>{{ money(selectedRate.price) }}</dd></div>
+                        <div v-if="voucher.result"><dt>Tiền phòng</dt><dd>{{ money(voucher.result.roomAmount) }}</dd></div>
+                        <div v-if="voucher.result"><dt>Voucher {{ voucher.result.voucherCode }}</dt><dd>−{{ money(voucher.result.discountAmount) }}</dd></div>
+                        <div class="total"><dt>Tạm tính</dt><dd>{{ bookingTotalText }}</dd></div>
                     </dl>
                     <dl v-else>
                         <div><dt>Nhận phòng</dt><dd>{{ stayDateText(checkInDate) }} · {{ selectedRate.startTime }}</dd></div>

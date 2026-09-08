@@ -16,6 +16,8 @@ public sealed class Room : EntityBase
     public bool IsPublished { get; set; }
     public bool FullDayPricingEnabled { get; set; }
     public decimal? FullDayPrice { get; set; }
+    public bool UseWeekdayFullDayPriceOnWeekend { get; set; } = true;
+    public decimal? WeekendFullDayPrice { get; set; }
     public int Capacity { get; set; } = 2;
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;

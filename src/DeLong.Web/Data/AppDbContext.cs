@@ -50,10 +50,71 @@ public sealed class AppDbContext
     public DbSet<RoomConditionReport> RoomConditionReports => Set<RoomConditionReport>();
     public DbSet<RoomConditionReportImage> RoomConditionReportImages => Set<RoomConditionReportImage>();
     public DbSet<RoomConditionTag> RoomConditionTags => Set<RoomConditionTag>();
+    public DbSet<Voucher> Vouchers => Set<Voucher>();
+    public DbSet<VoucherRedemption> VoucherRedemptions => Set<VoucherRedemption>();
+    public DbSet<VoucherEmailDelivery> VoucherEmailDeliveries => Set<VoucherEmailDelivery>();
+    public DbSet<PropertyPricingSettings> PropertyPricingSettings => Set<PropertyPricingSettings>();
+    public DbSet<SpecialPricingDay> SpecialPricingDays => Set<SpecialPricingDay>();
+    public DbSet<PropertyAiProfile> PropertyAiProfiles => Set<PropertyAiProfile>();
+    public DbSet<AiConversation> AiConversations => Set<AiConversation>();
+    public DbSet<AiMessage> AiMessages => Set<AiMessage>();
+    public DbSet<AiUsageRecord> AiUsageRecords => Set<AiUsageRecord>();
+    public DbSet<AiChangeProposal> AiChangeProposals => Set<AiChangeProposal>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<PropertyAiProfile>(entity =>
+        {
+            entity.HasIndex(x => x.PropertyId).IsUnique();
+            entity.Property(x => x.Provider).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Model).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ProtectedApiKey).HasMaxLength(4000).IsRequired();
+            entity.HasOne(x => x.Property).WithOne().HasForeignKey<PropertyAiProfile>(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("ck_property_ai_profiles_max_output_tokens", "max_output_tokens BETWEEN 128 AND 32000");
+                t.HasCheckConstraint("ck_property_ai_profiles_monthly_token_limit", "monthly_token_limit >= 0");
+            });
+        });
+        modelBuilder.Entity<AiConversation>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.UserId, x.UpdatedAtUtc });
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<AiMessage>(entity =>
+        {
+            entity.HasIndex(x => new { x.ConversationId, x.CreatedAtUtc });
+            entity.Property(x => x.Role).HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Content).HasMaxLength(16000).IsRequired();
+            entity.Property(x => x.ToolName).HasMaxLength(100);
+            entity.HasOne(x => x.Conversation).WithMany(x => x.Messages).HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<AiUsageRecord>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.CreatedAtUtc });
+            entity.Property(x => x.Provider).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Model).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Operation).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.ErrorCode).HasMaxLength(120);
+            entity.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<AiConversation>().WithMany().HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.SetNull);
+        });
+        modelBuilder.Entity<AiChangeProposal>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.Status, x.ExpiresAtUtc });
+            entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(50).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Summary).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.PayloadJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.FailureReason).HasMaxLength(2000);
+            entity.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<AiConversation>().WithMany().HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<Property>(entity =>
         {
@@ -80,6 +141,8 @@ public sealed class AppDbContext
             entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
             entity.Property(x => x.FullDayPrice).HasPrecision(18, 2);
+            entity.Property(x => x.WeekendFullDayPrice).HasPrecision(18, 2);
+            entity.Property(x => x.UseWeekdayFullDayPriceOnWeekend).HasDefaultValue(true).IsRequired();
             entity.Property(x => x.HousekeepingStatus).HasConversion<string>().HasMaxLength(20).HasDefaultValue(HousekeepingStatus.Clean).IsRequired();
             entity.HasOne(x => x.Property).WithMany(x => x.Rooms).HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -127,6 +190,8 @@ public sealed class AppDbContext
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(20).HasDefaultValue(RoomRateType.TimeSlot).IsRequired();
             entity.Property(x => x.Price).HasPrecision(18, 2);
+            entity.Property(x => x.WeekendPrice).HasPrecision(18, 2);
+            entity.Property(x => x.UseWeekdayPriceOnWeekend).HasDefaultValue(true).IsRequired();
             entity.HasOne(x => x.Room).WithMany(x => x.Rates).HasForeignKey(x => x.RoomId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -197,6 +262,7 @@ public sealed class AppDbContext
             entity.Property(x => x.RateName).HasMaxLength(100);
             entity.Property(x => x.UnitPrice).HasPrecision(18, 2);
             entity.Property(x => x.RoomAmount).HasPrecision(18, 2);
+            entity.Property(x => x.SpecialSurchargeAmount).HasPrecision(18, 2);
             entity.Property(x => x.ExtraAmount).HasPrecision(18, 2);
             entity.Property(x => x.DiscountAmount).HasPrecision(18, 2);
             entity.Property(x => x.Source).HasMaxLength(100);
@@ -215,14 +281,108 @@ public sealed class AppDbContext
             entity.Property(x => x.RateName).HasMaxLength(100).IsRequired();
             entity.Property(x => x.ListPrice).HasPrecision(18, 2);
             entity.Property(x => x.AppliedAmount).HasPrecision(18, 2);
+            entity.Property(x => x.SpecialSurchargeAmount).HasPrecision(18, 2);
+            entity.Property(x => x.ComboDiscountPercent).HasPrecision(5, 2);
+            entity.Property(x => x.ComboDiscountAmount).HasPrecision(18, 2);
+            entity.Property(x => x.DayProfile).HasConversion<string>().HasMaxLength(20)
+                .HasDefaultValue(PricingDayProfile.Weekday).HasSentinel(PricingDayProfile.Automatic).IsRequired();
+            entity.Property(x => x.SpecialDayName).HasMaxLength(200);
+            entity.Property(x => x.SpecialSurchargePercent).HasPrecision(5, 2);
             entity.Property(x => x.PricingRule).HasMaxLength(60).IsRequired();
             entity.HasOne(x => x.Booking).WithMany(x => x.RateSegments).HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.RoomRate).WithMany().HasForeignKey(x => x.RoomRateId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne<SpecialPricingDay>().WithMany().HasForeignKey(x => x.SpecialPricingDayId).OnDelete(DeleteBehavior.SetNull);
             entity.ToTable(table =>
             {
                 table.HasCheckConstraint("ck_booking_rate_segments_interval", "check_out_utc > check_in_utc");
                 table.HasCheckConstraint("ck_booking_rate_segments_amounts", "list_price >= 0 AND applied_amount >= 0");
             });
+        });
+
+        modelBuilder.Entity<PropertyPricingSettings>(entity =>
+        {
+            entity.HasIndex(x => x.PropertyId).IsUnique();
+            entity.Property(x => x.ThreeSlotDiscountPercent).HasPrecision(5, 2);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("ck_property_pricing_three_slot_count", "three_slot_count BETWEEN 2 AND 20");
+                table.HasCheckConstraint("ck_property_pricing_three_slot_discount", "three_slot_discount_percent BETWEEN 0 AND 100");
+            });
+        });
+
+        modelBuilder.Entity<SpecialPricingDay>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.StartDate, x.EndDate });
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Category).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(x => x.BasePriceProfile).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.BookingMode).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.SurchargePercent).HasPrecision(5, 2);
+            entity.Property(x => x.Note).HasMaxLength(1000);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("ck_special_pricing_days_range", "end_date >= start_date");
+                table.HasCheckConstraint("ck_special_pricing_days_surcharge", "surcharge_percent BETWEEN 0 AND 100");
+            });
+        });
+
+        modelBuilder.Entity<Voucher>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.NormalizedCode }).IsUnique();
+            entity.HasIndex(x => new { x.PropertyId, x.Status, x.StartsAtUtc, x.EndsAtUtc });
+            entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.NormalizedCode).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1000);
+            entity.Property(x => x.DiscountPercent).HasPrecision(5, 2);
+            entity.Property(x => x.AppliesTo).HasConversion<string>().HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("ck_vouchers_discount_percent", "discount_percent > 0 AND discount_percent <= 100");
+                table.HasCheckConstraint("ck_vouchers_validity", "ends_at_utc > starts_at_utc");
+                table.HasCheckConstraint("ck_vouchers_applicability", "applies_to <> 'None'");
+                table.HasCheckConstraint("ck_vouchers_total_usage_limit", "total_usage_limit IS NULL OR total_usage_limit > 0");
+                table.HasCheckConstraint("ck_vouchers_per_customer_usage_limit", "per_customer_usage_limit IS NULL OR per_customer_usage_limit > 0");
+            });
+        });
+
+        modelBuilder.Entity<VoucherRedemption>(entity =>
+        {
+            entity.HasIndex(x => x.BookingId).IsUnique();
+            entity.HasIndex(x => new { x.VoucherId, x.Status });
+            entity.HasIndex(x => new { x.VoucherId, x.CustomerId, x.Status });
+            entity.Property(x => x.VoucherCode).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.DiscountPercent).HasPrecision(5, 2);
+            entity.Property(x => x.EligibleRoomAmount).HasPrecision(18, 2);
+            entity.Property(x => x.DiscountAmount).HasPrecision(18, 2);
+            entity.Property(x => x.BookingScope).HasConversion<string>().HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(x => x.ResolutionReason).HasMaxLength(1000);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Voucher).WithMany(x => x.Redemptions).HasForeignKey(x => x.VoucherId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Booking).WithOne(x => x.VoucherRedemption).HasForeignKey<VoucherRedemption>(x => x.BookingId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table => table.HasCheckConstraint(
+                "ck_voucher_redemptions_amounts",
+                "eligible_room_amount >= 0 AND discount_amount >= 0 AND discount_amount <= eligible_room_amount"));
+        });
+
+        modelBuilder.Entity<VoucherEmailDelivery>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.VoucherId, x.CreatedAtUtc });
+            entity.HasIndex(x => new { x.SentAtUtc, x.NextAttemptAtUtc });
+            entity.Property(x => x.RecipientEmail).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.Subject).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.BodyText).HasColumnType("text").IsRequired();
+            entity.Property(x => x.BodyHtml).HasColumnType("text");
+            entity.Property(x => x.LastError).HasMaxLength(2000);
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Voucher).WithMany(x => x.EmailDeliveries).HasForeignKey(x => x.VoucherId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Payment>(entity =>
@@ -383,6 +543,8 @@ public sealed class AppDbContext
             entity.Property(x => x.GuestCheckInEmailBodyTemplate).HasColumnType("text");
             entity.Property(x => x.GuestCancellationEmailSubjectTemplate).HasMaxLength(300);
             entity.Property(x => x.GuestCancellationEmailBodyTemplate).HasColumnType("text");
+            entity.Property(x => x.VoucherEmailSubjectTemplate).HasMaxLength(300);
+            entity.Property(x => x.VoucherEmailBodyTemplate).HasColumnType("text");
             entity.Property(x => x.TelegramChatIds).HasMaxLength(2000);
             entity.Property(x => x.LastEmailError).HasMaxLength(2000);
             entity.Property(x => x.LastTelegramError).HasMaxLength(2000);

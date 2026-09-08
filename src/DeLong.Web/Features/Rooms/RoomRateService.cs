@@ -9,7 +9,7 @@ public sealed class RoomRateService(AppDbContext db)
 {
     public async Task<(RoomRateDto? Rate, RoomRateOperationError? Error)> CreateAsync(Guid propertyId, Guid roomId, CreateRoomRateRequest request, CancellationToken cancellationToken = default)
     {
-        var validation = Validate(request.Name, request.StartTime, request.EndTime, request.Type, request.Price);
+        var validation = Validate(request.Name, request.StartTime, request.EndTime, request.Type, request.Price, request.UseWeekdayPriceOnWeekend, request.WeekendPrice);
         if (validation.Error is not null) return (null, validation.Error);
         if (!await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id == roomId && x.IsActive, cancellationToken))
             return (null, new("room_not_found", "Không tìm thấy phòng hoặc phòng đã ngừng hoạt động."));
@@ -26,6 +26,8 @@ public sealed class RoomRateService(AppDbContext db)
             Type = request.Type,
             IsOvernight = request.Type == RoomRateType.Overnight,
             Price = request.Price,
+            UseWeekdayPriceOnWeekend = request.UseWeekdayPriceOnWeekend,
+            WeekendPrice = request.UseWeekdayPriceOnWeekend ? null : request.WeekendPrice,
             SortOrder = request.SortOrder,
             IsActive = true
         };
@@ -36,7 +38,7 @@ public sealed class RoomRateService(AppDbContext db)
 
     public async Task<(RoomRateDto? Rate, RoomRateOperationError? Error)> UpdateAsync(Guid propertyId, Guid roomId, Guid rateId, UpdateRoomRateRequest request, CancellationToken cancellationToken = default)
     {
-        var validation = Validate(request.Name, request.StartTime, request.EndTime, request.Type, request.Price);
+        var validation = Validate(request.Name, request.StartTime, request.EndTime, request.Type, request.Price, request.UseWeekdayPriceOnWeekend, request.WeekendPrice);
         if (validation.Error is not null) return (null, validation.Error);
         var rate = await db.RoomRates.Include(x => x.Room).SingleOrDefaultAsync(
             x => x.Id == rateId && x.RoomId == roomId && x.Room.PropertyId == propertyId,
@@ -52,6 +54,8 @@ public sealed class RoomRateService(AppDbContext db)
         rate.Type = request.Type;
         rate.IsOvernight = request.Type == RoomRateType.Overnight;
         rate.Price = request.Price;
+        rate.UseWeekdayPriceOnWeekend = request.UseWeekdayPriceOnWeekend;
+        rate.WeekendPrice = request.UseWeekdayPriceOnWeekend ? null : request.WeekendPrice;
         rate.SortOrder = request.SortOrder;
         rate.IsActive = request.IsActive;
         await db.SaveChangesAsync(cancellationToken);
@@ -82,7 +86,9 @@ public sealed class RoomRateService(AppDbContext db)
         string startTime,
         string endTime,
         RoomRateType type,
-        decimal price)
+        decimal price,
+        bool useWeekdayPriceOnWeekend,
+        decimal? weekendPrice)
     {
         if (string.IsNullOrWhiteSpace(name)) return (null, null, new("validation", "Tên khung giá là bắt buộc."));
         if (name.Trim().Length > 100) return (null, null, new("validation", "Tên khung giá tối đa 100 ký tự."));
@@ -91,6 +97,8 @@ public sealed class RoomRateService(AppDbContext db)
         if (!TimeOnly.TryParse(endTime, out var end)) return (null, null, new("validation", "Giờ trả/kết thúc không hợp lệ."));
         if (price < 0 || price > 1_000_000_000m) return (null, null, new("validation", "Giá phòng không hợp lệ."));
         if (type == RoomRateType.Nightly && price <= 0) return (null, null, new("validation", "Giá lưu trú theo đêm phải lớn hơn 0."));
+        if (!useWeekdayPriceOnWeekend && weekendPrice is not > 0)
+            return (null, null, new("validation", "Giá cuối tuần phải lớn hơn 0 hoặc chọn dùng cùng giá ngày thường."));
         return (start, end, null);
     }
 
@@ -102,6 +110,8 @@ public sealed class RoomRateService(AppDbContext db)
         rate.Type,
         rate.IsOvernight,
         rate.Price,
+        rate.UseWeekdayPriceOnWeekend,
+        rate.WeekendPrice,
         rate.IsActive,
         rate.SortOrder);
 }

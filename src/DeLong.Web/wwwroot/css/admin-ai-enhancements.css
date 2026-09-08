@@ -1,0 +1,10 @@
+.ai-chat-drawer{width:min(680px,100vw)}
+.ai-proposal-table-wrap{overflow:auto;border:1px solid #e5d59f;border-radius:12px;background:#fff}
+.ai-proposal-table{width:100%;border-collapse:collapse;font-size:.88rem}
+.ai-proposal-table th,.ai-proposal-table td{padding:9px 11px;text-align:left;vertical-align:top;border-bottom:1px solid #eee7d2}
+.ai-proposal-table th{width:38%;color:#516662;background:#fffdf6;font-weight:700}
+.ai-proposal-table tr:last-child th,.ai-proposal-table tr:last-child td{border-bottom:0}
+.ai-proposal-operation{display:grid;gap:7px}
+.ai-proposal-operation+.ai-proposal-operation{margin-top:12px}
+.ai-proposal-operation>strong{color:#155b60}
+@media(max-width:600px){.ai-chat-drawer{width:100vw}.ai-proposal-table th{width:42%}}

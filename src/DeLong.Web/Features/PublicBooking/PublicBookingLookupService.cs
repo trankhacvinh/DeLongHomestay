@@ -68,6 +68,7 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
                 x.CheckOutUtc,
                 x.NightCount,
                 x.RoomAmount,
+                x.SpecialSurchargeAmount,
                 x.ExtraAmount,
                 x.DiscountAmount,
                 CustomerName = x.Customer.Name,
@@ -88,7 +89,7 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
         var tz = TimeZoneInfo.FindSystemTimeZoneById(booking.TimeZoneId);
         var checkIn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(booking.CheckInUtc, DateTimeKind.Utc), tz);
         var checkOut = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(booking.CheckOutUtc, DateTimeKind.Utc), tz);
-        var total = booking.RoomAmount + booking.ExtraAmount - booking.DiscountAmount;
+        var total = booking.RoomAmount + booking.SpecialSurchargeAmount + booking.ExtraAmount - booking.DiscountAmount;
         var paid = booking.Payments.Sum(x => x.Type == PaymentType.Receipt ? x.Amount : -x.Amount);
 
         return new PublicBookingLookupDto(

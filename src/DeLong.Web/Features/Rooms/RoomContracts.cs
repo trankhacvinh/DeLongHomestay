@@ -10,6 +10,8 @@ public sealed record RoomRateDto(
     RoomRateType Type,
     bool IsOvernight,
     decimal Price,
+    bool UseWeekdayPriceOnWeekend,
+    decimal? WeekendPrice,
     bool IsActive,
     int SortOrder);
 
@@ -24,6 +26,8 @@ public sealed record RoomDto(
     bool IsPublished,
     bool FullDayPricingEnabled,
     decimal? FullDayPrice,
+    bool UseWeekdayFullDayPriceOnWeekend,
+    decimal? WeekendFullDayPrice,
     HousekeepingStatus HousekeepingStatus,
     DateTime? HousekeepingUpdatedAtUtc,
     string? CoverThumbnailUrl,
@@ -44,4 +48,6 @@ public sealed record UpdateRoomRequest(
     bool IsActive,
     bool? IsPublished = null,
     bool? FullDayPricingEnabled = null,
-    decimal? FullDayPrice = null);
+    decimal? FullDayPrice = null,
+    bool? UseWeekdayFullDayPriceOnWeekend = null,
+    decimal? WeekendFullDayPrice = null);

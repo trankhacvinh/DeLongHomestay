@@ -114,6 +114,7 @@ public sealed partial class BookingGuestGuideEmailService(
                 x.CheckInUtc,
                 x.CheckOutUtc,
                 x.RoomAmount,
+                x.SpecialSurchargeAmount,
                 x.ExtraAmount,
                 x.DiscountAmount,
                 CustomerName = x.Customer.Name,
@@ -144,7 +145,7 @@ public sealed partial class BookingGuestGuideEmailService(
             booking.RoomName,
             checkIn,
             checkOut,
-            booking.RoomAmount + booking.ExtraAmount - booking.DiscountAmount,
+            booking.RoomAmount + booking.SpecialSurchargeAmount + booking.ExtraAmount - booking.DiscountAmount,
             guide,
             string.IsNullOrWhiteSpace(cancellationReason) ? "Booking đã được hủy trên hệ thống." : cancellationReason.Trim());
         var cancellation = string.Equals(templateKey, "Cancellation", StringComparison.Ordinal);

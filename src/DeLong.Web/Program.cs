@@ -22,6 +22,9 @@ using DeLong.Web.Features.Rooms;
 using DeLong.Web.Features.Site;
 using DeLong.Web.Features.Staff;
 using DeLong.Web.Features.CustomerAccounts;
+using DeLong.Web.Features.Vouchers;
+using DeLong.Web.Features.Pricing;
+using DeLong.Web.Features.AdminAi;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -181,6 +184,9 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ViewFinance", policy => policy.RequireRole("Admin", "Manager", "Viewer"));
     options.AddPolicy("ManageFinance", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ViewReports", policy => policy.RequireRole("Admin", "Manager", "Viewer"));
+    options.AddPolicy("ViewVouchers", policy => policy.RequireRole("Admin", "Manager", "Staff"));
+    options.AddPolicy("ManageVouchers", policy => policy.RequireRole("Admin", "Manager"));
+    options.AddPolicy("UseAdminAi", policy => policy.RequireRole("Admin"));
 });
 
 builder.Services.AddRazorPages(options =>
@@ -190,6 +196,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Admin/Bookings", "ViewOperations");
     options.Conventions.AuthorizeFolder("/Admin/Customers", "ViewOperations");
     options.Conventions.AuthorizeFolder("/Admin/Rooms", "ViewRooms");
+    options.Conventions.AuthorizeFolder("/Admin/Pricing", "ViewRooms");
     options.Conventions.AuthorizePage("/Admin/Rooms/Content", "ManageRooms");
     options.Conventions.AuthorizeFolder("/Admin/Housekeeping", "ViewHousekeeping");
     options.Conventions.AuthorizeFolder("/Admin/Settings", "ManageRooms");
@@ -198,6 +205,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Admin/Imports", "ManageImports");
     options.Conventions.AuthorizeFolder("/Admin/Finance", "ViewFinance");
     options.Conventions.AuthorizeFolder("/Admin/Reports", "ViewReports");
+    options.Conventions.AuthorizeFolder("/Admin/Vouchers", "ViewVouchers");
+    options.Conventions.AuthorizeFolder("/Admin/Ai", "UseAdminAi");
     options.Conventions.AuthorizeFolder("/Admin/Staff", "ManageStaff");
     options.Conventions.AllowAnonymousToPage("/Account/Login");
 
@@ -270,6 +279,16 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("admin-ai", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"{httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value}:admin-ai",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
     options.AddPolicy("account-login", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             $"{httpContext.Connection.RemoteIpAddress}:account",
@@ -297,6 +316,7 @@ builder.Services.AddScoped<MediaLibraryService>();
 builder.Services.AddSingleton<ISiteAssetStorage, LocalSiteAssetStorage>();
 builder.Services.AddScoped<RoomService>();
 builder.Services.AddScoped<RoomRateService>();
+builder.Services.AddScoped<PricingService>();
 builder.Services.AddScoped<RoomContentService>();
 builder.Services.AddSingleton<IRoomImageStorage, LocalRoomImageStorage>();
 builder.Services.AddSingleton<IRoomConditionMediaStorage, LocalRoomConditionMediaStorage>();
@@ -324,6 +344,11 @@ builder.Services.AddScoped<PublicBookingService>();
 builder.Services.AddScoped<PublicBookingLookupService>();
 builder.Services.AddScoped<PublicRoomContentService>();
 builder.Services.AddScoped<PublicRequestInboxService>();
+builder.Services.AddScoped<VoucherService>();
+builder.Services.AddSingleton<AiCredentialProtector>();
+builder.Services.AddScoped<AdminAiSettingsService>();
+builder.Services.AddScoped<AdminAiService>();
+builder.Services.AddHttpClient<AiProviderClient>(client => client.Timeout = TimeSpan.FromSeconds(60));
 builder.Services.AddSingleton<NotificationRealtimeBroker>();
 builder.Services.AddSingleton<SmtpCredentialProtector>();
 builder.Services.AddSingleton<TelegramCredentialProtector>();
@@ -437,6 +462,7 @@ app.MapMediaLibraryEndpoints();
 app.MapPublicSeoEndpoints();
 app.MapRoomEndpoints();
 app.MapRoomRateEndpoints();
+app.MapPricingEndpoints();
 app.MapRoomContentEndpoints();
 app.MapCustomerEndpoints();
 app.MapBookingEndpoints();
@@ -452,6 +478,8 @@ app.MapPublicRoomMediaEndpoints();
 app.MapPublicBookingEndpoints();
 app.MapPublicBookingLookupEndpoints();
 app.MapNotificationEndpoints();
+app.MapVoucherEndpoints();
+app.MapAdminAiEndpoints();
 
 if (app.Configuration.GetValue<bool>("Database:AutoMigrate") || app.Configuration.GetValue<bool>("Database:SeedOnStartup"))
 {

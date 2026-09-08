@@ -4,6 +4,7 @@ using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Notifications;
+using DeLong.Web.Features.Vouchers;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.Payments;
@@ -14,7 +15,8 @@ public sealed class Pay2SService(
     Pay2SClient client,
     BookingService bookingService,
     BookingNotificationService notificationService,
-    BookingGuestGuideEmailService guestGuideEmailService)
+    BookingGuestGuideEmailService guestGuideEmailService,
+    VoucherService voucherService)
 {
     public async Task<(Pay2SIntentDto? Intent, Pay2SOperationError? Error)> CreateIntentAsync(
         Guid propertyId,
@@ -254,6 +256,7 @@ public sealed class Pay2SService(
         intent.Payment = payment;
         if (!late && intent.Booking.Status is BookingStatus.Requested or BookingStatus.Held)
             intent.Booking.Status = BookingStatus.Confirmed;
+        if (!late) await voucherService.MarkRedeemedAsync(intent.BookingId, ct);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         if (late) await notificationService.NotifyLatePay2SPaymentAsync(intent.PropertyId, intent.BookingId, intent.Amount, ct);
@@ -281,6 +284,7 @@ public sealed class Pay2SService(
             if (intent.CancelBookingOnExpiry && intent.Booking.Status is BookingStatus.Held or BookingStatus.Requested)
             {
                 intent.Booking.Status = BookingStatus.Cancelled;
+                await voucherService.ReleaseReservedAsync(intent.BookingId, "Booking bị hủy do hết thời gian thanh toán Pay2S.", ct);
                 cancelledBookingIds.Add((intent.PropertyId, intent.BookingId));
             }
         }

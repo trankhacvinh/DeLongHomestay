@@ -9,26 +9,26 @@ public sealed class RoomService(AppDbContext db)
     public async Task<IReadOnlyList<RoomDto>> GetAllAsync(Guid propertyId, CancellationToken cancellationToken = default)
     {
         return await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId).OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
-            .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive, x.IsPublished, x.FullDayPricingEnabled, x.FullDayPrice,
+            .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive, x.IsPublished, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice,
                 x.HousekeepingStatus, x.HousekeepingUpdatedAtUtc,
                 x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder).Select(i => i.ThumbnailPath).FirstOrDefault(),
                 x.Images.Count,
                 x.Rates.OrderBy(r => r.SortOrder).Select(r => new RoomRateDto(r.Id, r.Name,
                     r.StartTime.ToString("HH:mm"), r.EndTime.ToString("HH:mm"), r.Type, r.IsOvernight,
-                    r.Price, r.IsActive, r.SortOrder)).ToList()))
+                    r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice, r.IsActive, r.SortOrder)).ToList()))
             .ToListAsync(cancellationToken);
     }
 
     public async Task<RoomDto?> GetAsync(Guid propertyId, Guid roomId, CancellationToken cancellationToken = default)
     {
         return await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Id == roomId)
-            .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive, x.IsPublished, x.FullDayPricingEnabled, x.FullDayPrice,
+            .Select(x => new RoomDto(x.Id, x.PropertyId, x.Code, x.Name, x.Capacity, x.SortOrder, x.IsActive, x.IsPublished, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice,
                 x.HousekeepingStatus, x.HousekeepingUpdatedAtUtc,
                 x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder).Select(i => i.ThumbnailPath).FirstOrDefault(),
                 x.Images.Count,
                 x.Rates.OrderBy(r => r.SortOrder).Select(r => new RoomRateDto(r.Id, r.Name,
                     r.StartTime.ToString("HH:mm"), r.EndTime.ToString("HH:mm"), r.Type, r.IsOvernight,
-                    r.Price, r.IsActive, r.SortOrder)).ToList()))
+                    r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice, r.IsActive, r.SortOrder)).ToList()))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -83,6 +83,13 @@ public sealed class RoomService(AppDbContext db)
                 return (null, "Giá cả ngày phải lớn hơn 0 khi bật giá riêng.");
             room.FullDayPricingEnabled = request.FullDayPricingEnabled.Value;
             room.FullDayPrice = request.FullDayPricingEnabled.Value ? request.FullDayPrice : null;
+        }
+        if (request.UseWeekdayFullDayPriceOnWeekend.HasValue)
+        {
+            if (room.FullDayPricingEnabled && !request.UseWeekdayFullDayPriceOnWeekend.Value && request.WeekendFullDayPrice is not > 0)
+                return (null, "Giá combo cả ngày cuối tuần phải lớn hơn 0.");
+            room.UseWeekdayFullDayPriceOnWeekend = request.UseWeekdayFullDayPriceOnWeekend.Value;
+            room.WeekendFullDayPrice = request.UseWeekdayFullDayPriceOnWeekend.Value ? null : request.WeekendFullDayPrice;
         }
         await db.SaveChangesAsync(cancellationToken);
         return (await GetAsync(propertyId, roomId, cancellationToken), null);

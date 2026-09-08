@@ -130,7 +130,8 @@ public sealed class OperationsAvailabilityIntegrationTests
         var paths = TestStoragePaths(tempRoot);
         try
         {
-            var service = new AvailabilityIntervalService(db, new PublicPropertyResolver(db), paths);
+            var service = new AvailabilityIntervalService(db, new PublicPropertyResolver(db), paths,
+                new DeLong.Web.Features.Pricing.PricingService(db, new DeLong.Web.Common.Auditing.AuditService(db)));
 
             var admin = await service.GetAdminAsync(property.Id, room.Id, targetDate, 1);
             Assert.NotNull(admin);

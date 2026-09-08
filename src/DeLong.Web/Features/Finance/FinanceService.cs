@@ -70,7 +70,7 @@ public sealed class FinanceService(AppDbContext db)
         var outstanding = await db.Bookings
             .AsNoTracking()
             .Where(x => x.PropertyId == propertyId && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
-            .Select(x => x.RoomAmount + x.ExtraAmount - x.DiscountAmount -
+            .Select(x => x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount -
                          x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount))
             .Where(balance => balance > 0)
             .SumAsync(cancellationToken);

@@ -4,6 +4,7 @@ using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
 using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.Site;
+using DeLong.Web.Features.Pricing;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,6 +36,7 @@ public static class OperationsEndpoints
             AppDbContext db,
             PublicPropertyResolver resolver,
             StoragePaths storagePaths,
+            PricingService pricingService,
             CancellationToken cancellationToken) =>
         {
             if (!DateOnly.TryParse(from, out var startDate))
@@ -43,7 +45,7 @@ public static class OperationsEndpoints
                     ["from"] = ["Ngày bắt đầu không hợp lệ."]
                 });
 
-            var service = new AvailabilityIntervalService(db, resolver, storagePaths);
+            var service = new AvailabilityIntervalService(db, resolver, storagePaths, pricingService);
             var result = await service.GetAdminAsync(
                 propertyId,
                 roomId,
@@ -62,6 +64,7 @@ public static class OperationsEndpoints
             AppDbContext db,
             PublicPropertyResolver resolver,
             StoragePaths storagePaths,
+            PricingService pricingService,
             CancellationToken cancellationToken) =>
         {
             if (!DateOnly.TryParse(from, out var startDate))
@@ -81,7 +84,7 @@ public static class OperationsEndpoints
                 return Results.NotFound();
             }
 
-            var service = new AvailabilityIntervalService(db, resolver, storagePaths);
+            var service = new AvailabilityIntervalService(db, resolver, storagePaths, pricingService);
             var result = await service.GetPublicAsync(
                 siteSlug,
                 resolved.Value.RoomId,

@@ -1,12 +1,15 @@
 
 using System.Text.Json;
 using DeLong.Web.Common.Operations;
+using DeLong.Web.Data;
 using DeLong.Web.Domain.Enums;
+using DeLong.Web.Features.Pricing;
 using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Site;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Pages.Booking;
 
@@ -14,15 +17,20 @@ public sealed class IndexModel(
     PublicBookingService publicBookingService,
     PublicPropertyResolver publicPropertyResolver,
     PublicRoomContentService publicRoomContentService,
+    PricingService pricingService,
+    AppDbContext db,
     StoragePaths storagePaths,
-    IConfiguration configuration) : PageModel
+    IConfiguration configuration,
+    ILogger<IndexModel> logger) : PageModel
 {
     public string PageDataJson { get; private set; } = "{}";
     public bool RequiresPropertySelection { get; private set; }
     public IReadOnlyList<PublicPropertyCardDto> Properties { get; private set; } = [];
 
-    public async Task<IActionResult> OnGetAsync(string? siteSlug, string? site, string? date, string? room, Guid? rate, string? slots, bool embed, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(string? siteSlug, string? site, string? date, string? room, Guid? rate, string? slots, string? embed, CancellationToken cancellationToken)
     {
+        var isEmbedded = string.Equals(embed, "1", StringComparison.OrdinalIgnoreCase)
+                         || string.Equals(embed, "true", StringComparison.OrdinalIgnoreCase);
         var globalCatalog = await publicRoomContentService.GetGlobalCatalogAsync(cancellationToken);
         Properties = globalCatalog.Properties;
 
@@ -78,6 +86,7 @@ public sealed class IndexModel(
         }
 
         var initialSlots = new List<object>();
+        var initialSlotKeys = new List<(DateOnly StayDate, Guid RateId)>();
         if (selectedRoom is not null && !string.IsNullOrWhiteSpace(slots))
         {
             foreach (var item in slots.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
@@ -87,6 +96,50 @@ public sealed class IndexModel(
                 var slotRate = selectedRoom.Rates.FirstOrDefault(x => x.Id == slotRateId && x.Type != RoomRateType.Nightly);
                 if (slotRate is null) continue;
                 initialSlots.Add(new { stayDate = slotDate.ToString("yyyy-MM-dd"), rateId = slotRateId });
+                initialSlotKeys.Add((slotDate, slotRateId));
+            }
+        }
+
+        decimal? embeddedPricingTotal = null;
+        if (isEmbedded && selectedRoom is not null && initialSlotKeys.Count > 0)
+        {
+            var roomPricing = await db.Rooms.AsNoTracking()
+                .Where(x => x.Id == selectedRoom.Id && x.PropertyId == property.Id && x.IsActive && x.IsPublished)
+                .Select(x => new
+                {
+                    x.FullDayPricingEnabled,
+                    x.FullDayPrice,
+                    x.UseWeekdayFullDayPriceOnWeekend,
+                    x.WeekendFullDayPrice,
+                    Rates = x.Rates.Where(r => r.IsActive && r.Type != RoomRateType.Nightly)
+                        .OrderBy(r => r.SortOrder).ThenBy(r => r.StartTime).ThenBy(r => r.Name)
+                        .Select(r => new { r.Id, r.Name, r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice }).ToList()
+                })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (roomPricing is not null && roomPricing.Rates.Count > 0)
+            {
+                var rateIndexes = roomPricing.Rates.Select((rateItem, index) => (rateItem.Id, Index: index))
+                    .ToDictionary(x => x.Id, x => x.Index);
+                var pricingInputs = initialSlotKeys
+                    .Where(x => rateIndexes.ContainsKey(x.RateId))
+                    .Select(x =>
+                    {
+                        var rateItem = roomPricing.Rates[rateIndexes[x.RateId]];
+                        return new PricingSelectionInput(x.StayDate, rateIndexes[x.RateId], rateItem.Id, rateItem.Name,
+                            rateItem.Price, rateItem.UseWeekdayPriceOnWeekend, rateItem.WeekendPrice);
+                    })
+                    .ToList();
+                if (pricingInputs.Count == initialSlotKeys.Count)
+                {
+                    var (pricing, pricingError) = await pricingService.CalculateAsync(property.Id, pricingInputs,
+                        roomPricing.Rates.Count, roomPricing.FullDayPricingEnabled, roomPricing.FullDayPrice,
+                        roomPricing.UseWeekdayFullDayPriceOnWeekend, roomPricing.WeekendFullDayPrice, cancellationToken);
+                    if (pricingError is null)
+                        embeddedPricingTotal = pricing!.TotalBeforeVoucher;
+                    else
+                        logger.LogWarning("Embedded booking pricing failed for property {PropertyId}, room {RoomId}: {ErrorCode} {ErrorMessage}",
+                            property.Id, selectedRoom.Id, pricingError.Code, pricingError.Message);
+                }
             }
         }
 
@@ -102,7 +155,8 @@ public sealed class IndexModel(
             initialRoomId = selectedRoom?.Id,
             initialRateId = selectedRate?.Id,
             initialSlots,
-            embeddedSlotSelection = embed && initialSlots.Count > 0,
+            embeddedSlotSelection = isEmbedded && initialSlots.Count > 0,
+            embeddedPricingTotal,
             bookingPolicy,
             properties = Properties.Select(x => new
             {

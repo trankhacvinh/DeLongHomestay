@@ -28,6 +28,7 @@ public sealed class Booking : EntityBase
     public int? NightCount { get; set; }
 
     public decimal RoomAmount { get; set; }
+    public decimal SpecialSurchargeAmount { get; set; }
     public decimal ExtraAmount { get; set; }
     public decimal DiscountAmount { get; set; }
     public string? Source { get; set; }
@@ -36,6 +37,7 @@ public sealed class Booking : EntityBase
 
     public ICollection<Payment> Payments { get; set; } = [];
     public ICollection<BookingRateSegment> RateSegments { get; set; } = [];
+    public VoucherRedemption? VoucherRedemption { get; set; }
 
-    public decimal TotalAmount => RoomAmount + ExtraAmount - DiscountAmount;
+    public decimal TotalAmount => RoomAmount + SpecialSurchargeAmount + ExtraAmount - DiscountAmount;
 }

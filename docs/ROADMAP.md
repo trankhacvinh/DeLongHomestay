@@ -1,5 +1,12 @@
 # Roadmap
 
+## Đã triển khai — Pricing V2
+
+- [x] Giá ngày thường/cuối tuần theo phòng và ca.
+- [x] Combo đủ ngày, combo đúng số ca liên tục và phụ thu ngày đặc biệt.
+- [x] Chế độ ngày chỉ cho đặt combo cả ngày.
+- [x] Snapshot phụ thu tách khỏi phần tiền được voucher giảm.
+
 ## Đã triển khai — tài khoản khách và nền tảng tích điểm
 
 - [x] Đăng ký/đăng nhập khách bằng số điện thoại và mật khẩu.
@@ -94,6 +101,7 @@
 - [x] Notification booking ngoài hệ thống qua danh sách email và Telegram theo từng cơ sở, có outbox/retry và gửi thử.
 - [x] Email hướng dẫn check-in cho khách khi booking xác nhận, có trạng thái gửi trong chi tiết lịch/booking và gửi lại thủ công.
 - [x] Email báo hủy cho khách và bộ mẫu email booking/check-in/hủy tùy chỉnh theo từng cơ sở.
+- [x] Voucher theo cơ sở: phạm vi khung/qua đêm/cả ngày, giới hạn tổng/mỗi khách, giữ lượt đồng thời, vòng đời Pay2S, voucher 100%, hoàn lượt thủ công và email tùy chỉnh.
 - [ ] Kênh Zalo/SMS — chỉ làm khi cần.
 
 ## Phase 6 — Migration & go-live (đang thực hiện)
@@ -111,3 +119,11 @@
 - [x] Chức năng độc lập báo cáo tình trạng phòng: ảnh/video nhiều file, ảnh tối ưu, tag tự điền nội dung, đánh giá 5 sao, bảng lọc, trạng thái xử lý và lịch sử theo cơ sở.
 - [ ] UAT thực tế camera trên iOS Safari và Android Chrome; kiểm tra retry khi mạng di động yếu.
 - [ ] Màn hình quản lý đầy đủ cho thêm, sắp xếp và ngừng dùng tag mẫu.
+# Admin AI assistant (2026-09)
+
+- [x] Hồ sơ OpenAI/Gemini theo cơ sở, mã hóa API key.
+- [x] Chat Admin trên navbar, tra cứu snapshot booking/phòng/doanh thu/housekeeping.
+- [x] Thống kê lượt gọi và input/output token theo tháng.
+- [x] Preview và duyệt proposal cho phòng/khung giá/voucher/ngày đặc biệt/cấu hình giá.
+- [ ] UAT với API key thật của OpenAI và Gemini.
+- [ ] Bổ sung báo cáo phân tích nâng cao; RAG chưa nằm trong phạm vi hiện tại.

@@ -62,7 +62,7 @@ public sealed class ReportService(AppDbContext db)
                 x.Status,
                 x.CheckInUtc,
                 x.CheckOutUtc,
-                x.RoomAmount + x.ExtraAmount - x.DiscountAmount))
+                x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount))
             .ToListAsync(cancellationToken);
 
         var bookingRows = allBookingRows
@@ -94,7 +94,7 @@ public sealed class ReportService(AppDbContext db)
             .Select(x => new
             {
                 x.CheckInUtc,
-                Balance = x.RoomAmount + x.ExtraAmount - x.DiscountAmount -
+                Balance = x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount -
                           x.Payments.Where(p => !p.IsVoided)
                               .Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount)
             })

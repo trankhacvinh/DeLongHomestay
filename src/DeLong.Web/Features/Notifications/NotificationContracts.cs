@@ -25,6 +25,8 @@ public sealed record NotificationSettingsDto(
     string GuestCheckInEmailBodyTemplate,
     string GuestCancellationEmailSubjectTemplate,
     string GuestCancellationEmailBodyTemplate,
+    string VoucherEmailSubjectTemplate,
+    string VoucherEmailBodyTemplate,
     string EmailRecipients,
     string SmtpHost,
     int SmtpPort,
@@ -55,6 +57,8 @@ public sealed class UpdateNotificationSettingsRequest
     public string? GuestCheckInEmailBodyTemplate { get; set; }
     public string? GuestCancellationEmailSubjectTemplate { get; set; }
     public string? GuestCancellationEmailBodyTemplate { get; set; }
+    public string? VoucherEmailSubjectTemplate { get; set; }
+    public string? VoucherEmailBodyTemplate { get; set; }
     public string? EmailRecipients { get; set; }
     public string? SmtpHost { get; set; }
     public int SmtpPort { get; set; } = 587;

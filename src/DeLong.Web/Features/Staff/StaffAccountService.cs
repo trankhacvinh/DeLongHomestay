@@ -170,8 +170,8 @@ public sealed class StaffAccountService(
         UpdateStaffAccountRequest request,
         CancellationToken cancellationToken = default)
     {
-        var validation = ValidateCommon(request.DisplayName, request.UserName, request.Email, request.Role, request.PropertyIds);
-        if (validation is not null) return (null, validation);
+        if (request.PropertyIds is null)
+            return (null, "Chọn ít nhất một cơ sở được truy cập.");
 
         var actorProperties = await GetActorPropertiesAsync(actorUserId, cancellationToken);
         var actorPropertyIds = actorProperties.Select(x => x.Id).ToHashSet();
@@ -191,16 +191,20 @@ public sealed class StaffAccountService(
 
         var currentRoles = await userManager.GetRolesAsync(user);
         var currentRole = StaffRoles.All.FirstOrDefault(allowed => currentRoles.Contains(allowed, StringComparer.OrdinalIgnoreCase)) ?? string.Empty;
-        var newRole = StaffRoles.Normalize(request.Role);
+        var requestedRole = request.Role?.Trim();
 
         if (userId == actorUserId)
         {
             if (!request.IsActive) return (null, "Bạn không thể tự ngừng tài khoản đang đăng nhập.");
-            if (!string.Equals(currentRole, newRole, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(currentRole, requestedRole, StringComparison.OrdinalIgnoreCase))
                 return (null, "Bạn không thể tự thay đổi vai trò của chính mình.");
             if (!currentPropertyIds.SetEquals(newPropertyIds))
                 return (null, "Bạn không thể tự thay đổi quyền cơ sở của chính mình.");
         }
+
+        var validation = ValidateCommon(request.DisplayName, request.UserName, request.Email, request.Role!, request.PropertyIds);
+        if (validation is not null) return (null, validation);
+        var newRole = StaffRoles.Normalize(requestedRole!);
 
         var coverageError = await ValidateAdminCoverageAsync(
             user,

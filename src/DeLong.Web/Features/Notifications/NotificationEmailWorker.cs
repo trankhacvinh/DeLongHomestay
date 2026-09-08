@@ -128,6 +128,44 @@ public sealed class NotificationEmailWorker(
             }
         }
 
+        var voucherBatch = await db.VoucherEmailDeliveries
+            .Where(x => x.SentAtUtc == null && x.AttemptCount < RetryMinutes.Length && x.NextAttemptAtUtc <= now)
+            .OrderBy(x => x.NextAttemptAtUtc)
+            .Take(10)
+            .ToListAsync(cancellationToken);
+        foreach (var outbox in voucherBatch)
+        {
+            var settings = await db.PropertyNotificationSettings
+                .SingleOrDefaultAsync(x => x.PropertyId == outbox.PropertyId, cancellationToken);
+            var (profile, profileError) = await settingsService.GetSmtpProfileAsync(outbox.PropertyId, cancellationToken);
+            if (profileError is not null || profile is null)
+            {
+                RecordFailure(outbox, settings, profileError?.Message ?? "Không thể đọc cấu hình SMTP.");
+                await db.SaveChangesAsync(cancellationToken);
+                continue;
+            }
+            try
+            {
+                await sender.SendAsync(profile, [outbox.RecipientEmail], outbox.Subject, outbox.BodyText, cancellationToken, outbox.BodyHtml);
+                outbox.SentAtUtc = DateTime.UtcNow;
+                outbox.LastError = null;
+                if (settings is not null)
+                {
+                    settings.LastEmailSentAtUtc = outbox.SentAtUtc;
+                    settings.LastEmailError = null;
+                    settings.LastEmailErrorAtUtc = null;
+                }
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "SMTP voucher delivery failed for voucher {VoucherId}.", outbox.VoucherId);
+                RecordFailure(outbox, settings, ex.Message);
+                await db.SaveChangesAsync(cancellationToken);
+            }
+        }
+
         var telegramBatch = await db.NotificationTelegramOutbox
             .Where(x => x.SentAtUtc == null && x.AttemptCount < RetryMinutes.Length && x.NextAttemptAtUtc <= now)
             .OrderBy(x => x.NextAttemptAtUtc)
@@ -172,7 +210,7 @@ public sealed class NotificationEmailWorker(
             }
         }
 
-        return batch.Count + guestBatch.Count + telegramBatch.Count;
+        return batch.Count + guestBatch.Count + voucherBatch.Count + telegramBatch.Count;
     }
 
     private static void RecordFailure(NotificationEmailOutbox outbox, PropertyNotificationSettings? settings, string error)
@@ -209,6 +247,18 @@ public sealed class NotificationEmailWorker(
         {
             settings.LastTelegramError = outbox.LastError;
             settings.LastTelegramErrorAtUtc = DateTime.UtcNow;
+        }
+    }
+
+    private static void RecordFailure(VoucherEmailDelivery outbox, PropertyNotificationSettings? settings, string error)
+    {
+        outbox.AttemptCount += 1;
+        outbox.LastError = Truncate(error, 2000);
+        outbox.NextAttemptAtUtc = DateTime.UtcNow.AddMinutes(RetryMinutes[Math.Clamp(outbox.AttemptCount - 1, 0, RetryMinutes.Length - 1)]);
+        if (settings is not null)
+        {
+            settings.LastEmailError = outbox.LastError;
+            settings.LastEmailErrorAtUtc = DateTime.UtcNow;
         }
     }
 

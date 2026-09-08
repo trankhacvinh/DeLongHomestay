@@ -134,20 +134,33 @@
         }
         function estimatedTotal() {
             const room = currentRoom();
-            const selected = state.selected.map(x => ({ ...x, amount: Number(x.slot.price || 0), rule: 'standard' }));
+            const selected = state.selected.map(x => {
+                const day = state.days.find(day => day.date === x.date);
+                const surchargePercent = Number(day?.surchargePercent || 0);
+                const displayed = Number(x.slot.price || 0);
+                const base = surchargePercent > 0 ? displayed / (1 + surchargePercent / 100) : displayed;
+                return { ...x, day, base, surchargePercent, amount: displayed, rule: 'standard' };
+            });
             const slotsPerDay = visibleSlots(state.days[0]).length;
-            if (room?.fullDayPricingEnabled && Number(room.fullDayPrice || 0) > 0 && slotsPerDay > 0) {
+            if (room?.fullDayPricingEnabled && slotsPerDay > 0) {
                 const dates = [...new Set(selected.map(x => x.date))];
                 dates.forEach(date => {
                     const group = selected.filter(x => x.date === date);
                     if (group.length !== slotsPerDay) return;
-                    const list = group.reduce((sum, x) => sum + x.amount, 0);
-                    group.forEach(x => { x.amount = list > 0 ? Number(room.fullDayPrice) * Number(x.slot.price || 0) / list : Number(room.fullDayPrice) / group.length; x.rule = 'full-day'; });
+                    const fullDayBase = Number(group[0].day?.effectiveFullDayPrice || 0);
+                    if (fullDayBase <= 0) return;
+                    const total = fullDayBase * (1 + Number(group[0].surchargePercent || 0) / 100);
+                    const list = group.reduce((sum, x) => sum + x.base, 0);
+                    group.forEach(x => { x.amount = list > 0 ? total * x.base / list : total / group.length; x.rule = 'full-day'; });
                 });
             }
-            const remaining = selected.filter(x => x.rule === 'standard');
-            const tier = (state.policy.multiSlotDiscountTiers || []).filter(x => Number(x.minimumSlots) <= remaining.length).sort((a, b) => Number(b.minimumSlots) - Number(a.minimumSlots))[0];
-            if (tier) remaining.forEach(x => { x.amount *= (100 - Number(tier.discountPercent || 0)) / 100; });
+            [...new Set(selected.map(x => x.date))].forEach(date => {
+                const group = selected.filter(x => x.date === date && x.rule === 'standard');
+                const count = Number(room?.threeSlotCount || 3);
+                const discount = Number(room?.threeSlotDiscountPercent || 0);
+                if (room?.threeSlotDiscountEnabled === false || group.length !== count || group[0].day?.allowThreeSlotCombo === false) return;
+                group.forEach(x => { x.amount = x.base * (100 - discount) / 100 + x.base * x.surchargePercent / 100; x.rule = `combo-${count}`; });
+            });
             return Math.round(selected.reduce((sum, x) => sum + x.amount, 0));
         }
         function updateSelectionBar() {
@@ -159,6 +172,30 @@
             selectionTotal.textContent = money(estimatedTotal());
         }
         function selectSlot(day, slot, trigger) {
+            if (Number(day.bookingMode) === 1) {
+                const daySlots = visibleSlots(day);
+                if (daySlots.some(item => item.state !== 'available')) {
+                    status.textContent = 'Ngày này chỉ nhận combo cả ngày nhưng hiện không còn đủ tất cả khung giờ.';
+                    status.className = 'public-v2-status show error';
+                    return;
+                }
+                const selectedForDay = state.selected.filter(x => x.date === day.date);
+                if (selectedForDay.length === daySlots.length && state.selected.slice(-daySlots.length).every(x => x.date === day.date)) {
+                    state.selected.splice(-daySlots.length, daySlots.length);
+                } else {
+                    const firstSlot = daySlots[0];
+                    const next = nextCandidate();
+                    if (state.selected.length && (!next || slotKey(next.date, next.slot) !== slotKey(day.date, firstSlot))) return;
+                    const firstDate = parseDate(state.selected[0]?.date || day.date);
+                    const daySpan = Math.round((parseDate(day.date) - firstDate) / 86400000) + 1;
+                    if (daySpan > Number(state.policy.publicMaxConsecutiveSlotDays || 3)) return;
+                    daySlots.forEach(item => state.selected.push({ date: day.date, slot: item }));
+                }
+                status.className = 'public-v2-status';
+                updateSelectionBar();
+                queueRender();
+                return;
+            }
             const existing = state.selected.findIndex(x => slotKey(x.date, x.slot) === slotKey(day.date, slot));
             if (existing >= 0 && existing === state.selected.length - 1) state.selected.pop();
             else if (state.selected.length === 0) state.selected.push({ date: day.date, slot });
@@ -228,7 +265,7 @@
                     if (selected) button.classList.add('is-selected');
                     if (slot.state === 'available' && !eligible) button.classList.add('is-ineligible');
                     const freeText = (slot.free || []).map(item => `${timeLabel(item.startUtc)}–${timeLabel(item.endUtc)}`).join(', ');
-                    const stateText = slot.state === 'available' ? 'Còn trống' : slot.state === 'partial' ? `Còn ${freeText}` : 'Đã có khách';
+                    const stateText = slot.state === 'available' ? (Number(day.bookingMode) === 1 ? 'Chọn cả ngày' : 'Còn trống') : slot.state === 'partial' ? `Còn ${freeText}` : 'Đã có khách';
                     button.innerHTML = `<span>${stateText}</span><small>${money(slot.price)}</small>`;
                     button.title = `${stateText} · ${money(slot.price)}`;
                     button.setAttribute('aria-label', `${dateLabel(day.date)}, ${slot.rateName}, ${stateText}, ${money(slot.price)}`);
@@ -298,6 +335,9 @@
                 if (version !== state.requestVersion) return;
                 room.fullDayPricingEnabled = data.fullDayPricingEnabled === true;
                 room.fullDayPrice = data.fullDayPrice;
+                room.threeSlotDiscountEnabled = data.threeSlotDiscountEnabled === true;
+                room.threeSlotCount = data.threeSlotCount;
+                room.threeSlotDiscountPercent = data.threeSlotDiscountPercent;
                 state.timeZone = data.timeZoneId || state.timeZone;
                 const calendar = Array.isArray(data.calendar) ? data.calendar : [];
                 if (!calendar.length) {

@@ -75,9 +75,11 @@
                 form: {
                     customerName: '',
                     customerPhone: '',
+                    voucherCode: '',
                     note: '',
                     website: ''
-                }
+                },
+                voucher: { loading: false, error: '', result: null }
             };
         },
         computed: {
@@ -118,7 +120,16 @@
             },
             bookingTotalText() {
                 if (!this.selectedRoom || !this.selectedRate) return '';
-                return this.money(this.bookingType === 0 ? this.selectedSlotsTotal : this.selectedRoom.totalAmount);
+                return this.money(this.voucherRoomTotal);
+            },
+            roomAmountBeforeVoucher() {
+                if (!this.selectedRoom || !this.selectedRate) return 0;
+                return this.bookingType === 0 ? this.selectedSlotsTotal : Number(this.selectedRoom.totalAmount || 0);
+            },
+            voucherRoomTotal() {
+                return this.voucher.result
+                    ? Number(this.voucher.result.totalAfterDiscount || 0)
+                    : this.roomAmountBeforeVoucher;
             },
             selectedSlotDetails() {
                 if (!this.embeddedSlotSelection || !this.selectedRoom) return [];
@@ -149,6 +160,8 @@
             },
             selectedSlotsTotal() {
                 if (!this.embeddedSlotSelection || !this.selectedSlots.length || !this.selectedRoom) return Number(this.selectedRate?.price || 0);
+                if (Number.isFinite(Number(initial.embeddedPricingTotal)) && initial.embeddedPricingTotal !== null)
+                    return Number(initial.embeddedPricingTotal);
                 const rates = this.timeSlotRates(this.selectedRoom);
                 const selected = this.selectedSlots.map(item => ({ ...item, rate: rates.find(x => x.id === item.rateId) })).filter(x => x.rate);
                 const slotsPerDay = rates.length;
@@ -323,6 +336,7 @@
                 this.availabilityError = '';
                 this.errorMessage = '';
                 this.bookingConflictMessage = '';
+                this.clearVoucher();
                 if (type === 1) {
                     if (!this.checkInDate) this.checkInDate = this.date || this.today;
                     if (!this.checkOutDate || this.checkOutDate <= this.checkInDate) this.checkOutDate = addDays(this.checkInDate, 1);
@@ -337,6 +351,7 @@
                 if (!this.roomSelectable(room)) return;
                 this.bookingConflictMessage = '';
                 this.selectedRoomId = room.id;
+                this.clearVoucher();
                 if (this.bookingType === 1) {
                     this.selectedRateId = room.nightlyRate?.id || null;
                 } else {
@@ -351,6 +366,7 @@
                 this.bookingConflictMessage = '';
                 this.errorMessage = '';
                 this.selectedRateId = rate.id;
+                this.clearVoucher();
             },
             async loadAvailability() {
                 if (!this.date || this.bookingType !== 0) return;
@@ -455,6 +471,48 @@
             clearFieldError(field) {
                 if (this.fieldErrors[field]) this.fieldErrors[field] = '';
                 if (this.errorMessage) this.errorMessage = '';
+                if (field === 'customerPhone' && this.voucher.result) this.clearVoucher(false);
+            },
+            clearVoucher(clearCode = true) {
+                if (clearCode) this.form.voucherCode = '';
+                this.voucher = { loading: false, error: '', result: null };
+                this.$nextTick(() => document.dispatchEvent(new CustomEvent('delong:voucher-total-changed')));
+            },
+            async applyVoucher() {
+                if (this.voucher.loading || this.bookingType !== 0) return;
+                const code = String(this.form.voucherCode || '').trim();
+                if (!code) {
+                    this.voucher.error = 'Vui lòng nhập mã voucher.';
+                    return;
+                }
+                if (this.form.customerPhone.replace(/\D/g, '').length < 8) {
+                    this.voucher.error = 'Vui lòng nhập số điện thoại trước để kiểm tra giới hạn voucher.';
+                    this.$refs.customerPhone?.focus();
+                    return;
+                }
+                const slots = this.embeddedSlotSelection && this.selectedSlots.length
+                    ? this.selectedSlots
+                    : [{ stayDate: this.date, rateId: this.selectedRate?.id }];
+                if (!this.selectedRoom || !this.selectedRate || slots.some(x => !x.rateId)) {
+                    this.voucher.error = 'Vui lòng chọn phòng và khung giờ trước.';
+                    return;
+                }
+                this.voucher = { loading: true, error: '', result: null };
+                try {
+                    const result = await DeLongApi.post(this.apiUrl('/api/public/vouchers/preview'), {
+                        roomId: this.selectedRoom.id,
+                        customerPhone: this.form.customerPhone,
+                        slots,
+                        voucherCode: code
+                    });
+                    this.form.voucherCode = result.voucherCode;
+                    this.voucher = { loading: false, error: '', result };
+                    await this.$nextTick();
+                    document.dispatchEvent(new CustomEvent('delong:voucher-total-changed'));
+                } catch (error) {
+                    this.voucher = { loading: false, error: error.message || 'Không thể áp dụng voucher.', result: null };
+                    document.dispatchEvent(new CustomEvent('delong:voucher-total-changed'));
+                }
             },
             validateContact() {
                 this.fieldErrors.customerName = this.form.customerName.trim().length >= 2 ? '' : 'Vui lòng nhập tên khách (ít nhất 2 ký tự).';
@@ -499,6 +557,7 @@
                         checkOutDate: this.bookingType === 1 ? this.checkOutDate : '',
                         customerName: this.form.customerName,
                         customerPhone: this.form.customerPhone,
+                        voucherCode: this.voucher.result ? this.form.voucherCode : null,
                         note: this.form.note,
                         website: this.form.website
                     };

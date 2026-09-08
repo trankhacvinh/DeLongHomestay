@@ -17,6 +17,8 @@ public sealed class RoomRate : EntityBase
     public bool IsOvernight { get; set; }
 
     public decimal Price { get; set; }
+    public bool UseWeekdayPriceOnWeekend { get; set; } = true;
+    public decimal? WeekendPrice { get; set; }
     public bool IsActive { get; set; } = true;
     public int SortOrder { get; set; }
 }

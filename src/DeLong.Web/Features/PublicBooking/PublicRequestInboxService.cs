@@ -32,7 +32,7 @@ public sealed class PublicRequestInboxService(AppDbContext db)
                 x.Customer.Phone,
                 x.Room.Name,
                 x.CheckInUtc,
-                x.RoomAmount + x.ExtraAmount - x.DiscountAmount,
+                x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount,
                 x.CreatedAtUtc))
             .ToListAsync(cancellationToken);
 }

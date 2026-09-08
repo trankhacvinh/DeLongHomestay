@@ -5,11 +5,12 @@ using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Notifications;
 using DeLong.Web.Features.Site;
+using DeLong.Web.Features.Pricing;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicBooking;
 
-public sealed class PublicBookingService(AppDbContext db, BookingService bookingService, PublicPropertyResolver? resolver = null, BookingNotificationService? notificationService = null)
+public sealed class PublicBookingService(AppDbContext db, BookingService bookingService, PublicPropertyResolver? resolver = null, BookingNotificationService? notificationService = null, PricingService? pricingService = null)
 {
     private readonly PublicPropertyResolver publicPropertyResolver = resolver ?? new PublicPropertyResolver(db);
     private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
@@ -27,10 +28,17 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         public int RateIndex { get; } = rateIndex;
         public Guid RateId { get; } = rateId;
         public string RateName { get; } = rateName;
-        public decimal ListPrice { get; } = listPrice;
+        public decimal ListPrice { get; set; } = listPrice;
         public DateTime CheckInUtc { get; } = checkInUtc;
         public DateTime CheckOutUtc { get; } = checkOutUtc;
         public decimal AppliedAmount { get; set; } = listPrice;
+        public decimal SpecialSurchargeAmount { get; set; }
+        public decimal ComboDiscountPercent { get; set; }
+        public decimal ComboDiscountAmount { get; set; }
+        public PricingDayProfile DayProfile { get; set; } = PricingDayProfile.Weekday;
+        public Guid? SpecialPricingDayId { get; set; }
+        public string? SpecialDayName { get; set; }
+        public decimal SpecialSurchargePercent { get; set; }
         public string PricingRule { get; set; } = "standard";
     }
 
@@ -151,10 +159,10 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
             .Where(x => x.Id == request.RoomId && x.PropertyId == context.PropertyId && x.IsActive && x.IsPublished)
             .Select(x => new
             {
-                x.Id, x.Name, x.FullDayPricingEnabled, x.FullDayPrice,
+                x.Id, x.Name, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice,
                 Rates = x.Rates.Where(r => r.IsActive && r.Type != RoomRateType.Nightly)
                     .OrderBy(r => r.SortOrder).ThenBy(r => r.StartTime).ThenBy(r => r.Name)
-                    .Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Type, r.IsOvernight, r.Price }).ToList()
+                    .Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Type, r.IsOvernight, r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice }).ToList()
             }).SingleOrDefaultAsync(ct);
         if (room is null || room.Rates.Count == 0) return (null, new("rate_not_found", "Khung giờ hoặc phòng không còn khả dụng."));
 
@@ -183,16 +191,49 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
             resolved.Select(x => (x.ServiceDate, x.RateIndex)).ToList(), room.Rates.Count, maxDays);
         if (selectionError is not null) return (null, selectionError);
 
-        ApplyPricing(resolved, room.Rates.Count, room.FullDayPricingEnabled, room.FullDayPrice, policy?.MultiSlotDiscountTiers ?? []);
+        if (pricingService is not null)
+        {
+            var pricingInputs = resolved.Select(x =>
+            {
+                var rate = room.Rates[x.RateIndex];
+                return new PricingSelectionInput(x.ServiceDate, x.RateIndex, x.RateId, x.RateName,
+                    rate.Price, rate.UseWeekdayPriceOnWeekend, rate.WeekendPrice);
+            }).ToList();
+            var (pricing, pricingError) = await pricingService.CalculateAsync(
+                context.PropertyId, pricingInputs, room.Rates.Count, room.FullDayPricingEnabled, room.FullDayPrice,
+                room.UseWeekdayFullDayPriceOnWeekend, room.WeekendFullDayPrice, ct);
+            if (pricingError is not null) return (null, new(pricingError.Code, pricingError.Message));
+            for (var index = 0; index < resolved.Count; index++)
+            {
+                var segment = pricing!.Segments[index];
+                resolved[index].ListPrice = segment.ListPrice;
+                resolved[index].AppliedAmount = segment.AppliedAmount;
+                resolved[index].SpecialSurchargeAmount = segment.SpecialSurchargeAmount;
+                resolved[index].ComboDiscountPercent = segment.ComboDiscountPercent;
+                resolved[index].ComboDiscountAmount = segment.ComboDiscountAmount;
+                resolved[index].DayProfile = segment.DayProfile;
+                resolved[index].SpecialPricingDayId = segment.SpecialPricingDayId;
+                resolved[index].SpecialDayName = segment.SpecialDayName;
+                resolved[index].SpecialSurchargePercent = segment.SpecialSurchargePercent;
+                resolved[index].PricingRule = segment.PricingRule;
+            }
+        }
+        else
+        {
+            ApplyPricing(resolved, room.Rates.Count, room.FullDayPricingEnabled, room.FullDayPrice, policy?.MultiSlotDiscountTiers ?? []);
+        }
         var checkInUtc = resolved[0].CheckInUtc;
         var checkOutUtc = resolved[^1].CheckOutUtc;
         if (await bookingService.HasConflictAsync(context.PropertyId, room.Id, checkInUtc, checkOutUtc, null, ct)) return (null, new("booking_conflict", "Phòng vừa được giữ hoặc xác nhận trong khoảng thời gian này. Vui lòng chọn lại."));
         var amount = resolved.Sum(x => x.AppliedAmount);
+        var specialSurchargeAmount = resolved.Sum(x => x.SpecialSurchargeAmount);
         var rateLabel = resolved.Count == 1 ? resolved[0].RateName : $"{resolved.Count} khung liên tiếp";
         var segments = resolved.Select((x, index) => new CreateBookingRateSegmentRequest(
-            x.RateId, x.ServiceDate, x.CheckInUtc, x.CheckOutUtc, index, x.RateName, x.ListPrice, x.AppliedAmount, x.PricingRule)).ToList();
-        var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = room.Id, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.TimeSlot, RoomRateId = resolved.Count == 1 ? resolved[0].RateId : null, RateName = rateLabel, UnitPrice = resolved.Count == 1 ? resolved[0].ListPrice : null, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Held, RoomAmount = amount, Source = "Website", PublicRequestKey = idempotencyKey, Note = Clean(request.Note), RateSegments = segments }, null, ct);
-        if (booking is null && error?.Code == "public_request_retry" && idempotencyKey is not null)
+            x.RateId, x.ServiceDate, x.CheckInUtc, x.CheckOutUtc, index, x.RateName, x.ListPrice, x.AppliedAmount, x.PricingRule,
+            x.SpecialSurchargeAmount, x.ComboDiscountPercent, x.ComboDiscountAmount, x.DayProfile, x.SpecialPricingDayId,
+            x.SpecialDayName, x.SpecialSurchargePercent)).ToList();
+        var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = room.Id, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.TimeSlot, RoomRateId = resolved.Count == 1 ? resolved[0].RateId : null, RateName = rateLabel, UnitPrice = resolved.Count == 1 ? resolved[0].ListPrice : null, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Held, RoomAmount = amount, SpecialSurchargeAmount = specialSurchargeAmount, Source = "Website", PublicRequestKey = idempotencyKey, Note = Clean(request.Note), RateSegments = segments }, null, ct);
+        if (booking is null && error?.Code == "public_request_retry" && idempotencyKey is not null && db.Database.CurrentTransaction is null)
         {
             db.ChangeTracker.Clear();
             if (await FindIdempotentResultAsync(context.PropertyId, idempotencyKey, ct) is { } idempotentReplay1) return (idempotentReplay1, null);
@@ -216,7 +257,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         if (await bookingService.HasConflictAsync(context.PropertyId, rate.RoomId, checkInUtc, checkOutUtc, null, ct)) return (null, new("booking_conflict", "Phòng đã có lượt đặt giao với khoảng lưu trú này. Vui lòng chọn ngày hoặc phòng khác."));
         var amount = rate.Price * nights;
         var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = rate.RoomId, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.MultiDay, RoomRateId = rate.Id, RateName = rate.Name, UnitPrice = rate.Price, NightCount = nights, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Held, RoomAmount = amount, Source = "Website", PublicRequestKey = idempotencyKey, Note = Clean(request.Note) }, null, ct);
-        if (booking is null && error?.Code == "public_request_retry" && idempotencyKey is not null)
+        if (booking is null && error?.Code == "public_request_retry" && idempotencyKey is not null && db.Database.CurrentTransaction is null)
         {
             db.ChangeTracker.Clear();
             if (await FindIdempotentResultAsync(context.PropertyId, idempotencyKey, ct) is { } idempotentReplay2) return (idempotentReplay2, null);
@@ -232,7 +273,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
             .Where(x => x.PropertyId == propertyId && x.PublicRequestKey == key && x.Source == "Website")
             .Select(x => new PublicBookingResult(
                 x.Id, x.Code, x.Type, x.Room.Name, x.RateName ?? string.Empty, x.NightCount,
-                x.CheckInUtc, x.CheckOutUtc, x.RoomAmount + x.ExtraAmount - x.DiscountAmount))
+                x.CheckInUtc, x.CheckOutUtc, x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount))
             .SingleOrDefaultAsync(ct);
     }
 

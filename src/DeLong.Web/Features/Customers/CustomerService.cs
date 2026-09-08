@@ -63,10 +63,10 @@ public sealed class CustomerService(AppDbContext db)
                 x.CheckInUtc,
                 x.CheckOutUtc,
                 x.Status,
-                x.RoomAmount + x.ExtraAmount - x.DiscountAmount,
+                x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount,
                 x.Payments.Where(payment => !payment.IsVoided)
                     .Sum(payment => payment.Type == Domain.Enums.PaymentType.Receipt ? payment.Amount : -payment.Amount),
-                x.RoomAmount + x.ExtraAmount - x.DiscountAmount - x.Payments.Where(payment => !payment.IsVoided)
+                x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount - x.Payments.Where(payment => !payment.IsVoided)
                     .Sum(payment => payment.Type == Domain.Enums.PaymentType.Receipt ? payment.Amount : -payment.Amount),
                 x.Source,
                 x.CreatedAtUtc))

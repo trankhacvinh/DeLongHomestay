@@ -5,6 +5,19 @@ namespace DeLong.Tests.Unit;
 
 public sealed class PublicSlotSelectionRulesTests
 {
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void Allows_starting_from_any_slot(int rateIndex)
+    {
+        var error = PublicSlotSelectionRules.ValidateConsecutive(
+            [(new DateOnly(2026, 8, 26), rateIndex)], ratesPerDay: 4, maximumDays: 3);
+
+        Assert.Null(error);
+    }
+
     [Fact]
     public void Allows_forward_sequence_across_overnight_boundary()
     {
@@ -41,5 +54,26 @@ public sealed class PublicSlotSelectionRulesTests
             maximumDays: 2);
 
         Assert.Equal("slot_range_too_long", error?.Code);
+    }
+
+    [Fact]
+    public void Rejects_duplicate_slot()
+    {
+        var date = new DateOnly(2026, 8, 26);
+
+        var error = PublicSlotSelectionRules.ValidateConsecutive([(date, 1), (date, 1)], 4, 3);
+
+        Assert.Equal("slots_not_consecutive", error?.Code);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Rejects_invalid_rate_configuration(int ratesPerDay)
+    {
+        var error = PublicSlotSelectionRules.ValidateConsecutive(
+            [(new DateOnly(2026, 8, 26), 0)], ratesPerDay, maximumDays: 3);
+
+        Assert.Equal("validation", error?.Code);
     }
 }

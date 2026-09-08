@@ -1,5 +1,14 @@
 # Data model mục tiêu
 
+## Pricing V2
+
+- `RoomRate.Price` là giá ngày thường; `WeekendPrice` là giá cuối tuần khi không dùng chung giá.
+- `Room.FullDayPrice` và `WeekendFullDayPrice` là giá combo cả ngày theo phòng.
+- `PropertyPricingSettings` lưu số ca/mức giảm combo và bit-mask ngày cuối tuần theo cơ sở.
+- `SpecialPricingDay` lưu khoảng ngày, bảng giá nền, phụ thu, quyền combo 3 ca và chế độ chỉ cả ngày.
+- `Booking.SpecialSurchargeAmount` tách phụ thu lễ khỏi tiền phòng để voucher không giảm phụ thu.
+- `BookingRateSegment` lưu snapshot profile ngày, combo, phụ thu và ngày đặc biệt để giá lịch sử không đổi.
+
 ## Customer accounts và loyalty
 
 - `asp_net_users.is_customer_account`: phân tách tài khoản khách khỏi đăng nhập quản trị.
@@ -115,3 +124,10 @@ Production dùng ASP.NET Core Identity hoặc mô hình authentication tương �
 
 ## AuditLog
 Ghi các thay đổi quan trọng: booking, payment, status, settings, user action.
+
+## Voucher
+
+- `Voucher`: mã chuẩn hóa duy nhất theo `property_id`, phần trăm giảm, phạm vi flags (`TimeSlot`, `Overnight`, `FullDay`), hiệu lực, giới hạn tổng/mỗi khách, khách nhận riêng và trạng thái không hard-delete.
+- `VoucherRedemption`: sổ cái một-một với booking; snapshot mã, phần trăm, tiền phòng đủ điều kiện, tiền giảm và trạng thái `Reserved`, `Redeemed`, `Released`, `ManuallyRestored`.
+- `VoucherEmailDelivery`: outbox gửi mã có retry và lưu snapshot tiêu đề/HTML/text.
+- `Reserved` và `Redeemed` cùng tiêu thụ hạn mức. `Booking.DiscountAmount` là số tiền giảm thực tế; phụ thu không được giảm.

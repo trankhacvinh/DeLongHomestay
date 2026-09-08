@@ -3,6 +3,7 @@ using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
+using DeLong.Web.Features.Vouchers;
 
 namespace DeLong.Web.Features.Notifications;
 
@@ -97,6 +98,8 @@ public sealed partial class NotificationSettingsService(
         settings.GuestCheckInEmailBodyTemplate = Clean(NotificationEmailTemplateRenderer.SanitizeTemplate(request.GuestCheckInEmailBodyTemplate));
         settings.GuestCancellationEmailSubjectTemplate = Clean(request.GuestCancellationEmailSubjectTemplate);
         settings.GuestCancellationEmailBodyTemplate = Clean(NotificationEmailTemplateRenderer.SanitizeTemplate(request.GuestCancellationEmailBodyTemplate));
+        settings.VoucherEmailSubjectTemplate = Clean(request.VoucherEmailSubjectTemplate);
+        settings.VoucherEmailBodyTemplate = Clean(NotificationEmailTemplateRenderer.SanitizeTemplate(request.VoucherEmailBodyTemplate));
         settings.EmailRecipients = recipientsResult.Normalized;
         settings.SmtpHost = host;
         settings.SmtpPort = request.SmtpPort;
@@ -188,6 +191,8 @@ public sealed partial class NotificationSettingsService(
         settings?.GuestCheckInEmailBodyTemplate ?? NotificationEmailTemplateRenderer.DefaultGuestCheckInBody,
         settings?.GuestCancellationEmailSubjectTemplate ?? NotificationEmailTemplateRenderer.DefaultGuestCancellationSubject,
         settings?.GuestCancellationEmailBodyTemplate ?? NotificationEmailTemplateRenderer.DefaultGuestCancellationBody,
+        settings?.VoucherEmailSubjectTemplate ?? VoucherEmailTemplateRenderer.DefaultSubject,
+        settings?.VoucherEmailBodyTemplate ?? VoucherEmailTemplateRenderer.DefaultBody,
         settings?.EmailRecipients ?? string.Empty,
         settings?.SmtpHost ?? string.Empty,
         settings?.SmtpPort ?? 587,
@@ -212,7 +217,8 @@ public sealed partial class NotificationSettingsService(
         {
             request.InternalBookingEmailSubjectTemplate,
             request.GuestCheckInEmailSubjectTemplate,
-            request.GuestCancellationEmailSubjectTemplate
+            request.GuestCancellationEmailSubjectTemplate,
+            request.VoucherEmailSubjectTemplate
         };
         if (subjects.Any(x => x?.Length > 300)) return new("email_subject_too_long", "Tiêu đề mẫu email tối đa 300 ký tự.");
         if (subjects.Any(x => x?.IndexOfAny(['\r', '\n']) >= 0)) return new("email_subject_invalid", "Tiêu đề email không được chứa ký tự xuống dòng.");
@@ -220,7 +226,8 @@ public sealed partial class NotificationSettingsService(
         {
             request.InternalBookingEmailBodyTemplate,
             request.GuestCheckInEmailBodyTemplate,
-            request.GuestCancellationEmailBodyTemplate
+            request.GuestCancellationEmailBodyTemplate,
+            request.VoucherEmailBodyTemplate
         };
         return bodies.Any(x => x?.Length > 20000)
             ? new("email_body_too_long", "Nội dung mỗi mẫu email tối đa 20.000 ký tự.")

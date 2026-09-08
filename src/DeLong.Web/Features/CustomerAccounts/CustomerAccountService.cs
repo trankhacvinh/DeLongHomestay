@@ -203,7 +203,7 @@ public sealed class CustomerAccountService(
             .OrderByDescending(x => x.CheckInUtc)
             .Select(x => new CustomerAccountBookingDto(
                 x.Id, x.Code, x.Property.Name, x.Room.Name, x.CheckInUtc, x.CheckOutUtc, x.Status.ToString(),
-                x.RoomAmount + x.ExtraAmount - x.DiscountAmount,
+                x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount,
                 db.LoyaltyLedgerEntries.Where(entry => entry.BookingId == x.Id).Sum(entry => entry.Points)))
             .ToListAsync(cancellationToken);
         var loyalty = await db.LoyaltyLedgerEntries.AsNoTracking()

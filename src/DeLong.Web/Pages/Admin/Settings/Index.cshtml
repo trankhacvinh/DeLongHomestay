@@ -189,6 +189,7 @@
                         <button id="email-template-tab-internal" type="button" role="tab" v-bind:aria-selected="activeEmailTemplateTab === 'internal'" aria-controls="email-template-panel-internal" v-bind:class="{ active: activeEmailTemplateTab === 'internal' }" v-on:click="selectEmailTemplateTab('internal')">Booking mới</button>
                         <button id="email-template-tab-checkin" type="button" role="tab" v-bind:aria-selected="activeEmailTemplateTab === 'checkin'" aria-controls="email-template-panel-checkin" v-bind:class="{ active: activeEmailTemplateTab === 'checkin' }" v-on:click="selectEmailTemplateTab('checkin')">Hướng dẫn check-in</button>
                         <button id="email-template-tab-cancellation" type="button" role="tab" v-bind:aria-selected="activeEmailTemplateTab === 'cancellation'" aria-controls="email-template-panel-cancellation" v-bind:class="{ active: activeEmailTemplateTab === 'cancellation' }" v-on:click="selectEmailTemplateTab('cancellation')">Hủy booking</button>
+                        <button id="email-template-tab-voucher" type="button" role="tab" v-bind:aria-selected="activeEmailTemplateTab === 'voucher'" aria-controls="email-template-panel-voucher" v-bind:class="{ active: activeEmailTemplateTab === 'voucher' }" v-on:click="selectEmailTemplateTab('voucher')">Gửi voucher</button>
                     </div>
                     <section id="email-template-panel-internal" class="notification-template-editor" role="tabpanel" aria-labelledby="email-template-tab-internal" v-show="activeEmailTemplateTab === 'internal'" data-email-template-panel="internal">
                         <label for="internal-booking-subject">Tiêu đề</label><input id="internal-booking-subject" v-model="notification.internalBookingEmailSubjectTemplate" maxlength="300" />
@@ -204,6 +205,11 @@
                         <label for="guest-cancel-subject">Tiêu đề</label><input id="guest-cancel-subject" v-model="notification.guestCancellationEmailSubjectTemplate" maxlength="300" />
                         <label for="guest-cancel-body">Nội dung HTML</label><textarea id="guest-cancel-body" rows="9" v-model="notification.guestCancellationEmailBodyTemplate" maxlength="20000" data-email-template-editor></textarea>
                         <div class="notification-email-preview"><strong>Xem trước</strong><div class="notification-email-preview-subject">{{ previewEmailSubject(notification.guestCancellationEmailSubjectTemplate) }}</div><div class="notification-email-preview-body" v-html="previewEmailHtml(notification.guestCancellationEmailBodyTemplate)"></div></div>
+                    </section>
+                    <section id="email-template-panel-voucher" class="notification-template-editor" role="tabpanel" aria-labelledby="email-template-tab-voucher" v-show="activeEmailTemplateTab === 'voucher'" data-email-template-panel="voucher">
+                        <label for="voucher-email-subject">Tiêu đề</label><input id="voucher-email-subject" v-model="notification.voucherEmailSubjectTemplate" maxlength="300" />
+                        <label for="voucher-email-body">Nội dung HTML</label><textarea id="voucher-email-body" rows="9" v-model="notification.voucherEmailBodyTemplate" maxlength="20000" data-email-template-editor></textarea>
+                        <div class="notification-email-preview"><strong>Xem trước</strong><div class="notification-email-preview-subject">{{ previewEmailSubject(notification.voucherEmailSubjectTemplate) }}</div><div class="notification-email-preview-body" v-html="previewEmailHtml(notification.voucherEmailBodyTemplate)"></div></div>
                     </section>
                 </div>
                 <div class="field full notification-settings-divider"><strong>Telegram cho đội xử lý</strong><small>Tạo bot bằng BotFather, thêm bot vào nhóm rồi nhập bot token và chat ID của nhóm.</small></div>

@@ -22,6 +22,256 @@ namespace DeLong.Web.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiChangeProposal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AppliedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("applied_at_utc");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("failure_reason");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload_json");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<DateTime?>("RejectedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rejected_at_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("summary");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ai_change_proposals");
+
+                    b.HasIndex("ConversationId")
+                        .HasDatabaseName("i_x_ai_change_proposals_conversation_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("i_x_ai_change_proposals_user_id");
+
+                    b.HasIndex("PropertyId", "Status", "ExpiresAtUtc")
+                        .HasDatabaseName("i_x_ai_change_proposals_property_id_status_expires_at_utc");
+
+                    b.ToTable("ai_change_proposals");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ai_conversations");
+
+                    b.HasIndex("PropertyId", "UserId", "UpdatedAtUtc")
+                        .HasDatabaseName("i_x_ai_conversations_property_id_user_id_updated_at_utc");
+
+                    b.ToTable("ai_conversations");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(16000)
+                        .HasColumnType("character varying(16000)")
+                        .HasColumnName("content");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid?>("ProposalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("proposal_id");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("role");
+
+                    b.Property<string>("ToolName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("tool_name");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ai_messages");
+
+                    b.HasIndex("ConversationId", "CreatedAtUtc")
+                        .HasDatabaseName("i_x_ai_messages_conversation_id_created_at_utc");
+
+                    b.ToTable("ai_messages");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiUsageRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("DurationMs")
+                        .HasColumnType("bigint")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("error_code");
+
+                    b.Property<int>("InputTokens")
+                        .HasColumnType("integer")
+                        .HasColumnName("input_tokens");
+
+                    b.Property<bool>("IsSuccess")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_success");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("model");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("operation");
+
+                    b.Property<int>("OutputTokens")
+                        .HasColumnType("integer")
+                        .HasColumnName("output_tokens");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("provider");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ai_usage_records");
+
+                    b.HasIndex("ConversationId")
+                        .HasDatabaseName("i_x_ai_usage_records_conversation_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("i_x_ai_usage_records_user_id");
+
+                    b.HasIndex("PropertyId", "CreatedAtUtc")
+                        .HasDatabaseName("i_x_ai_usage_records_property_id_created_at_utc");
+
+                    b.ToTable("ai_usage_records");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Amenity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -344,6 +594,11 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("source");
 
+                    b.Property<decimal>("SpecialSurchargeAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("special_surcharge_amount");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -510,9 +765,27 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("check_out_utc");
 
+                    b.Property<decimal>("ComboDiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("combo_discount_amount");
+
+                    b.Property<decimal>("ComboDiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("combo_discount_percent");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
+
+                    b.Property<string>("DayProfile")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Weekday")
+                        .HasColumnName("day_profile");
 
                     b.Property<decimal>("ListPrice")
                         .HasPrecision(18, 2)
@@ -543,12 +816,34 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("sort_order");
 
+                    b.Property<string>("SpecialDayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("special_day_name");
+
+                    b.Property<Guid?>("SpecialPricingDayId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("special_pricing_day_id");
+
+                    b.Property<decimal>("SpecialSurchargeAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("special_surcharge_amount");
+
+                    b.Property<decimal>("SpecialSurchargePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("special_surcharge_percent");
+
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at_utc");
 
                     b.HasKey("Id")
                         .HasName("p_k_booking_rate_segments");
+
+                    b.HasIndex("SpecialPricingDayId")
+                        .HasDatabaseName("i_x_booking_rate_segments_special_pricing_day_id");
 
                     b.HasIndex("BookingId", "SortOrder")
                         .IsUnique()
@@ -1653,6 +1948,74 @@ namespace DeLong.Web.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyAiProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_enabled");
+
+                    b.Property<int>("MaxOutputTokens")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_output_tokens");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("model");
+
+                    b.Property<int>("MonthlyTokenLimit")
+                        .HasColumnType("integer")
+                        .HasColumnName("monthly_token_limit");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<string>("ProtectedApiKey")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("protected_api_key");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("provider");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_property_ai_profiles");
+
+                    b.HasIndex("PropertyId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_property_ai_profiles_property_id");
+
+                    b.ToTable("property_ai_profiles", t =>
+                        {
+                            t.HasCheckConstraint("ck_property_ai_profiles_max_output_tokens", "max_output_tokens BETWEEN 128 AND 32000");
+
+                            t.HasCheckConstraint("ck_property_ai_profiles_monthly_token_limit", "monthly_token_limit >= 0");
+                        });
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyGalleryItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1930,6 +2293,15 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at_utc");
 
+                    b.Property<string>("VoucherEmailBodyTemplate")
+                        .HasColumnType("text")
+                        .HasColumnName("voucher_email_body_template");
+
+                    b.Property<string>("VoucherEmailSubjectTemplate")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("voucher_email_subject_template");
+
                     b.HasKey("Id")
                         .HasName("p_k_property_notification_settings");
 
@@ -2033,6 +2405,61 @@ namespace DeLong.Web.Data.Migrations
                             t.HasCheckConstraint("ck_property_pay2s_settings_hold_minutes", "hold_minutes BETWEEN 1 AND 60");
 
                             t.HasCheckConstraint("ck_property_pay2s_settings_settlement_grace", "settlement_grace_minutes BETWEEN 0 AND 15");
+                        });
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyPricingSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<int>("ThreeSlotCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("three_slot_count");
+
+                    b.Property<bool>("ThreeSlotDiscountEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("three_slot_discount_enabled");
+
+                    b.Property<decimal>("ThreeSlotDiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("three_slot_discount_percent");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.Property<int>("WeekendDayMask")
+                        .HasColumnType("integer")
+                        .HasColumnName("weekend_day_mask");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_property_pricing_settings");
+
+                    b.HasIndex("PropertyId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_property_pricing_settings_property_id");
+
+                    b.ToTable("property_pricing_settings", t =>
+                        {
+                            t.HasCheckConstraint("ck_property_pricing_three_slot_count", "three_slot_count BETWEEN 2 AND 20");
+
+                            t.HasCheckConstraint("ck_property_pricing_three_slot_discount", "three_slot_discount_percent BETWEEN 0 AND 100");
                         });
                 });
 
@@ -2266,6 +2693,17 @@ namespace DeLong.Web.Data.Migrations
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at_utc");
+
+                    b.Property<bool>("UseWeekdayFullDayPriceOnWeekend")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("use_weekday_full_day_price_on_weekend");
+
+                    b.Property<decimal?>("WeekendFullDayPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("weekend_full_day_price");
 
                     b.HasKey("Id")
                         .HasName("p_k_rooms");
@@ -2718,6 +3156,17 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at_utc");
 
+                    b.Property<bool>("UseWeekdayPriceOnWeekend")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("use_weekday_price_on_weekend");
+
+                    b.Property<decimal?>("WeekendPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("weekend_price");
+
                     b.HasKey("Id")
                         .HasName("p_k_room_rates");
 
@@ -2791,6 +3240,101 @@ namespace DeLong.Web.Data.Migrations
                     b.ToTable("room_tag_assignments");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.SpecialPricingDay", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AllowThreeSlotCombo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_three_slot_combo");
+
+                    b.Property<string>("BasePriceProfile")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("base_price_profile");
+
+                    b.Property<string>("BookingMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("booking_mode");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("end_date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_archived");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("note");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<decimal>("SurchargePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("surcharge_percent");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_special_pricing_days");
+
+                    b.HasIndex("PropertyId", "StartDate", "EndDate")
+                        .HasDatabaseName("i_x_special_pricing_days_property_id_start_date_end_date");
+
+                    b.ToTable("special_pricing_days", t =>
+                        {
+                            t.HasCheckConstraint("ck_special_pricing_days_range", "end_date >= start_date");
+
+                            t.HasCheckConstraint("ck_special_pricing_days_surcharge", "surcharge_percent BETWEEN 0 AND 100");
+                        });
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.UserPropertyAccess", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -2808,6 +3352,319 @@ namespace DeLong.Web.Data.Migrations
                         .HasDatabaseName("i_x_user_property_accesses_property_id");
 
                     b.ToTable("user_property_accesses");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.Voucher", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AppliesTo")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("applies_to");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("discount_percent");
+
+                    b.Property<DateTime>("EndsAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ends_at_utc");
+
+                    b.Property<string>("NormalizedCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("normalized_code");
+
+                    b.Property<int?>("PerCustomerUsageLimit")
+                        .HasColumnType("integer")
+                        .HasColumnName("per_customer_usage_limit");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<DateTime>("StartsAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts_at_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<int?>("TotalUsageLimit")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_usage_limit");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_vouchers");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("i_x_vouchers_customer_id");
+
+                    b.HasIndex("PropertyId", "NormalizedCode")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_vouchers_property_id_normalized_code");
+
+                    b.HasIndex("PropertyId", "Status", "StartsAtUtc", "EndsAtUtc")
+                        .HasDatabaseName("i_x_vouchers_property_id_status_starts_at_utc_ends_at_utc");
+
+                    b.ToTable("vouchers", t =>
+                        {
+                            t.HasCheckConstraint("ck_vouchers_applicability", "applies_to <> 'None'");
+
+                            t.HasCheckConstraint("ck_vouchers_discount_percent", "discount_percent > 0 AND discount_percent <= 100");
+
+                            t.HasCheckConstraint("ck_vouchers_per_customer_usage_limit", "per_customer_usage_limit IS NULL OR per_customer_usage_limit > 0");
+
+                            t.HasCheckConstraint("ck_vouchers_total_usage_limit", "total_usage_limit IS NULL OR total_usage_limit > 0");
+
+                            t.HasCheckConstraint("ck_vouchers_validity", "ends_at_utc > starts_at_utc");
+                        });
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.VoucherEmailDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<string>("BodyHtml")
+                        .HasColumnType("text")
+                        .HasColumnName("body_html");
+
+                    b.Property<string>("BodyText")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body_text");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at_utc");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("recipient_email");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<DateTime?>("SentAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at_utc");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("subject");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("VoucherId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voucher_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voucher_email_deliveries");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("i_x_voucher_email_deliveries_customer_id");
+
+                    b.HasIndex("VoucherId")
+                        .HasDatabaseName("i_x_voucher_email_deliveries_voucher_id");
+
+                    b.HasIndex("SentAtUtc", "NextAttemptAtUtc")
+                        .HasDatabaseName("i_x_voucher_email_deliveries_sent_at_utc_next_attempt_at_utc");
+
+                    b.HasIndex("PropertyId", "VoucherId", "CreatedAtUtc")
+                        .HasDatabaseName("i_x_voucher_email_deliveries_property_id_voucher_id_created_at_~");
+
+                    b.ToTable("voucher_email_deliveries");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.VoucherRedemption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_id");
+
+                    b.Property<string>("BookingScope")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("booking_scope");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("discount_amount");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("discount_percent");
+
+                    b.Property<decimal>("EligibleRoomAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("eligible_room_amount");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<DateTime?>("RedeemedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("redeemed_at_utc");
+
+                    b.Property<DateTime?>("ReleasedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at_utc");
+
+                    b.Property<DateTime>("ReservedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reserved_at_utc");
+
+                    b.Property<string>("ResolutionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("resolution_reason");
+
+                    b.Property<DateTime?>("RestoredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("restored_at_utc");
+
+                    b.Property<Guid?>("RestoredByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("restored_by_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("VoucherCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("voucher_code");
+
+                    b.Property<Guid>("VoucherId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voucher_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_voucher_redemptions");
+
+                    b.HasIndex("BookingId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_voucher_redemptions_booking_id");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("i_x_voucher_redemptions_customer_id");
+
+                    b.HasIndex("PropertyId")
+                        .HasDatabaseName("i_x_voucher_redemptions_property_id");
+
+                    b.HasIndex("VoucherId", "Status")
+                        .HasDatabaseName("i_x_voucher_redemptions_voucher_id_status");
+
+                    b.HasIndex("VoucherId", "CustomerId", "Status")
+                        .HasDatabaseName("i_x_voucher_redemptions_voucher_id_customer_id_status");
+
+                    b.ToTable("voucher_redemptions", t =>
+                        {
+                            t.HasCheckConstraint("ck_voucher_redemptions_amounts", "eligible_room_amount >= 0 AND discount_amount >= 0 AND discount_amount <= eligible_room_amount");
+                        });
                 });
 
             modelBuilder.Entity("DeLong.Web.Identity.ApplicationUser", b =>
@@ -3071,6 +3928,77 @@ namespace DeLong.Web.Data.Migrations
                     b.ToTable("asp_net_user_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiChangeProposal", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.AiConversation", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ai_change_proposals_ai_conversations_conversation_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ai_change_proposals_properties_property_id");
+
+                    b.HasOne("DeLong.Web.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ai_change_proposals_asp_net_users_user_id");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiConversation", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ai_conversations_properties_property_id");
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiMessage", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.AiConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ai_messages_ai_conversations_conversation_id");
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiUsageRecord", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.AiConversation", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_ai_usage_records_ai_conversations_conversation_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ai_usage_records_properties_property_id");
+
+                    b.HasOne("DeLong.Web.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ai_usage_records_asp_net_users_user_id");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Amenity", b =>
                 {
                     b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
@@ -3213,6 +4141,12 @@ namespace DeLong.Web.Data.Migrations
                         .HasForeignKey("RoomRateId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("f_k_booking_rate_segments_room_rates_room_rate_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.SpecialPricingDay", null)
+                        .WithMany()
+                        .HasForeignKey("SpecialPricingDayId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_booking_rate_segments_special_pricing_days_special_pricing_da~");
 
                     b.Navigation("Booking");
 
@@ -3449,6 +4383,18 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Property");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyAiProfile", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithOne()
+                        .HasForeignKey("DeLong.Web.Domain.Entities.PropertyAiProfile", "PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_property_ai_profiles_properties_property_id");
+
+                    b.Navigation("Property");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyGalleryItem", b =>
                 {
                     b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
@@ -3522,6 +4468,18 @@ namespace DeLong.Web.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("f_k_property_pay2_s_settings_properties_property_id");
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyPricingSettings", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_property_pricing_settings_properties_property_id");
 
                     b.Navigation("Property");
                 });
@@ -3692,6 +4650,18 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("RoomTag");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.SpecialPricingDay", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_special_pricing_days_properties_property_id");
+
+                    b.Navigation("Property");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.UserPropertyAccess", b =>
                 {
                     b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
@@ -3711,6 +4681,94 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Property");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.Voucher", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_vouchers_customers_customer_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_vouchers_properties_property_id");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.VoucherEmailDelivery", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_voucher_email_deliveries_customers_customer_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voucher_email_deliveries_properties_property_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Voucher", "Voucher")
+                        .WithMany("EmailDeliveries")
+                        .HasForeignKey("VoucherId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voucher_email_deliveries_vouchers_voucher_id");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Property");
+
+                    b.Navigation("Voucher");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.VoucherRedemption", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Booking", "Booking")
+                        .WithOne("VoucherRedemption")
+                        .HasForeignKey("DeLong.Web.Domain.Entities.VoucherRedemption", "BookingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voucher_redemptions_bookings_booking_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voucher_redemptions_customers_customer_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voucher_redemptions_properties_property_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Voucher", "Voucher")
+                        .WithMany("Redemptions")
+                        .HasForeignKey("VoucherId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_voucher_redemptions_vouchers_voucher_id");
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Property");
+
+                    b.Navigation("Voucher");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -3770,6 +4828,11 @@ namespace DeLong.Web.Data.Migrations
                         .HasConstraintName("f_k_asp_net_user_tokens_asp_net_users_user_id");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiConversation", b =>
+                {
+                    b.Navigation("Messages");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Amenity", b =>
                 {
                     b.Navigation("Rooms");
@@ -3785,6 +4848,8 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Payments");
 
                     b.Navigation("RateSegments");
+
+                    b.Navigation("VoucherRedemption");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Property", b =>
@@ -3818,6 +4883,13 @@ namespace DeLong.Web.Data.Migrations
             modelBuilder.Entity("DeLong.Web.Domain.Entities.RoomTag", b =>
                 {
                     b.Navigation("Rooms");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.Voucher", b =>
+                {
+                    b.Navigation("EmailDeliveries");
+
+                    b.Navigation("Redemptions");
                 });
 #pragma warning restore 612, 618
         }

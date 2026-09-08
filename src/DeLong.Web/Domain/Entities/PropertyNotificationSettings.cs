@@ -28,6 +28,11 @@ public sealed class PropertyNotificationSettings : EntityBase
 
     public string? GuestCancellationEmailBodyTemplate { get; set; }
 
+    [MaxLength(300)]
+    public string? VoucherEmailSubjectTemplate { get; set; }
+
+    public string? VoucherEmailBodyTemplate { get; set; }
+
     [MaxLength(2000)]
     public string? EmailRecipients { get; set; }
 

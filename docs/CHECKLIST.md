@@ -1,5 +1,13 @@
 # Checklist nghiệm thu
 
+## Pricing V2
+
+- [x] Pricing được tính lại phía server khi tạo booking.
+- [x] Voucher không giảm phụ thu ngày đặc biệt.
+- [x] Migration giữ booking cũ và mặc định giá cuối tuần bằng giá ngày thường.
+- [ ] Nhập bảng giá 780.000–990.000 VND cho từng phòng/cơ sở trên môi trường cần test.
+- [ ] Chạy UAT theo `docs/PRICING-UAT.md` sau khi migrate database test.
+
 ## Foundation
 
 - [x] `dotnet restore` pass trên GitHub Actions.
@@ -54,6 +62,8 @@
 - [ ] Telegram bot gửi đúng nhóm đã cấu hình; bot token không hiển thị lại và nút gửi thử báo đúng kết quả.
 - [ ] Booking `Confirmed` có email khách nhận hướng dẫn check-in; chi tiết booking/lịch hiển thị trạng thái và gửi lại được.
 - [ ] Booking chuyển `Cancelled` xếp đúng một email báo hủy cho mỗi lần hủy và dùng snapshot mẫu tại thời điểm xếp hàng.
+- [ ] Áp dụng migration `AddVoucherSystem` trước khi bật Voucher ở production.
+- [ ] UAT voucher theo `docs/VOUCHER-UAT.md`, gồm tranh lượt cuối và voucher 100% không tạo Pay2S.
 - [ ] Mẫu email nội bộ/check-in/hủy thay đúng các biến cho phép; tiêu đề chặn xuống dòng và nội dung quá dài.
 - [ ] Editor HTML email, bảng click-copy biến và preview hoạt động trên desktop/mobile; script/event attribute nguy hiểm bị loại khi lưu.
 - [ ] Integration test race condition trên `delong_test`.

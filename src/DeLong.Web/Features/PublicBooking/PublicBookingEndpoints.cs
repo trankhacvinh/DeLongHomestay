@@ -7,6 +7,7 @@ using DeLong.Web.Features.CustomerAccounts;
 using DeLong.Web.Features.Payments;
 using DeLong.Web.Features.Notifications;
 using DeLong.Web.Domain.Enums;
+using DeLong.Web.Features.Vouchers;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -67,26 +68,36 @@ public static class PublicBookingEndpoints
             CustomerAccountService customerAccountService,
             Pay2SService pay2SService,
             BookingGuestGuideEmailService guestEmailService,
+            VoucherService voucherService,
             CancellationToken ct) =>
         {
             var idempotencyKey = http.Request.Headers["Idempotency-Key"].FirstOrDefault();
-            var core = new PublicBookingCoreV2Service(db, resolver, service, paths, configuration);
-            var (result, error) = await core.CreateRequestAsync(siteSlug, request, idempotencyKey, ct);
+            var userIdValue = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var customerUserId = Guid.TryParse(userIdValue, out var parsedUserId) && http.User.IsInRole(CustomerAccountService.CustomerRole)
+                ? parsedUserId
+                : (Guid?)null;
+            var core = new PublicBookingCoreV2Service(db, resolver, service, voucherService, paths, configuration);
+            var (result, error) = await core.CreateRequestAsync(siteSlug, request, idempotencyKey, customerUserId, ct);
             if (result is not null)
             {
-                var userIdValue = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (Guid.TryParse(userIdValue, out var userId) && http.User.IsInRole(CustomerAccountService.CustomerRole))
+                if (customerUserId.HasValue)
                 {
                     var property = await resolver.ResolveAsync(siteSlug, ct);
                     if (property is not null)
                     {
-                        await customerAccountService.LinkBookingCustomerAsync(userId, property.Id, result.BookingId, ct);
+                        await customerAccountService.LinkBookingCustomerAsync(customerUserId.Value, property.Id, result.BookingId, ct);
                         await customerAccountService.CopySavedIdentityDocumentsToBookingAsync(
-                            userId, property.Id, result.BookingId, new IdentityDocumentStorage(paths, configuration), ct);
+                            customerUserId.Value, property.Id, result.BookingId, new IdentityDocumentStorage(paths, configuration), ct);
                     }
                 }
                 var paymentProperty = await resolver.ResolveAsync(siteSlug, ct);
                 if (paymentProperty is null) return Results.NotFound();
+                var prefix = PublicPropertyResolver.ScopePrefix(siteSlug);
+                if (!result.PaymentRequired)
+                {
+                    await guestEmailService.QueueAutomaticAsync(paymentProperty.Id, result.BookingId, ct);
+                    return Results.Created($"{prefix}/booking/success?code={Uri.EscapeDataString(result.Code)}", result);
+                }
                 var (intent, paymentError) = await pay2SService.CreateIntentAsync(
                     paymentProperty.Id,
                     result.BookingId,
@@ -98,21 +109,26 @@ public static class PublicBookingEndpoints
                 {
                     var booking = await db.Bookings.SingleAsync(x => x.Id == result.BookingId, ct);
                     booking.Status = BookingStatus.Cancelled;
+                    await voucherService.ReleaseReservedAsync(result.BookingId, "Booking bị hủy vì không thể khởi tạo thanh toán Pay2S.", ct);
                     await db.SaveChangesAsync(ct);
                     await guestEmailService.QueueCancellationAsync(paymentProperty.Id, result.BookingId, null, "Booking đã bị hủy vì chưa thể khởi tạo thanh toán.", ct);
                     return Results.Problem(statusCode: 503, title: "Chưa thể tạo thanh toán", detail: paymentError?.Message, type: "pay2s_unavailable");
                 }
                 result = result with { HoldExpiresAtUtc = intent.ExpiresAtUtc, PaymentOrderId = intent.OrderId, PaymentUrl = intent.PayUrl };
-                var prefix = PublicPropertyResolver.ScopePrefix(siteSlug);
                 return Results.Created($"{prefix}/booking/success?code={Uri.EscapeDataString(result.Code)}", result);
             }
-            return error?.Code switch
+            if (error is null)
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["request"] = ["Thông tin đặt phòng chưa hợp lệ."] });
+
+            return error.Code switch
             {
                 "booking_conflict" => Results.Conflict(new ProblemDetails { Status = 409, Title = "Phòng vừa hết chỗ", Detail = error.Message, Type = "booking_conflict" }),
                 "policy_changed" => Results.Conflict(new ProblemDetails { Status = 409, Title = "Nội quy vừa được cập nhật", Detail = error.Message, Type = "policy_changed" }),
                 "identity_storage_unavailable" => Results.Problem(statusCode: 503, title: "Chưa thể nhận CCCD", detail: error.Message, type: "identity_storage_unavailable"),
+                "voucher_usage_exhausted" or "voucher_customer_limit_reached" => Results.Conflict(new ProblemDetails { Status = 409, Title = "Voucher vừa hết lượt", Detail = error.Message, Type = error.Code }),
+                var code when code.StartsWith("voucher_", StringComparison.Ordinal) => Results.BadRequest(new ProblemDetails { Status = 400, Title = "Không thể áp dụng voucher", Detail = error.Message, Type = error.Code }),
                 "spam" => Results.BadRequest(new ProblemDetails { Status = 400, Title = "Không thể gửi yêu cầu", Detail = error.Message, Type = "spam" }),
-                _ => Results.ValidationProblem(new Dictionary<string, string[]> { ["request"] = [error?.Message ?? "Thông tin đặt phòng chưa hợp lệ."] })
+                _ => Results.ValidationProblem(new Dictionary<string, string[]> { ["request"] = [error.Message] })
             };
         }).AddEndpointFilter<ApiAntiforgeryFilter>().RequireRateLimiting("public-booking");
 

@@ -24,7 +24,12 @@
                     { code: '{{CheckOut}}', meaning: 'Ngày giờ trả phòng' },
                     { code: '{{TotalAmount}}', meaning: 'Tổng tiền booking' },
                     { code: '{{GuestGuide}}', meaning: 'Hướng dẫn check-in của phòng' },
-                    { code: '{{CancellationReason}}', meaning: 'Lý do hủy booking' }
+                    { code: '{{CancellationReason}}', meaning: 'Lý do hủy booking' },
+                    { code: '{{VoucherCode}}', meaning: 'Mã voucher' },
+                    { code: '{{DiscountPercent}}', meaning: 'Phần trăm giảm của voucher' },
+                    { code: '{{StartsAt}}', meaning: 'Thời gian bắt đầu voucher' },
+                    { code: '{{EndsAt}}', meaning: 'Thời gian kết thúc voucher' },
+                    { code: '{{AppliesTo}}', meaning: 'Các loại đặt phòng được áp dụng' }
                 ],
                 emailTemplateEditors: [],
                 activeEmailTemplateTab: 'internal',
@@ -67,7 +72,7 @@
                 });
             },
             selectEmailTemplateTab(tab) {
-                if (!['internal', 'checkin', 'cancellation'].includes(tab)) return;
+                if (!['internal', 'checkin', 'cancellation', 'voucher'].includes(tab)) return;
                 this.syncEmailTemplates();
                 this.activeEmailTemplateTab = tab;
                 this.$nextTick(() => this.enhanceEmailTemplates());
@@ -89,7 +94,10 @@
                     '{{CustomerEmail}}': 'minhanh@example.com', '{{RoomName}}': 'Coco Blue #1',
                     '{{CheckIn}}': '31/08/2026 14:00', '{{CheckOut}}': '01/09/2026 10:00',
                     '{{TotalAmount}}': '750.000', '{{GuestGuide}}': 'Nhận khóa tại quầy lễ tân. Wi-Fi: DeLongGuest.',
-                    '{{CancellationReason}}': 'Booking đã được hủy theo yêu cầu.'
+                    '{{CancellationReason}}': 'Booking đã được hủy theo yêu cầu.',
+                    '{{VoucherCode}}': 'TRI-AN-2026', '{{DiscountPercent}}': '20',
+                    '{{StartsAt}}': '01/09/2026 00:00', '{{EndsAt}}': '30/09/2026 23:59',
+                    '{{AppliesTo}}': 'khung giờ, qua đêm, cả ngày'
                 };
                 let output = String(template || '');
                 Object.entries(samples).forEach(([code, value]) => { output = output.split(code).join(value); });
@@ -199,6 +207,8 @@
                         guestCheckInEmailBodyTemplate: this.notification.guestCheckInEmailBodyTemplate || null,
                         guestCancellationEmailSubjectTemplate: this.notification.guestCancellationEmailSubjectTemplate || null,
                         guestCancellationEmailBodyTemplate: this.notification.guestCancellationEmailBodyTemplate || null,
+                        voucherEmailSubjectTemplate: this.notification.voucherEmailSubjectTemplate || null,
+                        voucherEmailBodyTemplate: this.notification.voucherEmailBodyTemplate || null,
                         emailRecipients: this.notification.emailRecipients || null,
                         smtpHost: this.notification.smtpHost || null,
                         smtpPort: Number(this.notification.smtpPort || 587),

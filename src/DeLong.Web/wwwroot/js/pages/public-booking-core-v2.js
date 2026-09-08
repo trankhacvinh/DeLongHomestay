@@ -191,6 +191,12 @@
         setText(root.querySelector('.public-booking-mobile-bar strong'), text);
     }
 
+    document.addEventListener('delong:voucher-total-changed', () => {
+        state.baseTotal = renderedBaseTotal();
+        const wrapper = root.querySelector('[data-booking-v2-fields]');
+        if (wrapper) updateGuestSummary(wrapper);
+    });
+
     function updateGuestSummary(container) {
         if (!container || !state.policy) return;
         const capacity = syncSelection();

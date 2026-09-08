@@ -69,6 +69,7 @@ public sealed class PublicBookingRequest
     public bool HasSecondIdentityFront { get; init; }
     public bool HasSecondIdentityBack { get; init; }
     public IReadOnlyList<PublicBookingSlotRequest> Slots { get; init; } = [];
+    public string? VoucherCode { get; init; }
     public string? Note { get; init; }
     public string? Website { get; init; }
 }
@@ -87,6 +88,11 @@ public sealed record PublicBookingResult(
     decimal TotalAmount,
     DateTime? HoldExpiresAtUtc = null,
     string? PaymentOrderId = null,
-    string? PaymentUrl = null);
+    string? PaymentUrl = null,
+    string? VoucherCode = null,
+    decimal? VoucherDiscountPercent = null,
+    decimal VoucherDiscountAmount = 0,
+    decimal? PriceBeforeVoucher = null,
+    bool PaymentRequired = true);
 
 public sealed record PublicBookingError(string Code, string Message);

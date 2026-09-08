@@ -25,6 +25,7 @@ public sealed record BookingDto(
     DateTime CheckOutUtc,
     BookingStatus Status,
     decimal RoomAmount,
+    decimal SpecialSurchargeAmount,
     decimal ExtraAmount,
     decimal DiscountAmount,
     decimal TotalAmount,
@@ -49,6 +50,7 @@ public sealed class CreateBookingRequest
     public DateTimeOffset CheckOut { get; init; }
     public BookingStatus Status { get; init; } = BookingStatus.Held;
     public decimal RoomAmount { get; init; }
+    public decimal SpecialSurchargeAmount { get; init; }
     public decimal ExtraAmount { get; init; }
     public decimal DiscountAmount { get; init; }
     public string? Source { get; init; }
@@ -66,7 +68,14 @@ public sealed record CreateBookingRateSegmentRequest(
     string RateName,
     decimal ListPrice,
     decimal AppliedAmount,
-    string PricingRule);
+    string PricingRule,
+    decimal SpecialSurchargeAmount = 0,
+    decimal ComboDiscountPercent = 0,
+    decimal ComboDiscountAmount = 0,
+    PricingDayProfile DayProfile = PricingDayProfile.Weekday,
+    Guid? SpecialPricingDayId = null,
+    string? SpecialDayName = null,
+    decimal SpecialSurchargePercent = 0);
 
 public sealed class UpdateBookingRequest
 {
@@ -82,6 +91,7 @@ public sealed class UpdateBookingRequest
     public DateTimeOffset CheckIn { get; init; }
     public DateTimeOffset CheckOut { get; init; }
     public decimal RoomAmount { get; init; }
+    public decimal? SpecialSurchargeAmount { get; init; }
     public decimal ExtraAmount { get; init; }
     public decimal DiscountAmount { get; init; }
     public string? Source { get; init; }

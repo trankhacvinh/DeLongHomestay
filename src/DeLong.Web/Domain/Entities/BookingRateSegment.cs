@@ -1,3 +1,5 @@
+using DeLong.Web.Domain.Enums;
+
 namespace DeLong.Web.Domain.Entities;
 
 public sealed class BookingRateSegment : EntityBase
@@ -15,5 +17,12 @@ public sealed class BookingRateSegment : EntityBase
     public string RateName { get; set; } = string.Empty;
     public decimal ListPrice { get; set; }
     public decimal AppliedAmount { get; set; }
+    public decimal SpecialSurchargeAmount { get; set; }
+    public decimal ComboDiscountPercent { get; set; }
+    public decimal ComboDiscountAmount { get; set; }
+    public PricingDayProfile DayProfile { get; set; } = PricingDayProfile.Weekday;
+    public Guid? SpecialPricingDayId { get; set; }
+    public string? SpecialDayName { get; set; }
+    public decimal SpecialSurchargePercent { get; set; }
     public string PricingRule { get; set; } = "standard";
 }

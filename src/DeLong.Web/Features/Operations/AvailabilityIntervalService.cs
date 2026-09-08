@@ -3,6 +3,7 @@ using DeLong.Web.Data;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.Site;
+using DeLong.Web.Features.Pricing;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.Operations;
@@ -58,7 +59,15 @@ public sealed record PublicAvailabilitySlotDto(
     IReadOnlyList<PublicAvailabilityOccupancyDto> Occupied,
     IReadOnlyList<AvailabilityRangeDto> Free);
 
-public sealed record PublicAvailabilityDayDto(DateOnly Date, IReadOnlyList<PublicAvailabilitySlotDto> Slots);
+public sealed record PublicAvailabilityDayDto(
+    DateOnly Date,
+    IReadOnlyList<PublicAvailabilitySlotDto> Slots,
+    PricingDayProfile DayProfile = PricingDayProfile.Weekday,
+    string? SpecialDayName = null,
+    decimal SurchargePercent = 0,
+    SpecialDayBookingMode BookingMode = SpecialDayBookingMode.Normal,
+    bool AllowThreeSlotCombo = true,
+    decimal? EffectiveFullDayPrice = null);
 
 public sealed record PublicRoomAvailabilityDto(
     Guid RoomId,
@@ -66,6 +75,11 @@ public sealed record PublicRoomAvailabilityDto(
     string RoomName,
     bool FullDayPricingEnabled,
     decimal? FullDayPrice,
+    bool UseWeekdayFullDayPriceOnWeekend,
+    decimal? WeekendFullDayPrice,
+    bool ThreeSlotDiscountEnabled,
+    int ThreeSlotCount,
+    decimal ThreeSlotDiscountPercent,
     string TimeZoneId,
     DateOnly From,
     int Days,
@@ -133,7 +147,8 @@ public static class AvailabilityIntervalProjector
 public sealed class AvailabilityIntervalService(
     AppDbContext db,
     PublicPropertyResolver propertyResolver,
-    StoragePaths storagePaths)
+    StoragePaths storagePaths,
+    PricingService pricingService)
 {
     private static readonly BookingStatus[] LockingStatuses =
         [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
@@ -156,7 +171,7 @@ public sealed class AvailabilityIntervalService(
 
         var room = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == propertyId && x.Id == roomId && x.IsActive)
-            .Select(x => new { x.Id, x.Code, x.Name, x.FullDayPricingEnabled, x.FullDayPrice })
+            .Select(x => new { x.Id, x.Code, x.Name, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice })
             .SingleOrDefaultAsync(cancellationToken);
         if (room is null) return null;
 
@@ -187,13 +202,16 @@ public sealed class AvailabilityIntervalService(
         await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, property.Id, cancellationToken);
         var room = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == property.Id && x.Id == roomId && x.IsActive && x.IsPublished)
-            .Select(x => new { x.Id, x.Code, x.Name, x.FullDayPricingEnabled, x.FullDayPrice })
+            .Select(x => new { x.Id, x.Code, x.Name, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice })
             .SingleOrDefaultAsync(cancellationToken);
         if (room is null) return null;
 
         var calendar = await BuildAsync(property.Id, roomId, property.TimeZoneId, from, days, cancellationToken);
+        var pricingSettings = await pricingService.GetSettingsAsync(property.Id, cancellationToken);
         return new PublicRoomAvailabilityDto(
-            room.Id, room.Code, room.Name, room.FullDayPricingEnabled, room.FullDayPrice, property.TimeZoneId, from, days,
+            room.Id, room.Code, room.Name, room.FullDayPricingEnabled, room.FullDayPrice, room.UseWeekdayFullDayPriceOnWeekend, room.WeekendFullDayPrice,
+            pricingSettings.ThreeSlotDiscountEnabled, pricingSettings.ThreeSlotCount, pricingSettings.ThreeSlotDiscountPercent,
+            property.TimeZoneId, from, days,
             calendar.Select(day => new PublicAvailabilityDayDto(
                 day.Date,
                 day.Slots.Select(slot => new PublicAvailabilitySlotDto(
@@ -203,7 +221,17 @@ public sealed class AvailabilityIntervalService(
                         x.Status == BookingStatus.Held ? "held" : "booked",
                         x.StartUtc,
                         x.EndUtc)).ToList(),
-                    slot.Projection.Free)).ToList())).ToList());
+                    slot.Projection.Free)).ToList(),
+                day.Policy.DayProfile,
+                day.Policy.SpecialDayName,
+                day.Policy.SurchargePercent,
+                day.Policy.BookingMode,
+                day.Policy.AllowThreeSlotCombo,
+                room.FullDayPricingEnabled
+                    ? day.Policy.DayProfile == PricingDayProfile.Weekend && !room.UseWeekdayFullDayPriceOnWeekend
+                        ? room.WeekendFullDayPrice
+                        : room.FullDayPrice
+                    : null)).ToList());
     }
 
     private async Task<IReadOnlyList<AvailabilityDay>> BuildAsync(
@@ -220,8 +248,10 @@ public sealed class AvailabilityIntervalService(
             .OrderBy(x => x.SortOrder)
             .ThenBy(x => x.StartTime)
             .ThenBy(x => x.Name)
-            .Select(x => new RateRow(x.Id, x.Name, x.Type, x.StartTime, x.EndTime, x.IsOvernight, x.Price))
+            .Select(x => new RateRow(x.Id, x.Name, x.Type, x.StartTime, x.EndTime, x.IsOvernight, x.Price, x.UseWeekdayPriceOnWeekend, x.WeekendPrice))
             .ToListAsync(cancellationToken);
+        var dates = Enumerable.Range(0, days).Select(offset => from.AddDays(offset)).ToArray();
+        var policies = await pricingService.ResolvePoliciesAsync(propertyId, dates, cancellationToken);
 
         var windowStartLocal = from.ToDateTime(TimeOnly.MinValue);
         var windowEndLocal = from.AddDays(days + 1).ToDateTime(TimeOnly.MaxValue);
@@ -244,6 +274,7 @@ public sealed class AvailabilityIntervalService(
         for (var offset = 0; offset < days; offset++)
         {
             var date = from.AddDays(offset);
+            var policy = policies[date];
             var slots = new List<AvailabilitySlot>(rates.Count);
             foreach (var rate in rates)
             {
@@ -255,9 +286,14 @@ public sealed class AvailabilityIntervalService(
                 var startUtc = ToUtc(startLocal, timeZone);
                 var endUtc = ToUtc(endLocal, timeZone);
                 var projection = AvailabilityIntervalProjector.Project(startUtc, endUtc, bookings);
-                slots.Add(new AvailabilitySlot(rate.Id, rate.Name, rate.Type, rate.Price, startUtc, endUtc, projection));
+                var effectivePrice = policy.DayProfile == PricingDayProfile.Weekend && !rate.UseWeekdayPriceOnWeekend
+                    ? rate.WeekendPrice ?? 0
+                    : rate.Price;
+                if (policy.SurchargePercent > 0)
+                    effectivePrice += decimal.Round(effectivePrice * policy.SurchargePercent / 100m, 0, MidpointRounding.AwayFromZero);
+                slots.Add(new AvailabilitySlot(rate.Id, rate.Name, rate.Type, effectivePrice, startUtc, endUtc, projection));
             }
-            result.Add(new AvailabilityDay(date, slots));
+            result.Add(new AvailabilityDay(date, slots, policy));
         }
         return result;
     }
@@ -272,7 +308,9 @@ public sealed class AvailabilityIntervalService(
         TimeOnly StartTime,
         TimeOnly EndTime,
         bool IsOvernight,
-        decimal Price);
+        decimal Price,
+        bool UseWeekdayPriceOnWeekend,
+        decimal? WeekendPrice);
 
     private sealed record AvailabilitySlot(
         Guid RateId,
@@ -283,5 +321,5 @@ public sealed class AvailabilityIntervalService(
         DateTime EndUtc,
         AvailabilityProjection Projection);
 
-    private sealed record AvailabilityDay(DateOnly Date, IReadOnlyList<AvailabilitySlot> Slots);
+    private sealed record AvailabilityDay(DateOnly Date, IReadOnlyList<AvailabilitySlot> Slots, PricingDayPolicy Policy);
 }

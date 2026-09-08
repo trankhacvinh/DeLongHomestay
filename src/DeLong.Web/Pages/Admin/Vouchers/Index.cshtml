@@ -1,0 +1,105 @@
+@page
+@model DeLong.Web.Pages.Admin.Vouchers.IndexModel
+@{
+    ViewData["Title"] = "Voucher";
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/entities.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-vouchers.css" asp-append-version="true" />
+}
+
+<div id="vouchers-page" v-cloak>
+    <script id="vouchers-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+
+    <div class="page-title-row voucher-title-row">
+        <div>
+            <div class="page-eyebrow">Khuyến mại theo cơ sở</div>
+            <h1>Voucher</h1>
+            <p>Quản lý mã giảm tiền phòng, hạn mức và lịch sử giữ/đổi/hoàn lượt.</p>
+        </div>
+        <button v-if="canManage" class="btn btn-primary" type="button" v-on:click="openCreate"><svg><use href="#i-plus" /></svg>Tạo voucher</button>
+    </div>
+
+    <section class="panel voucher-filter-panel">
+        <div class="voucher-filters">
+            <div class="field"><label>Tìm mã hoặc khách</label><input v-model.trim="filters.q" placeholder="WELCOME10, tên, số điện thoại..." v-on:keyup.enter="load" /></div>
+            <div class="field"><label>Trạng thái</label><select v-model="filters.status"><option value="">Tất cả</option><option value="Active">Hoạt động</option><option value="Draft">Nháp</option><option value="Paused">Tạm dừng</option><option value="Archived">Lưu trữ</option></select></div>
+            <div class="field"><label>Từ ngày</label><input type="date" v-model="filters.from" /></div>
+            <div class="field"><label>Đến ngày</label><input type="date" v-model="filters.to" /></div>
+            <button class="btn btn-light voucher-filter-button" type="button" v-bind:disabled="loading" v-on:click="load">{{ loading ? 'Đang tải...' : 'Lọc dữ liệu' }}</button>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="entity-toolbar"><strong>{{ vouchers.length }} voucher</strong><span class="muted tiny">Lượt giữ cũng được tính vào hạn mức</span></div>
+        <div class="table-wrap">
+            <table class="data-table voucher-table">
+                <thead><tr><th>Mã voucher</th><th>Ưu đãi / phạm vi</th><th>Hiệu lực</th><th>Hạn mức</th><th>Đã giữ</th><th>Đã dùng</th><th>Còn lại</th><th>Trạng thái</th><th></th></tr></thead>
+                <tbody>
+                    <tr v-for="voucher in vouchers" v-bind:key="voucher.id" class="clickable-row" v-on:click="openDetail(voucher)">
+                        <td><div class="voucher-code-cell"><strong>{{ voucher.code }}</strong><button class="copy-code" type="button" title="Sao chép mã" v-on:click.stop="copy(voucher.code)">⧉</button><span>{{ voucher.customerName || 'Mã dùng chung' }}</span></div></td>
+                        <td><strong>{{ number(voucher.discountPercent) }}%</strong><div class="tiny muted">{{ applicabilityText(voucher.appliesTo) }}</div></td>
+                        <td><strong>{{ dateText(voucher.startsAtUtc) }}</strong><div class="tiny muted">đến {{ dateText(voucher.endsAtUtc) }}</div></td>
+                        <td>{{ voucher.totalUsageLimit ?? 'Không giới hạn' }}<div class="tiny muted">Mỗi khách: {{ voucher.perCustomerUsageLimit ?? '∞' }}</div></td>
+                        <td><span class="pill warning">{{ voucher.reservedCount }}</span></td>
+                        <td><span class="pill success">{{ voucher.redeemedCount }}</span></td>
+                        <td><strong>{{ voucher.remainingCount ?? '∞' }}</strong></td>
+                        <td><span class="pill" v-bind:class="statusClass(voucher.status)">{{ statusText(voucher.status) }}</span></td>
+                        <td class="voucher-row-actions"><button class="btn btn-light btn-sm" type="button" v-on:click.stop="openEmail(voucher)">Gửi</button><button v-if="canManage && voucher.status !== 3" class="btn btn-light btn-sm" type="button" v-on:click.stop="openEdit(voucher)">Sửa</button></td>
+                    </tr>
+                    <tr v-if="!loading && vouchers.length === 0"><td colspan="9" class="empty-state"><strong>Không có voucher phù hợp</strong>Hãy đổi bộ lọc hoặc tạo voucher mới.</td></tr>
+                    <tr v-if="loading"><td colspan="9" class="empty-state"><strong>Đang tải voucher…</strong></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="modal-backdrop" v-if="editor.open" v-on:click.self="closeEditor">
+        <section class="modal-card voucher-editor" role="dialog" aria-modal="true">
+            <div class="modal-head"><div><div class="page-eyebrow">Cấu hình ưu đãi</div><h2>{{ editor.mode === 'create' ? 'Tạo voucher' : 'Sửa voucher' }}</h2></div><button class="icon-btn" type="button" v-on:click="closeEditor">×</button></div>
+            <div class="form-grid">
+                <div class="field"><label>Mã voucher *</label><div class="voucher-code-input"><input v-model.trim="form.code" maxlength="50" placeholder="WELCOME10" /><button class="btn btn-light btn-sm" type="button" v-on:click="generateCode">Tạo mã</button></div></div>
+                <div class="field"><label>Giảm tiền phòng (%) *</label><input type="number" min="1" max="100" step="0.01" v-model.number="form.discountPercent" /></div>
+                <div class="field full"><label>Mô tả nội bộ</label><textarea v-model.trim="form.description" maxlength="1000" placeholder="Chiến dịch, điều kiện gửi mã..."></textarea></div>
+                <div class="field"><label>Bắt đầu theo giờ cơ sở *</label><input type="datetime-local" v-model="form.startsAtLocal" /></div>
+                <div class="field"><label>Kết thúc theo giờ cơ sở *</label><input type="datetime-local" v-model="form.endsAtLocal" /></div>
+                <fieldset class="field full voucher-scope"><legend>Phạm vi áp dụng *</legend><label><input type="checkbox" v-model="form.timeSlot" /> Khung giờ</label><label><input type="checkbox" v-model="form.overnight" /> Qua đêm</label><label><input type="checkbox" v-model="form.fullDay" /> Cả ngày</label></fieldset>
+                <div class="field"><label>Tổng lượt tối đa</label><input type="number" min="1" v-model.number="form.totalUsageLimit" placeholder="Để trống = không giới hạn" /></div>
+                <div class="field"><label>Lượt tối đa mỗi khách</label><input type="number" min="1" v-model.number="form.perCustomerUsageLimit" placeholder="Để trống = không giới hạn" /></div>
+                <div class="field"><label>Khách nhận riêng</label><select v-model="form.customerId"><option value="">Mã dùng chung</option><option v-for="customer in customers" v-bind:value="customer.id" v-bind:key="customer.id">{{ customer.name }} · {{ customer.phone }}</option></select></div>
+                <div class="field"><label>Trạng thái</label><select v-model.number="form.status"><option v-bind:value="0">Nháp</option><option v-bind:value="1">Hoạt động</option><option v-bind:value="2">Tạm dừng</option></select></div>
+            </div>
+            <div v-if="editor.error" class="notice danger">{{ editor.error }}</div>
+            <div class="modal-actions"><button v-if="editor.mode === 'edit'" class="btn btn-danger voucher-archive" type="button" v-on:click="archiveVoucher">Lưu trữ</button><button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="save">{{ saving ? 'Đang lưu...' : 'Lưu voucher' }}</button></div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop" v-if="detail.open" v-on:click.self="closeDetail">
+        <section class="modal-card voucher-detail" role="dialog" aria-modal="true">
+            <div class="modal-head"><div><div class="page-eyebrow">Lịch sử sử dụng</div><h2>{{ detail.voucher?.code }}</h2><p>{{ detail.voucher?.customerName || 'Voucher dùng chung' }}</p></div><button class="icon-btn" type="button" v-on:click="closeDetail">×</button></div>
+            <div class="voucher-detail-metrics" v-if="detail.voucher"><div><span>Giảm</span><strong>{{ number(detail.voucher.discountPercent) }}%</strong></div><div><span>Đang giữ</span><strong>{{ detail.voucher.reservedCount }}</strong></div><div><span>Đã dùng</span><strong>{{ detail.voucher.redeemedCount }}</strong></div><div><span>Còn lại</span><strong>{{ detail.voucher.remainingCount ?? '∞' }}</strong></div></div>
+            <div v-if="detail.loading" class="empty-state"><strong>Đang tải lịch sử…</strong></div>
+            <template v-else>
+                <div class="table-wrap voucher-history-wrap"><table class="data-table"><thead><tr><th>Booking / khách</th><th>Tiền phòng</th><th>Giảm</th><th>Phạm vi</th><th>Thời điểm</th><th>Trạng thái</th><th></th></tr></thead><tbody><tr v-for="item in detail.history" v-bind:key="item.id"><td><strong>{{ item.bookingCode }}</strong><div class="tiny muted">{{ item.customerName }} · {{ item.customerPhone }}</div></td><td>{{ money(item.eligibleRoomAmount) }}</td><td><strong>-{{ money(item.discountAmount) }}</strong><div class="tiny muted">{{ number(item.discountPercent) }}%</div></td><td>{{ applicabilityText(item.bookingScope) }}</td><td>{{ dateTimeText(item.reservedAtUtc) }}</td><td><span class="pill" v-bind:class="redemptionClass(item.status)">{{ redemptionText(item.status) }}</span><div v-if="item.resolutionReason" class="tiny muted">{{ item.resolutionReason }}</div></td><td><button v-if="canManage && item.status === 1 && item.bookingStatus === 5" class="btn btn-light btn-sm" type="button" v-on:click="restore(item)">Hoàn lượt</button></td></tr><tr v-if="detail.history.length === 0"><td colspan="7" class="empty-state"><strong>Voucher chưa có lịch sử sử dụng</strong></td></tr></tbody></table></div>
+                <div class="voucher-email-history"><h3>Lịch sử gửi email</h3><div v-if="detail.emails.length" class="voucher-email-history-list"><div v-for="email in detail.emails" v-bind:key="email.id"><span><strong>{{ email.recipientEmail }}</strong><small>{{ dateTimeText(email.requestedAtUtc) }}</small></span><span class="pill" v-bind:class="email.sentAtUtc ? 'success' : (email.lastError ? 'danger' : 'warning')">{{ email.sentAtUtc ? 'Đã gửi' : (email.lastError ? 'Gửi lỗi' : 'Đang chờ') }}</span><small v-if="email.lastError" class="voucher-email-error">{{ email.lastError }}</small></div></div><p v-else class="small muted">Chưa gửi email voucher này.</p></div>
+            </template>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closeDetail">Đóng</button><button class="btn btn-primary" type="button" v-on:click="openEmail(detail.voucher)">Gửi voucher</button></div>
+        </section>
+    </div>
+
+    <div class="modal-backdrop" v-if="mailer.open" v-on:click.self="closeEmail">
+        <section class="modal-card voucher-mailer" role="dialog" aria-modal="true">
+            <div class="modal-head"><div><div class="page-eyebrow">Email voucher</div><h2>Gửi mã {{ mailer.voucher?.code }}</h2></div><button class="icon-btn" type="button" v-on:click="closeEmail">×</button></div>
+            <div class="form-grid"><div class="field"><label>Email người nhận *</label><input type="email" v-model.trim="mailer.email" placeholder="khach@example.com" /></div><div class="field"><label>Tên khách</label><input v-model.trim="mailer.customerName" placeholder="Tên hiển thị trong email" /></div></div>
+            <p class="small muted">Nội dung dùng mẫu “Email voucher” tại Cấu hình. Trạng thái gửi được lưu để hệ thống tự thử lại khi SMTP lỗi.</p>
+            <div v-if="mailer.error" class="notice danger">{{ mailer.error }}</div>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="copy(mailer.voucher?.code)">Sao chép mã</button><button class="btn btn-light" type="button" v-on:click="closeEmail">Đóng</button><button class="btn btn-primary" type="button" v-bind:disabled="mailer.sending" v-on:click="sendEmail">{{ mailer.sending ? 'Đang xếp hàng...' : 'Gửi email' }}</button></div>
+        </section>
+    </div>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin-vouchers.js" asp-append-version="true"></script>
+}

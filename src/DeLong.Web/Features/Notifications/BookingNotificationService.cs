@@ -70,6 +70,7 @@ public sealed class BookingNotificationService(
                     x.CheckInUtc,
                     x.CheckOutUtc,
                     x.RoomAmount,
+                    x.SpecialSurchargeAmount,
                     x.ExtraAmount,
                     x.DiscountAmount,
                     CustomerName = x.Customer.Name,
@@ -86,7 +87,7 @@ public sealed class BookingNotificationService(
             var timeZone = TimeZoneInfo.FindSystemTimeZoneById(booking.TimeZoneId);
             var checkInLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(booking.CheckInUtc, DateTimeKind.Utc), timeZone);
             var checkOutLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(booking.CheckOutUtc, DateTimeKind.Utc), timeZone);
-            var total = booking.RoomAmount + booking.ExtraAmount - booking.DiscountAmount;
+            var total = booking.RoomAmount + booking.SpecialSurchargeAmount + booking.ExtraAmount - booking.DiscountAmount;
             var templateData = new BookingEmailTemplateData(
                 booking.PropertyName,
                 booking.Code,
