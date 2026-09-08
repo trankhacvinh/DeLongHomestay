@@ -20,6 +20,8 @@ public sealed partial class AdminAiService
     {
         try
         {
+            if (operation.Payload.TryGetProperty("preparedChanges", out _))
+                return (null, "preparedChanges chỉ được tạo bởi server; hãy gửi selector và changes.");
             if (operation.Summary.Length > 1000) return (null, "Tóm tắt preview tối đa 1.000 ký tự.");
             if (operation.Type == AiProposalType.UpdateRoomRate)
             {

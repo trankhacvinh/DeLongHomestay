@@ -9,7 +9,7 @@
             <div class="field"><label>Nhà cung cấp</label><select data-ai-provider><option value="0">OpenAI</option><option value="1">Google Gemini</option></select></div>
             <div class="field"><label>Model</label><input data-ai-model list="ai-model-list" placeholder="gpt-5-mini"><datalist id="ai-model-list"><option value="gpt-5-mini"></option><option value="gpt-5"></option><option value="gemini-2.5-flash"></option><option value="gemini-2.5-pro"></option></datalist></div>
             <div class="field full"><label>API key</label><input type="password" autocomplete="new-password" data-ai-key placeholder="Để trống để giữ khóa hiện tại"><small data-ai-key-status></small></div>
-            <div class="field"><label>Token trả lời tối đa</label><input type="number" min="128" max="32000" data-ai-max-tokens></div>
+            <div class="field"><label>Token trả lời tối đa</label><input type="number" min="128" max="32000" data-ai-max-tokens><small>Đề xuất 8192 khi cấu hình nhiều phòng. Một số model tính cả token suy luận vào giới hạn này.</small></div>
             <div class="field"><label>Giới hạn token/tháng</label><input type="number" min="0" data-ai-monthly-limit><small>0 là không giới hạn.</small></div>
         </div>
         <div class="modal-actions"><button class="btn btn-primary" type="button" data-ai-save>Lưu cấu hình</button></div><p class="notice" data-ai-settings-message hidden></p>

@@ -7,4 +7,10 @@
 .ai-proposal-operation{display:grid;gap:7px}
 .ai-proposal-operation+.ai-proposal-operation{margin-top:12px}
 .ai-proposal-operation>strong{color:#155b60}
+.ai-proposal-table thead th{width:auto}
+.ai-proposal-table thead th:first-child{width:40%}
+.ai-proposal-table td{overflow-wrap:anywhere}
+.ai-proposal-card{min-width:0}
+.ai-chat-drawer{grid-template-rows:auto minmax(0,1fr) auto auto}
+.ai-chat-messages{min-height:0}
 @media(max-width:600px){.ai-chat-drawer{width:100vw}.ai-proposal-table th{width:42%}}

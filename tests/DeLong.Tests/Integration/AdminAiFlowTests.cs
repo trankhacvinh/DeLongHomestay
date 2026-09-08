@@ -119,6 +119,48 @@ public sealed class AdminAiFlowTests
         Assert.Equal(4, await f.Db.RoomRates.CountAsync(x => x.Room.PropertyId == f.Property.Id));
     }
 
+    [PricingPostgreSqlFact]
+    public async Task Voucher_special_day_and_combo_updates_are_partial_and_audited()
+    {
+        await using var f = await Fixture.Create();
+        var voucher = new Voucher { PropertyId = f.Property.Id, Code = "VIP", NormalizedCode = "VIP", Status = VoucherStatus.Active,
+            DiscountPercent = 10, AppliesTo = VoucherApplicability.TimeSlot, StartsAtUtc = DateTime.UtcNow, EndsAtUtc = DateTime.UtcNow.AddDays(30), TotalUsageLimit = 100 };
+        var day = new SpecialPricingDay { PropertyId = f.Property.Id, Name = "Valentine", StartDate = new(2027, 2, 14),
+            EndDate = new(2027, 2, 14), SurchargePercent = 10 };
+        f.Db.AddRange(voucher, day); await f.Db.SaveChangesAsync();
+        f.Handler.Responses.Enqueue(Proposal("Batch", new { operations = new object[]
+        {
+            new { type = "UpdateVoucher", payload = new { reference = "VIP", changes = new { status = "Paused" } } },
+            new { type = "UpdateSpecialPricingDay", payload = new { reference = "Valentine", changes = new { bookingMode = "FullDayOnly", surchargePercent = 15 } } },
+            new { type = "UpdatePricingSettings", payload = new { changes = new { threeSlotDiscountPercent = 12 } } }
+        } }));
+        var (chat, _) = await f.Service.ChatAsync(f.Property.Id, f.User.Id, new(null, "tạm dừng voucher và chỉnh ngày lễ, combo"), default);
+        Assert.NotNull(chat!.Proposal);
+        Assert.Null((await f.Service.ApplyAsync(f.Property.Id, f.User.Id, chat.Proposal.Id, default)).Error);
+        var saved = await f.Db.Vouchers.AsNoTracking().SingleAsync(x => x.Id == voucher.Id);
+        Assert.Equal(VoucherStatus.Paused, saved.Status); Assert.Equal(100, saved.TotalUsageLimit); Assert.Equal(10, saved.DiscountPercent);
+        var special = await f.Db.SpecialPricingDays.AsNoTracking().SingleAsync(x => x.Id == day.Id);
+        Assert.Equal(SpecialDayBookingMode.FullDayOnly, special.BookingMode); Assert.Equal(15, special.SurchargePercent);
+        Assert.Equal(12, (await f.Db.PropertyPricingSettings.AsNoTracking().SingleAsync(x => x.PropertyId == f.Property.Id)).ThreeSlotDiscountPercent);
+        Assert.True(await f.Db.AuditLogs.AnyAsync(x => x.EntityId == chat.Proposal.Id));
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Reject_expiry_and_other_user_cannot_apply_or_reuse_preview()
+    {
+        await using var f = await Fixture.Create(Proposal("ConfigureRoomRates", Weekend), Proposal("ConfigureRoomRates", Weekend));
+        var (chat, _) = await f.Service.ChatAsync(f.Property.Id, f.User.Id, new(null, "đổi giá"), default);
+        Assert.NotNull((await f.Service.ApplyAsync(f.Property.Id, Guid.NewGuid(), chat!.Proposal!.Id, default)).Error);
+        Assert.Null((await f.Service.RejectAsync(f.Property.Id, f.User.Id, chat.Proposal.Id, default)).Error);
+        Assert.NotNull((await f.Service.ApplyAsync(f.Property.Id, f.User.Id, chat.Proposal.Id, default)).Error);
+        var (next, _) = await f.Service.ChatAsync(f.Property.Id, f.User.Id, new(chat.ConversationId, "đổi lại"), default);
+        var pending = await f.Db.AiChangeProposals.SingleAsync(x => x.Id == next!.Proposal!.Id);
+        pending.ExpiresAtUtc = DateTime.UtcNow.AddSeconds(-1); await f.Db.SaveChangesAsync();
+        var (expired, error) = await f.Service.ApplyAsync(f.Property.Id, f.User.Id, pending.Id, default);
+        Assert.NotNull(error); Assert.Equal(AiProposalStatus.Expired, expired!.Status);
+        Assert.All(await f.Db.RoomRates.AsNoTracking().Where(x => x.Room.PropertyId == f.Property.Id).ToListAsync(), x => Assert.Null(x.WeekendPrice));
+    }
+
     private sealed class QueueHandler(params string[] responses) : HttpMessageHandler
     {
         public Queue<string> Responses { get; } = new(responses);
