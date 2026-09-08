@@ -28,6 +28,19 @@ public sealed class PricingSourceContractTests
     }
 
     [Fact]
+    public void Admin_special_day_uses_vietnamese_flatpickr_format()
+    {
+        var root = FindRoot();
+        var page = File.ReadAllText(Path.Combine(root, "src/DeLong.Web/Pages/Admin/Pricing/Index.cshtml"));
+        var script = File.ReadAllText(Path.Combine(root, "src/DeLong.Web/wwwroot/js/pages/admin-pricing.js"));
+
+        Assert.Contains("flatpickr@4.6.13", page, StringComparison.Ordinal);
+        Assert.Contains("dist/l10n/vn.js", page, StringComparison.Ordinal);
+        Assert.Contains("altFormat: 'd/m/Y'", script, StringComparison.Ordinal);
+        Assert.Contains("dateFormat: 'Y-m-d'", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Public_calendar_handles_full_day_only_and_configurable_three_slot_discount()
     {
         var root = FindRoot();
