@@ -5,6 +5,7 @@
 }
 @section Head {
     <link rel="stylesheet" href="~/css/entities.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="~/css/admin-vouchers.css" asp-append-version="true" />
 }
 
@@ -24,8 +25,8 @@
         <div class="voucher-filters">
             <div class="field"><label>Tìm mã hoặc khách</label><input v-model.trim="filters.q" placeholder="WELCOME10, tên, số điện thoại..." v-on:keyup.enter="load" /></div>
             <div class="field"><label>Trạng thái</label><select v-model="filters.status"><option value="">Tất cả</option><option value="Active">Hoạt động</option><option value="Draft">Nháp</option><option value="Paused">Tạm dừng</option><option value="Archived">Lưu trữ</option></select></div>
-            <div class="field"><label>Từ ngày</label><input type="date" v-model="filters.from" /></div>
-            <div class="field"><label>Đến ngày</label><input type="date" v-model="filters.to" /></div>
+            <div class="field"><label>Từ ngày</label><input ref="filterFromPicker" type="text" v-model="filters.from" placeholder="dd/MM/yyyy" autocomplete="off" /></div>
+            <div class="field"><label>Đến ngày</label><input ref="filterToPicker" type="text" v-model="filters.to" placeholder="dd/MM/yyyy" autocomplete="off" /></div>
             <button class="btn btn-light voucher-filter-button" type="button" v-bind:disabled="loading" v-on:click="load">{{ loading ? 'Đang tải...' : 'Lọc dữ liệu' }}</button>
         </div>
     </section>
@@ -61,16 +62,41 @@
                 <div class="field"><label>Mã voucher *</label><div class="voucher-code-input"><input v-model.trim="form.code" maxlength="50" placeholder="WELCOME10" /><button class="btn btn-light btn-sm" type="button" v-on:click="generateCode">Tạo mã</button></div></div>
                 <div class="field"><label>Giảm tiền phòng (%) *</label><input type="number" min="1" max="100" step="0.01" v-model.number="form.discountPercent" /></div>
                 <div class="field full"><label>Mô tả nội bộ</label><textarea v-model.trim="form.description" maxlength="1000" placeholder="Chiến dịch, điều kiện gửi mã..."></textarea></div>
-                <div class="field"><label>Bắt đầu theo giờ cơ sở *</label><input type="datetime-local" v-model="form.startsAtLocal" /></div>
-                <div class="field"><label>Kết thúc theo giờ cơ sở *</label><input type="datetime-local" v-model="form.endsAtLocal" /></div>
+                <div class="field"><label>Bắt đầu theo giờ cơ sở *</label><input ref="startsAtPicker" type="text" v-model="form.startsAtLocal" placeholder="dd/MM/yyyy HH:mm" autocomplete="off" /></div>
+                <div class="field"><label>Kết thúc theo giờ cơ sở *</label><input ref="endsAtPicker" type="text" v-model="form.endsAtLocal" placeholder="dd/MM/yyyy HH:mm" autocomplete="off" /></div>
                 <fieldset class="field full voucher-scope"><legend>Phạm vi áp dụng *</legend><label><input type="checkbox" v-model="form.timeSlot" /> Khung giờ</label><label><input type="checkbox" v-model="form.overnight" /> Qua đêm</label><label><input type="checkbox" v-model="form.fullDay" /> Cả ngày</label></fieldset>
                 <div class="field"><label>Tổng lượt tối đa</label><input type="number" min="1" v-model.number="form.totalUsageLimit" placeholder="Để trống = không giới hạn" /></div>
                 <div class="field"><label>Lượt tối đa mỗi khách</label><input type="number" min="1" v-model.number="form.perCustomerUsageLimit" placeholder="Để trống = không giới hạn" /></div>
-                <div class="field"><label>Khách nhận riêng</label><select v-model="form.customerId"><option value="">Mã dùng chung</option><option v-for="customer in customers" v-bind:value="customer.id" v-bind:key="customer.id">{{ customer.name }} · {{ customer.phone }}</option></select></div>
+                <div class="field full voucher-customer-field">
+                    <label>Khách nhận riêng</label>
+                    <div class="voucher-customer-picker">
+                        <div class="voucher-customer-picker-toolbar">
+                            <input v-model.trim="customerSearch" v-on:focus="customerPickerOpen=true" placeholder="Tìm theo tên hoặc số điện thoại..." autocomplete="off" />
+                            <button class="btn btn-light btn-sm" type="button" v-on:click="customerPickerOpen=!customerPickerOpen">{{ form.customerIds.length ? `${form.customerIds.length} khách đã chọn` : 'Mã dùng chung' }}</button>
+                        </div>
+                        <div class="voucher-selected-customers" v-if="selectedCustomers.length">
+                            <button type="button" class="voucher-customer-chip" v-for="customer in selectedCustomers" v-bind:key="customer.id" v-on:click="toggleCustomer(customer.id)">{{ customer.name }} · {{ customer.phone }} <span>×</span></button>
+                        </div>
+                        <div class="voucher-customer-options" v-if="customerPickerOpen">
+                            <div class="voucher-customer-option-actions">
+                                <button type="button" v-on:click="clearCustomers">Mã dùng chung</button>
+                                <button v-if="editor.mode === 'create' && filteredCustomers.length" type="button" v-on:click="selectFilteredCustomers">Chọn tất cả kết quả</button>
+                            </div>
+                            <label v-for="customer in filteredCustomers" v-bind:key="customer.id" class="voucher-customer-option">
+                                <input type="checkbox" v-bind:checked="form.customerIds.includes(customer.id)" v-on:change="toggleCustomer(customer.id)" />
+                                <span><strong>{{ customer.name }}</strong><small>{{ customer.phone }}<template v-if="customer.email"> · {{ customer.email }}</template></small></span>
+                            </label>
+                            <div class="voucher-customer-empty" v-if="filteredCustomers.length === 0">Không tìm thấy khách phù hợp.</div>
+                        </div>
+                    </div>
+                    <small v-if="editor.mode === 'create' && form.customerIds.length > 1">Chọn nhiều khách: hệ thống sẽ tạo một voucher riêng cho từng khách với cùng cấu hình. Mã sẽ tự thêm hậu tố -01, -02… để không bị trùng.</small>
+                    <small v-else-if="editor.mode === 'edit'">Khi sửa voucher hiện có, chỉ có thể gắn cho một khách hoặc chuyển thành mã dùng chung.</small>
+                    <small v-else>Không chọn khách = mã dùng chung cho mọi khách đủ điều kiện.</small>
+                </div>
                 <div class="field"><label>Trạng thái</label><select v-model.number="form.status"><option v-bind:value="0">Nháp</option><option v-bind:value="1">Hoạt động</option><option v-bind:value="2">Tạm dừng</option></select></div>
             </div>
             <div v-if="editor.error" class="notice danger">{{ editor.error }}</div>
-            <div class="modal-actions"><button v-if="editor.mode === 'edit'" class="btn btn-danger voucher-archive" type="button" v-on:click="archiveVoucher">Lưu trữ</button><button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="save">{{ saving ? 'Đang lưu...' : 'Lưu voucher' }}</button></div>
+            <div class="modal-actions"><button v-if="editor.mode === 'edit'" class="btn btn-danger voucher-archive" type="button" v-on:click="archiveVoucher">Lưu trữ</button><button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="save">{{ saving ? 'Đang lưu...' : (editor.mode === 'create' && form.customerIds.length > 1 ? `Tạo ${form.customerIds.length} voucher` : 'Lưu voucher') }}</button></div>
         </section>
     </div>
 
@@ -101,5 +127,7 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/vn.js"></script>
     <script src="~/js/pages/admin-vouchers.js" asp-append-version="true"></script>
 }
