@@ -1,11 +1,15 @@
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
+using DeLong.Web.Features.Notifications;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.Payments;
 
-public sealed class PaymentService(AppDbContext db)
+public sealed class PaymentService(
+    AppDbContext db,
+    BookingNotificationService? notificationService = null,
+    ILogger<PaymentService>? logger = null)
 {
     public async Task<IReadOnlyList<PaymentDto>> GetByBookingAsync(
         Guid propertyId,
@@ -69,6 +73,8 @@ public sealed class PaymentService(AppDbContext db)
         db.Payments.Add(payment);
         await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, bookingId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+        if (payment.Type == PaymentType.Receipt)
+            await TryNotifyReceiptAsync(propertyId, bookingId, payment, cancellationToken);
         return (ToDto(payment), null);
     }
 
@@ -103,6 +109,32 @@ public sealed class PaymentService(AppDbContext db)
         await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, payment.BookingId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return (ToDto(payment), null);
+    }
+
+    private async Task TryNotifyReceiptAsync(Guid propertyId, Guid bookingId, Payment payment, CancellationToken cancellationToken)
+    {
+        if (notificationService is null) return;
+        try
+        {
+            var paid = await GetNetPaidAsync(propertyId, bookingId, cancellationToken);
+            var total = await db.Bookings.AsNoTracking()
+                .Where(x => x.PropertyId == propertyId && x.Id == bookingId)
+                .Select(x => x.TotalAmount)
+                .SingleAsync(cancellationToken);
+            await notificationService.NotifyPaymentSucceededAsync(
+                propertyId,
+                bookingId,
+                payment.Id,
+                payment.Amount,
+                payment.Method,
+                paid,
+                Math.Max(0, total - paid),
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Could not prepare receipt notification for payment {PaymentId}, booking {BookingId}.", payment.Id, bookingId);
+        }
     }
 
     private static PaymentDto ToDto(Payment x) => new(
