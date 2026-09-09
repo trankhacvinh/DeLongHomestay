@@ -33,6 +33,14 @@ public sealed class TelegramNotificationSender : IDisposable
         }
     }
 
+    public static IReadOnlyList<string> ParseChatIds(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? []
+            : value.Split([',', ';', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
     private static bool IsSuccessful(string payload)
     {
         try { return JsonDocument.Parse(payload).RootElement.TryGetProperty("ok", out var ok) && ok.GetBoolean(); }
