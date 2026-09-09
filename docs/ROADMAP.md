@@ -124,6 +124,10 @@
 - [x] Hồ sơ OpenAI/Gemini theo cơ sở, mã hóa API key.
 - [x] Chat Admin trên navbar, tra cứu snapshot booking/phòng/doanh thu/housekeeping.
 - [x] Thống kê lượt gọi và input/output token theo tháng.
+- [x] Lịch sử hội thoại theo Admin/cơ sở, tạo cuộc trò chuyện mới và mở lại nội dung cũ.
+- [x] Đính kèm DOCX/PDF/ảnh để AI xử lý nội dung thay vì nhập lại bằng tay.
+- [x] Ngân sách USD, đơn giá token tùy model, cảnh báo và khóa theo chi phí ước tính tháng.
 - [x] Preview và duyệt proposal cho phòng/khung giá/voucher/ngày đặc biệt/cấu hình giá.
+- [x] Preview nội dung phòng, hướng dẫn check-in, thông tin website và SEO; loại trừ custom code và cấu hình bí mật.
 - [ ] UAT với API key thật của OpenAI và Gemini.
 - [ ] Bổ sung báo cáo phân tích nâng cao; RAG chưa nằm trong phạm vi hiện tại.

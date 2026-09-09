@@ -8,6 +8,7 @@ using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.AdminAi;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Features.Pricing;
+using DeLong.Web.Features.Site;
 using DeLong.Web.Features.Vouchers;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.DataProtection;
@@ -123,14 +124,14 @@ public sealed class AdminAiFlowTests
     public async Task Voucher_special_day_and_combo_updates_are_partial_and_audited()
     {
         await using var f = await Fixture.Create();
-        var voucher = new Voucher { PropertyId = f.Property.Id, Code = "VIP", NormalizedCode = "VIP", Status = VoucherStatus.Active,
+        var voucher = new Voucher { PropertyId = f.Property.Id, Code = "VIP1", NormalizedCode = "VIP1", Status = VoucherStatus.Active,
             DiscountPercent = 10, AppliesTo = VoucherApplicability.TimeSlot, StartsAtUtc = DateTime.UtcNow, EndsAtUtc = DateTime.UtcNow.AddDays(30), TotalUsageLimit = 100 };
         var day = new SpecialPricingDay { PropertyId = f.Property.Id, Name = "Valentine", StartDate = new(2027, 2, 14),
             EndDate = new(2027, 2, 14), SurchargePercent = 10 };
         f.Db.AddRange(voucher, day); await f.Db.SaveChangesAsync();
         f.Handler.Responses.Enqueue(Proposal("Batch", new { operations = new object[]
         {
-            new { type = "UpdateVoucher", payload = new { reference = "VIP", changes = new { status = "Paused" } } },
+            new { type = "UpdateVoucher", payload = new { reference = "VIP1", changes = new { status = "Paused" } } },
             new { type = "UpdateSpecialPricingDay", payload = new { reference = "Valentine", changes = new { bookingMode = "FullDayOnly", surchargePercent = 15 } } },
             new { type = "UpdatePricingSettings", payload = new { changes = new { threeSlotDiscountPercent = 12 } } }
         } }));
@@ -159,6 +160,30 @@ public sealed class AdminAiFlowTests
         var (expired, error) = await f.Service.ApplyAsync(f.Property.Id, f.User.Id, pending.Id, default);
         Assert.NotNull(error); Assert.Equal(AiProposalStatus.Expired, expired!.Status);
         Assert.All(await f.Db.RoomRates.AsNoTracking().Where(x => x.Room.PropertyId == f.Property.Id).ToListAsync(), x => Assert.Null(x.WeekendPrice));
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Site_and_seo_preview_is_partial_stale_safe_and_preserves_custom_code()
+    {
+        await using var f = await Fixture.Create(Proposal("UpdateSiteSettings", new
+        {
+            changes = new { metaTitle = "De Long Homestay - Đặt phòng", metaDescription = "Đặt phòng trực tuyến.", robotsIndex = true }
+        }));
+        f.Db.Set<PropertySiteSettings>().Add(new PropertySiteSettings
+        {
+            PropertyId = f.Property.Id, SiteName = "Tên cũ", CustomCss = ".safe{color:red}", CustomJs = "window.safe=true"
+        });
+        await f.Db.SaveChangesAsync();
+
+        var (chat, chatError) = await f.Service.ChatAsync(f.Property.Id, f.User.Id, new(null, "cập nhật SEO"), default);
+        Assert.Null(chatError); Assert.NotNull(chat!.Proposal);
+        Assert.Null((await f.Service.ApplyAsync(f.Property.Id, f.User.Id, chat.Proposal.Id, default)).Error);
+
+        var saved = await f.Db.Set<PropertySiteSettings>().AsNoTracking().SingleAsync(x => x.PropertyId == f.Property.Id);
+        Assert.Equal("Tên cũ", saved.SiteName);
+        Assert.Equal("De Long Homestay - Đặt phòng", saved.MetaTitle);
+        Assert.Equal(".safe{color:red}", saved.CustomCss);
+        Assert.Equal("window.safe=true", saved.CustomJs);
     }
 
     private sealed class QueueHandler(params string[] responses) : HttpMessageHandler
@@ -209,7 +234,7 @@ public sealed class AdminAiFlowTests
             var pricing = new PricingService(db, audit);
             var handler = new QueueHandler(responses); var http = new HttpClient(handler);
             var service = new AdminAiService(db, new AdminAiSettingsService(db, protector), new AiProviderClient(http),
-                new RoomService(db), new RoomRateService(db), pricing,
+                new RoomService(db), new RoomRateService(db), new RoomContentService(db, null!), new SiteContentService(db), pricing,
                 new VoucherService(db, audit, new StoragePaths(Path.GetTempPath(), Path.GetTempPath(), new PathString("/test"), false, false, false), new ConfigurationBuilder().Build()), audit);
             return new() { Db = db, Service = service, Property = property, User = user, Rates = rates, OtherRate = otherRate, Handler = handler, Http = http };
         }

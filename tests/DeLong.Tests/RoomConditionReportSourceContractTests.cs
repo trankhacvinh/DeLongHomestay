@@ -70,6 +70,26 @@ public sealed class RoomConditionReportSourceContractTests
         Assert.DoesNotContain("v-if=\"reportForm.open\"", housekeeping, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Admin_can_manage_condition_templates_inline_with_property_scoped_protected_api()
+    {
+        var endpoints = ReadRepositoryFile("src/DeLong.Web/Features/Housekeeping/HousekeepingEndpoints.cs");
+        var page = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/RoomConditionReports/Index.cshtml");
+        var script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-room-condition-reports.js");
+
+        Assert.Contains("group.MapPut(\"/report-tags/{tagId:guid}\"", endpoints, StringComparison.Ordinal);
+        Assert.Contains("group.MapDelete(\"/report-tags/{tagId:guid}\"", endpoints, StringComparison.Ordinal);
+        Assert.Contains("RequireAuthorization(\"ManageProperties\")", endpoints, StringComparison.Ordinal);
+        Assert.Contains("AddEndpointFilter<ApiAntiforgeryFilter>()", endpoints, StringComparison.Ordinal);
+        Assert.Contains("window.DeLongRoomConditionCanEditTemplates", page, StringComparison.Ordinal);
+        Assert.Contains("User.IsInRole(\"Admin\")", page, StringComparison.Ordinal);
+        Assert.Contains("v-on:click=\"saveTemplate(tag)\"", page, StringComparison.Ordinal);
+        Assert.Contains("v-on:click=\"deleteTemplate(tag)\"", page, StringComparison.Ordinal);
+        Assert.Contains("async createTemplate()", script, StringComparison.Ordinal);
+        Assert.Contains("async saveTemplate(tag)", script, StringComparison.Ordinal);
+        Assert.Contains("async deleteTemplate(tag)", script, StringComparison.Ordinal);
+    }
+
     private static string ReadRepositoryFile(string relativePath)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

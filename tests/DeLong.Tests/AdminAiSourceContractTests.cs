@@ -74,6 +74,40 @@ public sealed class AdminAiSourceContractTests
         Assert.Contains("margin:18px 20px", styles, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Ai_supports_scoped_history_safe_attachments_and_budget_tracking()
+    {
+        var endpoints = Read("src/DeLong.Web/Features/AdminAi/AdminAiEndpoints.cs");
+        var attachmentService = Read("src/DeLong.Web/Features/AdminAi/AiAttachmentService.cs");
+        var chat = Read("src/DeLong.Web/wwwroot/js/core/admin-ai-chat.js");
+        var settings = Read("src/DeLong.Web/Pages/Admin/Ai/Index.cshtml");
+        var layout = Read("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        Assert.Contains("/conversations/{conversationId:guid}/attachments", endpoints);
+        Assert.Contains("PropertyId == propertyId", attachmentService);
+        Assert.Contains("x.Conversation.UserId == userId", attachmentService);
+        Assert.Contains("UploadedByUserId = userId", attachmentService);
+        Assert.Contains("DtdProcessing.Prohibit", attachmentService);
+        Assert.Contains("data-ai-history-list", chat);
+        Assert.Contains("data-ai-attachment-input", layout);
+        Assert.Contains("data-ai-budget", settings);
+    }
+
+    [Fact]
+    public void Ai_can_preview_safe_site_and_seo_changes_but_not_custom_code()
+    {
+        var capabilities = Read("src/DeLong.Web/Features/AdminAi/AiCapabilities.cs");
+        var configuration = Read("src/DeLong.Web/Features/AdminAi/AdminAiService.Configuration.cs");
+        var chat = Read("src/DeLong.Web/wwwroot/js/core/admin-ai-chat.js");
+
+        Assert.Contains("UpdateSiteSettings", capabilities);
+        Assert.Contains("metaTitle?", capabilities);
+        Assert.Contains("Không được sửa custom CSS/JS", capabilities);
+        Assert.Contains("SiteSettingsSnapshot", configuration);
+        Assert.Contains("SaveSettingsAsync(proposal.PropertyId", configuration);
+        Assert.Contains("false, ct", configuration);
+        Assert.Contains("proposal.status === 'Pending'", chat);
+    }
+
     private static string Read(string path) => File.ReadAllText(Path.Combine(Root, path));
     private static string FindRoot()
     {

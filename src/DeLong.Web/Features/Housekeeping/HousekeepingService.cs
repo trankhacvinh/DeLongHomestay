@@ -360,8 +360,18 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
         if (name.Length is < 2 or > 120) return (null, "Tên tag phải từ 2 đến 120 ký tự.");
         if (category.Length is < 2 or > 80) return (null, "Nhóm tag phải từ 2 đến 80 ký tự.");
         var normalizedName = name.ToUpperInvariant();
-        if (await db.RoomConditionTags.AnyAsync(x => x.PropertyId == propertyId && x.NormalizedName == normalizedName, cancellationToken))
-            return (null, "Tag này đã tồn tại.");
+        var existing = await db.RoomConditionTags.SingleOrDefaultAsync(
+            x => x.PropertyId == propertyId && x.NormalizedName == normalizedName,
+            cancellationToken);
+        if (existing?.IsActive == true) return (null, "Nội dung mẫu này đã tồn tại.");
+        if (existing is not null)
+        {
+            existing.Name = name;
+            existing.Category = category;
+            existing.IsActive = true;
+            await db.SaveChangesAsync(cancellationToken);
+            return (new RoomConditionTagDto(existing.Id, existing.Name, existing.Category), null);
+        }
 
         var tag = new RoomConditionTag
         {
@@ -374,6 +384,50 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
         db.RoomConditionTags.Add(tag);
         await db.SaveChangesAsync(cancellationToken);
         return (new RoomConditionTagDto(tag.Id, tag.Name, tag.Category), null);
+    }
+
+    public async Task<(RoomConditionTagDto? Tag, string? Error)> UpdateConditionTagAsync(
+        Guid propertyId,
+        Guid tagId,
+        UpdateRoomConditionTagRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var name = request.Name?.Trim() ?? string.Empty;
+        var category = request.Category?.Trim() ?? string.Empty;
+        if (name.Length is < 2 or > 120) return (null, "Nội dung mẫu phải từ 2 đến 120 ký tự.");
+        if (category.Length is < 2 or > 80) return (null, "Tên nhóm phải từ 2 đến 80 ký tự.");
+
+        var tag = await db.RoomConditionTags.SingleOrDefaultAsync(
+            x => x.Id == tagId && x.PropertyId == propertyId && x.IsActive,
+            cancellationToken);
+        if (tag is null) return (null, "Không tìm thấy nội dung mẫu.");
+
+        var normalizedName = name.ToUpperInvariant();
+        if (await db.RoomConditionTags.AnyAsync(
+                x => x.PropertyId == propertyId && x.Id != tagId && x.NormalizedName == normalizedName,
+                cancellationToken))
+            return (null, "Nội dung mẫu này đã tồn tại.");
+
+        tag.Name = name;
+        tag.NormalizedName = normalizedName;
+        tag.Category = category;
+        await db.SaveChangesAsync(cancellationToken);
+        return (new RoomConditionTagDto(tag.Id, tag.Name, tag.Category), null);
+    }
+
+    public async Task<bool> DeleteConditionTagAsync(
+        Guid propertyId,
+        Guid tagId,
+        CancellationToken cancellationToken = default)
+    {
+        var tag = await db.RoomConditionTags.SingleOrDefaultAsync(
+            x => x.Id == tagId && x.PropertyId == propertyId && x.IsActive,
+            cancellationToken);
+        if (tag is null) return false;
+
+        tag.IsActive = false;
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
     public async Task<RoomConditionReportDto?> ChangeConditionReportStatusAsync(

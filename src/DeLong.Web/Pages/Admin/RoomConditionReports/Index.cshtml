@@ -79,7 +79,24 @@
                     </div>
                     <div class="room-report-photo-grid" v-if="form.media.length"><figure v-for="(media,index) in form.media" v-bind:key="media.previewUrl"><video v-if="media.isVideo" v-bind:src="media.previewUrl" muted></video><img v-else v-bind:src="media.previewUrl" v-bind:alt="'Ảnh ' + (index+1)"/><button type="button" v-on:click="removeMedia(index)">×</button><figcaption>{{ media.optimizing ? 'Đang tối ưu…' : bytes(media.file.size) }}</figcaption></figure></div>
                 </section>
-                <section class="room-report-tag-section"><div class="room-report-section-head"><div><strong>Nội dung mẫu</strong><span>Chọn mẫu sẽ tự điền vào nội dung; có thể sửa lại.</span></div></div><div class="room-report-tag-groups"><div v-for="group in tagGroups" v-bind:key="group.category"><small>{{ group.category }}</small><div><button type="button" v-for="tag in group.tags" v-bind:key="tag.id" v-bind:class="{active:form.tags.includes(tag.name)}" v-on:click="toggleTag(tag.name)">{{ tag.name }}</button></div></div></div></section>
+                <section class="room-report-tag-section">
+                    <div class="room-report-section-head"><div><strong>Nội dung mẫu</strong><span>Chọn mẫu sẽ tự điền vào nội dung; có thể sửa lại.</span></div><button v-if="canEditTemplates" class="btn btn-light btn-sm" type="button" v-on:click="toggleTemplateEditor">{{ templateEditor.open ? 'Xong' : 'Chỉnh sửa mẫu' }}</button></div>
+                    <div class="room-report-template-editor" v-if="canEditTemplates && templateEditor.open">
+                        <div class="room-report-template-row" v-for="tag in templateEditor.items" v-bind:key="tag.id">
+                            <input v-model.trim="tag.category" maxlength="80" aria-label="Nhóm nội dung mẫu" placeholder="Nhóm" />
+                            <input v-model.trim="tag.name" maxlength="120" aria-label="Nội dung mẫu" placeholder="Nội dung mẫu" />
+                            <button class="btn btn-light btn-sm" type="button" v-bind:disabled="templateEditor.savingId === tag.id" v-on:click="saveTemplate(tag)">Lưu</button>
+                            <button class="btn btn-light btn-sm danger" type="button" v-bind:disabled="templateEditor.savingId === tag.id" v-on:click="deleteTemplate(tag)">{{ templateEditor.deleteId === tag.id ? 'Xác nhận xóa' : 'Xóa' }}</button>
+                        </div>
+                        <div class="room-report-template-row is-new">
+                            <input v-model.trim="templateEditor.category" maxlength="80" aria-label="Nhóm mới" placeholder="Nhóm, ví dụ: Vệ sinh" />
+                            <input v-model.trim="templateEditor.name" maxlength="120" aria-label="Nội dung mẫu mới" placeholder="Nội dung mẫu mới" />
+                            <button class="btn btn-primary btn-sm" type="button" v-bind:disabled="templateEditor.creating" v-on:click="createTemplate">{{ templateEditor.creating ? 'Đang thêm…' : '＋ Thêm' }}</button>
+                        </div>
+                        <small class="room-report-template-help">Nút Xóa cần bấm hai lần để xác nhận. Báo cáo cũ vẫn giữ nguyên nội dung đã ghi.</small>
+                    </div>
+                    <div class="room-report-tag-groups" v-else><div v-for="group in tagGroups" v-bind:key="group.category"><small>{{ group.category }}</small><div><button type="button" v-for="tag in group.tags" v-bind:key="tag.id" v-bind:class="{active:form.tags.includes(tag.name)}" v-on:click="toggleTag(tag.name)">{{ tag.name }}</button></div></div></div>
+                </section>
                 <label class="room-report-content"><span>Nội dung báo cáo *</span><textarea maxlength="4000" v-model="form.content" placeholder="Chọn nội dung mẫu hoặc nhập mô tả hiện trạng…"></textarea><small>{{ form.content.length }}/4000</small></label>
             </div>
             <div class="modal-actions room-report-form-actions"><button class="btn btn-light" type="button" v-on:click="closeForm">Đóng</button><button class="btn btn-primary" type="button" v-bind:disabled="form.saving || form.media.some(x=>x.optimizing)" v-on:click="submit">{{ form.saving ? 'Đang tải lên…' : 'Gửi báo cáo' }}</button></div>
@@ -88,6 +105,6 @@
     <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
 </div>
 @section Scripts {
-    <script>window.DeLongRoomConditionCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") || User.IsInRole("Housekeeping") ? "true" : "false");</script>
+    <script>window.DeLongRoomConditionCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") || User.IsInRole("Housekeeping") ? "true" : "false"); window.DeLongRoomConditionCanEditTemplates = @(User.IsInRole("Admin") ? "true" : "false");</script>
     <script src="~/js/pages/admin-room-condition-reports.js" asp-append-version="true"></script>
 }

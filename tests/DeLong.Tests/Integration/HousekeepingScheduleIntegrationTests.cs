@@ -12,6 +12,60 @@ public sealed class HousekeepingScheduleIntegrationTests
 {
     [Fact]
     [Trait("Category", "Integration")]
+    public async Task Condition_templates_support_property_scoped_create_update_soft_delete_and_restore()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(connectionString)
+            .Options;
+        await using var db = new AppDbContext(options);
+        await db.Database.MigrateAsync();
+
+        var suffix = Guid.NewGuid().ToString("N")[..10];
+        var property = new Property
+        {
+            Code = $"TAG-{suffix}", Name = "Template Test", SiteSlug = $"tag-{suffix}",
+            TimeZoneId = "Asia/Ho_Chi_Minh", IsActive = true
+        };
+        var otherProperty = new Property
+        {
+            Code = $"TAG2-{suffix}", Name = "Other Template Test", SiteSlug = $"tag2-{suffix}",
+            TimeZoneId = "Asia/Ho_Chi_Minh", IsActive = true
+        };
+        db.AddRange(property, otherProperty);
+        await db.SaveChangesAsync();
+
+        var service = new HousekeepingService(db);
+        var (created, createError) = await service.CreateConditionTagAsync(
+            property.Id, new("Đã kiểm tra máy lạnh", "Trang thiết bị"));
+        Assert.Null(createError);
+        Assert.NotNull(created);
+
+        var (crossProperty, crossPropertyError) = await service.UpdateConditionTagAsync(
+            otherProperty.Id, created!.Id, new("Không được sửa", "Khác"));
+        Assert.Null(crossProperty);
+        Assert.Equal("Không tìm thấy nội dung mẫu.", crossPropertyError);
+
+        var (updated, updateError) = await service.UpdateConditionTagAsync(
+            property.Id, created.Id, new("Máy lạnh hoạt động tốt", "Thiết bị"));
+        Assert.Null(updateError);
+        Assert.Equal("Máy lạnh hoạt động tốt", updated!.Name);
+        Assert.Equal("Thiết bị", updated.Category);
+
+        Assert.True(await service.DeleteConditionTagAsync(property.Id, created.Id));
+        Assert.DoesNotContain(await service.GetConditionTagsAsync(property.Id), x => x.Id == created.Id);
+
+        var (restored, restoreError) = await service.CreateConditionTagAsync(
+            property.Id, new("Máy lạnh hoạt động tốt", "Tiện nghi"));
+        Assert.Null(restoreError);
+        Assert.Equal(created.Id, restored!.Id);
+        Assert.Equal("Tiện nghi", restored.Category);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
     public async Task Schedule_uses_real_booking_times_and_excludes_cancelled_bookings()
     {
         var connectionString = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");

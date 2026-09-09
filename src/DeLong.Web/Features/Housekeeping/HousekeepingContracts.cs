@@ -70,4 +70,6 @@ public sealed record RoomConditionReportDto(
 
 public sealed record CreateRoomConditionTagRequest(string Name, string Category);
 
+public sealed record UpdateRoomConditionTagRequest(string Name, string Category);
+
 public sealed record ChangeRoomConditionReportStatusRequest(RoomConditionReportStatus Status);

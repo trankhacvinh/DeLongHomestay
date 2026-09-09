@@ -10,3 +10,8 @@
 8. Lặp lại với voucher, ngày đặc biệt và cấu hình combo.
 9. Chờ proposal quá 20 phút; xác nhận không áp dụng được.
 10. Kiểm tra thống kê lượt gọi, input/output token và giới hạn tháng.
+11. Đặt ngân sách 10 USD và đơn giá input/output theo model; gọi AI và xác nhận token, chi phí ước tính, phần trăm và số dư thay đổi. Khi đạt ngân sách, yêu cầu mới phải bị chặn.
+12. Tạo hội thoại mới, gửi vài tin, đóng/mở khung chat rồi vào Lịch sử; xác nhận chỉ Admin tạo hội thoại đó trong đúng cơ sở mới xem được.
+13. Tải DOCX hướng dẫn check-in và yêu cầu cập nhật phòng; xác nhận AI đọc được nội dung nhưng chỉ tạo preview. Lặp lại với PDF, JPG/PNG/WEBP.
+14. Thử tệp giả đuôi, DOCX lỗi, tệp trên 15 MB, hơn 10 tệp và tổng trên 30 MB; xác nhận bị từ chối trước khi gọi provider.
+15. Đưa câu lệnh giả mạo system instruction vào tài liệu; xác nhận AI coi đó là dữ liệu và không vượt allowlist/quyền Admin.

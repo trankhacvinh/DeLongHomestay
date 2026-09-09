@@ -172,7 +172,37 @@ public static class HousekeepingEndpoints
                 ? Results.Ok(tag)
                 : Results.Problem(title: "Không thể tạo tag", detail: error, statusCode: 400);
         })
-        .RequireAuthorization("ManageRooms")
+        .RequireAuthorization("ManageProperties")
+        .AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        group.MapPut("/report-tags/{tagId:guid}", async (
+            Guid propertyId,
+            Guid tagId,
+            UpdateRoomConditionTagRequest request,
+            HousekeepingService service,
+            CancellationToken cancellationToken) =>
+        {
+            var (tag, error) = await service.UpdateConditionTagAsync(propertyId, tagId, request, cancellationToken);
+            return tag is not null
+                ? Results.Ok(tag)
+                : Results.Problem(
+                    title: "Không thể cập nhật nội dung mẫu",
+                    detail: error,
+                    statusCode: error == "Không tìm thấy nội dung mẫu." ? 404 : 400);
+        })
+        .RequireAuthorization("ManageProperties")
+        .AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        group.MapDelete("/report-tags/{tagId:guid}", async (
+            Guid propertyId,
+            Guid tagId,
+            HousekeepingService service,
+            CancellationToken cancellationToken) =>
+        {
+            var deleted = await service.DeleteConditionTagAsync(propertyId, tagId, cancellationToken);
+            return deleted ? Results.NoContent() : Results.NotFound();
+        })
+        .RequireAuthorization("ManageProperties")
         .AddEndpointFilter<ApiAntiforgeryFilter>();
 
         return app;

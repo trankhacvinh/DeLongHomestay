@@ -7,6 +7,7 @@ using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Pricing;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Features.Vouchers;
+using DeLong.Web.Features.Site;
 using DeLong.Web.Common.Auditing;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +19,8 @@ public sealed partial class AdminAiService(
     AiProviderClient providerClient,
     RoomService roomService,
     RoomRateService roomRateService,
+    RoomContentService roomContentService,
+    SiteContentService siteContentService,
     PricingService pricingService,
     VoucherService voucherService,
     AuditService auditService,
@@ -38,6 +41,10 @@ public sealed partial class AdminAiService(
         var used = await db.AiUsageRecords.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CreatedAtUtc >= monthStart)
             .SumAsync(x => x.InputTokens + x.OutputTokens, ct);
         if (profile.MonthlyTokenLimit > 0 && used >= profile.MonthlyTokenLimit) return (null, "Cơ sở đã đạt giới hạn token AI trong tháng.");
+        var spent = await db.AiUsageRecords.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CreatedAtUtc >= monthStart)
+            .SumAsync(x => x.EstimatedCostUsd, ct);
+        if (profile.MonthlyBudgetUsd > 0 && spent >= profile.MonthlyBudgetUsd)
+            return (null, "Cơ sở đã sử dụng hết ngân sách AI ước tính trong tháng.");
 
         var conversation = request.ConversationId.HasValue
             ? await db.AiConversations.SingleOrDefaultAsync(x => x.Id == request.ConversationId && x.PropertyId == propertyId && x.UserId == userId, ct)
@@ -45,8 +52,16 @@ public sealed partial class AdminAiService(
         if (request.ConversationId.HasValue && conversation is null) return (null, "Không tìm thấy cuộc trò chuyện.");
         conversation ??= new AiConversation { PropertyId = propertyId, UserId = userId, Title = text[..Math.Min(80, text.Length)] };
         if (conversation.Id == default || db.Entry(conversation).State == EntityState.Detached) db.AiConversations.Add(conversation);
+        if (conversation.Title == "Cuộc trò chuyện mới") conversation.Title = text[..Math.Min(80, text.Length)];
         db.AiMessages.Add(new AiMessage { Conversation = conversation, Role = "user", Content = text });
         await db.SaveChangesAsync(ct);
+
+        var attachmentIds = request.AttachmentIds?.Distinct().Take(10).ToArray() ?? [];
+        var attachments = attachmentIds.Length == 0 ? [] : await db.AiAttachments.AsNoTracking()
+            .Where(x => attachmentIds.Contains(x.Id) && x.ConversationId == conversation.Id && x.UploadedByUserId == userId)
+            .OrderBy(x => x.CreatedAtUtc)
+            .Select(x => new AiProviderAttachment(x.FileName, x.ContentType, x.Content, x.ExtractedText)).ToListAsync(ct);
+        if (attachments.Count != attachmentIds.Length) return (null, "Có tệp đính kèm không hợp lệ hoặc không thuộc cuộc trò chuyện này.");
 
         var snapshot = await BuildSafeSnapshotAsync(propertyId, ct);
         var history = await db.AiMessages.AsNoTracking().Where(x => x.ConversationId == conversation.Id)
@@ -71,7 +86,7 @@ public sealed partial class AdminAiService(
                     SystemPrompt + "\n" + AiCapabilities.Instructions,
                     attempt == 0 ? input : input + "\nLần trả lời trước chưa dùng được: " + issue +
                         "\nHãy tạo lại phản hồi ngắn, đúng schema. Dùng selector allRooms thay vì liệt kê mọi phòng. Không thay đổi mục tiêu của người dùng.",
-                    profile.MaxOutputTokens, ct);
+                    profile.MaxOutputTokens, attachments, ct);
                 envelope = result.FinishReason is "incomplete" or "MAX_TOKENS" ? null : AiResponseProtocol.Parse(result.Text);
                 issue = envelope is null ? (result.FinishReason is "incomplete" or "MAX_TOKENS"
                     ? "Phản hồi vượt giới hạn token. Trong Trợ lý AI, tăng Token trả lời tối đa lên 8192 rồi thử lại." : "Phản hồi không khớp cấu trúc đề xuất.") : null;
@@ -86,6 +101,7 @@ public sealed partial class AdminAiService(
                     PropertyId = propertyId, UserId = userId, ConversationId = conversation.Id,
                     Provider = profile.Provider, Model = profile.Model, Operation = attempt == 0 ? "Chat" : "Repair",
                     InputTokens = result.InputTokens, OutputTokens = result.OutputTokens,
+                    EstimatedCostUsd = EstimateCost(result.InputTokens, result.OutputTokens, profile),
                     DurationMs = stopwatch.ElapsedMilliseconds, IsSuccess = issue is null,
                     ErrorCode = issue is null ? null : "invalid_response"
                 });
@@ -176,10 +192,21 @@ public sealed partial class AdminAiService(
     {
         var from = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var rows = await db.AiUsageRecords.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CreatedAtUtc >= from)
-            .GroupBy(_ => 1).Select(g => new { Calls = g.Count(), Input = g.Sum(x => (long)x.InputTokens), Output = g.Sum(x => (long)x.OutputTokens) }).SingleOrDefaultAsync(ct);
-        var limit = await db.PropertyAiProfiles.AsNoTracking().Where(x => x.PropertyId == propertyId).Select(x => x.MonthlyTokenLimit).SingleOrDefaultAsync(ct);
-        return new(rows?.Calls ?? 0, rows?.Input ?? 0, rows?.Output ?? 0, (rows?.Input ?? 0) + (rows?.Output ?? 0), limit);
+            .GroupBy(_ => 1).Select(g => new { Calls = g.Count(), Input = g.Sum(x => (long)x.InputTokens), Output = g.Sum(x => (long)x.OutputTokens), Cost = g.Sum(x => x.EstimatedCostUsd) }).SingleOrDefaultAsync(ct);
+        var profile = await db.PropertyAiProfiles.AsNoTracking().Where(x => x.PropertyId == propertyId)
+            .Select(x => new { x.MonthlyTokenLimit, x.MonthlyBudgetUsd, x.BudgetWarningPercent }).SingleOrDefaultAsync(ct);
+        var cost = rows?.Cost ?? 0;
+        var budget = profile?.MonthlyBudgetUsd ?? 0;
+        var remaining = budget > 0 ? Math.Max(0, budget - cost) : 0;
+        var percent = budget > 0 ? Math.Min(100, (int)Math.Floor(cost / budget * 100)) : 0;
+        var warningAt = profile?.BudgetWarningPercent ?? 80;
+        return new(rows?.Calls ?? 0, rows?.Input ?? 0, rows?.Output ?? 0, (rows?.Input ?? 0) + (rows?.Output ?? 0), profile?.MonthlyTokenLimit ?? 0,
+            cost, budget, remaining, percent, warningAt, budget > 0 && percent >= warningAt, budget > 0 && cost >= budget);
     }
+
+    private static decimal EstimateCost(int inputTokens, int outputTokens, PropertyAiProfile profile) =>
+        Math.Round(inputTokens / 1_000_000m * profile.InputCostPerMillionTokensUsd +
+                   outputTokens / 1_000_000m * profile.OutputCostPerMillionTokensUsd, 8, MidpointRounding.AwayFromZero);
 
     public async Task<IReadOnlyList<AiConversationDto>> ConversationsAsync(Guid propertyId, Guid userId, CancellationToken ct) =>
         await db.AiConversations.AsNoTracking().Where(x => x.PropertyId == propertyId && x.UserId == userId).OrderByDescending(x => x.UpdatedAtUtc).Take(30)
@@ -191,9 +218,16 @@ public sealed partial class AdminAiService(
         await db.SaveChangesAsync(ct);
         return conversation.Id;
     }
-    public async Task<IReadOnlyList<AiMessageDto>> MessagesAsync(Guid propertyId, Guid userId, Guid conversationId, CancellationToken ct) =>
-        await db.AiMessages.AsNoTracking().Where(x => x.ConversationId == conversationId && x.Conversation.PropertyId == propertyId && x.Conversation.UserId == userId)
+    public async Task<IReadOnlyList<AiMessageDto>> MessagesAsync(Guid propertyId, Guid userId, Guid conversationId, CancellationToken ct)
+    {
+        var messages = await db.AiMessages.AsNoTracking().Where(x => x.ConversationId == conversationId && x.Conversation.PropertyId == propertyId && x.Conversation.UserId == userId)
             .OrderBy(x => x.CreatedAtUtc).Select(x => new AiMessageDto(x.Id, x.Role, x.Content, x.CreatedAtUtc, x.ProposalId)).ToListAsync(ct);
+        var proposalIds = messages.Where(x => x.ProposalId.HasValue).Select(x => x.ProposalId!.Value).Distinct().ToArray();
+        if (proposalIds.Length == 0) return messages;
+        var proposals = await db.AiChangeProposals.AsNoTracking().Where(x => proposalIds.Contains(x.Id) && x.PropertyId == propertyId && x.UserId == userId)
+            .ToDictionaryAsync(x => x.Id, ct);
+        return messages.Select(x => x.ProposalId is { } id && proposals.TryGetValue(id, out var proposal) ? x with { Proposal = ToDto(proposal) } : x).ToArray();
+    }
 
     private async Task<object> BuildSafeSnapshotAsync(Guid propertyId, CancellationToken ct)
     {
@@ -207,21 +241,39 @@ public sealed partial class AdminAiService(
         var localMonth = new DateTime(localNow.Year, localNow.Month, 1);
         var monthStartUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localMonth, DateTimeKind.Unspecified), timeZone);
         var nextMonthStartUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localMonth.AddMonths(1), DateTimeKind.Unspecified), timeZone);
-        var rooms = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId && x.IsActive).OrderBy(x => x.SortOrder).Select(x => new { x.Id, x.Code, x.Name, x.Capacity, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice, x.HousekeepingStatus, Rates = x.Rates.Where(r => r.IsActive).OrderBy(r => r.SortOrder).Select(r => new { r.Id, r.Name, Start = r.StartTime, End = r.EndTime, r.Type, r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice }) }).ToListAsync(ct);
+        var rooms = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId && x.IsActive).OrderBy(x => x.SortOrder).Select(x => new { x.Id, x.Code, x.Name, x.Capacity, x.Slug, x.ShortDescription, HasGuestGuide = x.GuestGuideHtml != null, x.IsPublished, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice, x.HousekeepingStatus, Rates = x.Rates.Where(r => r.IsActive).OrderBy(r => r.SortOrder).Select(r => new { r.Id, r.Name, Start = r.StartTime, End = r.EndTime, r.Type, r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice }) }).ToListAsync(ct);
         var todayBookings = await db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CheckOutUtc > todayStartUtc && x.CheckInUtc < tomorrowStartUtc && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
             .Select(x => new { x.Code, Room = x.Room.Name, Customer = x.Customer.Name, Phone = x.Customer.Phone, x.CheckInUtc, x.CheckOutUtc, x.Status, Total = x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount }).ToListAsync(ct);
         var monthSummary = await db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CheckInUtc >= monthStartUtc && x.CheckInUtc < nextMonthStartUtc && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
             .GroupBy(_ => 1).Select(g => new { Count = g.Count(), Revenue = g.Sum(x => x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount) }).SingleOrDefaultAsync(ct);
+        var todayPayments = await db.Payments.AsNoTracking().Where(x => x.PropertyId == propertyId && !x.IsVoided && x.OccurredAtUtc >= todayStartUtc && x.OccurredAtUtc < tomorrowStartUtc)
+            .GroupBy(_ => 1).Select(g => new { Receipts = g.Where(x => x.Type == PaymentType.Receipt).Sum(x => x.Amount), Refunds = g.Where(x => x.Type == PaymentType.Refund).Sum(x => x.Amount) }).SingleOrDefaultAsync(ct);
+        var monthPayments = await db.Payments.AsNoTracking().Where(x => x.PropertyId == propertyId && !x.IsVoided && x.OccurredAtUtc >= monthStartUtc && x.OccurredAtUtc < nextMonthStartUtc)
+            .GroupBy(_ => 1).Select(g => new { Receipts = g.Where(x => x.Type == PaymentType.Receipt).Sum(x => x.Amount), Refunds = g.Where(x => x.Type == PaymentType.Refund).Sum(x => x.Amount) }).SingleOrDefaultAsync(ct);
+        var todayExpenses = await db.Expenses.AsNoTracking().Where(x => x.PropertyId == propertyId && !x.IsVoided && x.OccurredAtUtc >= todayStartUtc && x.OccurredAtUtc < tomorrowStartUtc).SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
+        var monthExpenses = await db.Expenses.AsNoTracking().Where(x => x.PropertyId == propertyId && !x.IsVoided && x.OccurredAtUtc >= monthStartUtc && x.OccurredAtUtc < nextMonthStartUtc).SumAsync(x => (decimal?)x.Amount, ct) ?? 0m;
         var vouchers = await db.Vouchers.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Status != VoucherStatus.Archived).Select(x => new { x.Id, x.Code, x.Description, x.DiscountPercent, x.AppliesTo, x.StartsAtUtc, x.EndsAtUtc, x.TotalUsageLimit, x.PerCustomerUsageLimit, x.Status }).ToListAsync(ct);
         var pricing = await pricingService.GetSettingsAsync(propertyId, ct);
         var specialDays = await pricingService.GetSpecialDaysAsync(propertyId, ct);
-        return new { property, rooms, todayBookings, monthSummary = monthSummary ?? new { Count = 0, Revenue = 0m }, vouchers, pricing = new { pricing.ThreeSlotDiscountEnabled, pricing.ThreeSlotCount, pricing.ThreeSlotDiscountPercent, pricing.WeekendDayMask }, specialDays = specialDays.Select(x => new { x.Id, x.IsActive, x.StartDate, x.EndDate, x.Name, x.Category, x.BasePriceProfile, x.SurchargePercent, x.BookingMode, x.AllowThreeSlotCombo }) };
+        var site = (await siteContentService.GetAdminAsync(propertyId, ct))?.Settings;
+        var siteSettings = site is null ? null : new { site.SiteName, site.Tagline, site.Address, site.Phone, site.Email,
+            site.FacebookUrl, site.ZaloUrl, site.GoogleMapsUrl, site.CoverImageUrl, site.LogoUrl, site.FaviconUrl,
+            site.OgImageUrl, site.MetaTitle, site.MetaDescription, site.CanonicalBaseUrl, site.OgTitle,
+            site.OgDescription, site.RobotsIndex };
+        return new { property, rooms, todayBookings, monthSummary = monthSummary ?? new { Count = 0, Revenue = 0m },
+            finance = new {
+                today = new { Receipts = todayPayments?.Receipts ?? 0m, Refunds = todayPayments?.Refunds ?? 0m, Expenses = todayExpenses },
+                month = new { Receipts = monthPayments?.Receipts ?? 0m, Refunds = monthPayments?.Refunds ?? 0m, Expenses = monthExpenses }
+            }, vouchers,
+            pricing = new { pricing.ThreeSlotDiscountEnabled, pricing.ThreeSlotCount, pricing.ThreeSlotDiscountPercent, pricing.WeekendDayMask },
+            specialDays = specialDays.Select(x => new { x.Id, x.IsActive, x.StartDate, x.EndDate, x.Name, x.Category, x.BasePriceProfile, x.SurchargePercent, x.BookingMode, x.AllowThreeSlotCombo }),
+            siteSettings };
     }
 
     private async Task<string?> ExecuteProposalAsync(AiChangeProposal proposal, Guid userId, CancellationToken ct)
     {
-        if (proposal.Type is AiProposalType.ConfigureRoomRates or AiProposalType.UpdateRoom or AiProposalType.CreateRoomRate
-            or AiProposalType.UpdateVoucher or AiProposalType.UpdateSpecialPricingDay or AiProposalType.UpdatePricingSettings)
+        if (proposal.Type is AiProposalType.ConfigureRoomRates or AiProposalType.UpdateRoom or AiProposalType.CreateRoomRate or AiProposalType.UpdateRoomContent
+            or AiProposalType.UpdateVoucher or AiProposalType.UpdateSpecialPricingDay or AiProposalType.UpdatePricingSettings or AiProposalType.UpdateSiteSettings)
         {
             using var payload = JsonDocument.Parse(proposal.PayloadJson);
             if (payload.RootElement.TryGetProperty("preparedChanges", out _))

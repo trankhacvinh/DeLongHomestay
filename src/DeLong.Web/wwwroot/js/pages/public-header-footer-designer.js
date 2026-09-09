@@ -288,7 +288,9 @@
             const headerAction = event.target.closest('[data-contextual-header],[data-context-header]');
             const footerAction = event.target.closest('[data-contextual-footer],[data-context-footer]');
             const contextual = event.target.closest('.pve-context-target');
-            const host = contextual?.closest('.public-site-header,.public-hospitality-footer');
+            const host = contextual?.parentElement?.matches('.public-site-header,.public-hospitality-footer')
+                ? contextual.parentElement
+                : null;
             const kind = headerAction || host?.classList.contains('public-site-header') ? 'header' : footerAction || host?.classList.contains('public-hospitality-footer') ? 'footer' : '';
             if (!kind) return;
             event.preventDefault(); event.stopImmediatePropagation();

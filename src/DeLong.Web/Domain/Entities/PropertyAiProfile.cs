@@ -12,6 +12,9 @@ public sealed class PropertyAiProfile : EntityBase
     public string ProtectedApiKey { get; set; } = string.Empty;
     public int MaxOutputTokens { get; set; } = 2000;
     public int MonthlyTokenLimit { get; set; }
+    public decimal MonthlyBudgetUsd { get; set; }
+    public decimal InputCostPerMillionTokensUsd { get; set; }
+    public decimal OutputCostPerMillionTokensUsd { get; set; }
+    public int BudgetWarningPercent { get; set; } = 80;
     public Guid? UpdatedByUserId { get; set; }
 }
-

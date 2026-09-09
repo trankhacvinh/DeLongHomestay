@@ -11,12 +11,17 @@
             <div class="field full"><label>API key</label><input type="password" autocomplete="new-password" data-ai-key placeholder="Để trống để giữ khóa hiện tại"><small data-ai-key-status></small></div>
             <div class="field"><label>Token trả lời tối đa</label><input type="number" min="128" max="32000" data-ai-max-tokens><small>Đề xuất 8192 khi cấu hình nhiều phòng. Một số model tính cả token suy luận vào giới hạn này.</small></div>
             <div class="field"><label>Giới hạn token/tháng</label><input type="number" min="0" data-ai-monthly-limit><small>0 là không giới hạn.</small></div>
+            <div class="field"><label>Ngân sách AI/tháng (USD)</label><input type="number" min="0" step="0.01" data-ai-budget><small>Ví dụ 10 USD; 0 là không giới hạn theo tiền.</small></div>
+            <div class="field"><label>Cảnh báo khi dùng (%)</label><input type="number" min="1" max="100" data-ai-budget-warning></div>
+            <div class="field"><label>Giá input / 1 triệu token (USD)</label><input type="number" min="0" step="0.000001" data-ai-input-cost><small>Lấy từ bảng giá model của nhà cung cấp.</small></div>
+            <div class="field"><label>Giá output / 1 triệu token (USD)</label><input type="number" min="0" step="0.000001" data-ai-output-cost><small>Cập nhật khi nhà cung cấp đổi giá.</small></div>
         </div>
         <div class="modal-actions"><button class="btn btn-primary" type="button" data-ai-save>Lưu cấu hình</button></div><p class="notice" data-ai-settings-message hidden></p>
     </section>
     <section class="panel"><div class="panel-head"><div><h2>Sử dụng tháng này</h2><p>Số liệu token lấy từ phản hồi của nhà cung cấp.</p></div></div>
-        <div class="ai-usage-cards"><div><small>Lượt gọi</small><strong data-ai-calls>0</strong></div><div><small>Input token</small><strong data-ai-input>0</strong></div><div><small>Output token</small><strong data-ai-output>0</strong></div><div><small>Tổng token</small><strong data-ai-total>0</strong></div></div>
-        <div class="notice">AI chỉ đọc dữ liệu vận hành đã được lọc. Mọi thay đổi phòng, khung giờ, giá, ngày đặc biệt và voucher đều phải được Admin duyệt tại cửa sổ chat.</div>
+        <div class="ai-usage-cards"><div><small>Lượt gọi</small><strong data-ai-calls>0</strong></div><div><small>Input token</small><strong data-ai-input>0</strong></div><div><small>Output token</small><strong data-ai-output>0</strong></div><div><small>Tổng token</small><strong data-ai-total>0</strong></div><div><small>Chi phí ước tính</small><strong data-ai-cost>$0</strong></div><div><small>Ngân sách còn lại</small><strong data-ai-remaining>—</strong></div></div>
+        <p class="notice" data-ai-budget-message></p>
+        <div class="notice">AI chỉ đọc dữ liệu vận hành đã được lọc. Mọi thay đổi phòng, khung giờ, giá, ngày đặc biệt, voucher, nội dung phòng, website và SEO đều phải được Admin duyệt tại cửa sổ chat.</div>
     </section>
 </div>
 @section Head { <link rel="stylesheet" href="~/css/admin-ai.css" asp-append-version="true"> }

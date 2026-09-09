@@ -58,6 +58,7 @@ public sealed class AppDbContext
     public DbSet<PropertyAiProfile> PropertyAiProfiles => Set<PropertyAiProfile>();
     public DbSet<AiConversation> AiConversations => Set<AiConversation>();
     public DbSet<AiMessage> AiMessages => Set<AiMessage>();
+    public DbSet<AiAttachment> AiAttachments => Set<AiAttachment>();
     public DbSet<AiUsageRecord> AiUsageRecords => Set<AiUsageRecord>();
     public DbSet<AiChangeProposal> AiChangeProposals => Set<AiChangeProposal>();
 
@@ -71,11 +72,18 @@ public sealed class AppDbContext
             entity.Property(x => x.Provider).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(x => x.Model).HasMaxLength(120).IsRequired();
             entity.Property(x => x.ProtectedApiKey).HasMaxLength(4000).IsRequired();
+            entity.Property(x => x.MonthlyBudgetUsd).HasPrecision(18, 4);
+            entity.Property(x => x.InputCostPerMillionTokensUsd).HasPrecision(18, 6);
+            entity.Property(x => x.OutputCostPerMillionTokensUsd).HasPrecision(18, 6);
+            entity.Property(x => x.BudgetWarningPercent).HasDefaultValue(80);
             entity.HasOne(x => x.Property).WithOne().HasForeignKey<PropertyAiProfile>(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
             entity.ToTable(t =>
             {
                 t.HasCheckConstraint("ck_property_ai_profiles_max_output_tokens", "max_output_tokens BETWEEN 128 AND 32000");
                 t.HasCheckConstraint("ck_property_ai_profiles_monthly_token_limit", "monthly_token_limit >= 0");
+                t.HasCheckConstraint("ck_property_ai_profiles_monthly_budget_usd", "monthly_budget_usd >= 0");
+                t.HasCheckConstraint("ck_property_ai_profiles_token_costs", "input_cost_per_million_tokens_usd >= 0 AND output_cost_per_million_tokens_usd >= 0");
+                t.HasCheckConstraint("ck_property_ai_profiles_budget_warning_percent", "budget_warning_percent BETWEEN 1 AND 100");
             });
         });
         modelBuilder.Entity<AiConversation>(entity =>
@@ -92,6 +100,16 @@ public sealed class AppDbContext
             entity.Property(x => x.ToolName).HasMaxLength(100);
             entity.HasOne(x => x.Conversation).WithMany(x => x.Messages).HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
         });
+        modelBuilder.Entity<AiAttachment>(entity =>
+        {
+            entity.HasIndex(x => new { x.ConversationId, x.CreatedAtUtc });
+            entity.Property(x => x.FileName).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ExtractedText).HasMaxLength(100000);
+            entity.Property(x => x.Content).IsRequired();
+            entity.HasOne(x => x.Conversation).WithMany(x => x.Attachments).HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UploadedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
         modelBuilder.Entity<AiUsageRecord>(entity =>
         {
             entity.HasIndex(x => new { x.PropertyId, x.CreatedAtUtc });
@@ -99,6 +117,7 @@ public sealed class AppDbContext
             entity.Property(x => x.Model).HasMaxLength(120).IsRequired();
             entity.Property(x => x.Operation).HasMaxLength(80).IsRequired();
             entity.Property(x => x.ErrorCode).HasMaxLength(120);
+            entity.Property(x => x.EstimatedCostUsd).HasPrecision(18, 8);
             entity.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<AiConversation>().WithMany().HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.SetNull);

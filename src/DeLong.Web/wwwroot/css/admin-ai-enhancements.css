@@ -13,4 +13,20 @@
 .ai-proposal-card{min-width:0}
 .ai-chat-drawer{grid-template-rows:auto minmax(0,1fr) auto auto}
 .ai-chat-messages{min-height:0}
+.ai-chat-drawer>header nav{display:flex;gap:6px}
+.ai-chat-history{position:absolute;inset:73px 0 0 0;z-index:4;background:#fff;padding:16px;overflow:auto}
+.ai-chat-history>div:first-child{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.ai-chat-history [data-ai-history-list]{display:grid;gap:8px}
+.ai-history-item{width:100%;display:grid;gap:3px;text-align:left;border:1px solid #dce7e4;background:#f7fbfa;border-radius:12px;padding:11px;color:#173c3d}
+.ai-history-item small{color:#70817e}
+.ai-chat-drawer form{grid-template-columns:auto minmax(0,1fr) auto;align-items:end}
+.ai-chat-attachments{grid-column:1/-1;display:flex;gap:7px;flex-wrap:wrap}
+.ai-chat-attachments[hidden]{display:none}
+.ai-attachment-chip{border:1px solid #bfd3cf;background:#f4faf8;border-radius:999px;padding:6px 9px;display:flex;gap:7px;align-items:center;max-width:100%}
+.ai-attachment-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
+.ai-attachment-chip button{border:0;background:transparent;cursor:pointer}
+.ai-attach-button{height:48px;border:1px solid #bfd3cf;border-radius:13px;padding:0 11px;display:flex;gap:6px;align-items:center;cursor:pointer;color:#155b60}
+.ai-attach-button input{position:absolute;width:1px;height:1px;opacity:0}
+.ai-attach-button span{font-size:.84rem}
 @media(max-width:600px){.ai-chat-drawer{width:100vw}.ai-proposal-table th{width:42%}}
+@media(max-width:600px){.ai-attach-button span{display:none}.ai-chat-drawer form{grid-template-columns:auto minmax(0,1fr) auto}}

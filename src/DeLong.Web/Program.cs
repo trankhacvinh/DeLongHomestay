@@ -348,6 +348,7 @@ builder.Services.AddScoped<VoucherService>();
 builder.Services.AddSingleton<AiCredentialProtector>();
 builder.Services.AddScoped<AdminAiSettingsService>();
 builder.Services.AddScoped<AdminAiService>();
+builder.Services.AddScoped<AiAttachmentService>();
 builder.Services.AddHttpClient<AiProviderClient>(client => client.Timeout = TimeSpan.FromSeconds(60));
 builder.Services.AddSingleton<NotificationRealtimeBroker>();
 builder.Services.AddSingleton<SmtpCredentialProtector>();

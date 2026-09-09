@@ -14,3 +14,4 @@ TestResults/
 coverage/
 src/DeLong.Web/App_Data/
 src/DeLong.Web/wwwroot/uploads/
+.agents

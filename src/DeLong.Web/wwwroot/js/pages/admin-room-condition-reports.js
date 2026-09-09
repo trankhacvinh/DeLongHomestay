@@ -21,7 +21,7 @@
     }
 
     createApp({
-        data: () => ({ propertyId:initial.propertyId, rooms:initial.rooms || [], reports:initial.conditionReports || [], tags:initial.conditionTags || [], timeZone:initial.timeZoneId || 'Asia/Ho_Chi_Minh', filters:{ roomId:initial.selectedRoomId || '', status:'' }, expandedId:null, form:emptyForm(), canManage:window.DeLongRoomConditionCanManage === true, toast:{ show:false, message:'', type:'success', timer:null } }),
+        data: () => ({ propertyId:initial.propertyId, rooms:initial.rooms || [], reports:initial.conditionReports || [], tags:initial.conditionTags || [], timeZone:initial.timeZoneId || 'Asia/Ho_Chi_Minh', filters:{ roomId:initial.selectedRoomId || '', status:'' }, expandedId:null, form:emptyForm(), canManage:window.DeLongRoomConditionCanManage === true, canEditTemplates:window.DeLongRoomConditionCanEditTemplates === true, templateEditor:{ open:false, items:[], name:'', category:'', creating:false, savingId:null, deleteId:null }, toast:{ show:false, message:'', type:'success', timer:null } }),
         computed: {
             filteredReports() { return this.reports.filter(x => (!this.filters.roomId || x.roomId === this.filters.roomId) && (this.filters.status === '' || String(x.status) === this.filters.status)); },
             tagGroups() { const groups = new Map(); for (const tag of this.tags) { const category = tag.category || 'Khác'; if (!groups.has(category)) groups.set(category, []); groups.get(category).push(tag); } return Array.from(groups, ([category,tags]) => ({category,tags})); }
@@ -45,6 +45,38 @@
             },
             removeMedia(index) { const [item] = this.form.media.splice(index, 1); if (item) URL.revokeObjectURL(item.previewUrl); },
             toggleTag(name) { const index = this.form.tags.indexOf(name); if (index >= 0) this.form.tags.splice(index, 1); else this.form.tags.push(name); this.form.content = this.form.tags.join('\n'); },
+            toggleTemplateEditor() { this.templateEditor.open = !this.templateEditor.open; this.templateEditor.items = this.templateEditor.open ? this.tags.map(x => ({...x})) : []; this.templateEditor.deleteId = null; },
+            async createTemplate() {
+                if (!this.templateEditor.category || !this.templateEditor.name) return this.notify('Nhập đủ nhóm và nội dung mẫu.', 'error');
+                this.templateEditor.creating = true;
+                try {
+                    const tag = await DeLongApi.post(`/api/admin/properties/${this.propertyId}/housekeeping/report-tags`, { name:this.templateEditor.name, category:this.templateEditor.category });
+                    this.tags.push(tag); this.templateEditor.items.push({...tag}); this.templateEditor.name = ''; this.notify('Đã thêm nội dung mẫu.', 'success');
+                } catch (error) { this.notify(error.message || 'Không thể thêm nội dung mẫu.', 'error'); }
+                finally { this.templateEditor.creating = false; }
+            },
+            async saveTemplate(tag) {
+                if (!tag.category?.trim() || !tag.name?.trim()) return this.notify('Nhập đủ nhóm và nội dung mẫu.', 'error');
+                this.templateEditor.savingId = tag.id;
+                try {
+                    const updated = await DeLongApi.put(`/api/admin/properties/${this.propertyId}/housekeeping/report-tags/${tag.id}`, { name:tag.name, category:tag.category });
+                    const index = this.tags.findIndex(x => x.id === tag.id); const oldName = index >= 0 ? this.tags[index].name : '';
+                    if (index >= 0) this.tags.splice(index, 1, updated);
+                    const selectedIndex = this.form.tags.indexOf(oldName); if (selectedIndex >= 0) { this.form.tags.splice(selectedIndex, 1, updated.name); this.form.content = this.form.tags.join('\n'); }
+                    this.notify('Đã cập nhật nội dung mẫu.', 'success');
+                } catch (error) { this.notify(error.message || 'Không thể cập nhật nội dung mẫu.', 'error'); }
+                finally { this.templateEditor.savingId = null; }
+            },
+            async deleteTemplate(tag) {
+                if (this.templateEditor.deleteId !== tag.id) { this.templateEditor.deleteId = tag.id; return; }
+                this.templateEditor.savingId = tag.id;
+                try {
+                    await DeLongApi.delete(`/api/admin/properties/${this.propertyId}/housekeeping/report-tags/${tag.id}`);
+                    const current = this.tags.find(x => x.id === tag.id); this.tags = this.tags.filter(x => x.id !== tag.id); this.templateEditor.items = this.templateEditor.items.filter(x => x.id !== tag.id); this.form.tags = this.form.tags.filter(x => x !== current?.name); this.form.content = this.form.tags.join('\n'); this.templateEditor.deleteId = null;
+                    this.notify('Đã xóa nội dung mẫu.', 'success');
+                } catch (error) { this.notify(error.message || 'Không thể xóa nội dung mẫu.', 'error'); }
+                finally { this.templateEditor.savingId = null; }
+            },
             async submit() {
                 if (!this.form.roomId) return this.notify('Vui lòng chọn phòng.', 'error');
                 if (!this.form.media.length) return this.notify('Vui lòng chọn ít nhất một ảnh hoặc video.', 'error');

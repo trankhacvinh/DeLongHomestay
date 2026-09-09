@@ -5,6 +5,7 @@ using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Features.Vouchers;
 using DeLong.Web.Features.Pricing;
+using DeLong.Web.Features.Site;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.AdminAi;
@@ -60,7 +61,7 @@ public sealed partial class AdminAiService
             }
             if (operation.Type is not (AiProposalType.ConfigureRoomRates or AiProposalType.UpdateRoom or
                 AiProposalType.CreateRoomRate or AiProposalType.UpdateVoucher or AiProposalType.UpdateSpecialPricingDay or
-                AiProposalType.UpdatePricingSettings))
+                AiProposalType.UpdatePricingSettings or AiProposalType.UpdateRoomContent or AiProposalType.UpdateSiteSettings))
                 return (operation, ValidateProposal(operation));
 
             var input = operation.Payload.Deserialize<ConfigurationInput>(Json)
@@ -69,7 +70,16 @@ public sealed partial class AdminAiService
             if (operation.Type == AiProposalType.UpdatePricingSettings && input.Changes.ValueKind == JsonValueKind.Undefined)
                 input = input with { Changes = operation.Payload };
             var changes = new List<PreparedChange>();
-            if (operation.Type == AiProposalType.UpdatePricingSettings)
+            if (operation.Type == AiProposalType.UpdateSiteSettings)
+            {
+                var site = (await siteContentService.GetAdminAsync(propertyId, ct))?.Settings
+                    ?? throw new InvalidOperationException("Không tìm thấy cấu hình website của cơ sở.");
+                changes.Add(BuildChange("SiteSettings", propertyId, Guid.Empty, "Thông tin website và SEO", SiteSettingsSnapshot(site), input.Changes,
+                    ["siteName", "tagline", "address", "phone", "email", "facebookUrl", "zaloUrl", "googleMapsUrl",
+                        "coverImageUrl", "logoUrl", "faviconUrl", "ogImageUrl", "metaTitle", "metaDescription",
+                        "canonicalBaseUrl", "ogTitle", "ogDescription", "robotsIndex"]));
+            }
+            else if (operation.Type == AiProposalType.UpdatePricingSettings)
             {
                 var settings = await pricingService.GetSettingsAsync(propertyId, ct);
                 var before = JsonSerializer.SerializeToElement(new SavePricingSettingsRequest(settings.ThreeSlotDiscountEnabled,
@@ -102,7 +112,14 @@ public sealed partial class AdminAiService
                 if (selected.Count == 0) throw new InvalidOperationException("Chưa xác định phòng cần cấu hình.");
                 foreach (var room in selected)
                 {
-                    if (operation.Type == AiProposalType.UpdateRoom)
+                    if (operation.Type == AiProposalType.UpdateRoomContent)
+                    {
+                        var content = await roomContentService.GetAsync(propertyId, room.Id, ct)
+                            ?? throw new InvalidOperationException($"Không tìm thấy nội dung phòng {room.Name}.");
+                        changes.Add(BuildChange("RoomContent", room.Id, room.Id, room.Name, RoomContentSnapshot(content), input.Changes,
+                            ["slug", "shortDescription", "descriptionHtml", "guestGuideHtml", "isPublished"]));
+                    }
+                    else if (operation.Type == AiProposalType.UpdateRoom)
                         changes.Add(BuildChange("Room", room.Id, room.Id, room.Name, RoomSnapshot(room), input.Changes,
                             ["capacity", "sortOrder", "fullDayPricingEnabled", "fullDayPrice", "useWeekdayFullDayPriceOnWeekend", "weekendFullDayPrice"]));
                     else if (operation.Type == AiProposalType.CreateRoomRate)
@@ -194,6 +211,19 @@ public sealed partial class AdminAiService
                 (r.FullDayPricingEnabled == true && r.UseWeekdayFullDayPriceOnWeekend == false && r.WeekendFullDayPrice is not (> 0 and <= 1_000_000_000)))
                 throw new InvalidOperationException($"Sức chứa hoặc giá cả ngày của {change.Target} không hợp lệ.");
         }
+        else if (change.Kind == "RoomContent")
+        {
+            var content = change.After.Deserialize<UpdateRoomContentRequest>(Json)!;
+            if (content.Slug?.Length > 200 || content.ShortDescription?.Length > 600 || content.DescriptionHtml?.Length > 100_000 || content.GuestGuideHtml?.Length > 100_000)
+                throw new InvalidOperationException($"Nội dung của {change.Target} vượt giới hạn cho phép.");
+        }
+        else if (change.Kind == "SiteSettings")
+        {
+            var site = change.After.Deserialize<SaveSiteSettingsRequest>(Json)!;
+            if (site.SiteName?.Length > 200 || site.Tagline?.Length > 300 || site.MetaTitle?.Length > 200 ||
+                site.MetaDescription?.Length > 500 || site.OgTitle?.Length > 200 || site.OgDescription?.Length > 500)
+                throw new InvalidOperationException("Thông tin website hoặc SEO vượt giới hạn cho phép.");
+        }
         else if (change.Kind == "Voucher")
         {
             var v = change.After.Deserialize<SaveVoucherRequest>(Json)!;
@@ -246,6 +276,18 @@ public sealed partial class AdminAiService
                 if (room is null) return "Không tìm thấy phòng.";
                 current = RoomSnapshot(room);
             }
+            else if (change.Kind == "RoomContent")
+            {
+                var content = await roomContentService.GetAsync(proposal.PropertyId, change.Id, ct);
+                if (content is null) return "Không tìm thấy phòng.";
+                current = RoomContentSnapshot(content);
+            }
+            else if (change.Kind == "SiteSettings")
+            {
+                var site = (await siteContentService.GetAdminAsync(proposal.PropertyId, ct))?.Settings;
+                if (site is null) return "Không tìm thấy cấu hình website của cơ sở.";
+                current = SiteSettingsSnapshot(site);
+            }
             else if (change.Kind == "Voucher")
             {
                 var voucher = await db.Vouchers.AsNoTracking().SingleOrDefaultAsync(x => x.PropertyId == proposal.PropertyId && x.Id == change.Id, ct);
@@ -270,6 +312,8 @@ public sealed partial class AdminAiService
             {
                 "Rate" => (await roomRateService.UpdateAsync(proposal.PropertyId, change.RoomId, change.Id, change.After.Deserialize<UpdateRoomRateRequest>(Json)!, ct)).Error?.Message,
                 "Room" => (await roomService.UpdateAsync(proposal.PropertyId, change.Id, change.After.Deserialize<UpdateRoomRequest>(Json)!, ct)).Error,
+                "RoomContent" => (await roomContentService.UpdateAsync(proposal.PropertyId, change.Id, change.After.Deserialize<UpdateRoomContentRequest>(Json)!, ct)).Error?.Message,
+                "SiteSettings" => (await siteContentService.SaveSettingsAsync(proposal.PropertyId, change.After.Deserialize<SaveSiteSettingsRequest>(Json)!, false, ct)).Error?.Message,
                 "Voucher" => (await voucherService.UpdateAsync(proposal.PropertyId, change.Id, change.After.Deserialize<SaveVoucherRequest>(Json)!, userId, ct)).Error?.Message,
                 "SpecialDay" => (await pricingService.SaveSpecialDayAsync(proposal.PropertyId, change.Id, change.After.Deserialize<SaveSpecialPricingDayRequest>(Json)!, userId, ct)).Error?.Message,
                 "Pricing" => (await pricingService.SaveSettingsAsync(proposal.PropertyId, change.After.Deserialize<SavePricingSettingsRequest>(Json)!, userId, ct)).Error?.Message,
@@ -287,6 +331,21 @@ public sealed partial class AdminAiService
     }, Json);
     private static JsonElement RoomSnapshot(Room r) => JsonSerializer.SerializeToElement(new UpdateRoomRequest(r.Code, r.Name,
         r.Capacity, r.SortOrder, r.IsActive, r.IsPublished, r.FullDayPricingEnabled, r.FullDayPrice, r.UseWeekdayFullDayPriceOnWeekend, r.WeekendFullDayPrice), Json);
+    private static JsonElement RoomContentSnapshot(RoomContentDto r) => JsonSerializer.SerializeToElement(new UpdateRoomContentRequest
+    {
+        Code = r.Code, Name = r.Name, Capacity = r.Capacity, Slug = r.Slug, ShortDescription = r.ShortDescription,
+        DescriptionHtml = r.DescriptionHtml, GuestGuideHtml = r.GuestGuideHtml, IsPublished = r.IsPublished,
+        Amenities = r.Amenities, Tags = r.Tags, Highlights = r.Highlights
+    }, Json);
+    private static JsonElement SiteSettingsSnapshot(SiteSettingsDto s) => JsonSerializer.SerializeToElement(new SaveSiteSettingsRequest
+    {
+        SiteName = s.SiteName, Tagline = s.Tagline, Address = s.Address, Phone = s.Phone, Email = s.Email,
+        FacebookUrl = s.FacebookUrl, ZaloUrl = s.ZaloUrl, GoogleMapsUrl = s.GoogleMapsUrl,
+        CoverImageUrl = s.CoverImageUrl, LogoUrl = s.LogoUrl, FaviconUrl = s.FaviconUrl, OgImageUrl = s.OgImageUrl,
+        MetaTitle = s.MetaTitle, MetaDescription = s.MetaDescription, CanonicalBaseUrl = s.CanonicalBaseUrl,
+        OgTitle = s.OgTitle, OgDescription = s.OgDescription, GoogleSiteVerification = s.GoogleSiteVerification,
+        RobotsIndex = s.RobotsIndex, CustomCss = s.CustomCss, CustomJs = s.CustomJs
+    }, Json);
     private static JsonElement VoucherSnapshot(Voucher v) => JsonSerializer.SerializeToElement(new SaveVoucherRequest
     {
         Code = v.Code, Description = v.Description, DiscountPercent = v.DiscountPercent, AppliesTo = v.AppliesTo,

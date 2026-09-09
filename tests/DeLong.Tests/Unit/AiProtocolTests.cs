@@ -63,6 +63,27 @@ public sealed class AiProtocolTests
         Assert.True(request.RootElement.GetProperty("text").GetProperty("format").GetProperty("strict").GetBoolean());
     }
 
+    [Fact]
+    public async Task OpenAi_sends_images_as_multimodal_content_and_extracted_word_as_untrusted_text()
+    {
+        using var handler = new FakeHandler(JsonSerializer.Serialize(new
+        {
+            status = "completed", output_text = "{\"message\":\"OK\",\"proposal\":null}",
+            usage = new { input_tokens = 20, output_tokens = 4 }
+        }));
+        using var http = new HttpClient(handler);
+        var attachments = new AiProviderAttachment[]
+        {
+            new("room.png", "image/png", [0x89, 0x50], null),
+            new("guide.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", [], "Hướng dẫn nhận phòng")
+        };
+        await new AiProviderClient(http).GenerateAsync(AiProviderKind.OpenAi, "test-only", "test-model", "system", "Cập nhật nội dung", 2000, attachments, default);
+        using var request = JsonDocument.Parse(handler.RequestBody!);
+        var content = request.RootElement.GetProperty("input")[0].GetProperty("content");
+        Assert.Contains("Hướng dẫn nhận phòng", content[0].GetProperty("text").GetString());
+        Assert.Equal("input_image", content[1].GetProperty("type").GetString());
+    }
+
     internal sealed class FakeHandler(string body) : HttpMessageHandler
     {
         public string? RequestBody { get; private set; }

@@ -123,3 +123,6 @@ Admin, Manager, Staff, Housekeeping, Viewer. Ngoài role còn có `UserPropertyA
 - Chỉ role `Admin` được truy cập; mọi endpoint tiếp tục kiểm tra phạm vi cơ sở, antiforgery và rate limit.
 - AI chỉ nhận snapshot vận hành đã lọc, không có DbContext/SQL/CCCD/secrets. Mutation chỉ tạo `AiChangeProposal`; Admin phải xác nhận trước khi service nghiệp vụ thực thi trong transaction.
 - Allowlist mutation hiện tại: tạo phòng kèm khung giá, tạo voucher, tạo ngày đặc biệt và cập nhật cấu hình combo/cuối tuần.
+- Hội thoại và tin nhắn được lưu theo `(propertyId, userId)` để Admin xem lại lịch sử; tệp đính kèm chỉ thuộc đúng hội thoại/người tải và không có URL công khai.
+- AI chỉ nhận DOCX, PDF, JPG, PNG và WEBP đã qua kiểm tra chữ ký/kích thước. DOCX được trích văn bản với XML DTD bị cấm; PDF và ảnh đi qua input đa phương thức của provider. Nội dung tệp luôn được coi là dữ liệu không tin cậy, không phải system instruction.
+- `AiUsageRecord` giữ token thật từ provider và snapshot chi phí USD ước tính theo đơn giá input/output do Admin cấu hình. Ngân sách tháng chặn lượt gọi mới khi đạt hạn mức; không được gọi số tiền này là hóa đơn chính xác của provider.

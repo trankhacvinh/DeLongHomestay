@@ -12,8 +12,8 @@ public sealed class AiUsageRecord : EntityBase
     public string Operation { get; set; } = string.Empty;
     public int InputTokens { get; set; }
     public int OutputTokens { get; set; }
+    public decimal EstimatedCostUsd { get; set; }
     public long DurationMs { get; set; }
     public bool IsSuccess { get; set; }
     public string? ErrorCode { get; set; }
 }
-
