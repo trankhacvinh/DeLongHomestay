@@ -16,7 +16,8 @@ public sealed class Pay2SService(
     BookingService bookingService,
     BookingNotificationService notificationService,
     BookingGuestGuideEmailService guestGuideEmailService,
-    VoucherService voucherService)
+    VoucherService voucherService,
+    PaymentService paymentService)
 {
     public async Task<(Pay2SIntentDto? Intent, Pay2SOperationError? Error)> CreateIntentAsync(
         Guid propertyId,
@@ -84,49 +85,19 @@ public sealed class Pay2SService(
         return (ToDto(intent), null);
     }
 
-    public Task<(Pay2SIntentDto? Intent, Pay2SOperationError? Error)> HandleIpnAsync(
-        Pay2SIpnRequest request,
-        CancellationToken ct = default) =>
-        HandleNotificationAsync(
-            request,
-            (accessKey, secretKey) => Pay2SClient.VerifyIpn(request, accessKey, secretKey),
-            "Pay2S xác nhận qua IPN.",
-            ct);
+    public Task<(Pay2SIntentDto? Intent, Pay2SOperationError? Error)> HandleIpnAsync(Pay2SIpnRequest request, CancellationToken ct = default) =>
+        HandleNotificationAsync(request, (accessKey, secretKey) => Pay2SClient.VerifyIpn(request, accessKey, secretKey), "Pay2S xác nhận qua IPN.", ct);
 
-    public Task<(Pay2SIntentDto? Intent, Pay2SOperationError? Error)> HandleRedirectAsync(
-        Pay2SRedirectRequest request,
-        CancellationToken ct = default)
+    public Task<(Pay2SIntentDto? Intent, Pay2SOperationError? Error)> HandleRedirectAsync(Pay2SRedirectRequest request, CancellationToken ct = default)
     {
         if (!long.TryParse(request.Amount, NumberStyles.None, CultureInfo.InvariantCulture, out var amount) ||
             !int.TryParse(request.ResultCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var resultCode))
-            return Task.FromResult<(Pay2SIntentDto?, Pay2SOperationError?)>(
-                (null, new("redirect_invalid", "Dữ liệu Pay2S trả về không hợp lệ.")));
-
+            return Task.FromResult<(Pay2SIntentDto?, Pay2SOperationError?)>((null, new("redirect_invalid", "Dữ liệu Pay2S trả về không hợp lệ.")));
         var transId = 0L;
-        if (!string.IsNullOrWhiteSpace(request.TransId) &&
-            !long.TryParse(request.TransId, NumberStyles.Integer, CultureInfo.InvariantCulture, out transId))
-            return Task.FromResult<(Pay2SIntentDto?, Pay2SOperationError?)>(
-                (null, new("redirect_transaction_invalid", "Mã giao dịch Pay2S trả về không hợp lệ.")));
-
-        var normalized = new Pay2SIpnRequest(
-            request.PartnerCode,
-            request.OrderId,
-            request.RequestId,
-            amount,
-            request.OrderInfo,
-            request.OrderType,
-            transId,
-            resultCode,
-            request.Message,
-            request.PayType,
-            request.ResponseTime,
-            string.Empty,
-            request.Signature);
-        return HandleNotificationAsync(
-            normalized,
-            (accessKey, secretKey) => Pay2SClient.VerifyRedirect(request, accessKey, secretKey),
-            "Pay2S xác nhận qua redirect có chữ ký; IPN có thể bổ sung lại cùng giao dịch.",
-            ct);
+        if (!string.IsNullOrWhiteSpace(request.TransId) && !long.TryParse(request.TransId, NumberStyles.Integer, CultureInfo.InvariantCulture, out transId))
+            return Task.FromResult<(Pay2SIntentDto?, Pay2SOperationError?)>((null, new("redirect_transaction_invalid", "Mã giao dịch Pay2S trả về không hợp lệ.")));
+        var normalized = new Pay2SIpnRequest(request.PartnerCode, request.OrderId, request.RequestId, amount, request.OrderInfo, request.OrderType, transId, resultCode, request.Message, request.PayType, request.ResponseTime, string.Empty, request.Signature);
+        return HandleNotificationAsync(normalized, (accessKey, secretKey) => Pay2SClient.VerifyRedirect(request, accessKey, secretKey), "Pay2S xác nhận qua redirect có chữ ký; IPN có thể bổ sung lại cùng giao dịch.", ct);
     }
 
     private async Task<(Pay2SIntentDto? Intent, Pay2SOperationError? Error)> HandleNotificationAsync(
@@ -155,8 +126,7 @@ public sealed class Pay2SService(
             await transaction.CommitAsync(ct);
             return (null, profileError);
         }
-        if (!string.Equals(profile.PartnerCode, request.PartnerCode, StringComparison.Ordinal) ||
-            !verifySignature(profile.AccessKey, profile.SecretKey))
+        if (!string.Equals(profile.PartnerCode, request.PartnerCode, StringComparison.Ordinal) || !verifySignature(profile.AccessKey, profile.SecretKey))
         {
             intent.LastCallbackErrorCode = "signature_invalid";
             await db.SaveChangesAsync(ct);
@@ -165,18 +135,13 @@ public sealed class Pay2SService(
         }
         if (!string.Equals(intent.RequestId, request.RequestId, StringComparison.Ordinal))
         {
-            // Older intents stored the merchant-generated RQ... value. Pay2S Collection Link V2
-            // returns its own numeric requestId in the signed redirect/IPN. Adopt it only after
-            // the provider signature and partner code have been verified.
-            if (!intent.RequestId.StartsWith("RQ", StringComparison.Ordinal) ||
-                string.IsNullOrWhiteSpace(request.RequestId))
+            if (!intent.RequestId.StartsWith("RQ", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(request.RequestId))
             {
                 intent.LastCallbackErrorCode = "request_mismatch";
                 await db.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
                 return (null, new("request_mismatch", "Mã yêu cầu Pay2S không khớp phiên thanh toán."));
             }
-
             intent.RequestId = request.RequestId.Trim();
         }
         if (!string.Equals(intent.OrderInfo, request.OrderInfo, StringComparison.Ordinal))
@@ -195,8 +160,7 @@ public sealed class Pay2SService(
         }
         intent.LastCallbackErrorCode = null;
 
-        if (request.TransId > 0 && intent.TransactionId == request.TransId &&
-            intent.Status is Pay2SPaymentIntentStatus.Succeeded or Pay2SPaymentIntentStatus.PaidAfterExpiry)
+        if (request.TransId > 0 && intent.TransactionId == request.TransId && intent.Status is Pay2SPaymentIntentStatus.Succeeded or Pay2SPaymentIntentStatus.PaidAfterExpiry)
         {
             await transaction.CommitAsync(ct);
             return (ToDto(intent), null);
@@ -215,8 +179,7 @@ public sealed class Pay2SService(
             await transaction.CommitAsync(ct);
             return (null, new("transaction_conflict", "Phiên thanh toán đã được ghi nhận bằng một giao dịch Pay2S khác."));
         }
-        if (request.TransId > 0 && await db.Pay2SPaymentIntents.AsNoTracking().AnyAsync(x =>
-                x.Id != intent.Id && x.TransactionId == request.TransId, ct))
+        if (request.TransId > 0 && await db.Pay2SPaymentIntents.AsNoTracking().AnyAsync(x => x.Id != intent.Id && x.TransactionId == request.TransId, ct))
         {
             intent.LastCallbackErrorCode = "transaction_reused";
             await db.SaveChangesAsync(ct);
@@ -233,6 +196,7 @@ public sealed class Pay2SService(
             intent.Status = Pay2SPaymentIntentStatus.Failed;
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
+            await notificationService.NotifyPay2SFailedAsync(intent.PropertyId, intent.BookingId, intent.Id, intent.Amount, $"ResultCode {request.ResultCode}: {request.Message}", ct);
             return (ToDto(intent), null);
         }
 
@@ -247,20 +211,28 @@ public sealed class Pay2SService(
             Method = PaymentMethod.Pay2S,
             Amount = intent.Amount,
             OccurredAtUtc = DateTime.UtcNow,
-            Reference = request.TransId > 0
-                ? request.TransId.ToString(CultureInfo.InvariantCulture)
-                : request.OrderId,
+            Reference = request.TransId > 0 ? request.TransId.ToString(CultureInfo.InvariantCulture) : request.OrderId,
             Note = late ? "Pay2S thanh toán sau khi phiên giữ phòng hết hạn; cần quản trị viên xử lý." : paymentNote
         };
         db.Add(payment);
         intent.Payment = payment;
-        if (!late && intent.Booking.Status is BookingStatus.Requested or BookingStatus.Held)
-            intent.Booking.Status = BookingStatus.Confirmed;
+        var autoConfirmed = !late && intent.Booking.Status is BookingStatus.Requested or BookingStatus.Held;
+        if (autoConfirmed) intent.Booking.Status = BookingStatus.Confirmed;
         if (!late) await voucherService.MarkRedeemedAsync(intent.BookingId, ct);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-        if (late) await notificationService.NotifyLatePay2SPaymentAsync(intent.PropertyId, intent.BookingId, intent.Amount, ct);
-        else await guestGuideEmailService.QueueAutomaticAsync(intent.PropertyId, intent.BookingId, ct);
+
+        if (late)
+        {
+            await notificationService.NotifyLatePay2SPaymentAsync(intent.PropertyId, intent.BookingId, intent.Amount, ct);
+        }
+        else
+        {
+            var paid = await paymentService.GetNetPaidAsync(intent.PropertyId, intent.BookingId, ct);
+            var total = await db.Bookings.AsNoTracking().Where(x => x.PropertyId == intent.PropertyId && x.Id == intent.BookingId).Select(x => x.TotalAmount).SingleAsync(ct);
+            await notificationService.NotifyPaymentSucceededAsync(intent.PropertyId, intent.BookingId, payment.Id, payment.Amount, payment.Method, paid, Math.Max(0, total - paid), autoConfirmed, ct);
+            await guestGuideEmailService.QueueAutomaticAsync(intent.PropertyId, intent.BookingId, ct);
+        }
         return (ToDto(intent), null);
     }
 
@@ -291,7 +263,10 @@ public sealed class Pay2SService(
         if (intents.Count > 0) await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         foreach (var cancelled in cancelledBookingIds)
+        {
+            await notificationService.NotifyBookingStatusChangedAsync(cancelled.PropertyId, cancelled.BookingId, BookingStatus.Held, BookingStatus.Cancelled, "Hết thời gian thanh toán Pay2S.", cancellationToken: ct);
             await guestGuideEmailService.QueueCancellationAsync(cancelled.PropertyId, cancelled.BookingId, null, "Booking đã bị hủy do hết thời gian thanh toán.", ct);
+        }
         return intents.Count;
     }
 
@@ -307,6 +282,7 @@ public sealed class Pay2SService(
             return (null, new("intent_already_resolved", "Khoản thanh toán đến muộn đã được xử lý."));
 
         var action = request.Action.Trim().ToLowerInvariant();
+        var previousStatus = intent.Booking.Status;
         if (action == "refund")
         {
             db.Add(new Payment
@@ -347,7 +323,10 @@ public sealed class Pay2SService(
         intent.LatePaymentResolvedByUserId = actorUserId;
         await db.SaveChangesAsync(ct);
         if (action is "confirm" or "move")
+        {
+            await notificationService.NotifyBookingStatusChangedAsync(propertyId, intent.BookingId, previousStatus, BookingStatus.Confirmed, cancellationToken: ct);
             await guestGuideEmailService.QueueAutomaticAsync(propertyId, intent.BookingId, ct);
+        }
         return (ToDto(intent), null);
     }
 

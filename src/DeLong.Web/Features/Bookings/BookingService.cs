@@ -16,7 +16,8 @@ public sealed class BookingService(
     CustomerService customerService,
     AuditService auditService,
     BookingGuestGuideEmailService? guestGuideEmailService = null,
-    VoucherService? voucherService = null)
+    VoucherService? voucherService = null,
+    BookingNotificationService? notificationService = null)
 {
     private const string BookingCodeUniqueConstraint = "i_x_bookings_property_id_code";
     private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
@@ -83,6 +84,8 @@ public sealed class BookingService(
         var saveError = await SaveWithConflictGuardAsync(cancellationToken, !string.IsNullOrWhiteSpace(request.PublicRequestKey)); if (saveError is not null) return (null, saveError);
         if (request.Status == BookingStatus.Confirmed && guestGuideEmailService is not null)
             await guestGuideEmailService.QueueAutomaticAsync(propertyId, booking.Id, cancellationToken);
+        if (notificationService is not null)
+            await notificationService.NotifyBookingCreatedAsync(propertyId, booking.Id, cancellationToken);
         return (await GetAsync(propertyId, booking.Id, cancellationToken), null);
     }
 
@@ -137,6 +140,7 @@ public sealed class BookingService(
         if (booking is null) return (null, new("not_found", "Không tìm thấy booking."));
         if (!BookingRules.CanTransition(booking.Status, nextStatus)) return (null, new("invalid_transition", $"Không thể chuyển trạng thái từ {booking.Status} sang {nextStatus}."));
         if (BookingRules.LocksRoom(nextStatus) && await HasConflictAsync(propertyId, booking.RoomId, booking.CheckInUtc, booking.CheckOutUtc, booking.Id, cancellationToken)) return (null, ConflictError());
+        var previousStatus = booking.Status;
         var before = Snapshot(booking); booking.Status = nextStatus;
         if (nextStatus is BookingStatus.Cancelled or BookingStatus.Completed or BookingStatus.NoShow)
             await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, bookingId, cancellationToken);
@@ -154,6 +158,8 @@ public sealed class BookingService(
             await guestGuideEmailService.QueueAutomaticAsync(propertyId, bookingId, cancellationToken);
         if (nextStatus == BookingStatus.Cancelled && guestGuideEmailService is not null)
             await guestGuideEmailService.QueueCancellationAsync(propertyId, bookingId, actorUserId, cancellationToken: cancellationToken);
+        if (notificationService is not null)
+            await notificationService.NotifyBookingStatusChangedAsync(propertyId, bookingId, previousStatus, nextStatus, cancellationToken: cancellationToken);
         return (await GetAsync(propertyId, bookingId, cancellationToken), null);
     }
 
