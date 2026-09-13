@@ -163,6 +163,7 @@ public sealed class SiteCmsAndLookupTests
         }
 
         var suffix = Guid.NewGuid().ToString("N")[..8];
+        var phone = $"09{BitConverter.ToUInt32(Guid.NewGuid().ToByteArray(), 0) % 100_000_000:D8}";
         var room = new Room
         {
             Id = Guid.CreateVersion7(),
@@ -180,8 +181,8 @@ public sealed class SiteCmsAndLookupTests
             Id = Guid.CreateVersion7(),
             PropertyId = property.Id,
             Name = "Lookup Guest",
-            Phone = "0987654321",
-            NormalizedPhone = "0987654321"
+            Phone = phone,
+            NormalizedPhone = phone
         };
         var booking = new Booking
         {
@@ -240,7 +241,7 @@ public sealed class SiteCmsAndLookupTests
         await db.SaveChangesAsync();
 
         var service = new PublicBookingLookupService(db);
-        var found = await service.LookupAsync(booking.Code.ToLowerInvariant(), "+84 987 654 321");
+        var found = await service.LookupAsync(booking.Code.ToLowerInvariant(), "+84" + phone[1..]);
         Assert.NotNull(found);
         Assert.Equal("Đã xác nhận", found!.StatusLabel);
         Assert.Equal(330_000m, found.TotalAmount);

@@ -190,5 +190,54 @@ public sealed class PublicBookingFlowTests
         var (lockedStay, lockedStayError) = await publicService.GetStayAvailabilityAsync(checkInDate, checkOutDate);
         Assert.Null(lockedStayError);
         Assert.False(Assert.Single(lockedStay!.Rooms.Where(x => x.Id == room.Id)).Available);
+
+        var concurrentDate = today.AddDays(20);
+        await using var firstDb = new AppDbContext(options);
+        await using var secondDb = new AppDbContext(options);
+        var firstConcurrentService = CreatePublicService(firstDb);
+        var secondConcurrentService = CreatePublicService(secondDb);
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var firstAttempt = SubmitAfterGate(firstConcurrentService, gate.Task, new PublicBookingRequest
+        {
+            Type = BookingType.TimeSlot,
+            RoomId = room.Id,
+            RateId = rate.Id,
+            StayDate = concurrentDate.ToString("yyyy-MM-dd"),
+            CustomerName = "AI Draft Guest One",
+            CustomerPhone = $"091{Random.Shared.Next(1_000_000, 9_999_999)}"
+        });
+        var secondAttempt = SubmitAfterGate(secondConcurrentService, gate.Task, new PublicBookingRequest
+        {
+            Type = BookingType.TimeSlot,
+            RoomId = room.Id,
+            RateId = rate.Id,
+            StayDate = concurrentDate.ToString("yyyy-MM-dd"),
+            CustomerName = "AI Draft Guest Two",
+            CustomerPhone = $"092{Random.Shared.Next(1_000_000, 9_999_999)}"
+        });
+
+        gate.SetResult();
+        var concurrentResults = await Task.WhenAll(firstAttempt, secondAttempt);
+
+        Assert.Single(concurrentResults, x => x.Result is not null && x.Error is null);
+        Assert.Single(concurrentResults, x => x.Result is null && x.Error?.Code == "booking_conflict");
+        Assert.Equal(1, await db.Bookings.AsNoTracking().CountAsync(x =>
+            x.RoomId == room.Id && x.CheckInUtc < concurrentDate.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc) &&
+            x.CheckOutUtc > concurrentDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc)));
+    }
+
+    private static PublicBookingService CreatePublicService(AppDbContext db)
+    {
+        var customerService = new CustomerService(db);
+        return new PublicBookingService(db, new BookingService(db, customerService, new AuditService(db)));
+    }
+
+    private static async Task<(PublicBookingResult? Result, PublicBookingError? Error)> SubmitAfterGate(
+        PublicBookingService service,
+        Task gate,
+        PublicBookingRequest request)
+    {
+        await gate;
+        return await service.CreateRequestAsync(request, $"ai-draft-race-{Guid.NewGuid():N}");
     }
 }

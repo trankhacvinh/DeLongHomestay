@@ -24,6 +24,7 @@ public sealed partial class AdminAiService(
     PricingService pricingService,
     VoucherService voucherService,
     AuditService auditService,
+    AiAccessGateway accessGateway,
     ILogger<AdminAiService>? logger = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
@@ -35,16 +36,9 @@ public sealed partial class AdminAiService(
     {
         var text = request.Message?.Trim() ?? string.Empty;
         if (text.Length is < 2 or > 4000) return (null, "Nội dung phải từ 2 đến 4.000 ký tự.");
-        var profile = await db.PropertyAiProfiles.SingleOrDefaultAsync(x => x.PropertyId == propertyId, ct);
-        if (profile is null || !profile.IsEnabled || string.IsNullOrWhiteSpace(profile.ProtectedApiKey)) return (null, "Trợ lý AI chưa được cấu hình hoặc chưa bật.");
-        var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        var used = await db.AiUsageRecords.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CreatedAtUtc >= monthStart)
-            .SumAsync(x => x.InputTokens + x.OutputTokens, ct);
-        if (profile.MonthlyTokenLimit > 0 && used >= profile.MonthlyTokenLimit) return (null, "Cơ sở đã đạt giới hạn token AI trong tháng.");
-        var spent = await db.AiUsageRecords.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CreatedAtUtc >= monthStart)
-            .SumAsync(x => x.EstimatedCostUsd, ct);
-        if (profile.MonthlyBudgetUsd > 0 && spent >= profile.MonthlyBudgetUsd)
-            return (null, "Cơ sở đã sử dụng hết ngân sách AI ước tính trong tháng.");
+        var access = await accessGateway.AuthorizeAsync(propertyId, AiAudience.Admin, ct);
+        if (!access.IsAllowed) return (null, access.Error);
+        var profile = access.Profile!;
 
         var conversation = request.ConversationId.HasValue
             ? await db.AiConversations.SingleOrDefaultAsync(x => x.Id == request.ConversationId && x.PropertyId == propertyId && x.UserId == userId, ct)
@@ -76,16 +70,26 @@ public sealed partial class AdminAiService(
         string? issue = null;
         for (var attempt = 0; attempt < 2; attempt++)
         {
-            if (attempt > 0 && profile.MonthlyTokenLimit > 0 &&
-                await db.AiUsageRecords.Where(x => x.PropertyId == propertyId && x.CreatedAtUtc >= monthStart)
-                    .SumAsync(x => x.InputTokens + x.OutputTokens, ct) >= profile.MonthlyTokenLimit)
+            var attemptInput = attempt == 0 ? input : input + "\nLần trả lời trước chưa dùng được: " + issue +
+                "\nHãy tạo lại phản hồi ngắn, đúng schema. Dùng selector allRooms thay vì liệt kê mọi phòng. Không thay đổi mục tiêu của người dùng.";
+            var estimatedInputTokens = AiAccessGateway.EstimateInputTokens(
+                SystemPrompt,
+                AiCapabilities.Instructions,
+                attemptInput,
+                string.Join('\n', attachments.Select(x => x.ExtractedText))) +
+                attachments.Count(x => x.ExtractedText is null) * 1200;
+            var reservation = await accessGateway.ReserveProviderCallAsync(
+                propertyId, AiAudience.Admin, estimatedInputTokens, profile.MaxOutputTokens, ct);
+            if (!reservation.IsAllowed)
+            {
+                issue = reservation.Error;
                 break;
+            }
             try
             {
                 var result = await providerClient.GenerateAsync(profile.Provider, settingsService.ReadKey(profile), profile.Model,
                     SystemPrompt + "\n" + AiCapabilities.Instructions,
-                    attempt == 0 ? input : input + "\nLần trả lời trước chưa dùng được: " + issue +
-                        "\nHãy tạo lại phản hồi ngắn, đúng schema. Dùng selector allRooms thay vì liệt kê mọi phòng. Không thay đổi mục tiêu của người dùng.",
+                    attemptInput,
                     profile.MaxOutputTokens, attachments, ct);
                 envelope = result.FinishReason is "incomplete" or "MAX_TOKENS" ? null : AiResponseProtocol.Parse(result.Text);
                 issue = envelope is null ? (result.FinishReason is "incomplete" or "MAX_TOKENS"
@@ -96,28 +100,29 @@ public sealed partial class AdminAiService(
                     issue = prepared.Error;
                     if (issue is null) envelope = envelope with { Proposal = prepared.Value };
                 }
-                db.AiUsageRecords.Add(new AiUsageRecord
+                await accessGateway.CompleteProviderCallAsync(reservation.ReservationId!.Value, new AiUsageRecord
                 {
                     PropertyId = propertyId, UserId = userId, ConversationId = conversation.Id,
+                    Audience = AiAudience.Admin,
                     Provider = profile.Provider, Model = profile.Model, Operation = attempt == 0 ? "Chat" : "Repair",
                     InputTokens = result.InputTokens, OutputTokens = result.OutputTokens,
-                    EstimatedCostUsd = EstimateCost(result.InputTokens, result.OutputTokens, profile),
+                    CachedInputTokens = result.CachedInputTokens,
+                    EstimatedCostUsd = AiAccessGateway.EstimateCost(result.InputTokens, result.OutputTokens, profile),
                     DurationMs = stopwatch.ElapsedMilliseconds, IsSuccess = issue is null,
                     ErrorCode = issue is null ? null : "invalid_response"
-                });
-                await db.SaveChangesAsync(ct);
+                }, ct);
                 if (issue is null) break;
                 envelope = null;
             }
             catch (Exception ex) when (ex is AiProviderException or HttpRequestException or TaskCanceledException or JsonException)
             {
-                ct.ThrowIfCancellationRequested();
                 issue = ex is AiProviderException ? ex.Message : "Kết nối AI bị gián đoạn.";
-                db.AiUsageRecords.Add(new AiUsageRecord { PropertyId = propertyId, UserId = userId,
+                await accessGateway.CompleteProviderCallAsync(reservation.ReservationId!.Value, new AiUsageRecord { PropertyId = propertyId, UserId = userId,
                     ConversationId = conversation.Id, Provider = profile.Provider, Model = profile.Model,
-                    Operation = "Chat", DurationMs = stopwatch.ElapsedMilliseconds, IsSuccess = false,
-                    ErrorCode = ex is AiProviderException p ? p.Code : "provider_unavailable" });
-                await db.SaveChangesAsync(ct);
+                    Audience = AiAudience.Admin,
+                    Operation = attempt == 0 ? "Chat" : "Repair", DurationMs = stopwatch.ElapsedMilliseconds, IsSuccess = false,
+                    ErrorCode = ex is AiProviderException p ? p.Code : "provider_unavailable" }, CancellationToken.None);
+                ct.ThrowIfCancellationRequested();
                 break;
             }
         }
@@ -173,8 +178,10 @@ public sealed partial class AdminAiService(
             await db.SaveChangesAsync(ct);
             return (ToDto(failed), error);
         }
-        proposal.Status = AiProposalStatus.Applied; proposal.AppliedAtUtc = DateTime.UtcNow; proposal.UpdatedAtUtc = DateTime.UtcNow;
-        auditService.Add(propertyId, "AiChangeProposal", proposal.Id, $"Applied:{proposal.Type}", userId, after: new { proposal.Type, proposal.Summary, proposal.PayloadJson });
+        proposal.Status = AiProposalStatus.Applied; proposal.AppliedAtUtc = DateTime.UtcNow; proposal.AppliedByUserId = userId; proposal.UpdatedAtUtc = DateTime.UtcNow;
+        auditService.Add(propertyId, "AiChangeProposal", proposal.Id, $"Applied:{proposal.Type}", userId,
+            before: new { proposal.UserId, Status = AiProposalStatus.Pending },
+            after: new { proposal.AppliedByUserId, proposal.Type, proposal.Summary, proposal.PayloadJson, Status = AiProposalStatus.Applied });
         await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
         return (ToDto(proposal), null);
     }
@@ -184,7 +191,10 @@ public sealed partial class AdminAiService(
         var p = await db.AiChangeProposals.SingleOrDefaultAsync(x => x.Id == proposalId && x.PropertyId == propertyId && x.UserId == userId, ct);
         if (p is null) return (null, "Không tìm thấy đề xuất.");
         if (p.Status != AiProposalStatus.Pending) return (null, "Đề xuất đã được xử lý.");
-        p.Status = AiProposalStatus.Rejected; p.RejectedAtUtc = DateTime.UtcNow; p.UpdatedAtUtc = DateTime.UtcNow;
+        p.Status = AiProposalStatus.Rejected; p.RejectedAtUtc = DateTime.UtcNow; p.RejectedByUserId = userId; p.UpdatedAtUtc = DateTime.UtcNow;
+        auditService.Add(propertyId, "AiChangeProposal", p.Id, $"Rejected:{p.Type}", userId,
+            before: new { p.UserId, Status = AiProposalStatus.Pending },
+            after: new { p.RejectedByUserId, Status = AiProposalStatus.Rejected });
         await db.SaveChangesAsync(ct); return (ToDto(p), null);
     }
 
@@ -192,21 +202,61 @@ public sealed partial class AdminAiService(
     {
         var from = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var rows = await db.AiUsageRecords.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CreatedAtUtc >= from)
-            .GroupBy(_ => 1).Select(g => new { Calls = g.Count(), Input = g.Sum(x => (long)x.InputTokens), Output = g.Sum(x => (long)x.OutputTokens), Cost = g.Sum(x => x.EstimatedCostUsd) }).SingleOrDefaultAsync(ct);
+            .GroupBy(_ => 1).Select(g => new
+            {
+                Calls = g.Count(),
+                SuccessfulCalls = g.Sum(x => x.IsSuccess ? 1 : 0),
+                FailedCalls = g.Sum(x => !x.IsSuccess && (x.ErrorCode == null || !x.ErrorCode.StartsWith("access_")) ? 1 : 0),
+                BlockedCalls = g.Sum(x => !x.IsSuccess && x.ErrorCode != null && x.ErrorCode.StartsWith("access_") ? 1 : 0),
+                CacheHits = g.Sum(x => x.IsCacheHit ? 1 : 0),
+                Input = g.Sum(x => (long)x.InputTokens),
+                Output = g.Sum(x => (long)x.OutputTokens),
+                CachedInput = g.Sum(x => (long)x.CachedInputTokens),
+                DurationTotal = g.Sum(x => x.DurationMs),
+                TimedCalls = g.Sum(x => x.DurationMs > 0 ? 1 : 0),
+                Cost = g.Sum(x => x.EstimatedCostUsd)
+            }).SingleOrDefaultAsync(ct);
         var profile = await db.PropertyAiProfiles.AsNoTracking().Where(x => x.PropertyId == propertyId)
             .Select(x => new { x.MonthlyTokenLimit, x.MonthlyBudgetUsd, x.BudgetWarningPercent }).SingleOrDefaultAsync(ct);
+        var audienceRows = await db.AiUsageRecords.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CreatedAtUtc >= from)
+            .GroupBy(x => x.Audience)
+            .Select(g => new
+            {
+                Audience = g.Key,
+                Calls = g.Count(),
+                SuccessfulCalls = g.Sum(x => x.IsSuccess ? 1 : 0),
+                FailedCalls = g.Sum(x => !x.IsSuccess && (x.ErrorCode == null || !x.ErrorCode.StartsWith("access_")) ? 1 : 0),
+                BlockedCalls = g.Sum(x => !x.IsSuccess && x.ErrorCode != null && x.ErrorCode.StartsWith("access_") ? 1 : 0),
+                InputTokens = g.Sum(x => (long)x.InputTokens),
+                OutputTokens = g.Sum(x => (long)x.OutputTokens),
+                CachedInputTokens = g.Sum(x => (long)x.CachedInputTokens),
+                CacheHits = g.Sum(x => x.IsCacheHit ? 1 : 0),
+                DurationTotal = g.Sum(x => x.DurationMs),
+                TimedCalls = g.Sum(x => x.DurationMs > 0 ? 1 : 0),
+                EstimatedCostUsd = g.Sum(x => x.EstimatedCostUsd)
+            })
+            .OrderBy(x => x.Audience)
+            .ToListAsync(ct);
+        var byAudience = audienceRows.Select(x => new AiAudienceUsageDto(x.Audience, x.Calls, x.SuccessfulCalls,
+            x.FailedCalls, x.BlockedCalls, x.InputTokens, x.OutputTokens, x.CachedInputTokens, x.CacheHits,
+            x.TimedCalls == 0 ? 0 : x.DurationTotal / x.TimedCalls, x.EstimatedCostUsd)).ToList();
+        var now = DateTime.UtcNow;
+        var reservations = await db.AiUsageReservations.AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.ExpiresAtUtc > now)
+            .GroupBy(_ => 1)
+            .Select(g => new { Calls = g.Count(), Tokens = g.Sum(x => (long)x.ReservedTokens), Cost = g.Sum(x => x.ReservedCostUsd) })
+            .SingleOrDefaultAsync(ct);
         var cost = rows?.Cost ?? 0;
         var budget = profile?.MonthlyBudgetUsd ?? 0;
         var remaining = budget > 0 ? Math.Max(0, budget - cost) : 0;
         var percent = budget > 0 ? Math.Min(100, (int)Math.Floor(cost / budget * 100)) : 0;
         var warningAt = profile?.BudgetWarningPercent ?? 80;
         return new(rows?.Calls ?? 0, rows?.Input ?? 0, rows?.Output ?? 0, (rows?.Input ?? 0) + (rows?.Output ?? 0), profile?.MonthlyTokenLimit ?? 0,
-            cost, budget, remaining, percent, warningAt, budget > 0 && percent >= warningAt, budget > 0 && cost >= budget);
+            cost, budget, remaining, percent, warningAt, budget > 0 && percent >= warningAt, budget > 0 && cost >= budget,
+            rows?.SuccessfulCalls ?? 0, rows?.FailedCalls ?? 0, rows?.BlockedCalls ?? 0, rows?.CacheHits ?? 0, rows?.CachedInput ?? 0,
+            rows is null || rows.TimedCalls == 0 ? 0 : rows.DurationTotal / rows.TimedCalls,
+            reservations?.Calls ?? 0, reservations?.Tokens ?? 0, reservations?.Cost ?? 0, byAudience);
     }
-
-    private static decimal EstimateCost(int inputTokens, int outputTokens, PropertyAiProfile profile) =>
-        Math.Round(inputTokens / 1_000_000m * profile.InputCostPerMillionTokensUsd +
-                   outputTokens / 1_000_000m * profile.OutputCostPerMillionTokensUsd, 8, MidpointRounding.AwayFromZero);
 
     public async Task<IReadOnlyList<AiConversationDto>> ConversationsAsync(Guid propertyId, Guid userId, CancellationToken ct) =>
         await db.AiConversations.AsNoTracking().Where(x => x.PropertyId == propertyId && x.UserId == userId).OrderByDescending(x => x.UpdatedAtUtc).Take(30)

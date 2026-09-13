@@ -2,6 +2,7 @@ using System.Text.Json;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
+using DeLong.Web.Features.Operations;
 using DeLong.Web.Features.Rooms;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -11,7 +12,8 @@ namespace DeLong.Web.Pages.Admin;
 public sealed class CalendarModel(
     RoomService roomService,
     BookingService bookingService,
-    CurrentPropertyService currentPropertyService) : PageModel
+    CurrentPropertyService currentPropertyService,
+    DeLong.Web.Common.Operations.StoragePaths storagePaths) : PageModel
 {
     public Guid PropertyId { get; private set; }
     public string PageDataJson { get; private set; } = "{}";
@@ -57,6 +59,8 @@ public sealed class CalendarModel(
             // Booking ledger, but no longer occupy visual space after completion/cancellation/no-show.
             .Where(booking => booking.Status is BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn)
             .ToList();
+        var calendarDisplaySettings = await new BookingCalendarDisplaySettingsStore(storagePaths)
+            .GetAsync(PropertyId, cancellationToken);
 
         PageDataJson = JsonSerializer.Serialize(
             new
@@ -68,6 +72,7 @@ public sealed class CalendarModel(
                 startDate = startDate.ToString("yyyy-MM-dd"),
                 rangeDays,
                 today = todayLocal.ToString("yyyy-MM-dd"),
+                calendarDisplaySettings,
                 rooms,
                 bookings
             },

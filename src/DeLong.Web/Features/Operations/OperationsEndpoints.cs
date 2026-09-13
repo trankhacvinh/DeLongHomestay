@@ -55,6 +55,26 @@ public static class OperationsEndpoints
             return result is null ? Results.NotFound() : Results.Ok(result);
         }).RequireAuthorization("ViewOperations");
 
+        admin.MapGet("/booking-calendar-settings", async (
+            Guid propertyId,
+            StoragePaths paths,
+            CancellationToken cancellationToken) =>
+            Results.Ok(await new BookingCalendarDisplaySettingsStore(paths).GetAsync(propertyId, cancellationToken)))
+            .RequireAuthorization("ManageRooms");
+
+        admin.MapPut("/booking-calendar-settings", async (
+            Guid propertyId,
+            UpdateBookingCalendarDisplaySettingsRequest request,
+            StoragePaths paths,
+            CancellationToken cancellationToken) =>
+        {
+            var (settings, error) = await new BookingCalendarDisplaySettingsStore(paths)
+                .SaveAsync(propertyId, request, cancellationToken);
+            return error is null
+                ? Results.Ok(settings)
+                : Results.ValidationProblem(new Dictionary<string, string[]> { ["colors"] = [error] });
+        }).RequireAuthorization("ManageRooms").AddEndpointFilter<ApiAntiforgeryFilter>();
+
         app.MapGet("/api/public/room-availability", async (
             [FromQuery] Guid? roomId,
             [FromQuery] string? room,

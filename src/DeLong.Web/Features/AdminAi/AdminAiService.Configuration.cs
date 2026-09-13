@@ -262,8 +262,10 @@ public sealed partial class AdminAiService
                 {
                     var request = change.After.Deserialize<CreateRoomRateRequest>(Json)!;
                     if (room.Rates.Any(x => x.IsActive && x.Name.Equals(request.Name, StringComparison.OrdinalIgnoreCase))) return "Khung giá cùng tên đã tồn tại.";
-                    var (_, error) = await roomRateService.CreateAsync(proposal.PropertyId, room.Id, request, ct);
+                    var (created, error) = await roomRateService.CreateAsync(proposal.PropertyId, room.Id, request, ct);
                     if (error is not null) return error.Message;
+                    auditService.Add(proposal.PropertyId, "AiConfigurationChange", created!.Id, "CreateRate", userId,
+                        before: null, after: new { proposalId = proposal.Id, change.Target, Value = change.After });
                     continue;
                 }
                 var rate = room.Rates.SingleOrDefault(x => x.Id == change.Id && x.IsActive);
@@ -320,6 +322,10 @@ public sealed partial class AdminAiService
                 _ => "Thao tác không được phép."
             };
             if (failure is not null) return failure;
+            auditService.Add(proposal.PropertyId, "AiConfigurationChange", change.Id == Guid.Empty ? proposal.PropertyId : change.Id,
+                $"Update:{change.Kind}", userId,
+                before: new { proposalId = proposal.Id, change.Target, Value = change.Before },
+                after: new { proposalId = proposal.Id, change.Target, Value = change.After });
         }
         return null;
     }

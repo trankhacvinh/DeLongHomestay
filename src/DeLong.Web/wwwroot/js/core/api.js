@@ -122,7 +122,7 @@
         appendStyle('data-booking-core-v2', '/css/booking-core-v2.css?v=20260820-6');
         appendStyle('data-admin-booking-guest-details', '/css/admin-booking-guest-details.css?v=20260819-4');
         afterWindowLoad(() => {
-            appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260820-6');
+            appendScript('data-admin-booking-policy', '/js/pages/admin-booking-policy.js?v=20260912-7');
             const calendarV2Root = document.getElementById('calendar-page');
             if (calendarV2Root?.dataset.calendarV2Page === 'true') {
                 appendStyle('data-admin-calendar-v2', '/css/admin-calendar-v2.css?v=20260820-2');

@@ -208,10 +208,75 @@
             reject.addEventListener('click', () => handle('reject', reject));
         }
     }
+    function reportPeriod(value) {
+        if (!/(báo cáo|doanh thu|thực thu|công suất|dòng tiền|chi phí)/i.test(value)) return null;
+        if (/(cấu hình|thay đổi|sửa|đặt giá|tạo)/i.test(value)) return null;
+        if (/hôm nay|ngày hôm nay/i.test(value)) return 'day';
+        if (/tuần/i.test(value)) return 'week';
+        if (/quý/i.test(value)) return 'quarter';
+        if (/năm/i.test(value)) return 'year';
+        return 'month';
+    }
+    function addBusinessReport(report) {
+        const node = addMessage('assistant', `Báo cáo ${report.period}: ${report.from} đến ${report.to}. So sánh với ${report.previousFrom} đến ${report.previousTo}.`);
+        const metrics = document.createElement('table'); metrics.className = 'ai-proposal-table';
+        const head = document.createElement('thead'); const header = document.createElement('tr');
+        ['Chỉ số', 'Kỳ này', 'Kỳ trước', 'Thay đổi'].forEach(value => { const cell = document.createElement('th'); cell.textContent = value; header.append(cell); }); head.append(header); metrics.append(head);
+        const body = document.createElement('tbody');
+        report.metrics.forEach(metric => {
+            const row = document.createElement('tr');
+            const format = value => metric.unit === 'đ' ? `${Number(value).toLocaleString('vi-VN')} đ` : `${Number(value).toLocaleString('vi-VN')} ${metric.unit}`;
+            [metric.name, format(metric.current), format(metric.previous), metric.changePercent === null ? 'Chưa đủ cơ sở so sánh' : `${metric.changePercent}%`]
+                .forEach(value => { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); });
+            body.append(row);
+        });
+        metrics.append(body); const wrap = document.createElement('div'); wrap.className = 'ai-proposal-table-wrap'; wrap.append(metrics); node.append(wrap);
+        const addBreakdown = (titleText, rows, labelKey, valueKey) => {
+            if (!rows?.length) return;
+            const title = document.createElement('strong'); title.textContent = titleText;
+            const table = document.createElement('table'); table.className = 'ai-proposal-table';
+            const tbody = document.createElement('tbody');
+            rows.forEach(item => { const row = document.createElement('tr'); [item[labelKey], `${item.bookingCount} booking`, `${Number(item[valueKey] || 0).toLocaleString('vi-VN')} đ`, `${Number(item.hours ?? item.bookedHours ?? 0).toLocaleString('vi-VN')} giờ`].forEach(value => { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); }); tbody.append(row); });
+            table.append(tbody); const tableWrap = document.createElement('div'); tableWrap.className = 'ai-proposal-table-wrap'; tableWrap.append(table); node.append(title, tableWrap);
+        };
+        addBreakdown('Theo phòng', report.byRoom, 'roomName', 'bookingValue');
+        addBreakdown('Theo nguồn booking', report.bySource, 'source', 'bookingValue');
+        addBreakdown('Theo loại booking', report.byBookingType, 'label', 'bookingValue');
+        addBreakdown('Theo khung giờ', report.byRate, 'label', 'bookingValue');
+        const customerMix = document.createElement('p'); customerMix.textContent = `Khách mới: ${report.customers.newCustomers} · Khách quay lại: ${report.customers.returningCustomers}`; node.append(customerMix);
+        const addInsightList = (titleText, values, className) => {
+            if (!values?.length) return;
+            const section = document.createElement('section'); section.className = `ai-business-insights ${className}`;
+            const title = document.createElement('strong'); title.textContent = titleText;
+            const list = document.createElement('ul'); values.forEach(value => { const item = document.createElement('li'); item.textContent = value; list.append(item); });
+            section.append(title, list); node.append(section);
+        };
+        addInsightList('Dữ liệu thực', report.insights?.facts, 'facts');
+        addInsightList('Nhận định', report.insights?.interpretations, 'interpretations');
+        if (report.insights?.recommendations?.length) {
+            const section = document.createElement('section'); section.className = 'ai-business-insights recommendations';
+            const title = document.createElement('strong'); title.textContent = `Đề xuất tham khảo · Độ tin cậy ${report.insights.confidence}`; section.append(title);
+            report.insights.recommendations.forEach(recommendation => {
+                const card = document.createElement('div'); const heading = document.createElement('b'); heading.textContent = recommendation.title;
+                const reason = document.createElement('span'); reason.textContent = recommendation.rationale;
+                const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-light'; button.textContent = 'Yêu cầu tạo preview';
+                button.addEventListener('click', () => { input.value = recommendation.proposalPrompt; input.focus(); });
+                card.append(heading, reason, button); section.append(card);
+            }); node.append(section);
+        }
+        const definition = document.createElement('small'); definition.className = 'staff-ai-meta'; definition.textContent = `${report.definition} Múi giờ: ${report.timeZone}.`; node.append(definition);
+        if (report.reportUrl?.startsWith('/')) { const link = document.createElement('a'); link.className = 'btn btn-light'; link.href = report.reportUrl; link.textContent = 'Xem báo cáo chi tiết'; node.append(link); }
+        messages.scrollTop = messages.scrollHeight;
+    }
     form.addEventListener('submit', async event => {
         event.preventDefault(); const value = input.value.trim(); if (value.length < 2 || submit.disabled) return;
         addMessage('user', value); input.value = ''; submit.disabled = true; submit.textContent = 'Đang nghĩ...';
         try {
+            const dynamicPeriod = reportPeriod(value);
+            if (dynamicPeriod) {
+                const report = await DeLongApi.post(`/api/admin/properties/${propertyId}/ai/business-report`, { period: dynamicPeriod });
+                addBusinessReport(report); return;
+            }
             await ensureConversation();
             const retry = /^(retry|thử lại|thu lai|làm lại|lam lai)$/i.test(value);
             if (!retry) lastRequest = value;

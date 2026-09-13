@@ -65,3 +65,12 @@ Hướng dẫn khách là nội dung hiện hành trên `Room`, được làm s�
 - Camera/multi-file input hỗ trợ ảnh và video, không giới hạn số lượng file nghiệp vụ. Ảnh chỉ tạo preview/tối ưu sơ bộ phía client; server luôn giải mã, sửa orientation, resize và xuất WebP lại. Video MP4/WebM/MOV được kiểm tra định dạng và giới hạn 250 MB mỗi file.
 - Tag mẫu được chép trực tiếp vào nội dung có thể sửa; báo cáo bắt buộc đánh giá 1–5 sao và hiển thị rõ trạng thái xử lý trong bảng.
 - Form upload dùng `DeLongApi.postForm`, antiforgery và kiểm tra quyền cơ sở phía server.
+
+## AI Operating Foundation
+
+- Customer/Staff/Admin AI dùng chung gateway và typed-tool catalog phía server.
+- Admin AI mutation dùng typed proposal có preview trước/sau, stale check, apply một lần, batch rollback và audit riêng người yêu cầu/người duyệt.
+- Cache câu trả lời có bản PostgreSQL để tồn tại qua restart; khóa gồm `propertyId`, audience, intent chuẩn hóa, tham số canonical và data version.
+- Không lưu API key, CCCD, payment credential hoặc dữ liệu booking cá nhân trong knowledge snapshot/cache công khai.
+- Migration `AddPublicAiBookingDrafts` thêm draft đặt phòng không chứa PII, TTL 30 phút và chỉ lưu SHA-256 của token công khai.
+Staff/Manager/Housekeeping/Viewer dùng drawer `staff-ai-chat.js` và endpoint read-only `/staff-ai/chat`; Admin tiếp tục dùng drawer proposal riêng. Không dùng chung endpoint mutation của Admin cho vai trò vận hành.

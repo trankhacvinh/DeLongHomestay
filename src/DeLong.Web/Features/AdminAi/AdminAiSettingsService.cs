@@ -9,7 +9,7 @@ public sealed class AdminAiSettingsService(AppDbContext db, AiCredentialProtecto
     public async Task<AiProfileDto> GetAsync(Guid propertyId, CancellationToken ct = default)
     {
         var x = await db.PropertyAiProfiles.AsNoTracking().SingleOrDefaultAsync(p => p.PropertyId == propertyId, ct);
-        return x is null ? new(false, Domain.Enums.AiProviderKind.OpenAi, "gpt-5-mini", false, 2000, 0, 0, 0, 0, 80) : ToDto(x);
+        return x is null ? new(false, Domain.Enums.AiProviderKind.OpenAi, "gpt-5-mini", false, 2000, 0, 0, 0, 0, 80, false, 30, 10, 100) : ToDto(x);
     }
 
     public async Task<(AiProfileDto? Value, string? Error)> SaveAsync(Guid propertyId, SaveAiProfileRequest request, Guid userId, CancellationToken ct)
@@ -21,6 +21,8 @@ public sealed class AdminAiSettingsService(AppDbContext db, AiCredentialProtecto
         if (request.MonthlyBudgetUsd is < 0 or > 1_000_000 || request.InputCostPerMillionTokensUsd is < 0 or > 10_000 ||
             request.OutputCostPerMillionTokensUsd is < 0 or > 10_000 || request.BudgetWarningPercent is < 1 or > 100)
             return (null, "Ngân sách hoặc đơn giá token không hợp lệ.");
+        if (request.AdminBudgetReservePercent is < 0 or > 100 || request.PublicRequestsPerMinute is < 1 or > 1000 || request.PublicRequestsPerDay is < 1 or > 1_000_000)
+            return (null, "Hạn mức AI công khai không hợp lệ.");
         if (request.MonthlyBudgetUsd > 0 && (request.InputCostPerMillionTokensUsd <= 0 || request.OutputCostPerMillionTokensUsd <= 0))
             return (null, "Để giới hạn theo USD, cần nhập đơn giá input và output của model.");
         var x = await db.PropertyAiProfiles.SingleOrDefaultAsync(p => p.PropertyId == propertyId, ct);
@@ -34,6 +36,10 @@ public sealed class AdminAiSettingsService(AppDbContext db, AiCredentialProtecto
         x.InputCostPerMillionTokensUsd = request.InputCostPerMillionTokensUsd;
         x.OutputCostPerMillionTokensUsd = request.OutputCostPerMillionTokensUsd;
         x.BudgetWarningPercent = request.BudgetWarningPercent;
+        x.IsPublicAiEnabled = request.IsPublicAiEnabled;
+        x.AdminBudgetReservePercent = request.AdminBudgetReservePercent;
+        x.PublicRequestsPerMinute = request.PublicRequestsPerMinute;
+        x.PublicRequestsPerDay = request.PublicRequestsPerDay;
         x.UpdatedByUserId = userId; x.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return (ToDto(x), null);
@@ -41,5 +47,6 @@ public sealed class AdminAiSettingsService(AppDbContext db, AiCredentialProtecto
 
     public string ReadKey(PropertyAiProfile profile) => protector.Unprotect(profile.ProtectedApiKey);
     private static AiProfileDto ToDto(PropertyAiProfile x) => new(x.IsEnabled, x.Provider, x.Model, !string.IsNullOrWhiteSpace(x.ProtectedApiKey), x.MaxOutputTokens, x.MonthlyTokenLimit,
-        x.MonthlyBudgetUsd, x.InputCostPerMillionTokensUsd, x.OutputCostPerMillionTokensUsd, x.BudgetWarningPercent);
+        x.MonthlyBudgetUsd, x.InputCostPerMillionTokensUsd, x.OutputCostPerMillionTokensUsd, x.BudgetWarningPercent,
+        x.IsPublicAiEnabled, x.AdminBudgetReservePercent, x.PublicRequestsPerMinute, x.PublicRequestsPerDay);
 }

@@ -73,6 +73,8 @@
 .booking-checkedin { background:#e4f4f3; border-color:#a9d6d2; border-left-color:#176d70; }
 .booking-checkedin .booking-status-label { color:#0f6265; background:#cce7e4; }
 .booking-cancelled { background:#f5f5f5; border-color:#e6e6e6; border-left-color:#a2a8a7; opacity:.62; }
+.booking-chip.booking-custom-color{background:color-mix(in srgb,var(--booking-display-color) 14%,#fff);border-color:color-mix(in srgb,var(--booking-display-color) 38%,#fff);border-left-color:var(--booking-display-color)}
+.booking-chip.booking-custom-color .booking-status-label{color:color-mix(in srgb,var(--booking-display-color) 78%,#142a27);background:color-mix(in srgb,var(--booking-display-color) 18%,#fff)}
 
 /* Booking editor */
 .booking-editor { width:min(860px,calc(100vw - 32px)); }

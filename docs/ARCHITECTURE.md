@@ -69,6 +69,8 @@ Razor Pages sở hữu navigation, auth, initial render và public pages. Vue ch
 
 Mỗi page có app scope nhỏ (`#rooms-page`, `#calendar-page`...), không mount một Vue app toàn website. Không dùng Vue Router/Pinia.
 
+Màu hiển thị booking trên Calendar V2 là metadata theo từng cơ sở, lưu bền vững trong `DataRoot/booking-calendar-settings`; màu không thay đổi trạng thái booking hoặc logic availability. Khi một booking có nhiều dấu hiệu, Calendar V2 ưu tiên còn công nợ, ghi chú đặc biệt, giờ linh động, nhiều khung rồi mới tới trạng thái booking gốc.
+
 ## API convention
 
 - Prefix admin API: `/api/admin/...`.
@@ -118,11 +120,17 @@ Admin, Manager, Staff, Housekeeping, Viewer. Ngoài role còn có `UserPropertyA
 - Staff mutations use the `ManageHousekeeping` policy, `PropertyAccessFilter`, antiforgery validation and server-side file validation.
 # Admin AI assistant
 
-- `Features/AdminAi` tích hợp OpenAI Responses API và Google Gemini `generateContent` qua `HttpClient`.
+- `Features/AdminAi` tích hợp OpenAI Responses API, Google Gemini `generateContent` và DeepSeek Chat Completions qua `HttpClient`.
 - API key được mã hóa bằng ASP.NET Core Data Protection, tách theo cơ sở và không trả lại trình duyệt.
 - Chỉ role `Admin` được truy cập; mọi endpoint tiếp tục kiểm tra phạm vi cơ sở, antiforgery và rate limit.
+- `Ai:GloballyEnabled=false` (hoặc biến môi trường `Ai__GloballyEnabled=false`) là emergency kill switch toàn hệ thống; `PropertyAiProfile.IsEnabled` và `IsPublicAiEnabled` tiếp tục là kill switch theo cơ sở và riêng Customer AI.
 - AI chỉ nhận snapshot vận hành đã lọc, không có DbContext/SQL/CCCD/secrets. Mutation chỉ tạo `AiChangeProposal`; Admin phải xác nhận trước khi service nghiệp vụ thực thi trong transaction.
 - Allowlist mutation hiện tại: tạo phòng kèm khung giá, tạo voucher, tạo ngày đặc biệt và cập nhật cấu hình combo/cuối tuần.
 - Hội thoại và tin nhắn được lưu theo `(propertyId, userId)` để Admin xem lại lịch sử; tệp đính kèm chỉ thuộc đúng hội thoại/người tải và không có URL công khai.
 - AI chỉ nhận DOCX, PDF, JPG, PNG và WEBP đã qua kiểm tra chữ ký/kích thước. DOCX được trích văn bản với XML DTD bị cấm; PDF và ảnh đi qua input đa phương thức của provider. Nội dung tệp luôn được coi là dữ liệu không tin cậy, không phải system instruction.
-- `AiUsageRecord` giữ token thật từ provider và snapshot chi phí USD ước tính theo đơn giá input/output do Admin cấu hình. Ngân sách tháng chặn lượt gọi mới khi đạt hạn mức; không được gọi số tiền này là hóa đơn chính xác của provider.
+- `AiUsageRecord` giữ token thật từ provider và snapshot chi phí USD ước tính theo đơn giá input/output do Admin cấu hình. Trước mỗi provider call, `AiUsageReservation` giữ trước token/chi phí tối đa ước tính trong PostgreSQL; khóa hàng `PropertyAiProfile` tuần tự hóa các request cùng cơ sở. Thành công hoặc lỗi đều quyết toán thành usage và xóa reservation; reservation do tiến trình chết tự hết hạn sau 5 phút. Không được gọi số tiền ước tính này là hóa đơn chính xác của provider.
+- AI Operating Foundation dùng chung `AiAudience` (`Admin`, `Staff`, `Customer`). `AiResponseCache` là cache bền vững theo cơ sở/audience/intent/tham số/data-version; FusionCache chỉ là lớp RAM tùy môi trường. `PropertyAiKnowledgeSnapshot` chỉ chứa dữ liệu công khai đã lọc, còn `AiToolExecutionLog` và `AiConversationSummary` phục vụ audit và rút gọn hội thoại. Customer AI mặc định tắt và ngân sách Admin mặc định được giữ lại 30%.
+- Customer AI là endpoint anonymous read-only, chỉ xuất hiện khi cả provider và feature flag theo cơ sở được bật. Request bị giới hạn theo IP, quota ngày và ngân sách public. Prompt chỉ nhận public knowledge snapshot cùng availability/quote đã lọc, giới hạn 800 output token và cache theo snapshot version. Tra cứu booking bắt buộc mã booking cùng normalized phone; đổi/hủy chỉ trả contact cơ sở. `AiBookingDraft` lưu state không chứa PII trong 30 phút bằng opaque token đã băm; draft chỉ tạo preview và chuyển lựa chọn vào form, không giữ phòng, tạo booking hoặc Pay2S.
+Staff AI là lớp truy vấn chỉ đọc tách khỏi Admin AI mutation. Endpoint bắt buộc `UseStaffAi`, kiểm tra quyền truy cập cơ sở và antiforgery; dữ liệu thực thu chỉ được truy vấn khi principal đạt `ViewFinance`. Mỗi lần gọi công cụ được ghi vào `AiToolExecutionLog`, không đưa CCCD, secrets hoặc cấu hình thanh toán vào kết quả.
+
+Admin AI mutation chỉ chạy từ typed proposal đã được server resolve theo `property_id` và dựng snapshot trước/sau. Apply dùng transaction `Serializable`, khóa proposal, kiểm tra hết hạn/stale-state và chỉ xử lý một lần; batch lỗi rollback toàn bộ. Proposal lưu riêng người yêu cầu, người áp dụng hoặc từ chối; audit cấu hình giữ dữ liệu trước/sau. Allowlist không chứa payment, cấu hình email, API credential, custom CSS/JS hoặc mã xác minh.

@@ -33,6 +33,7 @@ public sealed record BookingDto(
     decimal BalanceAmount,
     string? Source,
     string? Note,
+    int RateSegmentCount,
     DateTime CreatedAtUtc);
 
 public sealed class CreateBookingRequest

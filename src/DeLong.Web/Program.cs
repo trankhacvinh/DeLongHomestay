@@ -25,6 +25,7 @@ using DeLong.Web.Features.CustomerAccounts;
 using DeLong.Web.Features.Vouchers;
 using DeLong.Web.Features.Pricing;
 using DeLong.Web.Features.AdminAi;
+using DeLong.Web.Features.PublicAi;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -74,6 +75,7 @@ builder.Services
 var publicCacheEnabled = builder.Configuration.GetValue<bool?>("Performance:PublicCacheEnabled")
     ?? !builder.Environment.IsDevelopment();
 var publicCacheSeconds = Math.Clamp(builder.Configuration.GetValue<int?>("Performance:PublicCacheSeconds") ?? 30, 1, 3600);
+builder.Services.AddScoped<AiDataInvalidationInterceptor>();
 if (publicCacheEnabled)
 {
     builder.Services.AddScoped<PublicCacheInvalidationInterceptor>();
@@ -83,11 +85,12 @@ if (publicCacheEnabled)
             .SetFailSafe(true, TimeSpan.FromMinutes(2)));
     builder.Services.AddDbContext<AppDbContext>((services, options) =>
         options.UseNpgsql(connectionString)
-            .AddInterceptors(services.GetRequiredService<PublicCacheInvalidationInterceptor>()));
+            .AddInterceptors(services.GetRequiredService<PublicCacheInvalidationInterceptor>(), services.GetRequiredService<AiDataInvalidationInterceptor>()));
 }
 else
 {
-    builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+    builder.Services.AddDbContext<AppDbContext>((services, options) => options.UseNpgsql(connectionString)
+        .AddInterceptors(services.GetRequiredService<AiDataInvalidationInterceptor>()));
 }
 
 builder.Services.AddHttpContextAccessor();
@@ -187,6 +190,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ViewVouchers", policy => policy.RequireRole("Admin", "Manager", "Staff"));
     options.AddPolicy("ManageVouchers", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("UseAdminAi", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("UseStaffAi", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping", "Viewer"));
 });
 
 builder.Services.AddRazorPages(options =>
@@ -289,6 +293,16 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("public-ai", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"{httpContext.Connection.RemoteIpAddress}:public-ai",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
     options.AddPolicy("account-login", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             $"{httpContext.Connection.RemoteIpAddress}:account",
@@ -348,6 +362,14 @@ builder.Services.AddScoped<VoucherService>();
 builder.Services.AddSingleton<AiCredentialProtector>();
 builder.Services.AddScoped<AdminAiSettingsService>();
 builder.Services.AddScoped<AdminAiService>();
+builder.Services.AddScoped<AiBusinessReportService>();
+builder.Services.AddScoped<AiResponseCacheService>();
+builder.Services.AddScoped<AiAccessGateway>();
+builder.Services.AddSingleton<AiToolRegistry>();
+builder.Services.AddScoped<AiKnowledgeSnapshotService>();
+builder.Services.AddScoped<PublicAiService>();
+builder.Services.AddSingleton<PublicAiLookupRateGuard>();
+builder.Services.AddScoped<StaffAiService>();
 builder.Services.AddScoped<AiAttachmentService>();
 builder.Services.AddHttpClient<AiProviderClient>(client => client.Timeout = TimeSpan.FromSeconds(60));
 builder.Services.AddSingleton<NotificationRealtimeBroker>();
@@ -481,6 +503,8 @@ app.MapPublicBookingLookupEndpoints();
 app.MapNotificationEndpoints();
 app.MapVoucherEndpoints();
 app.MapAdminAiEndpoints();
+app.MapPublicAiEndpoints();
+app.MapStaffAiEndpoints();
 
 if (app.Configuration.GetValue<bool>("Database:AutoMigrate") || app.Configuration.GetValue<bool>("Database:SeedOnStartup"))
 {

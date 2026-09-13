@@ -42,6 +42,7 @@
     var canManageStaff = User.IsInRole("Admin");
     var canManageProperties = User.IsInRole("Admin");
     var canManageSite = User.IsInRole("Admin") || User.IsInRole("Manager");
+    var canUseStaffAi = User.IsInRole("Manager") || User.IsInRole("Staff") || User.IsInRole("Housekeeping") || User.IsInRole("Viewer");
     var displayName = User.FindFirst("delong_display_name")?.Value ?? User.Identity?.Name ?? "Tài khoản";
     var roleLabel = User.IsInRole("Admin") ? "Quản trị viên"
         : User.IsInRole("Manager") ? "Quản lý"
@@ -182,6 +183,10 @@
         }
     }
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
+    @if (!isAdmin && !isGlobalPublic)
+    {
+        <link rel="stylesheet" href="~/css/public-ai.css" asp-append-version="true"/>
+    }
     @if (isAdmin)
     {
         <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true"/>
@@ -489,7 +494,7 @@
                     <span class="topbar-page">@ViewData["Title"]</span>
                 </div>
                 <span class="spacer"></span>
-                @if (User.IsInRole("Admin") && currentProperty is not null)
+                @if ((User.IsInRole("Admin") || canUseStaffAi) && currentProperty is not null)
                 {
                     <button class="btn-icon" type="button" data-ai-chat-toggle data-property-id="@currentProperty.Id" title="Trợ lý AI" aria-label="Mở trợ lý AI" aria-expanded="false"><svg><use href="#i-sparkles"/></svg></button>
                 }
@@ -660,6 +665,27 @@ else
         <form data-ai-chat-form><div class="ai-chat-attachments" data-ai-attachment-list hidden></div><label class="ai-attach-button" title="Đính kèm Word, PDF hoặc ảnh"><input type="file" multiple accept=".docx,.pdf,.jpg,.jpeg,.png,.webp" data-ai-attachment-input>📎<span>Đính kèm</span></label><textarea rows="2" maxlength="4000" data-ai-chat-input placeholder="Ví dụ: Dùng file đính kèm để cập nhật hướng dẫn check-in phòng Coco Blue..."></textarea><button class="btn btn-primary" type="submit">Gửi</button></form>
     </aside>
 }
+else if (isAdmin && canUseStaffAi && currentProperty is not null)
+{
+    <div class="ai-chat-backdrop" data-staff-ai-backdrop hidden></div>
+    <aside class="ai-chat-drawer" data-staff-ai-drawer data-property-id="@currentProperty.Id" hidden aria-label="Trợ lý vận hành">
+        <header><div><strong>Trợ lý vận hành</strong><small>Tra cứu lịch và công việc theo quyền tài khoản</small></div><button type="button" class="btn-icon" data-staff-ai-close aria-label="Đóng">×</button></header>
+        <div class="ai-chat-messages" data-staff-ai-messages><div class="ai-chat-welcome"><strong>Tôi có thể giúp gì?</strong><span>Hỏi booking hôm nay, ngày mai, cuối tuần, check-in/out, phòng cần dọn hoặc thực thu nếu bạn có quyền.</span></div></div>
+        <div class="ai-chat-suggestions"><button type="button" data-staff-ai-prompt="Booking hôm nay">Booking hôm nay</button><button type="button" data-staff-ai-prompt="Phòng cần dọn hôm nay">Phòng cần dọn</button><button type="button" data-staff-ai-prompt="Lịch check-in ngày mai">Check-in ngày mai</button></div>
+        <form data-staff-ai-form><textarea rows="2" maxlength="1000" data-staff-ai-input placeholder="Ví dụ: Cuối tuần có những booking nào?"></textarea><button class="btn btn-primary" type="submit">Gửi</button></form>
+    </aside>
+}
+@if (!isAdmin && !isGlobalPublic)
+{
+    <button class="public-ai-launch" type="button" data-public-ai-open aria-label="Mở trợ lý đặt phòng" hidden>AI</button>
+    <div class="public-ai-backdrop" data-public-ai-backdrop hidden></div>
+    <aside class="public-ai-drawer" data-public-ai-drawer data-site-slug="@publicSiteSlug" hidden aria-label="Trợ lý đặt phòng">
+        <header><div><strong>Trợ lý đặt phòng</strong><small>Hỏi về phòng, tiện nghi và giá</small></div><nav><button type="button" data-public-ai-history title="Lịch sử" aria-label="Xem lịch sử">☰</button><button type="button" data-public-ai-new title="Chat mới" aria-label="Tạo chat mới">＋</button><button type="button" data-public-ai-close aria-label="Đóng">×</button></nav></header>
+        <section class="public-ai-history" data-public-ai-history-panel hidden><div><strong>Lịch sử trên thiết bị này</strong><button type="button" data-public-ai-history-close aria-label="Đóng lịch sử">×</button></div><div data-public-ai-history-list></div><small>Lịch sử được lưu trong trình duyệt này trong tối đa 30 ngày.</small></section>
+        <div class="public-ai-messages" data-public-ai-messages><div class="public-ai-message assistant">Xin chào! Tôi có thể giúp bạn tìm hiểu phòng, tiện nghi, giá và chính sách của cơ sở.</div></div>
+        <form data-public-ai-form><textarea rows="2" maxlength="1000" data-public-ai-input placeholder="Ví dụ: Phòng nào phù hợp cho 3 người?"></textarea><button type="submit">Gửi</button></form>
+    </aside>
+}
 <div id="global-toast-root" class="toast-root" aria-live="polite"></div>
 @if (needsVue)
 {
@@ -668,12 +694,20 @@ else
 <script src="~/js/core/api.js" asp-append-version="true"></script>
 <script src="~/js/core/password-strength.js" asp-append-version="true"></script>
 <script src="~/js/core/shell.js" asp-append-version="true"></script>
+@if (!isAdmin && !isGlobalPublic)
+{
+    <script src="~/js/core/public-ai-chat.js" asp-append-version="true"></script>
+}
 @if (isAdmin)
 {
     <script src="~/js/core/admin-notifications.js" asp-append-version="true"></script>
     @if (User.IsInRole("Admin"))
     {
         <script src="~/js/core/admin-ai-chat.js" asp-append-version="true"></script>
+    }
+    else if (canUseStaffAi)
+    {
+        <script src="~/js/core/staff-ai-chat.js" asp-append-version="true"></script>
     }
 }
 @await RenderSectionAsync("Scripts", required: false)

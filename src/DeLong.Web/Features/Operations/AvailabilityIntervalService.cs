@@ -16,7 +16,11 @@ public sealed record AdminAvailabilityOccupancyDto(
     DateTime StartUtc,
     DateTime EndUtc,
     string CustomerName,
-    string CustomerPhone);
+    string CustomerPhone,
+    decimal BalanceAmount,
+    bool HasSpecialRequest,
+    bool IsFlexibleTime,
+    bool IsMixedSlot);
 
 public sealed record AdminAvailabilitySlotDto(
     Guid RateId,
@@ -91,7 +95,11 @@ public sealed record AvailabilityOccupancyInput(
     DateTime StartUtc,
     DateTime EndUtc,
     string CustomerName = "",
-    string CustomerPhone = "");
+    string CustomerPhone = "",
+    decimal BalanceAmount = 0,
+    bool HasSpecialRequest = false,
+    bool IsFlexibleTime = false,
+    bool IsMixedSlot = false);
 
 public sealed record AvailabilityProjection(
     string State,
@@ -184,7 +192,8 @@ public sealed class AvailabilityIntervalService(
                     slot.RateId, slot.RateName, slot.RateType, slot.Price,
                     slot.StartUtc, slot.EndUtc, slot.Projection.State, slot.Projection.OccupiedRatio,
                     slot.Projection.Occupied.Select(x => new AdminAvailabilityOccupancyDto(
-                        x.BookingId, x.Status, x.StartUtc, x.EndUtc, x.CustomerName, x.CustomerPhone)).ToList(),
+                        x.BookingId, x.Status, x.StartUtc, x.EndUtc, x.CustomerName, x.CustomerPhone,
+                        x.BalanceAmount, x.HasSpecialRequest, x.IsFlexibleTime, x.IsMixedSlot)).ToList(),
                     slot.Projection.Free)).ToList())).ToList());
     }
 
@@ -267,7 +276,13 @@ public sealed class AvailabilityIntervalService(
                 x.CheckInUtc,
                 x.CheckOutUtc,
                 x.Customer.Name,
-                x.Customer.Phone))
+                x.Customer.Phone,
+                x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount -
+                    x.Payments.Where(payment => !payment.IsVoided)
+                        .Sum(payment => payment.Type == PaymentType.Receipt ? payment.Amount : -payment.Amount),
+                x.Note != null && x.Note != "",
+                x.Type == BookingType.TimeSlot && x.RoomRateId == null && !x.RateSegments.Any(),
+                x.RateSegments.Count() > 1))
             .ToListAsync(cancellationToken);
 
         var result = new List<AvailabilityDay>(days);

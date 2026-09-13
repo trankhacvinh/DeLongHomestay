@@ -83,6 +83,53 @@ namespace DeLong.Web.Data.Migrations
                     b.ToTable("ai_attachments");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiBookingDraft", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<string>("StateJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("state_json");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ai_booking_drafts");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_ai_booking_drafts_token_hash");
+
+                    b.HasIndex("PropertyId", "ExpiresAtUtc")
+                        .HasDatabaseName("i_x_ai_booking_drafts_property_id_expires_at_utc");
+
+                    b.ToTable("ai_booking_drafts");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.AiChangeProposal", b =>
                 {
                     b.Property<Guid>("Id")
@@ -93,6 +140,10 @@ namespace DeLong.Web.Data.Migrations
                     b.Property<DateTime?>("AppliedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("applied_at_utc");
+
+                    b.Property<Guid?>("AppliedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("applied_by_user_id");
 
                     b.Property<Guid>("ConversationId")
                         .HasColumnType("uuid")
@@ -124,6 +175,10 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("rejected_at_utc");
 
+                    b.Property<Guid?>("RejectedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("rejected_by_user_id");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -153,8 +208,14 @@ namespace DeLong.Web.Data.Migrations
                     b.HasKey("Id")
                         .HasName("p_k_ai_change_proposals");
 
+                    b.HasIndex("AppliedByUserId")
+                        .HasDatabaseName("i_x_ai_change_proposals_applied_by_user_id");
+
                     b.HasIndex("ConversationId")
                         .HasDatabaseName("i_x_ai_change_proposals_conversation_id");
+
+                    b.HasIndex("RejectedByUserId")
+                        .HasDatabaseName("i_x_ai_change_proposals_rejected_by_user_id");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("i_x_ai_change_proposals_user_id");
@@ -201,6 +262,49 @@ namespace DeLong.Web.Data.Migrations
                         .HasDatabaseName("i_x_ai_conversations_property_id_user_id_updated_at_utc");
 
                     b.ToTable("ai_conversations");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiConversationSummary", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<int>("CoveredMessageCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("covered_message_count");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid?>("LastMessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("last_message_id");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(12000)
+                        .HasColumnType("character varying(12000)")
+                        .HasColumnName("summary");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ai_conversation_summaries");
+
+                    b.HasIndex("ConversationId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_ai_conversation_summaries_conversation_id");
+
+                    b.ToTable("ai_conversation_summaries");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.AiMessage", b =>
@@ -252,12 +356,178 @@ namespace DeLong.Web.Data.Migrations
                     b.ToTable("ai_messages");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiResponseCache", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("audience");
+
+                    b.Property<string>("CacheKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("cache_key");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("DataVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("data_version");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<int>("HitCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("hit_count");
+
+                    b.Property<string>("Intent")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("intent");
+
+                    b.Property<string>("InvalidationTag")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("invalidation_tag");
+
+                    b.Property<DateTime>("LastHitAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_hit_at_utc");
+
+                    b.Property<string>("ParametersJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("parameters_json");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<string>("ResponseJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("response_json");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ai_response_cache");
+
+                    b.HasIndex("PropertyId", "Audience", "CacheKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_ai_response_cache_property_id_audience_cache_key");
+
+                    b.HasIndex("PropertyId", "InvalidationTag", "ExpiresAtUtc")
+                        .HasDatabaseName("i_x_ai_response_cache_property_id_invalidation_tag_expires_at_u~");
+
+                    b.ToTable("ai_response_cache");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiToolExecutionLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("audience");
+
+                    b.Property<Guid?>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<long>("DurationMs")
+                        .HasColumnType("bigint")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("error_code");
+
+                    b.Property<bool>("IsSuccess")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_success");
+
+                    b.Property<string>("ParametersJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("parameters_json");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<string>("ToolName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("tool_name");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ai_tool_execution_logs");
+
+                    b.HasIndex("ConversationId")
+                        .HasDatabaseName("i_x_ai_tool_execution_logs_conversation_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("i_x_ai_tool_execution_logs_user_id");
+
+                    b.HasIndex("PropertyId", "CreatedAtUtc")
+                        .HasDatabaseName("i_x_ai_tool_execution_logs_property_id_created_at_utc");
+
+                    b.ToTable("ai_tool_execution_logs");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.AiUsageRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Admin")
+                        .HasColumnName("audience");
+
+                    b.Property<int>("CachedInputTokens")
+                        .HasColumnType("integer")
+                        .HasColumnName("cached_input_tokens");
 
                     b.Property<Guid?>("ConversationId")
                         .HasColumnType("uuid")
@@ -284,6 +554,10 @@ namespace DeLong.Web.Data.Migrations
                     b.Property<int>("InputTokens")
                         .HasColumnType("integer")
                         .HasColumnName("input_tokens");
+
+                    b.Property<bool>("IsCacheHit")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_cache_hit");
 
                     b.Property<bool>("IsSuccess")
                         .HasColumnType("boolean")
@@ -319,7 +593,7 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at_utc");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
@@ -336,6 +610,58 @@ namespace DeLong.Web.Data.Migrations
                         .HasDatabaseName("i_x_ai_usage_records_property_id_created_at_utc");
 
                     b.ToTable("ai_usage_records");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiUsageReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("audience");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<decimal>("ReservedCostUsd")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)")
+                        .HasColumnName("reserved_cost_usd");
+
+                    b.Property<int>("ReservedTokens")
+                        .HasColumnType("integer")
+                        .HasColumnName("reserved_tokens");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_ai_usage_reservations");
+
+                    b.HasIndex("PropertyId", "ExpiresAtUtc")
+                        .HasDatabaseName("i_x_ai_usage_reservations_property_id_expires_at_utc");
+
+                    b.ToTable("ai_usage_reservations", t =>
+                        {
+                            t.HasCheckConstraint("ck_ai_usage_reservations_reserved_cost_usd", "reserved_cost_usd >= 0");
+
+                            t.HasCheckConstraint("ck_ai_usage_reservations_reserved_tokens", "reserved_tokens >= 0");
+                        });
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Amenity", b =>
@@ -2014,12 +2340,70 @@ namespace DeLong.Web.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyAiKnowledgeSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("BuiltAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("built_at_utc");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("content_hash");
+
+                    b.Property<string>("ContentJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("content_json");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<bool>("IsDirty")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_dirty");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_property_ai_knowledge_snapshots");
+
+                    b.HasIndex("PropertyId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_property_ai_knowledge_snapshots_property_id");
+
+                    b.ToTable("property_ai_knowledge_snapshots");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyAiProfile", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<int>("AdminBudgetReservePercent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30)
+                        .HasColumnName("admin_budget_reserve_percent");
 
                     b.Property<int>("BudgetWarningPercent")
                         .ValueGeneratedOnAdd()
@@ -2039,6 +2423,10 @@ namespace DeLong.Web.Data.Migrations
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("boolean")
                         .HasColumnName("is_enabled");
+
+                    b.Property<bool>("IsPublicAiEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_public_ai_enabled");
 
                     b.Property<int>("MaxOutputTokens")
                         .HasColumnType("integer")
@@ -2080,6 +2468,18 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("provider");
 
+                    b.Property<int>("PublicRequestsPerDay")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(100)
+                        .HasColumnName("public_requests_per_day");
+
+                    b.Property<int>("PublicRequestsPerMinute")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(10)
+                        .HasColumnName("public_requests_per_minute");
+
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at_utc");
@@ -2097,6 +2497,8 @@ namespace DeLong.Web.Data.Migrations
 
                     b.ToTable("property_ai_profiles", t =>
                         {
+                            t.HasCheckConstraint("ck_property_ai_profiles_admin_budget_reserve_percent", "admin_budget_reserve_percent BETWEEN 0 AND 100");
+
                             t.HasCheckConstraint("ck_property_ai_profiles_budget_warning_percent", "budget_warning_percent BETWEEN 1 AND 100");
 
                             t.HasCheckConstraint("ck_property_ai_profiles_max_output_tokens", "max_output_tokens BETWEEN 128 AND 32000");
@@ -2104,6 +2506,8 @@ namespace DeLong.Web.Data.Migrations
                             t.HasCheckConstraint("ck_property_ai_profiles_monthly_budget_usd", "monthly_budget_usd >= 0");
 
                             t.HasCheckConstraint("ck_property_ai_profiles_monthly_token_limit", "monthly_token_limit >= 0");
+
+                            t.HasCheckConstraint("ck_property_ai_profiles_public_request_limits", "public_requests_per_minute BETWEEN 1 AND 1000 AND public_requests_per_day BETWEEN 1 AND 1000000");
 
                             t.HasCheckConstraint("ck_property_ai_profiles_token_costs", "input_cost_per_million_tokens_usd >= 0 AND output_cost_per_million_tokens_usd >= 0");
                         });
@@ -4040,8 +4444,24 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Conversation");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiBookingDraft", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ai_booking_drafts_properties_property_id");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.AiChangeProposal", b =>
                 {
+                    b.HasOne("DeLong.Web.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AppliedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_ai_change_proposals_asp_net_users_applied_by_user_id");
+
                     b.HasOne("DeLong.Web.Domain.Entities.AiConversation", null)
                         .WithMany()
                         .HasForeignKey("ConversationId")
@@ -4055,6 +4475,12 @@ namespace DeLong.Web.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("f_k_ai_change_proposals_properties_property_id");
+
+                    b.HasOne("DeLong.Web.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("RejectedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_ai_change_proposals_asp_net_users_rejected_by_user_id");
 
                     b.HasOne("DeLong.Web.Identity.ApplicationUser", null)
                         .WithMany()
@@ -4076,6 +4502,16 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Property");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiConversationSummary", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.AiConversation", null)
+                        .WithOne()
+                        .HasForeignKey("DeLong.Web.Domain.Entities.AiConversationSummary", "ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ai_conversation_summaries_ai_conversations_conversation_id");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.AiMessage", b =>
                 {
                     b.HasOne("DeLong.Web.Domain.Entities.AiConversation", "Conversation")
@@ -4086,6 +4522,38 @@ namespace DeLong.Web.Data.Migrations
                         .HasConstraintName("f_k_ai_messages_ai_conversations_conversation_id");
 
                     b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiResponseCache", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ai_response_cache_properties_property_id");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiToolExecutionLog", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.AiConversation", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_ai_tool_execution_logs_ai_conversations_conversation_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ai_tool_execution_logs_properties_property_id");
+
+                    b.HasOne("DeLong.Web.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("f_k_ai_tool_execution_logs_asp_net_users_user_id");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.AiUsageRecord", b =>
@@ -4106,9 +4574,18 @@ namespace DeLong.Web.Data.Migrations
                     b.HasOne("DeLong.Web.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
+                        .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("f_k_ai_usage_records_asp_net_users_user_id");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.AiUsageReservation", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_ai_usage_reservations_properties_property_id");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Amenity", b =>
@@ -4493,6 +4970,16 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Booking");
 
                     b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyAiKnowledgeSnapshot", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_property_ai_knowledge_snapshots_properties_property_id");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.PropertyAiProfile", b =>

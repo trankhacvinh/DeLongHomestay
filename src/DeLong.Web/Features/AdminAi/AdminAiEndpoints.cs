@@ -23,6 +23,19 @@ public static class AdminAiEndpoints
         }).RequireRateLimiting("admin-ai").AddEndpointFilter<ApiAntiforgeryFilter>()
             .WithMetadata(new RequestSizeLimitAttribute(32L * 1024 * 1024));
         group.MapGet("/usage", async (Guid propertyId, AdminAiService service, CancellationToken ct) => Results.Ok(await service.UsageAsync(propertyId, ct)));
+        group.MapPost("/business-report", async (Guid propertyId, AiBusinessReportRequest request, ClaimsPrincipal user,
+            AiBusinessReportService service, CancellationToken ct) =>
+        {
+            var value = await service.GetAsync(propertyId, request.Period, UserId(user), ct);
+            return value is null ? Results.NotFound() : Results.Ok(value);
+        }).RequireRateLimiting("admin-ai").AddEndpointFilter<ApiAntiforgeryFilter>();
+        group.MapGet("/knowledge", async (Guid propertyId, AiKnowledgeSnapshotService service, CancellationToken ct) =>
+        {
+            var snapshot = await service.GetAsync(propertyId, ct);
+            return snapshot is null ? Results.NotFound() : Results.Ok(snapshot);
+        });
+        group.MapPost("/knowledge/rebuild", async (Guid propertyId, AiKnowledgeSnapshotService service, CancellationToken ct) =>
+            Results.Ok(await service.RebuildAsync(propertyId, ct))).AddEndpointFilter<ApiAntiforgeryFilter>();
         group.MapGet("/conversations", async (Guid propertyId, ClaimsPrincipal user, AdminAiService service, CancellationToken ct) => Results.Ok(await service.ConversationsAsync(propertyId, UserId(user), ct)));
         group.MapPost("/conversations", async (Guid propertyId, ClaimsPrincipal user, AdminAiService service, CancellationToken ct) =>
             Results.Ok(new { conversationId = await service.CreateConversationAsync(propertyId, UserId(user), ct) }))

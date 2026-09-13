@@ -1,13 +1,13 @@
 @page
 @model DeLong.Web.Pages.Admin.Ai.IndexModel
 @{ ViewData["Title"] = "Trợ lý AI"; }
-<div class="page-head"><div><span class="eyebrow">CẤU HÌNH QUẢN TRỊ</span><h1>Trợ lý AI</h1><p>Chọn OpenAI hoặc Gemini. API key được mã hóa và không hiển thị lại.</p></div></div>
+<div class="page-head"><div><span class="eyebrow">CẤU HÌNH QUẢN TRỊ</span><h1>Trợ lý AI</h1><p>Chọn OpenAI, Google Gemini hoặc DeepSeek. API key được mã hóa và không hiển thị lại.</p></div></div>
 <div class="ai-settings-grid" data-ai-settings data-property-id="@Model.PropertyId">
     <section class="panel"><div class="panel-head"><div><h2>Kết nối AI</h2><p>Chỉ Admin có thể cấu hình và sử dụng.</p></div></div>
         <div class="form-grid">
             <label class="check-row full"><input type="checkbox" data-ai-enabled> Bật trợ lý AI</label>
-            <div class="field"><label>Nhà cung cấp</label><select data-ai-provider><option value="0">OpenAI</option><option value="1">Google Gemini</option></select></div>
-            <div class="field"><label>Model</label><input data-ai-model list="ai-model-list" placeholder="gpt-5-mini"><datalist id="ai-model-list"><option value="gpt-5-mini"></option><option value="gpt-5"></option><option value="gemini-2.5-flash"></option><option value="gemini-2.5-pro"></option></datalist></div>
+            <div class="field"><label>Nhà cung cấp</label><select data-ai-provider><option value="0">OpenAI</option><option value="1">Google Gemini</option><option value="2">DeepSeek</option></select></div>
+            <div class="field"><label>Model</label><input data-ai-model list="ai-model-list" placeholder="gpt-5-mini"><datalist id="ai-model-list"><option value="gpt-5-mini"></option><option value="gpt-5"></option><option value="gemini-2.5-flash"></option><option value="gemini-2.5-pro"></option><option value="deepseek-v4-flash"></option><option value="deepseek-v4-pro"></option></datalist><small>DeepSeek: nên bắt đầu với deepseek-v4-flash để tiết kiệm chi phí.</small></div>
             <div class="field full"><label>API key</label><input type="password" autocomplete="new-password" data-ai-key placeholder="Để trống để giữ khóa hiện tại"><small data-ai-key-status></small></div>
             <div class="field"><label>Token trả lời tối đa</label><input type="number" min="128" max="32000" data-ai-max-tokens><small>Đề xuất 8192 khi cấu hình nhiều phòng. Một số model tính cả token suy luận vào giới hạn này.</small></div>
             <div class="field"><label>Giới hạn token/tháng</label><input type="number" min="0" data-ai-monthly-limit><small>0 là không giới hạn.</small></div>
@@ -15,13 +15,23 @@
             <div class="field"><label>Cảnh báo khi dùng (%)</label><input type="number" min="1" max="100" data-ai-budget-warning></div>
             <div class="field"><label>Giá input / 1 triệu token (USD)</label><input type="number" min="0" step="0.000001" data-ai-input-cost><small>Lấy từ bảng giá model của nhà cung cấp.</small></div>
             <div class="field"><label>Giá output / 1 triệu token (USD)</label><input type="number" min="0" step="0.000001" data-ai-output-cost><small>Cập nhật khi nhà cung cấp đổi giá.</small></div>
+            <label class="check-row full"><input type="checkbox" data-ai-public-enabled> Bật AI công khai cho khách (chỉ bật sau khi hoàn thành Customer AI)</label>
+            <div class="field"><label>Dự phòng ngân sách cho Admin (%)</label><input type="number" min="0" max="100" data-ai-admin-reserve><small>Phần này không cho Customer AI sử dụng.</small></div>
+            <div class="field"><label>Lượt public/phút</label><input type="number" min="1" max="1000" data-ai-public-minute></div>
+            <div class="field"><label>Lượt public/ngày</label><input type="number" min="1" max="1000000" data-ai-public-day></div>
         </div>
         <div class="modal-actions"><button class="btn btn-primary" type="button" data-ai-save>Lưu cấu hình</button></div><p class="notice" data-ai-settings-message hidden></p>
     </section>
     <section class="panel"><div class="panel-head"><div><h2>Sử dụng tháng này</h2><p>Số liệu token lấy từ phản hồi của nhà cung cấp.</p></div></div>
-        <div class="ai-usage-cards"><div><small>Lượt gọi</small><strong data-ai-calls>0</strong></div><div><small>Input token</small><strong data-ai-input>0</strong></div><div><small>Output token</small><strong data-ai-output>0</strong></div><div><small>Tổng token</small><strong data-ai-total>0</strong></div><div><small>Chi phí ước tính</small><strong data-ai-cost>$0</strong></div><div><small>Ngân sách còn lại</small><strong data-ai-remaining>—</strong></div></div>
+        <div class="ai-usage-cards"><div><small>Lượt xử lý</small><strong data-ai-calls>0</strong></div><div><small>Thành công</small><strong data-ai-success>0</strong></div><div><small>Lỗi provider</small><strong data-ai-failed>0</strong></div><div><small>Bị chặn</small><strong data-ai-blocked>0</strong></div><div><small>Cache hit</small><strong data-ai-cache-hits>0</strong></div><div><small>Độ trễ TB</small><strong data-ai-latency>0 ms</strong></div><div><small>Input token</small><strong data-ai-input>0</strong></div><div><small>Output token</small><strong data-ai-output>0</strong></div><div><small>Cached token</small><strong data-ai-cached-token>0</strong></div><div><small>Tổng token</small><strong data-ai-total>0</strong></div><div><small>Chi phí ước tính</small><strong data-ai-cost>$0</strong></div><div><small>Ngân sách còn lại</small><strong data-ai-remaining>—</strong></div></div>
+        <p class="notice" data-ai-reservations hidden></p>
         <p class="notice" data-ai-budget-message></p>
+        <div class="table-wrap"><table><thead><tr><th>Đối tượng</th><th>Lượt</th><th>Thành công</th><th>Lỗi</th><th>Bị chặn</th><th>Token</th><th>Cached</th><th>Cache hit</th><th>Độ trễ TB</th><th>Chi phí</th></tr></thead><tbody data-ai-audience-usage><tr><td colspan="10">Chưa có dữ liệu.</td></tr></tbody></table></div>
         <div class="notice">AI chỉ đọc dữ liệu vận hành đã được lọc. Mọi thay đổi phòng, khung giờ, giá, ngày đặc biệt, voucher, nội dung phòng, website và SEO đều phải được Admin duyệt tại cửa sổ chat.</div>
+    </section>
+    <section class="panel"><div class="panel-head"><div><h2>Dữ liệu kiến thức công khai</h2><p>Chỉ gồm thông tin cơ sở, phòng, tiện nghi và giá; không gồm khách, CCCD hoặc tài khoản bí mật.</p></div><button class="btn btn-secondary" type="button" data-ai-knowledge-rebuild>Tạo lại dữ liệu</button></div>
+        <p class="notice" data-ai-knowledge-status>Chưa kiểm tra.</p>
+        <details><summary>Xem dữ liệu AI được phép đọc</summary><pre class="ai-knowledge-preview" data-ai-knowledge-preview>Chưa có dữ liệu.</pre></details>
     </section>
 </div>
 @section Head { <link rel="stylesheet" href="~/css/admin-ai.css" asp-append-version="true"> }

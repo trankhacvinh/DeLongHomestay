@@ -8,6 +8,7 @@
     const propertyId = initial.propertyId;
     if (!propertyId) return;
     let policy = null;
+    let calendarSettings = null;
     let saving = false;
 
     function numberValue(panel, name, fallback) {
@@ -16,6 +17,11 @@
     }
 
     function render() {
+        renderPolicy();
+        renderCalendarSettings();
+    }
+
+    function renderPolicy() {
         if (!policy || root.querySelector('[data-booking-policy-settings]')) return;
         const target = root.querySelector('[data-booking-policy-tab]');
         if (!target) return;
@@ -53,6 +59,41 @@
                 helpText: 'Soạn trực quan bằng Quill giống các nội dung khác trong hệ thống; có thể chuyển sang HTML khi cần.'
             });
         panel.querySelector('[data-policy-save]').addEventListener('click', () => save(panel));
+        target.appendChild(panel);
+    }
+
+    function renderCalendarSettings() {
+        if (!calendarSettings || root.querySelector('[data-booking-calendar-settings]')) return;
+        const target = root.querySelector('[data-booking-policy-tab]');
+        if (!target) return;
+        const fields = [
+            ['unpaidColor', 'Chưa thanh toán hết', 'Ưu tiên cao nhất khi booking còn công nợ.'],
+            ['specialRequestColor', 'Có yêu cầu đặc biệt', 'Booking có nội dung ghi chú.'],
+            ['flexibleTimeColor', 'Giờ linh động', 'Giờ tự nhập, không gắn với khung giá.'],
+            ['mixedSlotColor', 'Booking nhiều khung', 'Một booking gồm từ hai khung liên tiếp.'],
+            ['requestedColor', 'Yêu cầu mới', 'Booking đang ở trạng thái yêu cầu.'],
+            ['heldColor', 'Giữ phòng', 'Booking đang giữ chỗ/chờ xử lý.'],
+            ['confirmedColor', 'Đã xác nhận', 'Booking đã được xác nhận.'],
+            ['checkedInColor', 'Đã nhận phòng', 'Khách đã check-in.']
+        ];
+        const panel = document.createElement('section');
+        panel.className = 'panel booking-policy-settings';
+        panel.dataset.bookingCalendarSettings = 'true';
+        panel.innerHTML = `
+            <div class="panel-head">
+                <div><h2>Màu trạng thái trên lịch phòng</h2><p class="small muted">Áp dụng riêng cho cơ sở này. Nếu booking có nhiều dấu hiệu, thứ tự ưu tiên là: còn nợ → ghi chú → giờ linh động → nhiều khung → trạng thái gốc.</p></div>
+                <span class="pill">Calendar V2</span>
+            </div>
+            <div class="panel-body">
+                <div class="booking-calendar-color-grid">
+                    ${fields.map(([key, label, help]) => `<label class="booking-calendar-color-field"><input type="color" data-calendar-color="${key}" value="${escapeAttribute(calendarSettings[key])}" /><span><strong>${label}</strong><small>${help}</small></span><code data-calendar-color-code="${key}">${escapeAttribute(calendarSettings[key])}</code></label>`).join('')}
+                </div>
+                <div class="booking-policy-settings-actions"><button class="btn btn-primary" type="button" data-calendar-color-save>Lưu màu lịch phòng</button></div>
+            </div>`;
+        panel.querySelectorAll('[data-calendar-color]').forEach(input => input.addEventListener('input', () => {
+            panel.querySelector(`[data-calendar-color-code="${input.dataset.calendarColor}"]`).textContent = input.value.toUpperCase();
+        }));
+        panel.querySelector('[data-calendar-color-save]').addEventListener('click', () => saveCalendarSettings(panel));
         target.appendChild(panel);
     }
 
@@ -107,8 +148,31 @@
         }
     }
 
+    async function saveCalendarSettings(panel) {
+        const button = panel.querySelector('[data-calendar-color-save]');
+        const payload = {};
+        panel.querySelectorAll('[data-calendar-color]').forEach(input => {
+            payload[input.dataset.calendarColor] = input.value.toUpperCase();
+        });
+        button.disabled = true;
+        button.textContent = 'Đang lưu...';
+        try {
+            calendarSettings = await DeLongApi.put(`/api/admin/properties/${propertyId}/operations/booking-calendar-settings`, payload);
+            button.textContent = 'Đã lưu';
+            setTimeout(() => { button.textContent = 'Lưu màu lịch phòng'; }, 1300);
+        } catch (error) {
+            button.textContent = error.message || 'Không thể lưu';
+            setTimeout(() => { button.textContent = 'Lưu màu lịch phòng'; }, 2800);
+        } finally {
+            button.disabled = false;
+        }
+    }
+
     DeLongApi.get(`/api/admin/properties/${propertyId}/booking-policy`)
         .then(value => { policy = value; render(); })
+        .catch(() => { });
+    DeLongApi.get(`/api/admin/properties/${propertyId}/operations/booking-calendar-settings`)
+        .then(value => { calendarSettings = value; render(); })
         .catch(() => { });
     new MutationObserver(render).observe(root, { childList: true, subtree: true });
 })();

@@ -16,5 +16,9 @@ public sealed class PropertyAiProfile : EntityBase
     public decimal InputCostPerMillionTokensUsd { get; set; }
     public decimal OutputCostPerMillionTokensUsd { get; set; }
     public int BudgetWarningPercent { get; set; } = 80;
+    public bool IsPublicAiEnabled { get; set; }
+    public int AdminBudgetReservePercent { get; set; } = 30;
+    public int PublicRequestsPerMinute { get; set; } = 10;
+    public int PublicRequestsPerDay { get; set; } = 100;
     public Guid? UpdatedByUserId { get; set; }
 }

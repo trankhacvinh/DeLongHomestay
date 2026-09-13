@@ -5,6 +5,9 @@
 }
 @section Head {
     <link rel="stylesheet" href="~/css/public-visual-editor-enhancements.css" asp-append-version="true" />
+    <style>
+        .booking-calendar-color-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.booking-calendar-color-field{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 12px;border:1px solid #dbe6e3;border-radius:12px;background:#fbfdfc}.booking-calendar-color-field input[type=color]{width:44px;height:36px;padding:2px;border:1px solid #ccdcd8;border-radius:9px;background:#fff;cursor:pointer}.booking-calendar-color-field span{display:grid;gap:2px}.booking-calendar-color-field strong{font-size:12px;color:#294944}.booking-calendar-color-field small{font-size:9px;line-height:1.35;color:#71847f}.booking-calendar-color-field code{font-size:9px;color:#617570}@@media(max-width:760px){.booking-calendar-color-grid{grid-template-columns:1fr}.booking-calendar-color-field{grid-template-columns:40px minmax(0,1fr)}.booking-calendar-color-field code{grid-column:2}}
+    </style>
 }
 <script id="settings-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 <div id="settings-page" v-cloak>

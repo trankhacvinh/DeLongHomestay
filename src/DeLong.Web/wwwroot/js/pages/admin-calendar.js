@@ -51,6 +51,7 @@
                 today: initial.today,
                 rooms: initial.rooms || [],
                 bookings: initial.bookings || [],
+                calendarColors: initial.calendarDisplaySettings || {},
                 canManage: window.DeLongCalendarCanManage === true,
                 dragEnabled: window.DeLongCalendarCanManage === true && finePointer && window.innerWidth > 820,
                 drag: { bookingId: null, overKey: '' },
@@ -140,11 +141,24 @@
             statusText(status) {
                 return ({ 0: 'Yêu cầu', 1: 'Giữ phòng', 2: 'Đã xác nhận', 3: 'Đang ở', 4: 'Hoàn tất', 5: 'Đã hủy', 6: 'Không đến' })[status] || `#${status}`;
             },
-            bookingClass(status) {
-                if (status === 1) return 'booking-held';
-                if (status === 2 || status === 3) return 'booking-confirmed';
-                if (status === 5 || status === 6) return 'booking-cancelled';
-                return 'booking-requested';
+            bookingVisual(booking) {
+                const colors = this.calendarColors;
+                if (Number(booking?.balanceAmount || 0) > 0) return { color: colors.unpaidColor || '#C94B4B', label: 'Chưa thanh toán hết' };
+                if (String(booking?.note || '').trim()) return { color: colors.specialRequestColor || '#7C5CC4', label: 'Có yêu cầu đặc biệt' };
+                if (Number(booking?.type) === 0 && !booking?.roomRateId && Number(booking?.rateSegmentCount || 0) === 0)
+                    return { color: colors.flexibleTimeColor || '#D6A72C', label: 'Giờ linh động' };
+                if (Number(booking?.rateSegmentCount || 0) > 1) return { color: colors.mixedSlotColor || '#287D9B', label: 'Booking nhiều khung' };
+                if (Number(booking?.status) === 0) return { color: colors.requestedColor || '#64748B', label: 'Yêu cầu' };
+                if (Number(booking?.status) === 1) return { color: colors.heldColor || '#D39B3C', label: 'Giữ phòng' };
+                if (Number(booking?.status) === 3) return { color: colors.checkedInColor || '#176B63', label: 'Đã nhận phòng' };
+                return { color: colors.confirmedColor || '#397967', label: 'Đã xác nhận' };
+            },
+            bookingStyle(booking, dayKey, roomId) {
+                return {
+                    '--booking-span': booking.type === 1 && booking.status !== 0 ? this.bookingSpan(booking, dayKey) : 1,
+                    '--booking-lane': this.calendarBookingLane(roomId, booking),
+                    '--booking-display-color': this.bookingVisual(booking).color
+                };
             },
             activeBookingRows(roomId) {
                 return this.bookings.filter(x => x.roomId === roomId && [0, 1, 2, 3].includes(Number(x.status)));

@@ -27,7 +27,7 @@ public sealed class IndexModel(
     public bool RequiresPropertySelection { get; private set; }
     public IReadOnlyList<PublicPropertyCardDto> Properties { get; private set; } = [];
 
-    public async Task<IActionResult> OnGetAsync(string? siteSlug, string? site, string? date, string? room, Guid? rate, string? slots, string? embed, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(string? siteSlug, string? site, string? date, string? room, Guid? rate, string? slots, string? voucher, string? embed, CancellationToken cancellationToken)
     {
         var isEmbedded = string.Equals(embed, "1", StringComparison.OrdinalIgnoreCase)
                          || string.Equals(embed, "true", StringComparison.OrdinalIgnoreCase);
@@ -101,7 +101,7 @@ public sealed class IndexModel(
         }
 
         decimal? embeddedPricingTotal = null;
-        if (isEmbedded && selectedRoom is not null && initialSlotKeys.Count > 0)
+        if (selectedRoom is not null && initialSlotKeys.Count > 0)
         {
             var roomPricing = await db.Rooms.AsNoTracking()
                 .Where(x => x.Id == selectedRoom.Id && x.PropertyId == property.Id && x.IsActive && x.IsPublished)
@@ -155,7 +155,8 @@ public sealed class IndexModel(
             initialRoomId = selectedRoom?.Id,
             initialRateId = selectedRate?.Id,
             initialSlots,
-            embeddedSlotSelection = isEmbedded && initialSlots.Count > 0,
+            initialVoucherCode = string.IsNullOrWhiteSpace(voucher) ? string.Empty : voucher.Trim(),
+            embeddedSlotSelection = initialSlots.Count > 0,
             embeddedPricingTotal,
             bookingPolicy,
             properties = Properties.Select(x => new

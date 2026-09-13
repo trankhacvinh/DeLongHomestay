@@ -13,6 +13,8 @@ public sealed class AiChangeProposal : EntityBase
     public string PayloadJson { get; set; } = "{}";
     public DateTime ExpiresAtUtc { get; set; }
     public DateTime? AppliedAtUtc { get; set; }
+    public Guid? AppliedByUserId { get; set; }
     public DateTime? RejectedAtUtc { get; set; }
+    public Guid? RejectedByUserId { get; set; }
     public string? FailureReason { get; set; }
 }

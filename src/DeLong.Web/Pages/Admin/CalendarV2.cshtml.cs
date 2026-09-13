@@ -2,6 +2,7 @@ using System.Text.Json;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
+using DeLong.Web.Features.Operations;
 using DeLong.Web.Features.Rooms;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,7 +14,8 @@ namespace DeLong.Web.Pages.Admin;
 public sealed class CalendarV2Model(
     RoomService roomService,
     BookingService bookingService,
-    CurrentPropertyService currentPropertyService) : PageModel
+    CurrentPropertyService currentPropertyService,
+    DeLong.Web.Common.Operations.StoragePaths storagePaths) : PageModel
 {
     public Guid PropertyId { get; private set; }
     public string TimeZoneId { get; private set; } = "Asia/Ho_Chi_Minh";
@@ -61,6 +63,8 @@ public sealed class CalendarV2Model(
                 cancellationToken))
             .Where(booking => booking.Status is BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn)
             .ToList();
+        var calendarDisplaySettings = await new BookingCalendarDisplaySettingsStore(storagePaths)
+            .GetAsync(PropertyId, cancellationToken);
 
         PageDataJson = JsonSerializer.Serialize(
             new
@@ -72,6 +76,7 @@ public sealed class CalendarV2Model(
                 startDate = startDate.ToString("yyyy-MM-dd"),
                 rangeDays = RangeDays,
                 today = todayLocal.ToString("yyyy-MM-dd"),
+                calendarDisplaySettings,
                 rooms,
                 bookings
             },

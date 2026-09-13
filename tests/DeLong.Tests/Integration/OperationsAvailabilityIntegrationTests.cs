@@ -100,7 +100,8 @@ public sealed class OperationsAvailabilityIntegrationTests
             RateName = afternoonRate.Name,
             UnitPrice = afternoonRate.Price,
             RoomAmount = afternoonRate.Price,
-            Source = "Integration"
+            Source = "Integration",
+            Note = "Cần chuẩn bị thêm gối"
         };
         var overnightBooking = new Booking
         {
@@ -124,6 +125,14 @@ public sealed class OperationsAvailabilityIntegrationTests
         db.RoomRates.AddRange(afternoonRate, overnightRate);
         db.Customers.Add(customer);
         db.Bookings.AddRange(afternoonBooking, overnightBooking);
+        db.Payments.Add(new Payment
+        {
+            PropertyId = property.Id,
+            BookingId = afternoonBooking.Id,
+            Type = PaymentType.Receipt,
+            Method = PaymentMethod.BankTransfer,
+            Amount = 100_000m
+        });
         await db.SaveChangesAsync();
 
         var tempRoot = Path.Combine(Path.GetTempPath(), $"delong-availability-{Guid.NewGuid():N}");
@@ -145,6 +154,10 @@ public sealed class OperationsAvailabilityIntegrationTests
             Assert.Equal(BookingStatus.Held, afternoonOccupied.Status);
             Assert.Equal(customer.Name, afternoonOccupied.CustomerName);
             Assert.Equal(customer.Phone, afternoonOccupied.CustomerPhone);
+            Assert.Equal(200_000m, afternoonOccupied.BalanceAmount);
+            Assert.True(afternoonOccupied.HasSpecialRequest);
+            Assert.False(afternoonOccupied.IsFlexibleTime);
+            Assert.False(afternoonOccupied.IsMixedSlot);
             var afternoonFree = Assert.Single(afternoon.Free);
             Assert.Equal(ToUtc(targetDate, new TimeOnly(14, 0), timeZone), afternoonFree.StartUtc);
             Assert.Equal(ToUtc(targetDate, new TimeOnly(15, 0), timeZone), afternoonFree.EndUtc);

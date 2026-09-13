@@ -86,6 +86,7 @@
         queuedReason: '',
         data: null,
         rooms: Array.isArray(initial.rooms) ? initial.rooms : [],
+        colors: initial.calendarDisplaySettings || {},
         requestSerial: 0,
         pollTimer: null
     };
@@ -103,7 +104,7 @@
         '  <div><strong data-v2-range>—</strong><span>Cuộn dọc để xem ngày · bấm phần trống để tạo booking · bấm phần đã đặt để mở chi tiết</span></div>',
         '  <div class="calendar-v2-date-tools"><label class="calendar-date-range"><span>Khoảng ngày</span><input type="text" data-v2-date-range aria-label="Chọn ngày bắt đầu và ngày kết thúc" placeholder="Chọn khoảng ngày"></label><div class="calendar-v2-date-actions"><button type="button" data-v2-date-prev>‹ 7 ngày</button><button type="button" data-v2-today>Hôm nay</button><button type="button" data-v2-date-next>7 ngày ›</button></div></div>',
         '</div>',
-        '<div class="calendar-v2-legend"><span><i class="available"></i>Trống</span><span><i class="partial"></i>Còn trống một phần</span><span><i class="held"></i>Giữ phòng</span><span><i class="booked"></i>Đã đặt</span></div>',
+        '<div class="calendar-v2-legend"><span><i class="available"></i>Trống</span><span><i class="partial"></i>Còn trống một phần</span><span><i data-v2-color="unpaid"></i>Chưa thanh toán hết</span><span><i data-v2-color="flexible"></i>Giờ linh động</span><span><i data-v2-color="special"></i>Có ghi chú</span><span><i data-v2-color="mixed"></i>Nhiều khung</span><span><i data-v2-color="held"></i>Giữ phòng</span><span><i data-v2-color="confirmed"></i>Đã xác nhận</span></div>',
         '<div class="calendar-v2-status show" data-v2-status>Đang tải lịch phòng…</div>',
         '<div class="calendar-v2-scroll" data-v2-scroll></div>'
     ].join('');
@@ -117,6 +118,18 @@
     const statusBox = panel.querySelector('[data-v2-status]');
     const scroll = panel.querySelector('[data-v2-scroll]');
     let dateRangePicker = null;
+
+    const legendColors = {
+        unpaid: state.colors.unpaidColor || '#C94B4B',
+        flexible: state.colors.flexibleTimeColor || '#D6A72C',
+        special: state.colors.specialRequestColor || '#7C5CC4',
+        mixed: state.colors.mixedSlotColor || '#287D9B',
+        held: state.colors.heldColor || '#D39B3C',
+        confirmed: state.colors.confirmedColor || '#397967'
+    };
+    panel.querySelectorAll('[data-v2-color]').forEach(icon => {
+        icon.style.backgroundColor = legendColors[icon.dataset.v2Color];
+    });
 
     function showError(message, marker) {
         statusBox.textContent = message;
@@ -228,8 +241,16 @@
         return `left:${left.toFixed(3)}%;width:${Math.max(0.8, right - left).toFixed(3)}%`;
     }
 
-    function bookingClass(status) {
-        return Number(status) === 1 ? 'held' : 'booked';
+    function bookingVisual(range) {
+        const colors = state.colors;
+        if (Number(range?.balanceAmount || 0) > 0) return { key: 'unpaid', color: colors.unpaidColor || '#C94B4B', label: 'Chưa thanh toán hết' };
+        if (range?.hasSpecialRequest === true) return { key: 'special', color: colors.specialRequestColor || '#7C5CC4', label: 'Có yêu cầu đặc biệt' };
+        if (range?.isFlexibleTime === true) return { key: 'flexible', color: colors.flexibleTimeColor || '#D6A72C', label: 'Giờ linh động' };
+        if (range?.isMixedSlot === true) return { key: 'mixed', color: colors.mixedSlotColor || '#287D9B', label: 'Booking nhiều khung' };
+        if (Number(range?.status) === 0) return { key: 'requested', color: colors.requestedColor || '#64748B', label: 'Yêu cầu' };
+        if (Number(range?.status) === 1) return { key: 'held', color: colors.heldColor || '#D39B3C', label: 'Giữ phòng' };
+        if (Number(range?.status) === 3) return { key: 'checked-in', color: colors.checkedInColor || '#176B63', label: 'Đã nhận phòng' };
+        return { key: 'confirmed', color: colors.confirmedColor || '#397967', label: 'Đã xác nhận' };
     }
 
     function bookingGuestText(range) {
@@ -315,7 +336,8 @@
         (slot.occupied || []).forEach(range => {
             const segment = document.createElement('button');
             segment.type = 'button';
-            segment.className = `calendar-v2-segment occupied ${bookingClass(range.status)}`;
+            const visual = bookingVisual(range);
+            segment.className = `calendar-v2-segment occupied booking-${visual.key}`;
             const continuesLeft = sameBookingAtBoundary(range, slot, previousSlot, 'left');
             const continuesRight = sameBookingAtBoundary(range, slot, nextSlot, 'right');
             if (continuesLeft) segment.classList.add('continues-left');
@@ -323,8 +345,9 @@
             if (continuesLeft || continuesRight) cell.classList.add('has-joined-booking');
             segment.dataset.bookingId = range.bookingId;
             segment.setAttribute('style', segmentStyle(range.startUtc, range.endUtc, slot.startUtc, slot.endUtc));
+            segment.style.backgroundColor = visual.color;
             const guestText = bookingGuestText(range);
-            const stateText = Number(range.status) === 1 ? 'Giữ phòng' : 'Đã đặt';
+            const stateText = visual.label;
             segment.title = `${stateText}${guestText ? ` · ${guestText}` : ''} · ${timeText(range.startUtc)}–${timeText(range.endUtc)} · bấm để xem booking`;
             segment.setAttribute('aria-label', segment.title);
             if (guestText && !continuesLeft) {

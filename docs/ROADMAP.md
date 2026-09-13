@@ -121,7 +121,7 @@
 - [ ] Màn hình quản lý đầy đủ cho thêm, sắp xếp và ngừng dùng tag mẫu.
 # Admin AI assistant (2026-09)
 
-- [x] Hồ sơ OpenAI/Gemini theo cơ sở, mã hóa API key.
+- [x] Hồ sơ OpenAI/Gemini/DeepSeek theo cơ sở, mã hóa API key.
 - [x] Chat Admin trên navbar, tra cứu snapshot booking/phòng/doanh thu/housekeeping.
 - [x] Thống kê lượt gọi và input/output token theo tháng.
 - [x] Lịch sử hội thoại theo Admin/cơ sở, tạo cuộc trò chuyện mới và mở lại nội dung cũ.
@@ -129,5 +129,25 @@
 - [x] Ngân sách USD, đơn giá token tùy model, cảnh báo và khóa theo chi phí ước tính tháng.
 - [x] Preview và duyệt proposal cho phòng/khung giá/voucher/ngày đặc biệt/cấu hình giá.
 - [x] Preview nội dung phòng, hướng dẫn check-in, thông tin website và SEO; loại trừ custom code và cấu hình bí mật.
-- [ ] UAT với API key thật của OpenAI và Gemini.
+- [ ] UAT với API key thật của OpenAI, Gemini và DeepSeek.
 - [ ] Bổ sung báo cáo phân tích nâng cao; RAG chưa nằm trong phạm vi hiện tại.
+- [x] Giai đoạn AI 0–2 (nền dữ liệu): audience, public kill switch/quota, Admin budget reserve, persistent response cache, knowledge snapshot, conversation summary và tool execution audit.
+- [x] Giai đoạn AI 2 (runtime): toàn bộ provider call đi qua gateway/quota chung; token và chi phí được giữ trước bằng PostgreSQL để chống vượt hạn mức đồng thời, rồi quyết toán theo usage thật; cache invalidation dùng data version và usage dashboard tách audience.
+- [x] Giai đoạn AI 3–4 nền tảng: Customer AI read-only, booking draft và lookup bằng booking code + số điện thoại.
+- [x] Customer AI read-only v1: feature flag, public knowledge snapshot, quota/budget, IP rate limit, response cache và chat responsive.
+- [x] Customer AI typed availability/quote theo ngày và booking draft TTL chuyển vào form hiện có.
+- [x] Customer AI lưu lịch sử cục bộ tối đa 30 ngày/10 cuộc trò chuyện trên đúng trình duyệt, có mở lại, tạo mới và xóa.
+- [x] Booking draft giữ mã voucher và chuyển vào form; voucher chỉ được xác thực/quote sau khi khách nhập số điện thoại để bảo đảm giới hạn theo khách.
+- [ ] Đồng bộ lịch sử Customer AI qua tài khoản/nhiều thiết bị (chưa lưu nội dung chat công khai vào server để giảm dữ liệu cá nhân và chi phí).
+- [x] Giai đoạn AI 5–9 code: Staff AI, báo cáo Owner, proposal allowlist, prompt-injection guard, booking/quota concurrency và persistent cache đã hoàn thành; UAT provider thật, browser/load test và vận hành production vẫn là checklist release riêng.
+- [x] Owner/Admin typed report v1: ngày/tuần/tháng/quý/năm, thực thu/hoàn tiền/chi phí/dòng tiền/công suất/hủy và so sánh kỳ trước; bảng render trực tiếp không nhờ model tính số.
+- [x] Owner/Admin report breakdown: phòng, nguồn, loại booking, khung giờ, khách mới/quay lại, thời lượng và thời gian đặt trước.
+- [x] Owner/Admin report cache theo data version và link mở báo cáo GUI đúng cơ sở/tháng.
+- [x] Admin AI action Giai đoạn 7: typed proposal cho phòng/giá/voucher/ngày đặc biệt/nội dung/SEO, allowlist, preview trước/sau, stale check, apply một lần, rollback batch và audit người duyệt.
+- [x] Calendar V2 cho cấu hình màu booking theo cơ sở: công nợ, ghi chú đặc biệt, giờ linh động, nhiều khung và trạng thái vận hành; cấu hình lưu trong persistent DataRoot.
+- [x] Staff AI giữ context kỳ hội thoại cho câu hỏi nối tiếp như “còn phòng cần dọn?” hoặc “thực thu thì sao?”.
+- [x] Phân tích Owner v1 tách facts/nhận định/đề xuất, có ngưỡng dữ liệu và chỉ chuyển đề xuất sang luồng preview Admin.
+- [x] Giai đoạn AI 8: facts/nhận định/khuyến nghị có regression test, khuyến nghị chỉ là tham khảo và không tự mutation.
+- [x] AI hardening: prompt injection từ chat, file đính kèm và dữ liệu database không thể vượt server allowlist.
+- [x] AI booking draft concurrency: draft không khóa phòng; khi hai draft gửi đồng thời, PostgreSQL conflict guard chỉ tạo đúng một booking `Held`.
+- [x] AI production hardening: PostgreSQL quota/budget reservation, provider cached-token, dashboard lỗi/cache/latency/cost/blocked, persistent cache restart/invalidation, global kill switch và rollback checklist.

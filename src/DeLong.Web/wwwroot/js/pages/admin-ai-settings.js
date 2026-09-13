@@ -10,8 +10,12 @@
             $('[data-ai-max-tokens]').value = profile.maxOutputTokens; $('[data-ai-monthly-limit]').value = profile.monthlyTokenLimit;
             $('[data-ai-budget]').value = profile.monthlyBudgetUsd; $('[data-ai-budget-warning]').value = profile.budgetWarningPercent;
             $('[data-ai-input-cost]').value = profile.inputCostPerMillionTokensUsd; $('[data-ai-output-cost]').value = profile.outputCostPerMillionTokensUsd;
+            $('[data-ai-public-enabled]').checked = profile.isPublicAiEnabled; $('[data-ai-admin-reserve]').value = profile.adminBudgetReservePercent;
+            $('[data-ai-public-minute]').value = profile.publicRequestsPerMinute; $('[data-ai-public-day]').value = profile.publicRequestsPerDay;
             $('[data-ai-key-status]').textContent = profile.apiKeyConfigured ? 'API key đã được lưu mã hóa. Để trống nếu không thay đổi.' : 'Chưa có API key.';
             $('[data-ai-calls]').textContent = usage.calls.toLocaleString('vi-VN'); $('[data-ai-input]').textContent = usage.inputTokens.toLocaleString('vi-VN'); $('[data-ai-output]').textContent = usage.outputTokens.toLocaleString('vi-VN'); $('[data-ai-total]').textContent = usage.totalTokens.toLocaleString('vi-VN');
+            $('[data-ai-success]').textContent = usage.successfulCalls.toLocaleString('vi-VN'); $('[data-ai-failed]').textContent = usage.failedCalls.toLocaleString('vi-VN'); $('[data-ai-blocked]').textContent = usage.blockedCalls.toLocaleString('vi-VN');
+            $('[data-ai-cache-hits]').textContent = usage.cacheHits.toLocaleString('vi-VN'); $('[data-ai-latency]').textContent = `${usage.averageDurationMs.toLocaleString('vi-VN')} ms`; $('[data-ai-cached-token]').textContent = usage.cachedInputTokens.toLocaleString('vi-VN');
             $('[data-ai-cost]').textContent = `$${Number(usage.estimatedCostUsd).toFixed(4)}`;
             $('[data-ai-remaining]').textContent = usage.monthlyBudgetUsd > 0 ? `$${Number(usage.remainingBudgetUsd).toFixed(2)}` : 'Không giới hạn';
             const budgetMessage = $('[data-ai-budget-message]');
@@ -19,15 +23,43 @@
                 ? `Đã dùng khoảng ${usage.usedBudgetPercent}% ngân sách $${Number(usage.monthlyBudgetUsd).toFixed(2)}. Chi phí là ước tính theo đơn giá token bạn cấu hình.`
                 : 'Chưa đặt ngân sách tiền. Chi phí chỉ được tính khi đã nhập đơn giá input/output của model.';
             budgetMessage.classList.toggle('error', usage.isBudgetWarning);
+            const reservations = $('[data-ai-reservations]');
+            reservations.hidden = usage.activeReservations === 0;
+            reservations.textContent = usage.activeReservations === 0 ? '' : `${usage.activeReservations} lượt đang xử lý · giữ ${usage.reservedTokens.toLocaleString('vi-VN')} token · khoảng $${Number(usage.reservedCostUsd).toFixed(4)}.`;
+            const audienceNames = { 0: 'Admin', 1: 'Nhân viên', 2: 'Khách hàng', Admin: 'Admin', Staff: 'Nhân viên', Customer: 'Khách hàng' };
+            $('[data-ai-audience-usage]').innerHTML = usage.byAudience?.length
+                ? usage.byAudience.map(row => `<tr><td>${audienceNames[row.audience] ?? row.audience}</td><td>${row.calls.toLocaleString('vi-VN')}</td><td>${row.successfulCalls.toLocaleString('vi-VN')}</td><td>${row.failedCalls.toLocaleString('vi-VN')}</td><td>${row.blockedCalls.toLocaleString('vi-VN')}</td><td>${(row.inputTokens + row.outputTokens).toLocaleString('vi-VN')}</td><td>${row.cachedInputTokens.toLocaleString('vi-VN')}</td><td>${row.cacheHits.toLocaleString('vi-VN')}</td><td>${row.averageDurationMs.toLocaleString('vi-VN')} ms</td><td>$${Number(row.estimatedCostUsd).toFixed(4)}</td></tr>`).join('')
+                : '<tr><td colspan="10">Chưa có dữ liệu.</td></tr>';
         } catch (error) { show(error.message, true); }
     }
-    $('[data-ai-provider]').addEventListener('change', event => { const model = $('[data-ai-model]'); if (!model.value || /^(gpt|gemini)/.test(model.value)) model.value = event.target.value === '1' ? 'gemini-2.5-flash' : 'gpt-5-mini'; });
+    async function loadKnowledge() {
+        const status = $('[data-ai-knowledge-status]');
+        try {
+            const snapshot = await DeLongApi.get(`/api/admin/properties/${id}/ai/knowledge`);
+            status.textContent = `Phiên bản ${snapshot.version} · ${snapshot.isDirty ? 'Cần cập nhật' : 'Đã cập nhật'} · ${new Date(snapshot.builtAtUtc).toLocaleString('vi-VN')}`;
+            $('[data-ai-knowledge-preview]').textContent = JSON.stringify(snapshot.content, null, 2);
+        } catch (error) {
+            status.textContent = error.status === 404 ? 'Chưa tạo dữ liệu kiến thức.' : error.message;
+            $('[data-ai-knowledge-preview]').textContent = 'Chưa có dữ liệu.';
+        }
+    }
+    $('[data-ai-provider]').addEventListener('change', event => {
+        const model = $('[data-ai-model]');
+        if (model.value && !/^(gpt|gemini|deepseek)/.test(model.value)) return;
+        model.value = event.target.value === '1' ? 'gemini-2.5-flash' : event.target.value === '2' ? 'deepseek-v4-flash' : 'gpt-5-mini';
+    });
     $('[data-ai-save]').addEventListener('click', async event => {
         event.currentTarget.disabled = true;
         try {
-            await DeLongApi.put(`/api/admin/properties/${id}/ai/profile`, { isEnabled: $('[data-ai-enabled]').checked, provider: Number($('[data-ai-provider]').value), model: $('[data-ai-model]').value.trim(), apiKey: $('[data-ai-key]').value.trim() || null, clearApiKey: false, maxOutputTokens: Number($('[data-ai-max-tokens]').value), monthlyTokenLimit: Number($('[data-ai-monthly-limit]').value), monthlyBudgetUsd: Number($('[data-ai-budget]').value), inputCostPerMillionTokensUsd: Number($('[data-ai-input-cost]').value), outputCostPerMillionTokensUsd: Number($('[data-ai-output-cost]').value), budgetWarningPercent: Number($('[data-ai-budget-warning]').value) });
+            await DeLongApi.put(`/api/admin/properties/${id}/ai/profile`, { isEnabled: $('[data-ai-enabled]').checked, provider: Number($('[data-ai-provider]').value), model: $('[data-ai-model]').value.trim(), apiKey: $('[data-ai-key]').value.trim() || null, clearApiKey: false, maxOutputTokens: Number($('[data-ai-max-tokens]').value), monthlyTokenLimit: Number($('[data-ai-monthly-limit]').value), monthlyBudgetUsd: Number($('[data-ai-budget]').value), inputCostPerMillionTokensUsd: Number($('[data-ai-input-cost]').value), outputCostPerMillionTokensUsd: Number($('[data-ai-output-cost]').value), budgetWarningPercent: Number($('[data-ai-budget-warning]').value), isPublicAiEnabled: $('[data-ai-public-enabled]').checked, adminBudgetReservePercent: Number($('[data-ai-admin-reserve]').value), publicRequestsPerMinute: Number($('[data-ai-public-minute]').value), publicRequestsPerDay: Number($('[data-ai-public-day]').value) });
             $('[data-ai-key]').value = ''; show('Đã lưu cấu hình AI. Bạn có thể mở nút AI trên thanh trên cùng để thử.'); await load();
         } catch (error) { show(error.message, true); } finally { event.currentTarget.disabled = false; }
     });
-    load();
+    $('[data-ai-knowledge-rebuild]').addEventListener('click', async event => {
+        event.currentTarget.disabled = true;
+        try { await DeLongApi.post(`/api/admin/properties/${id}/ai/knowledge/rebuild`, {}); await loadKnowledge(); }
+        catch (error) { $('[data-ai-knowledge-status]').textContent = error.message; }
+        finally { event.currentTarget.disabled = false; }
+    });
+    load(); loadKnowledge();
 })();

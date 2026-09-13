@@ -61,6 +61,12 @@ public sealed class AppDbContext
     public DbSet<AiAttachment> AiAttachments => Set<AiAttachment>();
     public DbSet<AiUsageRecord> AiUsageRecords => Set<AiUsageRecord>();
     public DbSet<AiChangeProposal> AiChangeProposals => Set<AiChangeProposal>();
+    public DbSet<PropertyAiKnowledgeSnapshot> PropertyAiKnowledgeSnapshots => Set<PropertyAiKnowledgeSnapshot>();
+    public DbSet<AiResponseCache> AiResponseCache => Set<AiResponseCache>();
+    public DbSet<AiConversationSummary> AiConversationSummaries => Set<AiConversationSummary>();
+    public DbSet<AiToolExecutionLog> AiToolExecutionLogs => Set<AiToolExecutionLog>();
+    public DbSet<AiBookingDraft> AiBookingDrafts => Set<AiBookingDraft>();
+    public DbSet<AiUsageReservation> AiUsageReservations => Set<AiUsageReservation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -76,6 +82,9 @@ public sealed class AppDbContext
             entity.Property(x => x.InputCostPerMillionTokensUsd).HasPrecision(18, 6);
             entity.Property(x => x.OutputCostPerMillionTokensUsd).HasPrecision(18, 6);
             entity.Property(x => x.BudgetWarningPercent).HasDefaultValue(80);
+            entity.Property(x => x.AdminBudgetReservePercent).HasDefaultValue(30);
+            entity.Property(x => x.PublicRequestsPerMinute).HasDefaultValue(10);
+            entity.Property(x => x.PublicRequestsPerDay).HasDefaultValue(100);
             entity.HasOne(x => x.Property).WithOne().HasForeignKey<PropertyAiProfile>(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
             entity.ToTable(t =>
             {
@@ -84,6 +93,8 @@ public sealed class AppDbContext
                 t.HasCheckConstraint("ck_property_ai_profiles_monthly_budget_usd", "monthly_budget_usd >= 0");
                 t.HasCheckConstraint("ck_property_ai_profiles_token_costs", "input_cost_per_million_tokens_usd >= 0 AND output_cost_per_million_tokens_usd >= 0");
                 t.HasCheckConstraint("ck_property_ai_profiles_budget_warning_percent", "budget_warning_percent BETWEEN 1 AND 100");
+                t.HasCheckConstraint("ck_property_ai_profiles_admin_budget_reserve_percent", "admin_budget_reserve_percent BETWEEN 0 AND 100");
+                t.HasCheckConstraint("ck_property_ai_profiles_public_request_limits", "public_requests_per_minute BETWEEN 1 AND 1000 AND public_requests_per_day BETWEEN 1 AND 1000000");
             });
         });
         modelBuilder.Entity<AiConversation>(entity =>
@@ -110,17 +121,74 @@ public sealed class AppDbContext
             entity.HasOne(x => x.Conversation).WithMany(x => x.Attachments).HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UploadedByUserId).OnDelete(DeleteBehavior.Restrict);
         });
+        modelBuilder.Entity<AiBookingDraft>(entity =>
+        {
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => new { x.PropertyId, x.ExpiresAtUtc });
+            entity.Property(x => x.TokenHash).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.StateJson).HasColumnType("jsonb").IsRequired();
+            entity.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
         modelBuilder.Entity<AiUsageRecord>(entity =>
         {
             entity.HasIndex(x => new { x.PropertyId, x.CreatedAtUtc });
             entity.Property(x => x.Provider).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Audience).HasConversion<string>().HasMaxLength(20).HasDefaultValue(AiAudience.Admin).IsRequired();
             entity.Property(x => x.Model).HasMaxLength(120).IsRequired();
             entity.Property(x => x.Operation).HasMaxLength(80).IsRequired();
             entity.Property(x => x.ErrorCode).HasMaxLength(120);
             entity.Property(x => x.EstimatedCostUsd).HasPrecision(18, 8);
             entity.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne<AiConversation>().WithMany().HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.SetNull);
+        });
+        modelBuilder.Entity<AiUsageReservation>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.ExpiresAtUtc });
+            entity.Property(x => x.Audience).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.ReservedCostUsd).HasPrecision(18, 8);
+            entity.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("ck_ai_usage_reservations_reserved_tokens", "reserved_tokens >= 0");
+                t.HasCheckConstraint("ck_ai_usage_reservations_reserved_cost_usd", "reserved_cost_usd >= 0");
+            });
+        });
+        modelBuilder.Entity<PropertyAiKnowledgeSnapshot>(entity =>
+        {
+            entity.HasIndex(x => x.PropertyId).IsUnique();
+            entity.Property(x => x.ContentJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.ContentHash).HasMaxLength(64).IsRequired();
+            entity.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<AiResponseCache>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.Audience, x.CacheKey }).IsUnique();
+            entity.HasIndex(x => new { x.PropertyId, x.InvalidationTag, x.ExpiresAtUtc });
+            entity.Property(x => x.Audience).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.CacheKey).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Intent).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.ParametersJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.ResponseJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.InvalidationTag).HasMaxLength(80).IsRequired();
+            entity.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<AiConversationSummary>(entity =>
+        {
+            entity.HasIndex(x => x.ConversationId).IsUnique();
+            entity.Property(x => x.Summary).HasMaxLength(12000).IsRequired();
+            entity.HasOne<AiConversation>().WithOne().HasForeignKey<AiConversationSummary>(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<AiToolExecutionLog>(entity =>
+        {
+            entity.HasIndex(x => new { x.PropertyId, x.CreatedAtUtc });
+            entity.Property(x => x.Audience).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.ToolName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.ParametersJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.ErrorCode).HasMaxLength(120);
+            entity.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<AiConversation>().WithMany().HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
         });
         modelBuilder.Entity<AiChangeProposal>(entity =>
         {
@@ -132,6 +200,8 @@ public sealed class AppDbContext
             entity.Property(x => x.FailureReason).HasMaxLength(2000);
             entity.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.AppliedByUserId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.RejectedByUserId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne<AiConversation>().WithMany().HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
         });
 

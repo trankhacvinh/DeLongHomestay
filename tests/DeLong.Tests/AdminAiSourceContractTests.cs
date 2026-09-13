@@ -55,6 +55,18 @@ public sealed class AdminAiSourceContractTests
     }
 
     [Fact]
+    public void Ai_supports_deepseek_without_weakening_the_existing_proposal_protocol()
+    {
+        var provider = Read("src/DeLong.Web/Features/AdminAi/AiProviderClient.cs");
+        var settings = Read("src/DeLong.Web/Pages/Admin/Ai/Index.cshtml");
+
+        Assert.Contains("https://api.deepseek.com/chat/completions", provider);
+        Assert.Contains("response_format = new { type = \"json_object\" }", provider);
+        Assert.Contains("AiResponseProtocol.Schema", provider);
+        Assert.Contains("DeepSeek", settings);
+    }
+
+    [Fact]
     public void Ai_preview_is_a_readable_table_and_desktop_drawer_is_wider()
     {
         var script = Read("src/DeLong.Web/wwwroot/js/core/admin-ai-chat.js");
@@ -106,6 +118,120 @@ public sealed class AdminAiSourceContractTests
         Assert.Contains("SaveSettingsAsync(proposal.PropertyId", configuration);
         Assert.Contains("false, ct", configuration);
         Assert.Contains("proposal.status === 'Pending'", chat);
+    }
+
+    [Fact]
+    public void Public_knowledge_snapshot_excludes_customer_payment_secret_and_post_booking_guide_data()
+    {
+        var snapshot = Read("src/DeLong.Web/Features/AdminAi/AiKnowledgeSnapshotService.cs");
+        var endpoints = Read("src/DeLong.Web/Features/AdminAi/AdminAiEndpoints.cs");
+
+        Assert.DoesNotContain("ProtectedApiKey", snapshot);
+        Assert.DoesNotContain("GuestGuideHtml", snapshot);
+        Assert.DoesNotContain("db.Customers", snapshot);
+        Assert.DoesNotContain("db.Payments", snapshot);
+        Assert.Contains("/knowledge/rebuild", endpoints);
+        Assert.Contains("AddEndpointFilter<ApiAntiforgeryFilter>()", endpoints);
+    }
+
+    [Fact]
+    public void Public_ai_is_feature_flagged_rate_limited_and_rejects_mutation_output()
+    {
+        var service = Read("src/DeLong.Web/Features/PublicAi/PublicAiService.cs");
+        var endpoints = Read("src/DeLong.Web/Features/PublicAi/PublicAiEndpoints.cs");
+        var layout = Read("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+
+        Assert.Contains("AiAudience.Customer", service);
+        Assert.Contains("PublicAiResponseProtocol.Parse", service);
+        Assert.Contains("Math.Min(profile.MaxOutputTokens, 800)", service);
+        Assert.Contains("publicBooking.GetAvailabilityAsync", service);
+        Assert.Contains("PublicAiQuestionAnalyzer.Analyze", service);
+        Assert.Contains("TimeSpan.FromSeconds(30)", service);
+        Assert.Contains("question.BookingCode is null || question.Phone is null", service);
+        Assert.Contains("bookingLookup.LookupAsync", service);
+        Assert.Contains("Trợ lý không tự thay đổi booking", service);
+        Assert.Contains("PublicSlotSelectionRules.ValidateConsecutive", service);
+        Assert.Contains("pricingService.CalculateAsync", service);
+        Assert.Contains("DateTime.UtcNow.AddMinutes(30)", service);
+        Assert.Contains("SHA256.HashData", service);
+        Assert.DoesNotContain("CreateRequestAsync", service);
+        Assert.DoesNotContain("db.Bookings", service);
+        Assert.DoesNotContain("db.Customers", service);
+        Assert.Contains("RequireRateLimiting(\"public-ai\")", endpoints);
+        Assert.Contains("AllowAnonymous()", endpoints);
+        Assert.Contains("data-public-ai-drawer", layout);
+    }
+
+    [Fact]
+    public void Public_ai_history_is_local_safe_and_booking_lookup_has_a_separate_guard()
+    {
+        var chat = Read("src/DeLong.Web/wwwroot/js/core/public-ai-chat.js");
+        var guard = Read("src/DeLong.Web/Features/PublicAi/PublicAiLookupRateGuard.cs");
+        var endpoints = Read("src/DeLong.Web/Features/PublicAi/PublicAiEndpoints.cs");
+
+        Assert.Contains("delong.publicAiHistory", chat);
+        Assert.Contains("30 * 86400000", chat);
+        Assert.Contains("conversation.messages.slice(-30)", chat);
+        Assert.Contains("copy.textContent = text", chat);
+        Assert.DoesNotContain("innerHTML", chat);
+        Assert.Contains("MaximumAttempts = 5", guard);
+        Assert.Contains("TimeSpan.FromMinutes(10)", guard);
+        Assert.Contains("SHA256.HashData", guard);
+        Assert.Contains("RemoteIpAddress", endpoints);
+    }
+
+    [Fact]
+    public void Staff_ai_is_property_scoped_read_only_audited_and_finance_gated()
+    {
+        var program = Read("src/DeLong.Web/Program.cs");
+        var endpoints = Read("src/DeLong.Web/Features/PublicAi/StaffAiEndpoints.cs");
+        var service = Read("src/DeLong.Web/Features/PublicAi/StaffAiService.cs");
+        var layout = Read("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+
+        Assert.Contains("UseStaffAi", program);
+        Assert.Contains("AddEndpointFilter<PropertyAccessFilter>()", endpoints);
+        Assert.Contains("AddEndpointFilter<ApiAntiforgeryFilter>()", endpoints);
+        Assert.Contains("AuthorizeAsync(user, \"ViewFinance\")", endpoints);
+        Assert.Contains("canViewFinance && ContainsFinanceIntent", service);
+        Assert.Contains("Trạng thái phòng hiện tại", service);
+        Assert.Contains("OccupyingStatuses.Contains(x.Status)", service);
+        Assert.Contains("RoomConditionReportStatus.Resolved", service);
+        Assert.Contains("AiAudience.Staff", service);
+        Assert.Contains("AiToolExecutionLogs.Add", service);
+        Assert.DoesNotContain("db.Customers", service);
+        Assert.DoesNotContain("SaveChangesAsync", service.Replace("await db.SaveChangesAsync(ct);", string.Empty));
+        Assert.Contains("data-staff-ai-drawer", layout);
+    }
+
+    [Fact]
+    public void Owner_report_uses_typed_report_service_payment_facts_and_period_metadata()
+    {
+        var service = Read("src/DeLong.Web/Features/AdminAi/AiBusinessReportService.cs");
+        var endpoints = Read("src/DeLong.Web/Features/AdminAi/AdminAiEndpoints.cs");
+        var chat = Read("src/DeLong.Web/wwwroot/js/core/admin-ai-chat.js");
+
+        Assert.Contains("ReportService reports", service);
+        Assert.Contains("current.NetReceipts", service);
+        Assert.Contains("current.Refunds", service);
+        Assert.Contains("current.Expenses", service);
+        Assert.Contains("current.OccupancyRate", service);
+        Assert.Contains("AverageLeadDays", service);
+        Assert.Contains("NewCustomers", service);
+        Assert.Contains("db.BookingRateSegments.AsNoTracking()", service);
+        Assert.Contains("ByBookingType", service);
+        Assert.Contains("ByRate", service);
+        Assert.Contains("AiBusinessInsightBuilder.Build", service);
+        Assert.Contains("Không áp dụng ngay", service);
+        Assert.Contains("sample < 10", service);
+        Assert.Contains("TimeZone", service);
+        Assert.Contains("business_report", service);
+        Assert.Contains("AiResponseCacheService cache", service);
+        Assert.Contains("TimeSpan.FromMinutes(5)", service);
+        Assert.Contains("\"reports\"", service);
+        Assert.Contains("ReportUrl", service);
+        Assert.Contains("/business-report", endpoints);
+        Assert.Contains("dynamicPeriod", chat);
+        Assert.Contains("textContent", chat);
     }
 
     private static string Read(string path) => File.ReadAllText(Path.Combine(Root, path));

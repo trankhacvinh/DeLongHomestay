@@ -1,5 +1,6 @@
 using System.Globalization;
 using DeLong.Web.Data;
+using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Customers;
@@ -50,14 +51,70 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var property = await publicPropertyResolver.ResolveAsync(siteSlug, cancellationToken);
         if (property is null) return null;
         HashSet<(Guid RoomId, Guid RateId)> unavailable = availabilityDate.HasValue ? await GetUnavailableRateKeysAsync(property.Id, property.TimeZoneId, availabilityDate.Value, cancellationToken) : [];
-        var rooms = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == property.Id && x.IsActive && x.IsPublished).OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
-            .Select(x => new { x.Id, x.Code, x.Name, x.Capacity, x.FullDayPricingEnabled, x.FullDayPrice, Rates = x.Rates.Where(r => r.IsActive).OrderBy(r => r.SortOrder).Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Type, r.IsOvernight, r.Price }).ToList() }).ToListAsync(cancellationToken);
-        var roomDtos = rooms.Select(room =>
+        PropertyPricingSettings? pricingSettings = null;
+        PricingDayPolicy? datePolicy = null;
+        if (availabilityDate.HasValue && pricingService is not null)
         {
-            var rates = room.Rates.Select(rate => new PublicRateDto(rate.Id, rate.Name, rate.StartTime.ToString("HH:mm"), rate.EndTime.ToString("HH:mm"), rate.Type, rate.IsOvernight, rate.Price, !availabilityDate.HasValue || !unavailable.Contains((room.Id, rate.Id)))).ToList();
+            pricingSettings = await pricingService.GetSettingsAsync(property.Id, cancellationToken);
+            var policies = await pricingService.ResolvePoliciesAsync(property.Id, [availabilityDate.Value], cancellationToken);
+            datePolicy = policies.GetValueOrDefault(availabilityDate.Value);
+        }
+        var rooms = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == property.Id && x.IsActive && x.IsPublished).OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
+            .Select(x => new
+            {
+                x.Id, x.Code, x.Name, x.Capacity, x.FullDayPricingEnabled, x.FullDayPrice,
+                x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice,
+                Rates = x.Rates.Where(r => r.IsActive).OrderBy(r => r.SortOrder).Select(r => new
+                {
+                    r.Id, r.Name, r.StartTime, r.EndTime, r.Type, r.IsOvernight, r.Price,
+                    r.UseWeekdayPriceOnWeekend, r.WeekendPrice
+                }).ToList()
+            }).ToListAsync(cancellationToken);
+        var roomDtos = new List<PublicRoomDto>(rooms.Count);
+        foreach (var room in rooms)
+        {
+            var rates = new List<PublicRateDto>(room.Rates.Count);
+            var timeSlotRates = room.Rates.Where(x => x.Type != RoomRateType.Nightly).ToList();
+            for (var rateIndex = 0; rateIndex < room.Rates.Count; rateIndex++)
+            {
+                var rate = room.Rates[rateIndex];
+                var price = rate.Price;
+                if (availabilityDate.HasValue && pricingSettings is not null && datePolicy is not null && rate.Type != RoomRateType.Nightly)
+                {
+                    var pricingRateIndex = timeSlotRates.FindIndex(x => x.Id == rate.Id);
+                    var input = new PricingSelectionInput(availabilityDate.Value, pricingRateIndex, rate.Id, rate.Name,
+                        rate.Price, rate.UseWeekdayPriceOnWeekend, rate.WeekendPrice);
+                    var calculationSettings = new PricingCalculationSettings(timeSlotRates.Count, room.FullDayPricingEnabled,
+                        room.FullDayPrice, room.UseWeekdayFullDayPriceOnWeekend, room.WeekendFullDayPrice,
+                        pricingSettings.ThreeSlotDiscountEnabled, pricingSettings.ThreeSlotCount,
+                        pricingSettings.ThreeSlotDiscountPercent);
+                    var (pricing, _) = PricingCalculator.Calculate([input], calculationSettings,
+                        new Dictionary<DateOnly, PricingDayPolicy> { [availabilityDate.Value] = datePolicy });
+                    if (pricing is not null) price = pricing.TotalBeforeVoucher;
+                }
+                rates.Add(new PublicRateDto(rate.Id, rate.Name, rate.StartTime.ToString("HH:mm"),
+                    rate.EndTime.ToString("HH:mm"), rate.Type, rate.IsOvernight, price,
+                    (!availabilityDate.HasValue || !unavailable.Contains((room.Id, rate.Id))) &&
+                    (rate.Type == RoomRateType.Nightly || datePolicy?.BookingMode != SpecialDayBookingMode.FullDayOnly)));
+            }
+            var fullDayPrice = room.FullDayPrice;
+            if (availabilityDate.HasValue && pricingSettings is not null && datePolicy is not null && room.FullDayPricingEnabled && timeSlotRates.Count > 0)
+            {
+                var fullDayInputs = timeSlotRates.Select((rate, index) => new PricingSelectionInput(
+                    availabilityDate.Value, index, rate.Id, rate.Name, rate.Price,
+                    rate.UseWeekdayPriceOnWeekend, rate.WeekendPrice)).ToList();
+                var calculationSettings = new PricingCalculationSettings(timeSlotRates.Count, true,
+                    room.FullDayPrice, room.UseWeekdayFullDayPriceOnWeekend, room.WeekendFullDayPrice,
+                    pricingSettings.ThreeSlotDiscountEnabled, pricingSettings.ThreeSlotCount,
+                    pricingSettings.ThreeSlotDiscountPercent);
+                var (fullDayPricing, _) = PricingCalculator.Calculate(fullDayInputs, calculationSettings,
+                    new Dictionary<DateOnly, PricingDayPolicy> { [availabilityDate.Value] = datePolicy });
+                if (fullDayPricing is not null) fullDayPrice = fullDayPricing.TotalBeforeVoucher;
+            }
             var publicPrices = rates.Where(r => r.Price > 0).Select(r => r.Price).ToList();
-            return new PublicRoomDto(room.Id, room.Code, room.Name, room.Capacity, HasBathtub(room.Code), publicPrices.Count == 0 ? 0 : publicPrices.Min(), room.FullDayPricingEnabled, room.FullDayPrice, rates);
-        }).ToList();
+            roomDtos.Add(new PublicRoomDto(room.Id, room.Code, room.Name, room.Capacity, HasBathtub(room.Code),
+                publicPrices.Count == 0 ? 0 : publicPrices.Min(), room.FullDayPricingEnabled, fullDayPrice, rates));
+        }
         return new PublicCatalogDto(property.Id, property.Name, property.TimeZoneId, roomDtos);
     }
 

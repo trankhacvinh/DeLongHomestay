@@ -7,7 +7,6 @@
 
     function querySlotSelection() {
         const query = new URLSearchParams(window.location.search);
-        if (query.get('embed') !== '1') return [];
         return (query.get('slots') || '').split(',').map(value => {
             const separator = value.lastIndexOf(':');
             const stayDate = separator > 0 ? value.slice(0, separator) : '';
@@ -75,7 +74,7 @@
                 form: {
                     customerName: '',
                     customerPhone: '',
-                    voucherCode: '',
+                    voucherCode: initial.initialVoucherCode || '',
                     note: '',
                     website: ''
                 },

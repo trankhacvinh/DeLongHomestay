@@ -217,7 +217,7 @@ public sealed class BookingService(
         x.RoomAmount, x.SpecialSurchargeAmount, x.ExtraAmount, x.DiscountAmount, x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount,
         x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
         x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount - x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
-        x.Source, x.Note, x.CreatedAtUtc));
+        x.Source, x.Note, x.RateSegments.Count(), x.CreatedAtUtc));
 
     private static object Snapshot(Booking b) => new { b.Id, b.Code, Type = b.Type.ToString(), b.RoomId, b.CustomerId, b.RoomRateId, b.RateName, b.UnitPrice, b.NightCount, b.CheckInUtc, b.CheckOutUtc, Status = b.Status.ToString(), b.RoomAmount, b.SpecialSurchargeAmount, b.ExtraAmount, b.DiscountAmount, b.Source, b.Note };
 
