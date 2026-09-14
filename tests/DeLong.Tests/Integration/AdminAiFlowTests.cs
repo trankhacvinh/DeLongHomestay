@@ -75,6 +75,12 @@ public sealed class AdminAiFlowTests
                 PropertyId = f.Property.Id, Audience = AiAudience.Customer, Provider = AiProviderKind.OpenAi,
                 Model = "test-model", Operation = "AccessDenied", IsSuccess = false,
                 ErrorCode = "access_daily_limit"
+            },
+            new AiUsageRecord
+            {
+                PropertyId = f.Property.Id, Audience = AiAudience.Admin, Provider = AiProviderKind.Gemini,
+                Model = "gemini-test", Operation = "Chat", InputTokens = 50_000, OutputTokens = 10_000,
+                EstimatedCostUsd = 10m, IsSuccess = true
             });
         f.Db.AiUsageReservations.Add(new AiUsageReservation
         {

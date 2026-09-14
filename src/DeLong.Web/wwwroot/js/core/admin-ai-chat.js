@@ -85,8 +85,15 @@
     function addMessage(role, content) {
         const node = document.createElement('article'); node.className = `ai-chat-message ${role}`;
         const label = document.createElement('small'); label.textContent = role === 'user' ? 'Bạn' : 'Trợ lý AI';
-        const body = document.createElement('div'); body.textContent = content;
+        const body = document.createElement('div');
+        body.textContent = role === 'assistant' && looksLikeHtml(content)
+            ? 'Phản hồi AI cũ không hợp lệ nên đã được ẩn. Vui lòng kiểm tra API key, model và cấu hình kết nối rồi thử lại.'
+            : content;
         node.append(label, body); messages.append(node); messages.scrollTop = messages.scrollHeight; return node;
+    }
+
+    function looksLikeHtml(content) {
+        return /^\s*(?:<!doctype\s+html|<html(?:\s|>)|<head(?:\s|>)|<body(?:\s|>))/i.test(String(content || ''));
     }
 
     const fieldLabels = {
@@ -209,7 +216,7 @@
         }
     }
     function reportPeriod(value) {
-        if (!/(báo cáo|doanh thu|thực thu|công suất|dòng tiền|chi phí)/i.test(value)) return null;
+        if (!/(báo cáo|tóm tắt|tình hình|booking|đặt phòng|doanh thu|thực thu|công suất|dòng tiền|chi phí)/i.test(value)) return null;
         if (/(cấu hình|thay đổi|sửa|đặt giá|tạo)/i.test(value)) return null;
         if (/hôm nay|ngày hôm nay/i.test(value)) return 'day';
         if (/tuần/i.test(value)) return 'week';

@@ -23,6 +23,7 @@ public sealed class AiAccessGatewayConcurrencyTests
 
         Assert.Single(decisions, x => x.IsAllowed);
         Assert.Single(decisions, x => !x.IsAllowed && x.Error!.Contains("token", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(decisions, x => !x.IsAllowed && x.Error!.Contains("1,000", StringComparison.Ordinal));
         await AssertSingleReservationAsync(options, propertyId, 800);
     }
 
@@ -77,6 +78,35 @@ public sealed class AiAccessGatewayConcurrencyTests
     }
 
     [PricingPostgreSqlFact]
+    public async Task Switching_provider_uses_that_provider_monthly_quota_instead_of_previous_provider_usage()
+    {
+        var options = await CreateOptionsAsync();
+        var propertyId = await CreateProfileAsync(options, monthlyTokenLimit: 1000, provider: AiProviderKind.DeepSeek);
+        await using (var seedDb = new AppDbContext(options))
+        {
+            seedDb.AiUsageRecords.Add(new AiUsageRecord
+            {
+                PropertyId = propertyId,
+                Audience = AiAudience.Admin,
+                Provider = AiProviderKind.Gemini,
+                Model = "gemini-test",
+                Operation = "Chat",
+                InputTokens = 900,
+                OutputTokens = 100,
+                IsSuccess = true
+            });
+            await seedDb.SaveChangesAsync();
+        }
+
+        await using var reserveDb = new AppDbContext(options);
+        var decision = await new AiAccessGateway(reserveDb).ReserveProviderCallAsync(
+            propertyId, AiAudience.Admin, 200, 600, default);
+
+        Assert.True(decision.IsAllowed);
+        Assert.Equal(AiProviderKind.DeepSeek, decision.Profile!.Provider);
+    }
+
+    [PricingPostgreSqlFact]
     public async Task Global_kill_switch_blocks_admin_and_customer_without_creating_reservations()
     {
         var options = await CreateOptionsAsync();
@@ -112,7 +142,8 @@ public sealed class AiAccessGatewayConcurrencyTests
         int monthlyTokenLimit = 0,
         decimal monthlyBudgetUsd = 0,
         decimal inputCost = 0,
-        decimal outputCost = 0)
+        decimal outputCost = 0,
+        AiProviderKind provider = AiProviderKind.OpenAi)
     {
         await using var db = new AppDbContext(options);
         var suffix = Guid.NewGuid().ToString("N")[..10];
@@ -122,6 +153,7 @@ public sealed class AiAccessGatewayConcurrencyTests
         {
             Property = property,
             IsEnabled = true,
+            Provider = provider,
             ProtectedApiKey = "integration-test-key",
             MonthlyTokenLimit = monthlyTokenLimit,
             MonthlyBudgetUsd = monthlyBudgetUsd,

@@ -15,10 +15,12 @@ namespace DeLong.Web.Features.PublicAi;
 
 public sealed record PublicAiChatRequest(string Message, string? DraftToken = null);
 public sealed record PublicAiAction(string Label, string Url);
+public sealed record PublicAiSuggestion(string Label, string Prompt);
 public sealed record PublicAiDraftPreview(string Room, string Date, IReadOnlyList<string> TimeSlots,
     int GuestCount, decimal RoomAmount, decimal SurchargeAmount, decimal TotalAmount, string? VoucherCode);
 public sealed record PublicAiChatResponse(string Message, bool Cached, PublicAiAction? Action = null,
-    PublicAiDraftPreview? Draft = null, string? DraftToken = null);
+    PublicAiDraftPreview? Draft = null, string? DraftToken = null,
+    IReadOnlyList<PublicAiSuggestion>? Suggestions = null);
 
 public sealed class PublicAiService(
     AppDbContext db,
@@ -190,12 +192,12 @@ public sealed class PublicAiService(
             var draftToken = request.DraftToken;
             if (mergedDraft is { Requested: true })
                 draftToken = await SaveDraftAsync(property.Id, storedDraftEntity, draftToken, mergedDraft, ct);
-            var (draft, draftAction, draftError) = await BuildDraftPreviewAsync(property, liveAvailability, mergedDraft, ct);
+            var (draft, draftAction, draftError, suggestions) = await BuildDraftPreviewAsync(property, liveAvailability, mergedDraft, ct);
             var message = draftError ?? envelope.Message.Trim();
             var roomAction = draftAction is null
                 ? await BuildSuggestedRoomActionAsync(property, envelope.SuggestedRoomCode, ct)
                 : null;
-            var value = new PublicAiChatResponse(message, false, draftAction ?? roomAction, draft, draftToken);
+            var value = new PublicAiChatResponse(message, false, draftAction ?? roomAction, draft, draftToken, suggestions);
             await gateway.CompleteProviderCallAsync(reservation.ReservationId!.Value, new AiUsageRecord { PropertyId = property.Id, Audience = AiAudience.Customer, Provider = profile.Provider,
                 Model = profile.Model, Operation = "PublicChat", InputTokens = result.InputTokens, OutputTokens = result.OutputTokens,
                 CachedInputTokens = result.CachedInputTokens,
@@ -312,25 +314,37 @@ public sealed class PublicAiService(
         return new PublicAiAction("Xem và chọn phòng", PublicUrlBuilder.Room(property.SiteSlug, roomSlug));
     }
 
-    private async Task<(PublicAiDraftPreview? Draft, PublicAiAction? Action, string? Error)> BuildDraftPreviewAsync(
+    private async Task<(PublicAiDraftPreview? Draft, PublicAiAction? Action, string? Error,
+        IReadOnlyList<PublicAiSuggestion>? Suggestions)> BuildDraftPreviewAsync(
         PublicPropertyContext property,
         PublicAvailabilityDto? availability,
         PublicAiDraftExtraction? extraction,
         CancellationToken ct)
     {
-        if (extraction is not { Requested: true }) return (null, null, null);
+        if (extraction is not { Requested: true }) return (null, null, null, null);
         if (!DateOnly.TryParse(extraction.StayDate, out var date))
-            return (null, null, "Bạn muốn đặt vào ngày nào? Vui lòng cho biết ngày theo dạng dd/MM/yyyy.");
+            return (null, null, "Bạn muốn đặt vào ngày nào? Vui lòng cho biết ngày theo dạng dd/MM/yyyy.", null);
         availability ??= await publicBooking.GetAvailabilityAsync(property.SiteSlug, date, ct);
-        if (availability is null) return (null, null, "Chưa đọc được lịch phòng cho ngày bạn chọn.");
+        if (availability is null) return (null, null, "Chưa đọc được lịch phòng cho ngày bạn chọn.", null);
 
         var room = availability.Rooms.SingleOrDefault(x =>
             string.Equals(x.Code, extraction.RoomCode, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(x.Name, extraction.RoomCode, StringComparison.OrdinalIgnoreCase));
-        if (room is null) return (null, null, "Tôi chưa xác định được phòng. Vui lòng cho biết đúng tên phòng bạn muốn đặt.");
-        if (extraction.GuestCount < 1) return (null, null, "Bạn dự định có bao nhiêu khách?");
-        if (extraction.GuestCount > room.Capacity) return (null, null, $"Phòng {room.Name} tối đa {room.Capacity} khách. Vui lòng chọn phòng khác hoặc giảm số khách.");
-        if (extraction.RateNames.Count == 0) return (null, null, "Bạn muốn đặt khung giờ nào?");
+        if (room is null) return (null, null, "Tôi chưa xác định được phòng. Vui lòng cho biết đúng tên phòng bạn muốn đặt.", null);
+        if (extraction.GuestCount < 1) return (null, null, "Bạn dự định có bao nhiêu khách?", null);
+        if (extraction.GuestCount > room.Capacity) return (null, null, $"Phòng {room.Name} tối đa {room.Capacity} khách. Vui lòng chọn phòng khác hoặc giảm số khách.", null);
+        if (extraction.RateNames.Count == 0)
+        {
+            var suggestions = room.Rates.Where(x => x.Available)
+                .Select(x => new PublicAiSuggestion(
+                    $"{x.Name} · {x.StartTime}–{x.EndTime} · {x.Price:N0}đ",
+                    $"Chọn khung giờ {x.Name}"))
+                .ToList();
+            var message = suggestions.Count == 0
+                ? $"Phòng {room.Name} không còn khung giờ trống trong ngày {date:dd/MM/yyyy}. Bạn muốn chọn ngày khác không?"
+                : $"Phòng {room.Name} còn các khung dưới đây trong ngày {date:dd/MM/yyyy}. Bạn chọn khung nào?";
+            return (null, null, message, suggestions);
+        }
 
         var pricingRoom = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == property.Id && x.Id == room.Id)
             .Select(x => new
@@ -340,21 +354,21 @@ public sealed class PublicAiService(
                     .OrderBy(rate => rate.SortOrder).ThenBy(rate => rate.StartTime).ThenBy(rate => rate.Name)
                     .Select(rate => new { rate.Id, rate.Name, rate.Price, rate.UseWeekdayPriceOnWeekend, rate.WeekendPrice }).ToList()
             }).SingleOrDefaultAsync(ct);
-        if (pricingRoom is null || pricingRoom.Rates.Count == 0) return (null, null, "Phòng này chưa có khung giờ mở đặt.");
+        if (pricingRoom is null || pricingRoom.Rates.Count == 0) return (null, null, "Phòng này chưa có khung giờ mở đặt.", null);
 
         var selected = new List<(int Index, Guid Id, string Name)>();
         foreach (var requestedName in extraction.RateNames)
         {
             var matches = pricingRoom.Rates.Select((rate, index) => (Rate: rate, Index: index))
                 .Where(x => string.Equals(x.Rate.Name, requestedName, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (matches.Count != 1) return (null, null, $"Không xác định được khung “{requestedName}”. Vui lòng chọn theo tên khung đang hiển thị.");
+            if (matches.Count != 1) return (null, null, $"Không xác định được khung “{requestedName}”. Vui lòng chọn theo tên khung đang hiển thị.", null);
             selected.Add((matches[0].Index, matches[0].Rate.Id, matches[0].Rate.Name));
         }
         selected = selected.DistinctBy(x => x.Id).OrderBy(x => x.Index).ToList();
         if (PublicSlotSelectionRules.ValidateConsecutive(selected.Select(x => (date, x.Index)).ToList(), pricingRoom.Rates.Count, 1) is { } selectionError)
-            return (null, null, selectionError.Message);
+            return (null, null, selectionError.Message, null);
         if (selected.Any(x => room.Rates.Single(rate => rate.Id == x.Id).Available == false))
-            return (null, null, "Một khung giờ vừa hết chỗ. Vui lòng chọn khung khác.");
+            return (null, null, "Một khung giờ vừa hết chỗ. Vui lòng chọn khung khác.", null);
 
         var inputs = selected.Select(x =>
         {
@@ -365,7 +379,7 @@ public sealed class PublicAiService(
         var (quote, quoteError) = await pricingService.CalculateAsync(property.Id, inputs, pricingRoom.Rates.Count,
             pricingRoom.FullDayPricingEnabled, pricingRoom.FullDayPrice, pricingRoom.UseWeekdayFullDayPriceOnWeekend,
             pricingRoom.WeekendFullDayPrice, ct);
-        if (quoteError is not null) return (null, null, quoteError.Message);
+        if (quoteError is not null) return (null, null, quoteError.Message, null);
 
         var slots = selected.Select(x => room.Rates.Single(rate => rate.Id == x.Id))
             .Select(x => $"{x.Name} ({x.StartTime}–{x.EndTime})").ToList();
@@ -375,6 +389,6 @@ public sealed class PublicAiService(
         var url = $"{PublicUrlBuilder.Booking(property.SiteSlug)}?date={date:yyyy-MM-dd}&room={Uri.EscapeDataString(room.Code)}&slots={Uri.EscapeDataString(slotQuery)}{voucherQuery}";
         var preview = new PublicAiDraftPreview(room.Name, date.ToString("dd/MM/yyyy"), slots, extraction.GuestCount,
             quote!.RoomAmount, quote.SpecialSurchargeAmount, quote.TotalBeforeVoucher, voucherCode);
-        return (preview, new PublicAiAction("Tiếp tục đặt phòng", url), null);
+        return (preview, new PublicAiAction("Tiếp tục đặt phòng", url), null, null);
     }
 }

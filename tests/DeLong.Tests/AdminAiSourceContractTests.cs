@@ -73,7 +73,9 @@ public sealed class AdminAiSourceContractTests
         var styles = Read("src/DeLong.Web/wwwroot/css/admin-ai-enhancements.css");
         Assert.Contains("ai-proposal-table", script);
         Assert.Contains("operationLabels", script);
-        Assert.Contains("width:min(680px,100vw)", styles);
+        Assert.Contains(".ai-chat-drawer[data-ai-chat-drawer]{width:min(920px,100vw)}", styles);
+        Assert.Contains("grid-template-columns:48px minmax(0,1fr) 88px", styles);
+        Assert.Contains("looksLikeHtml(content)", script);
     }
 
     [Fact]
@@ -160,6 +162,8 @@ public sealed class AdminAiSourceContractTests
         Assert.Contains("RequireRateLimiting(\"public-ai\")", endpoints);
         Assert.Contains("AllowAnonymous()", endpoints);
         Assert.Contains("data-public-ai-drawer", layout);
+        Assert.Contains("@if (!isAdmin)\n{\n    <button class=\"public-ai-launch\"", layout.Replace("\r\n", "\n"));
+        Assert.DoesNotContain("@if (!isAdmin && !isGlobalPublic)\n{\n    <button class=\"public-ai-launch\"", layout.Replace("\r\n", "\n"));
     }
 
     [Fact]
@@ -168,12 +172,19 @@ public sealed class AdminAiSourceContractTests
         var chat = Read("src/DeLong.Web/wwwroot/js/core/public-ai-chat.js");
         var guard = Read("src/DeLong.Web/Features/PublicAi/PublicAiLookupRateGuard.cs");
         var endpoints = Read("src/DeLong.Web/Features/PublicAi/PublicAiEndpoints.cs");
+        var service = Read("src/DeLong.Web/Features/PublicAi/PublicAiService.cs");
 
         Assert.Contains("delong.publicAiHistory", chat);
         Assert.Contains("30 * 86400000", chat);
         Assert.Contains("conversation.messages.slice(-30)", chat);
         Assert.Contains("copy.textContent = text", chat);
         Assert.DoesNotContain("innerHTML", chat);
+        Assert.Contains("response.suggestions", chat);
+        Assert.Contains("public-ai-suggestions", chat);
+        Assert.Contains("room.Rates.Where(x => x.Available)", service);
+        Assert.Contains(".public-ai-drawer[hidden],.public-ai-backdrop[hidden]{display:none!important}",
+            Read("src/DeLong.Web/wwwroot/css/public-ai.css"));
+        Assert.Contains("height:100dvh", Read("src/DeLong.Web/wwwroot/css/public-ai.css"));
         Assert.Contains("MaximumAttempts = 5", guard);
         Assert.Contains("TimeSpan.FromMinutes(10)", guard);
         Assert.Contains("SHA256.HashData", guard);
@@ -231,7 +242,20 @@ public sealed class AdminAiSourceContractTests
         Assert.Contains("ReportUrl", service);
         Assert.Contains("/business-report", endpoints);
         Assert.Contains("dynamicPeriod", chat);
+        Assert.Contains("tóm tắt|tình hình|booking|đặt phòng", chat);
         Assert.Contains("textContent", chat);
+    }
+
+    [Fact]
+    public void Admin_ai_drawer_offers_token_free_report_shortcuts_for_common_periods()
+    {
+        var layout = Read("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+
+        Assert.Contains("aria-label=\"Lệnh báo cáo nhanh\"", layout);
+        Assert.Contains("công suất tuần này", layout);
+        Assert.Contains("công suất tháng này", layout);
+        Assert.Contains("công suất quý này", layout);
+        Assert.Contains("công suất năm nay", layout);
     }
 
     private static string Read(string path) => File.ReadAllText(Path.Combine(Root, path));

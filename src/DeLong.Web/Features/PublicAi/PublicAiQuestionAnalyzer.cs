@@ -40,8 +40,10 @@ public static partial class PublicAiQuestionAnalyzer
 
     private static DateOnly? ParseDate(string original, string normalized, DateOnly today)
     {
-        if (normalized.Contains("ngay mai", StringComparison.Ordinal)) return today.AddDays(1);
-        if (normalized.Contains("hom nay", StringComparison.Ordinal)) return today;
+        if (ContainsAny(normalized, "ngay mai", "sang mai", "trua mai", "chieu mai", "toi mai", "dem mai"))
+            return today.AddDays(1);
+        if (ContainsAny(normalized, "hom nay", "sang nay", "trua nay", "chieu nay", "toi nay", "dem nay"))
+            return today;
 
         var match = DatePattern().Match(original);
         if (!match.Success) return null;

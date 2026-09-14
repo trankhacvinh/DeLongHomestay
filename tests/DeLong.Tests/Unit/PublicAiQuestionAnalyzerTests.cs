@@ -9,6 +9,10 @@ public sealed class PublicAiQuestionAnalyzerTests
 
     [Theory]
     [InlineData("Ngày mai còn phòng không?", PublicAiIntent.Availability, "2026-09-12")]
+    [InlineData("Đặt phòng Coco Blue cho 2 người vào tối nay", PublicAiIntent.BookingDraft, "2026-09-11")]
+    [InlineData("Tôi muốn đặt phòng vào đêm nay", PublicAiIntent.BookingDraft, "2026-09-11")]
+    [InlineData("Còn phòng chiều nay không?", PublicAiIntent.Availability, "2026-09-11")]
+    [InlineData("Đặt phòng Coco Blue tối mai", PublicAiIntent.BookingDraft, "2026-09-12")]
     [InlineData("Giá phòng ngày 30/09/2026 bao nhiêu?", PublicAiIntent.Pricing, "2026-09-30")]
     [InlineData("Còn phòng 2026-10-01 không?", PublicAiIntent.Availability, "2026-10-01")]
     public void Analyze_detects_live_intent_and_date(string message, PublicAiIntent intent, string expectedDate)

@@ -58,6 +58,7 @@ public sealed class AiProviderClient(HttpClient httpClient)
         using var response = await httpClient.SendAsync(request, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode) throw new AiProviderException("openai_error", ReadError(body, response.ReasonPhrase));
+        RejectHtmlResponse(response, body);
         using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
         var text = root.TryGetProperty("output_text", out var outputText) ? outputText.GetString() : null;
@@ -91,6 +92,7 @@ public sealed class AiProviderClient(HttpClient httpClient)
         using var response = await httpClient.SendAsync(request, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode) throw new AiProviderException("gemini_error", ReadError(body, response.ReasonPhrase));
+        RejectHtmlResponse(response, body);
         using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
         var candidate = root.TryGetProperty("candidates", out var candidates) && candidates.GetArrayLength() > 0 ? candidates[0] : default;
@@ -141,6 +143,7 @@ public sealed class AiProviderClient(HttpClient httpClient)
         using var response = await httpClient.SendAsync(request, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode) throw new AiProviderException("deepseek_error", ReadError(body, response.ReasonPhrase));
+        RejectHtmlResponse(response, body);
         using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
         var choice = root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0 ? choices[0] : default;
@@ -165,6 +168,15 @@ public sealed class AiProviderClient(HttpClient httpClient)
     }
 
     private static int ReadInt(JsonElement element, string name) => element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) ? value.GetInt32() : 0;
+
+    private static void RejectHtmlResponse(HttpResponseMessage response, string body)
+    {
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        if (string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase) || AiResponseProtocol.LooksLikeHtml(body))
+            throw new AiProviderException("provider_html_response",
+                "Nhà cung cấp AI trả về một trang web thay vì dữ liệu AI. Hãy kiểm tra API key, model và cấu hình kết nối.");
+    }
+
     private static string ReadError(string body, string? fallback)
     {
         // Provider errors can contain request data. Do not return them to the chat.

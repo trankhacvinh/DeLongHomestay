@@ -2,6 +2,8 @@
 
 Tài liệu này là checklist trung lập với nhà cung cấp hosting. Không bật production trước khi `/health/ready` trả `Healthy` và đã diễn tập restore ít nhất một lần.
 
+Hướng dẫn đầy đủ từ VPS Ubuntu mới đến cập nhật code/database không dùng Docker: [UBUNTU-VPS-DEPLOYMENT.md](UBUNTU-VPS-DEPLOYMENT.md).
+
 ## 0. Chạy local
 
 Repo có launch profile mặc định cho Development. Lệnh sau dùng storage local `App_Data` + `wwwroot/uploads` và `/health/ready` phải `Healthy` khi PostgreSQL đang chạy:
@@ -165,4 +167,3 @@ PowerShell:
 ### SMTP credential encryption
 
 SMTP password được lưu trong PostgreSQL dưới dạng ASP.NET Core Data Protection ciphertext. Khi backup/restore môi trường có cấu hình email, phải backup và restore **cả database lẫn Data Protection key ring**. Nếu chỉ restore database sang key ring khác, password SMTP cũ không thể giải mã; Admin phải nhập lại password trong Cấu hình → Thông báo.
-

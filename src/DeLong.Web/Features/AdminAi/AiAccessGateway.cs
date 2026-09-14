@@ -26,7 +26,7 @@ public sealed class AiAccessGateway(AppDbContext db, IConfiguration? configurati
 
         var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var usage = await db.AiUsageRecords.AsNoTracking()
-            .Where(x => x.PropertyId == propertyId && x.CreatedAtUtc >= monthStart)
+            .Where(x => x.PropertyId == propertyId && x.Provider == profile.Provider && x.CreatedAtUtc >= monthStart)
             .GroupBy(_ => 1)
             .Select(g => new
             {
@@ -88,7 +88,7 @@ public sealed class AiAccessGateway(AppDbContext db, IConfiguration? configurati
 
         var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var actual = await db.AiUsageRecords.AsNoTracking()
-            .Where(x => x.PropertyId == propertyId && x.CreatedAtUtc >= monthStart)
+            .Where(x => x.PropertyId == propertyId && x.Provider == profile.Provider && x.CreatedAtUtc >= monthStart)
             .GroupBy(_ => 1)
             .Select(g => new
             {
@@ -117,7 +117,12 @@ public sealed class AiAccessGateway(AppDbContext db, IConfiguration? configurati
         var audienceCost = (actual?.AudienceCost ?? 0) + (reserved?.AudienceCost ?? 0);
 
         if (profile.MonthlyTokenLimit > 0 && totalTokens + callTokens > profile.MonthlyTokenLimit)
-            return await DeniedReservationAsync("Cơ sở không còn đủ hạn mức token AI cho yêu cầu này.", "access_token_limit", propertyId, audience, profile, transaction, ct);
+        {
+            var remainingTokens = Math.Max(0, profile.MonthlyTokenLimit - totalTokens);
+            return await DeniedReservationAsync(
+                $"Yêu cầu cần giữ tối đa khoảng {callTokens:N0} token nhưng hạn mức {profile.Provider} tháng này chỉ còn {remainingTokens:N0}/{profile.MonthlyTokenLimit:N0} token. Hãy tăng giới hạn token/tháng hoặc giảm token trả lời tối đa.",
+                "access_token_limit", propertyId, audience, profile, transaction, ct);
+        }
         if (profile.MonthlyBudgetUsd > 0 && totalCost + callCost > profile.MonthlyBudgetUsd)
             return await DeniedReservationAsync("Cơ sở không còn đủ ngân sách AI ước tính cho yêu cầu này.", "access_budget", propertyId, audience, profile, transaction, ct);
         if (audience == AiAudience.Customer && profile.MonthlyBudgetUsd > 0)

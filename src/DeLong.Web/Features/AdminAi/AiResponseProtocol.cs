@@ -52,6 +52,7 @@ public static class AiResponseProtocol
         try
         {
             var clean = text.Trim();
+            if (LooksLikeHtml(clean)) return null;
             if (clean.StartsWith("```", StringComparison.Ordinal))
             {
                 var newline = clean.IndexOf('\n');
@@ -66,7 +67,7 @@ public static class AiResponseProtocol
                 proposal.Remove("payloadJson");
             }
             var result = root.Deserialize<AiEnvelope>(Json);
-            if (string.IsNullOrWhiteSpace(result?.Message)) return null;
+            if (string.IsNullOrWhiteSpace(result?.Message) || LooksLikeHtml(result.Message)) return null;
             if (result.Proposal is { } p &&
                 (!Enum.IsDefined(p.Type) || p.Payload.ValueKind != JsonValueKind.Object || string.IsNullOrWhiteSpace(p.Summary)))
                 return null;
@@ -77,4 +78,13 @@ public static class AiResponseProtocol
 
     public static bool IsRetry(string text) =>
         new[] { "retry", "thử lại", "thu lai", "làm lại", "lam lai" }.Contains(text.Trim(), StringComparer.OrdinalIgnoreCase);
+
+    public static bool LooksLikeHtml(string text)
+    {
+        var value = text.AsSpan().TrimStart();
+        return value.StartsWith("<!doctype html", StringComparison.OrdinalIgnoreCase) ||
+               value.StartsWith("<html", StringComparison.OrdinalIgnoreCase) ||
+               value.StartsWith("<head", StringComparison.OrdinalIgnoreCase) ||
+               value.StartsWith("<body", StringComparison.OrdinalIgnoreCase);
+    }
 }

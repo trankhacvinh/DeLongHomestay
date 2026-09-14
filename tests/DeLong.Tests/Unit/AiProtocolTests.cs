@@ -58,6 +58,26 @@ public sealed class AiProtocolTests
     [InlineData("""{"message":"X","proposal":{"type":999,"summary":"X","payload":{}}}""")]
     public void Malformed_or_unstructured_output_cannot_become_a_proposal(string text) => Assert.Null(AiResponseProtocol.Parse(text));
 
+    [Theory]
+    [InlineData("<!doctype html><html><body>Login</body></html>")]
+    [InlineData("<html lang=\"vi\"><head><title>De Long</title></head></html>")]
+    [InlineData("{\"message\":\"<!doctype html><html><body>Login</body></html>\",\"proposal\":null}")]
+    public void Html_cannot_become_an_assistant_message(string text) => Assert.Null(AiResponseProtocol.Parse(text));
+
+    [Fact]
+    public async Task Provider_html_response_is_rejected_without_exposing_its_content()
+    {
+        using var handler = new FakeHandler("<!doctype html><html><head><meta name=\"csrf-token\" content=\"secret\"></head></html>", "text/html");
+        using var http = new HttpClient(handler);
+
+        var error = await Assert.ThrowsAsync<AiProviderException>(() =>
+            new AiProviderClient(http).GenerateAsync(AiProviderKind.OpenAi, "test-only", "test-model", "system", "input", 2000, default));
+
+        Assert.Equal("provider_html_response", error.Code);
+        Assert.DoesNotContain("secret", error.Message);
+        Assert.Contains("trang web", error.Message);
+    }
+
     [Fact]
     public async Task Gemini_combines_all_non_thought_parts_and_reports_truncation_and_usage()
     {
@@ -139,7 +159,7 @@ public sealed class AiProtocolTests
         Assert.Contains("JSON Schema", request.RootElement.GetProperty("messages")[0].GetProperty("content").GetString());
     }
 
-    internal sealed class FakeHandler(string body) : HttpMessageHandler
+    internal sealed class FakeHandler(string body, string mediaType = "application/json") : HttpMessageHandler
     {
         public string? RequestBody { get; private set; }
         public string? RequestUri { get; private set; }
@@ -147,7 +167,7 @@ public sealed class AiProtocolTests
         {
             RequestUri = request.RequestUri?.ToString();
             RequestBody = await request.Content!.ReadAsStringAsync(ct);
-            return new(HttpStatusCode.OK) { Content = new StringContent(body) };
+            return new(HttpStatusCode.OK) { Content = new StringContent(body, System.Text.Encoding.UTF8, mediaType) };
         }
     }
 }

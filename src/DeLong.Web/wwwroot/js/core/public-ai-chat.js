@@ -43,7 +43,7 @@
         conversation.updatedAt = Date.now();
         writeHistory([conversation, ...history.filter(item => item.id !== id)]);
     };
-    const append = (text, role, action, draft, persist = true) => {
+    const append = (text, role, action, draft, persist = true, suggestions = null) => {
         const node = document.createElement('div');
         node.className = `public-ai-message ${role}`;
         const copy = document.createElement('div');
@@ -75,14 +75,30 @@
             link.textContent = action.label;
             node.appendChild(link);
         }
+        if (Array.isArray(suggestions) && suggestions.length) {
+            const choices = document.createElement('div');
+            choices.className = 'public-ai-suggestions';
+            suggestions.forEach(suggestion => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = suggestion.label;
+                button.addEventListener('click', () => {
+                    if (submit.disabled) return;
+                    input.value = suggestion.prompt;
+                    form.requestSubmit();
+                });
+                choices.appendChild(button);
+            });
+            node.appendChild(choices);
+        }
         messages.appendChild(node);
         messages.scrollTop = messages.scrollHeight;
-        if (persist) persistMessage({ text, role, action: action || null, draft: draft || null });
+        if (persist) persistMessage({ text, role, action: action || null, draft: draft || null, suggestions: suggestions || null });
     };
     const renderConversation = conversation => {
         messages.replaceChildren();
         if (!conversation?.messages?.length) append(welcome, 'assistant', null, null, false);
-        else conversation.messages.forEach(message => append(message.text, message.role, message.action, message.draft, false));
+        else conversation.messages.forEach(message => append(message.text, message.role, message.action, message.draft, false, message.suggestions));
     };
     const historyPanel = drawer.querySelector('[data-public-ai-history-panel]');
     const historyList = drawer.querySelector('[data-public-ai-history-list]');
@@ -127,7 +143,7 @@
                 draftToken: storageGet(draftStorageKey)
             });
             if (response.draftToken) storageSet(draftStorageKey, response.draftToken);
-            append(response.message, 'assistant', response.action, response.draft);
+            append(response.message, 'assistant', response.action, response.draft, true, response.suggestions);
         } catch (error) { append(error.message || 'Trợ lý đang gián đoạn. Vui lòng thử lại sau.', 'assistant'); }
         finally { submit.disabled = false; input.focus(); }
     });

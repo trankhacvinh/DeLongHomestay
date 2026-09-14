@@ -137,13 +137,17 @@ public sealed partial class AdminAiService(
             };
             db.AiChangeProposals.Add(proposal);
         }
-        var message = envelope?.Message.Trim() ?? $"Chưa tạo được bản xem trước. {issue} Nội dung yêu cầu đã được lưu; bạn có thể bấm Thử lại.";
+        var retryable = envelope is null && issue?.Contains("hạn mức token", StringComparison.OrdinalIgnoreCase) != true &&
+                        issue?.Contains("ngân sách AI", StringComparison.OrdinalIgnoreCase) != true;
+        var message = envelope?.Message.Trim() ?? (retryable
+            ? $"Chưa tạo được bản xem trước. {issue} Nội dung yêu cầu đã được lưu; bạn có thể bấm Thử lại."
+            : $"Chưa thể xử lý yêu cầu. {issue}");
         db.AiMessages.Add(new AiMessage { ConversationId = conversation.Id, Role = "assistant",
             Content = message, ProposalId = proposal?.Id, ToolName = envelope is null ? "RetryableError" : null });
         conversation.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return (new(conversation.Id, message, proposal is null ? null : ToDto(proposal),
-            await UsageAsync(propertyId, ct), envelope is null), null);
+            await UsageAsync(propertyId, ct), retryable), null);
     }
 
     public async Task<(AiProposalDto? Value, string? Error)> ApplyAsync(Guid propertyId, Guid userId, Guid proposalId, CancellationToken ct)
@@ -201,7 +205,10 @@ public sealed partial class AdminAiService(
     public async Task<AiUsageSummaryDto> UsageAsync(Guid propertyId, CancellationToken ct)
     {
         var from = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        var rows = await db.AiUsageRecords.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CreatedAtUtc >= from)
+        var profile = await db.PropertyAiProfiles.AsNoTracking().Where(x => x.PropertyId == propertyId)
+            .Select(x => new { x.Provider, x.MonthlyTokenLimit, x.MonthlyBudgetUsd, x.BudgetWarningPercent }).SingleOrDefaultAsync(ct);
+        var provider = profile?.Provider ?? AiProviderKind.OpenAi;
+        var rows = await db.AiUsageRecords.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Provider == provider && x.CreatedAtUtc >= from)
             .GroupBy(_ => 1).Select(g => new
             {
                 Calls = g.Count(),
@@ -216,9 +223,7 @@ public sealed partial class AdminAiService(
                 TimedCalls = g.Sum(x => x.DurationMs > 0 ? 1 : 0),
                 Cost = g.Sum(x => x.EstimatedCostUsd)
             }).SingleOrDefaultAsync(ct);
-        var profile = await db.PropertyAiProfiles.AsNoTracking().Where(x => x.PropertyId == propertyId)
-            .Select(x => new { x.MonthlyTokenLimit, x.MonthlyBudgetUsd, x.BudgetWarningPercent }).SingleOrDefaultAsync(ct);
-        var audienceRows = await db.AiUsageRecords.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CreatedAtUtc >= from)
+        var audienceRows = await db.AiUsageRecords.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Provider == provider && x.CreatedAtUtc >= from)
             .GroupBy(x => x.Audience)
             .Select(g => new
             {

@@ -183,7 +183,7 @@
         }
     }
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
-    @if (!isAdmin && !isGlobalPublic)
+    @if (!isAdmin)
     {
         <link rel="stylesheet" href="~/css/public-ai.css" asp-append-version="true"/>
     }
@@ -661,8 +661,15 @@ else
         <header><div><strong>Trợ lý AI</strong><small>Tra cứu, báo cáo và đề xuất thay đổi</small></div><nav><button type="button" class="btn-icon" data-ai-history-toggle title="Lịch sử" aria-label="Xem lịch sử">☰</button><button type="button" class="btn-icon" data-ai-new-chat title="Cuộc trò chuyện mới" aria-label="Tạo cuộc trò chuyện mới">＋</button><button type="button" class="btn-icon" data-ai-chat-close aria-label="Đóng">×</button></nav></header>
         <section class="ai-chat-history" data-ai-chat-history hidden><div><strong>Lịch sử trò chuyện</strong><button type="button" class="btn btn-light" data-ai-history-close>Đóng</button></div><div data-ai-history-list></div></section>
         <div class="ai-chat-messages" data-ai-chat-messages><div class="ai-chat-welcome"><strong>Tôi có thể giúp gì?</strong><span>Tra cứu phòng, booking, doanh thu; cấu hình phòng, giá, combo, ngày lễ, voucher; cập nhật hướng dẫn check-in, thông tin website và SEO. Có thể xử lý nhiều mục trong một yêu cầu. Mỗi thay đổi đều có bảng xem trước để bạn duyệt.</span></div></div>
-        <div class="ai-chat-suggestions"><button type="button" data-ai-prompt="Tóm tắt tình hình đặt phòng hôm nay">Booking hôm nay</button><button type="button" data-ai-prompt="Tóm tắt doanh thu và số booking trong tháng này">Tháng này</button></div>
-        <form data-ai-chat-form><div class="ai-chat-attachments" data-ai-attachment-list hidden></div><label class="ai-attach-button" title="Đính kèm Word, PDF hoặc ảnh"><input type="file" multiple accept=".docx,.pdf,.jpg,.jpeg,.png,.webp" data-ai-attachment-input>📎<span>Đính kèm</span></label><textarea rows="2" maxlength="4000" data-ai-chat-input placeholder="Ví dụ: Dùng file đính kèm để cập nhật hướng dẫn check-in phòng Coco Blue..."></textarea><button class="btn btn-primary" type="submit">Gửi</button></form>
+        <div class="ai-chat-suggestions" aria-label="Lệnh báo cáo nhanh">
+            <span>Lệnh nhanh</span>
+            <button type="button" data-ai-prompt="Tóm tắt tình hình đặt phòng hôm nay">Hôm nay</button>
+            <button type="button" data-ai-prompt="Tóm tắt booking, doanh thu và công suất tuần này">Tuần này</button>
+            <button type="button" data-ai-prompt="Tóm tắt booking, doanh thu và công suất tháng này">Tháng này</button>
+            <button type="button" data-ai-prompt="Tóm tắt booking, doanh thu và công suất quý này">Quý này</button>
+            <button type="button" data-ai-prompt="Tóm tắt booking, doanh thu và công suất năm nay">Năm nay</button>
+        </div>
+        <form data-ai-chat-form><div class="ai-chat-attachments" data-ai-attachment-list hidden></div><div class="ai-chat-compose-row"><label class="ai-attach-button" title="Đính kèm Word, PDF hoặc ảnh" aria-label="Đính kèm Word, PDF hoặc ảnh"><input type="file" multiple accept=".docx,.pdf,.jpg,.jpeg,.png,.webp" data-ai-attachment-input><span aria-hidden="true">📎</span></label><textarea rows="2" maxlength="4000" data-ai-chat-input placeholder="Nhập yêu cầu hoặc dùng tệp đính kèm..."></textarea><button class="btn btn-primary" type="submit">Gửi</button></div></form>
     </aside>
 }
 else if (isAdmin && canUseStaffAi && currentProperty is not null)
@@ -675,7 +682,7 @@ else if (isAdmin && canUseStaffAi && currentProperty is not null)
         <form data-staff-ai-form><textarea rows="2" maxlength="1000" data-staff-ai-input placeholder="Ví dụ: Cuối tuần có những booking nào?"></textarea><button class="btn btn-primary" type="submit">Gửi</button></form>
     </aside>
 }
-@if (!isAdmin && !isGlobalPublic)
+@if (!isAdmin)
 {
     <button class="public-ai-launch" type="button" data-public-ai-open aria-label="Mở trợ lý đặt phòng" hidden>AI</button>
     <div class="public-ai-backdrop" data-public-ai-backdrop hidden></div>
@@ -694,7 +701,7 @@ else if (isAdmin && canUseStaffAi && currentProperty is not null)
 <script src="~/js/core/api.js" asp-append-version="true"></script>
 <script src="~/js/core/password-strength.js" asp-append-version="true"></script>
 <script src="~/js/core/shell.js" asp-append-version="true"></script>
-@if (!isAdmin && !isGlobalPublic)
+@if (!isAdmin)
 {
     <script src="~/js/core/public-ai-chat.js" asp-append-version="true"></script>
 }
