@@ -1,0 +1,54 @@
+@page "/payment/sepay"
+@model DeLong.Web.Pages.Payment.SePayModel
+@{
+    ViewData["Title"] = "Thanh toán SePay";
+    ViewData["Robots"] = "noindex,nofollow";
+}
+<main class="sepay-checkout" data-sepay-payment data-order-id="@Model.OrderId">
+    <div class="sepay-checkout-heading">
+        <span>THANH TOÁN AN TOÀN</span>
+        <h1>Quét mã để hoàn tất đặt phòng</h1>
+        <p>Thông tin được điền sẵn trên mã QR. Vui lòng không sửa số tiền hoặc nội dung chuyển khoản.</p>
+    </div>
+    <section class="sepay-checkout-card">
+        <div class="sepay-qr-column">
+            <div class="sepay-qr-frame">
+                <div class="sepay-qr-placeholder" data-sepay-qr-placeholder>Đang tạo mã QR…</div>
+                <img data-sepay-qr hidden width="360" height="360" alt="Mã VietQR thanh toán" referrerpolicy="no-referrer" />
+            </div>
+            <p class="sepay-qr-help">Mở ứng dụng ngân hàng và chọn chức năng quét QR</p>
+        </div>
+        <div class="sepay-detail-column">
+            <div class="sepay-state" data-sepay-state>
+                <span class="sepay-state-dot" aria-hidden="true"></span>
+                <p data-sepay-status role="status" aria-live="polite">Đang tải thông tin thanh toán…</p>
+            </div>
+            <div class="sepay-amount-block">
+                <small>Số tiền cần chuyển</small>
+                <strong data-sepay-amount>—</strong>
+            </div>
+            <dl class="sepay-transfer-details">
+                <div>
+                    <dt>Tài khoản nhận</dt>
+                    <dd><span data-sepay-destination>Đang tải…</span></dd>
+                </div>
+                <div>
+                    <dt>Nội dung chuyển khoản</dt>
+                    <dd><strong data-sepay-memo>Đang tải…</strong><button type="button" data-sepay-copy="memo">Sao chép</button></dd>
+                </div>
+            </dl>
+            <div class="sepay-countdown">
+                <span aria-hidden="true">◷</span>
+                <p><small>Thời gian giữ phòng</small><strong data-sepay-time>Đang tính…</strong></p>
+            </div>
+            <div class="sepay-note"><strong>Lưu ý</strong><span>Giữ nguyên màn hình này. Hệ thống sẽ tự chuyển trang ngay khi nhận được thanh toán.</span></div>
+            <a class="sepay-back-link" href="/">← Quay lại trang đặt phòng</a>
+        </div>
+    </section>
+</main>
+@section Head {
+    <link rel="stylesheet" href="~/css/sepay-payment.css" asp-append-version="true" />
+}
+@section Scripts {
+    <script src="~/js/pages/sepay-payment.js" asp-append-version="true"></script>
+}

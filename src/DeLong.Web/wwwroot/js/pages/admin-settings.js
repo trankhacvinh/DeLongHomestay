@@ -39,6 +39,12 @@
                 savingNotifications: false,
                 savingCustomerAccounts: false,
                 savingPay2s: false,
+                sepay: { enabled: false, bankId: 'ACB', bankAccountNumber: '', qrAccountNumber: '', accountHolder: '', subAccount: '', memoPrefix: '', holdMinutes: 15, settlementGraceMinutes: 3, ...(initial.sePaySettings || {}), webhookKey: '', apiToken: '' },
+                savingSepay: false,
+                sepayTransactions: [],
+                sepayReconcileId: '',
+                reconcilingSepay: false,
+                sepayResolution: { id: '', note: '' },
                 customerTermsEditor: null,
                 testingEmail: false,
                 testingTelegram: false,
@@ -55,6 +61,39 @@
             }
         },
         methods: {
+            async reconcileSePay() {
+                if (!/^[1-9][0-9]*$/.test(this.sepayReconcileId) || this.reconcilingSepay) return;
+                this.reconcilingSepay = true;
+                try {
+                    const result = await DeLongApi.post(`/api/admin/properties/${this.propertyId}/sepay/reconcile/${this.sepayReconcileId}`, {});
+                    this.notify(this.sepayOutcome(result.outcome), 'success');
+                    await this.loadSePayTransactions();
+                } catch (error) { this.notify(error.message, 'error'); }
+                finally { this.reconcilingSepay = false; }
+            },
+            async saveSePaySettings() {
+                this.savingSepay = true;
+                try {
+                    this.sepay = { ...await DeLongApi.put(`/api/admin/properties/${this.propertyId}/sepay/settings`, this.sepay), webhookKey: '', apiToken: '' };
+                    this.notify('Đã lưu cấu hình SePay.', 'success');
+                } catch (error) { this.notify(error.message, 'error'); }
+                finally { this.savingSepay = false; }
+            },
+            async loadSePayTransactions() {
+                try { this.sepayTransactions = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/sepay/transactions`); }
+                catch (error) { this.notify(error.message, 'error'); }
+            },
+            async resolveSePayTransaction() {
+                if (!this.sepayResolution.id || !this.sepayResolution.note.trim()) return;
+                try {
+                    await DeLongApi.post(`/api/admin/properties/${this.propertyId}/sepay/transactions/${this.sepayResolution.id}/resolve`, { note: this.sepayResolution.note });
+                    this.sepayResolution = { id: '', note: '' };
+                    await this.loadSePayTransactions();
+                } catch (error) { this.notify(error.message, 'error'); }
+            },
+            sepayOutcome(value) {
+                return ({ succeeded: 'Đã ghi nhận', paid_after_expiry: 'Tiền đến muộn', amount_mismatch: 'Lệch số tiền', unmatched_code: 'Chưa khớp mã', additional_transfer: 'Chuyển thêm lần nữa' })[value] || value;
+            },
             selectTab(tab) {
                 if (!['rooms', 'housekeeping', 'booking', 'customer-accounts', 'pay2s', 'notifications'].includes(tab)) return;
                 this.activeTab = tab;

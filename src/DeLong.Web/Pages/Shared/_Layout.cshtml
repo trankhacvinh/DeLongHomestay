@@ -22,6 +22,7 @@
     var publicSiteName = string.IsNullOrWhiteSpace(publicSettings?.SiteName) ? "De Long Homestay" : publicSettings.SiteName;
     var publicTagline = string.IsNullOrWhiteSpace(publicSettings?.Tagline) ? "Long Thành · Đồng Nai" : publicSettings.Tagline;
     var path = Context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
+    var isPaymentPage = Context.Request.Path.StartsWithSegments("/payment");
     var editorialTab = string.Equals(Context.Request.Query["tab"].ToString(), "blog", StringComparison.OrdinalIgnoreCase) ? "blog" : "gallery";
     var requestedPropertyValue = Context.Request.Query["propertyId"].ToString();
     Guid? requestedPropertyId = Guid.TryParse(requestedPropertyValue, out var parsedPropertyId) ? parsedPropertyId : null;
@@ -50,6 +51,7 @@
         : User.IsInRole("Housekeeping") ? "Dọn phòng"
         : User.IsInRole("Viewer") ? "Chỉ xem"
         : "Tài khoản";
+    var applicationBuild = DeLong.Web.Common.Operations.ApplicationBuildInfo.Current;
     var userInitial = string.IsNullOrWhiteSpace(displayName) ? "A" : displayName.Trim().Substring(0, 1).ToUpperInvariant();
 
     string NavClass(string prefix, bool exact = false)
@@ -220,7 +222,7 @@
 </head>
 <body class="@(isAdmin
     ? "admin-body"
-    : $"public-body{(canManageSite ? " public-editor-enabled" : string.Empty)}{(Context.Request.Query["embed"] == "1" ? " public-embedded-page" : string.Empty)}")">
+    : $"public-body{(canManageSite && !isPaymentPage ? " public-editor-enabled" : string.Empty)}{(Context.Request.Query["embed"] == "1" ? " public-embedded-page" : string.Empty)}")">
 <a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
 <svg class="svg-sprite" aria-hidden="true">
     <symbol id="i-grid" viewBox="0 0 24 24">
@@ -457,6 +459,7 @@
             </nav>
             <div class="sidebar-foot">
                 <div class="sidebar-hint"><span class="status-dot"></span><span>Hệ thống đang hoạt động</span></div>
+                <small title="@(applicationBuild.Commit is null ? null : $"Commit {applicationBuild.Commit}")">Phiên bản @applicationBuild.Version · Build @applicationBuild.BuildId</small>
             </div>
         </aside>
         <main class="admin-main">
@@ -682,7 +685,7 @@ else if (isAdmin && canUseStaffAi && currentProperty is not null)
         <form data-staff-ai-form><textarea rows="2" maxlength="1000" data-staff-ai-input placeholder="Ví dụ: Cuối tuần có những booking nào?"></textarea><button class="btn btn-primary" type="submit">Gửi</button></form>
     </aside>
 }
-@if (!isAdmin)
+@if (!isAdmin && !isPaymentPage)
 {
     <button class="public-ai-launch" type="button" data-public-ai-open aria-label="Mở trợ lý đặt phòng" hidden>AI</button>
     <div class="public-ai-backdrop" data-public-ai-backdrop hidden></div>
@@ -701,7 +704,7 @@ else if (isAdmin && canUseStaffAi && currentProperty is not null)
 <script src="~/js/core/api.js" asp-append-version="true"></script>
 <script src="~/js/core/password-strength.js" asp-append-version="true"></script>
 <script src="~/js/core/shell.js" asp-append-version="true"></script>
-@if (!isAdmin)
+@if (!isAdmin && !isPaymentPage)
 {
     <script src="~/js/core/public-ai-chat.js" asp-append-version="true"></script>
 }

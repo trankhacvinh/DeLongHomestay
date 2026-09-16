@@ -18,6 +18,7 @@ public sealed class IndexModel(
     NotificationSettingsService notificationSettingsService,
     CustomerAccountSettingsService customerAccountSettingsService,
     Pay2SSettingsService pay2SSettingsService,
+    SePaySettingsService sePaySettingsService,
     CurrentPropertyService currentPropertyService) : PageModel
 {
     public Guid PropertyId { get; private set; }
@@ -44,6 +45,7 @@ public sealed class IndexModel(
                 notificationSettings,
                 customerAccountSettings
                 ,pay2SSettings
+                ,sePaySettings = await sePaySettingsService.GetAsync(PropertyId, cancellationToken)
             },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return Page();

@@ -145,7 +145,7 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
                 x.Code,
                 x.Room.Name,
                 x.Room.GuestGuideHtml,
-                x.Payments.Any(p => !p.IsVoided && p.Type == PaymentType.Receipt && p.Method == PaymentMethod.Pay2S),
+                x.Payments.Any(p => !p.IsVoided && p.Type == PaymentType.Receipt && (p.Method == PaymentMethod.Pay2S || p.Method == PaymentMethod.SePay)),
                 x.Payments.Where(p => !p.IsVoided)
                     .Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount)))
             .SingleOrDefaultAsync(ct);

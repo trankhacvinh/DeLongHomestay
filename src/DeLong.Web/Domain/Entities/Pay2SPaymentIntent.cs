@@ -4,6 +4,11 @@ namespace DeLong.Web.Domain.Entities;
 
 public sealed class Pay2SPaymentIntent : EntityBase
 {
+    public PaymentMethod Provider { get; set; } = PaymentMethod.Pay2S;
+    public string? SePayWebhookKeyProtected { get; set; }
+    public string? SePayBankAccount { get; set; }
+    public string? SePaySubAccount { get; set; }
+    public string? SePayQrUrl { get; set; }
     public Guid PropertyId { get; set; }
     public Property Property { get; set; } = null!;
     public Guid BookingId { get; set; }

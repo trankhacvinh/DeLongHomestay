@@ -124,7 +124,7 @@
                 }).format(new Date(value));
             },
             paymentMethodText(method) {
-                return ({ 0: 'Tiền mặt', 1: 'Chuyển khoản', 2: 'Thẻ', 3: 'Khác', 4: 'Pay2S' })[method] || 'Khác';
+                return ({ 0: 'Tiền mặt', 1: 'Chuyển khoản', 2: 'Thẻ', 3: 'Khác', 4: 'Pay2S', 5: 'SePay' })[method] || 'Khác';
             },
             navigate(anchorDate, scope, period) {
                 const query = new URLSearchParams({ propertyId: this.propertyId, date: anchorDate, period, scope });

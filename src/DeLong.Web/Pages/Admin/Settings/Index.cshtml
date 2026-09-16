@@ -38,7 +38,7 @@
             <svg aria-hidden="true"><use href="#i-users" /></svg><span>Tài khoản khách</span>
         </button>
         <button id="settings-tab-pay2s" type="button" role="tab" v-bind:aria-selected="activeTab === 'pay2s'" aria-controls="settings-panel-pay2s" v-bind:class="{ active: activeTab === 'pay2s' }" v-on:click="selectTab('pay2s')">
-            <svg aria-hidden="true"><use href="#i-wallet" /></svg><span>Thanh toán Pay2S</span>
+            <svg aria-hidden="true"><use href="#i-wallet" /></svg><span>Thanh toán</span>
         </button>
         <button id="settings-tab-notifications" type="button" role="tab" v-bind:aria-selected="activeTab === 'notifications'" aria-controls="settings-panel-notifications" v-bind:class="{ active: activeTab === 'notifications' }" v-on:click="selectTab('notifications')">
             <svg aria-hidden="true"><use href="#i-bell" /></svg><span>Thông báo & email</span>
@@ -114,6 +114,34 @@
     </section>
 
     <section id="settings-panel-pay2s" class="panel notification-settings-panel settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-pay2s" v-show="activeTab === 'pay2s'">
+        <div class="panel-head"><div><h2>SePay · Chuyển khoản tự động</h2><p class="small muted">Bật SePay để dùng cho phiên mới. Phiên Pay2s cũ tiếp tục được xử lý.</p></div></div>
+        <div class="panel-body">
+            <div class="notification-settings-grid">
+                <label class="check-row full"><input type="checkbox" v-model="sepay.enabled" /> Dùng SePay cho phiên thanh toán mới</label>
+                <div class="field"><label for="sepay-bank">Mã ngân hàng</label><input id="sepay-bank" v-model.trim="sepay.bankId" maxlength="30" /></div>
+                <div class="field"><label for="sepay-account">Số tài khoản trong webhook</label><input id="sepay-account" v-model.trim="sepay.bankAccountNumber" maxlength="100" /></div>
+                <div class="field"><label for="sepay-qr-account">Tài khoản / VA trên QR</label><input id="sepay-qr-account" v-model.trim="sepay.qrAccountNumber" maxlength="100" /><small>Để trống nếu giống số tài khoản. Ngân hàng yêu cầu VA phải nhập số VA đã liên kết.</small></div>
+                <div class="field"><label for="sepay-holder">Chủ tài khoản</label><input id="sepay-holder" v-model.trim="sepay.accountHolder" maxlength="200" /></div>
+                <div class="field"><label for="sepay-sub">SubAccount trong webhook</label><input id="sepay-sub" v-model.trim="sepay.subAccount" maxlength="100" /><small>Để trống nếu không dùng tài khoản phụ.</small></div>
+                <div class="field"><label for="sepay-memo">Tiền tố nội dung của ngân hàng</label><input id="sepay-memo" v-model.trim="sepay.memoPrefix" maxlength="100" /><small>Ví dụ SEVQR cho VietinBank, TKP001 cho VA theo nội dung. Mã phiên được tự nối phía sau.</small></div>
+                <div class="field full"><label for="sepay-key">API Key xác thực webhook</label><input id="sepay-key" type="password" v-model="sepay.webhookKey" autocomplete="new-password" maxlength="512" placeholder="Ít nhất 32 ký tự; để trống để giữ khóa cũ" /><small>{{ sepay.webhookKeyConfigured ? 'Đã lưu mã hóa' : 'Chưa có khóa' }}. Nhập cùng khóa ở cấu hình webhook SePay, chọn xác thực API Key.</small></div>
+            <div class="field full"><label for="sepay-api-token">API Token đối soát SePay v1 (tùy chọn, môi trường thật)</label><input id="sepay-api-token" type="password" v-model="sepay.apiToken" autocomplete="new-password" placeholder="Để trống để giữ token cũ; lưu bằng nút Lưu SePay" /><small>{{ sepay.apiTokenConfigured ? 'Đã lưu mã hóa' : 'Chưa có token đối soát' }}</small></div>
+                <div class="field"><label for="sepay-hold">Giữ phòng (phút)</label><input id="sepay-hold" type="number" min="1" max="60" v-model.number="sepay.holdMinutes" /></div>
+                <div class="field"><label for="sepay-grace">Đệm xác nhận (phút)</label><input id="sepay-grace" type="number" min="0" max="15" v-model.number="sepay.settlementGraceMinutes" /></div>
+            </div>
+            <div class="field mt-16"><label for="sepay-webhook-url">URL webhook (dùng HTTPS trên domain công khai)</label><input id="sepay-webhook-url" readonly value="@Request.Scheme://@Request.Host/api/payments/sepay/@Model.PropertyId/webhook" /></div>
+            <p class="small muted">Trên SePay: chọn tiền vào, đúng tài khoản; cấu hình mã thanh toán tiền tố DH, hậu tố 10 chữ số. Dùng khóa riêng cho môi trường thử nghiệm.</p>
+            <button class="btn btn-primary" type="button" v-bind:disabled="savingSepay" v-on:click="saveSePaySettings">{{ savingSepay ? 'Đang lưu…' : 'Lưu SePay' }}</button>
+            <div class="field mt-16"><label for="sepay-reconcile-id">ID giao dịch SePay cần đối soát</label><input id="sepay-reconcile-id" v-model.trim="sepayReconcileId" inputmode="numeric" /><small>Hệ thống truy vấn SePay và ghi nhận nếu khớp phiên. Dùng khi ngân hàng đã báo tiền nhưng thiếu webhook.</small><button class="btn btn-light" type="button" v-bind:disabled="reconcilingSepay" v-on:click="reconcileSePay">{{ reconcilingSepay ? 'Đang đối soát…' : 'Đối soát giao dịch' }}</button></div>
+            <h3 class="mt-16">Giao dịch SePay gần nhất</h3>
+            <button class="btn btn-light" type="button" v-on:click="loadSePayTransactions">Tải giao dịch</button>
+            <p class="small muted">Khoản lệch tiền/sai mã chưa được ghi vào booking. Đối chiếu ngân hàng, ghi thu hoặc hoàn thực tế tại booking rồi lưu ghi chú xử lý ở đây.</p>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>Giao dịch</th><th>Mã / Nội dung</th><th>Số tiền</th><th>Kết quả</th><th>Xử lý</th></tr></thead><tbody>
+                <tr v-for="row in sepayTransactions" v-bind:key="row.id"><td>{{ row.transactionId }}</td><td>{{ row.code }}<div class="small muted">{{ row.content }}</div></td><td>{{ Number(row.amount).toLocaleString('vi-VN') }} đ</td><td>{{ sepayOutcome(row.outcome) }}</td><td><span v-if="row.resolvedAtUtc">{{ row.resolutionNote }}</span><button v-else-if="row.outcome !== 'succeeded'" type="button" class="btn btn-light" v-on:click="sepayResolution = { id: row.id, note: '' }">Ghi chú xử lý</button></td></tr>
+                <tr v-if="!sepayTransactions.length"><td colspan="5">Nhấn “Tải giao dịch” để xem dữ liệu gần nhất. Chưa có giao dịch trong danh sách.</td></tr>
+            </tbody></table></div>
+            <div v-if="sepayResolution.id" class="field"><label for="sepay-resolution">Kết quả đối soát (không tự ghi thu/hoàn tiền)</label><textarea id="sepay-resolution" v-model="sepayResolution.note" maxlength="2000"></textarea><button type="button" class="btn btn-primary" v-on:click="resolveSePayTransaction">Lưu ghi chú</button></div>
+        </div>
         <div class="panel-head"><div><h2>Hồ sơ Pay2S của cơ sở</h2><p class="small muted">Mỗi cơ sở lưu hồ sơ riêng. Hai cơ sở muốn dùng chung tài khoản thì nhập cùng thông tin tại từng cơ sở.</p></div><span class="pill success" v-if="pay2s.enabled">Đang bật</span></div>
         <div class="panel-body">
             <div class="notification-settings-grid">

@@ -38,9 +38,10 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         if (decoded is null || decoded.Width <= 0 || decoded.Height <= 0) return (null, "File tải lên không phải ảnh hợp lệ.");
 
         var safeProperty = SafeProperty(propertyCode);
-        var publicRoot = Path.Combine(UploadsRoot(), "site", safeProperty);
+        var publicRoot = Path.Combine(paths.SitePublicRoot, safeProperty);
         Directory.CreateDirectory(publicRoot);
 
+        var uniqueSuffix = Guid.NewGuid().ToString("N");
         string fileName;
         SKBitmap output;
         SKEncodedImageFormat format;
@@ -48,25 +49,25 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         switch (kind)
         {
             case "cover":
-                fileName = "cover.webp";
+                fileName = $"cover-{uniqueSuffix}.webp";
                 output = ResizeCrop(decoded, 1600, 1000);
                 format = SKEncodedImageFormat.Webp;
                 quality = 86;
                 break;
             case "favicon":
-                fileName = "favicon-64.png";
+                fileName = $"favicon-64-{uniqueSuffix}.png";
                 output = ResizeContain(decoded, 64, 64);
                 format = SKEncodedImageFormat.Png;
                 quality = 100;
                 break;
             case "og":
-                fileName = "og.webp";
+                fileName = $"og-{uniqueSuffix}.webp";
                 output = ResizeCrop(decoded, 1200, 630);
                 format = SKEncodedImageFormat.Webp;
                 quality = 84;
                 break;
             case "logo":
-                fileName = "logo.webp";
+                fileName = $"logo-{uniqueSuffix}.webp";
                 output = ResizeMax(decoded, 900);
                 format = SKEncodedImageFormat.Webp;
                 quality = 86;
@@ -91,7 +92,8 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
 
         var version = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var storageKey = $"site/{safeProperty}/{fileName}";
-        return (new StoredSiteAsset($"/uploads/{storageKey}?v={version}", outputWidth, outputHeight, bytes.LongLength, storageKey), null);
+        var requestRoot = paths.SiteRequestPath.Value?.TrimEnd('/') ?? "/uploads/site";
+        return (new StoredSiteAsset($"{requestRoot}/{safeProperty}/{fileName}?v={version}", outputWidth, outputHeight, bytes.LongLength, storageKey), null);
     }
 
     public bool Exists(string storageKey)
@@ -112,15 +114,10 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
     {
         var key = (storageKey ?? string.Empty).Replace('\\', '/').TrimStart('/');
         if (!key.StartsWith("site/", StringComparison.OrdinalIgnoreCase) || key.Contains("..", StringComparison.Ordinal)) return null;
-        var root = Path.GetFullPath(UploadsRoot());
-        var full = Path.GetFullPath(Path.Combine(root, key.Replace('/', Path.DirectorySeparatorChar)));
+        var root = Path.GetFullPath(paths.SitePublicRoot);
+        var relative = key["site/".Length..].Replace('/', Path.DirectorySeparatorChar);
+        var full = Path.GetFullPath(Path.Combine(root, relative));
         return full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ? full : null;
-    }
-
-    private string UploadsRoot()
-    {
-        var roomsRoot = paths.MediaPublicRoot;
-        return Directory.GetParent(roomsRoot)?.FullName ?? roomsRoot;
     }
 
     private static string SafeProperty(string propertyCode) =>

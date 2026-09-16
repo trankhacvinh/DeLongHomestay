@@ -17,6 +17,14 @@
 
 DeLongHomestay là **modular monolith nhỏ**, cố ý chỉ dùng 1 production project và 1 test project.
 
+### First-run setup
+
+- `/setup` chỉ mở khi chưa tồn tại bất kỳ tài khoản mang role `Admin`; trang đăng nhập tự chuyển tới setup trong trạng thái này.
+- Hoàn tất setup chạy trong transaction `Serializable` và PostgreSQL advisory lock, kiểm tra lại điều kiện trước khi tạo Admin để ngăn hai request khởi tạo đồng thời.
+- Tùy chọn seed tạo cơ sở De Long, 6 phòng/khung giờ, giá cả ngày thường/cuối tuần, nội dung website và các entity cấu hình theo cơ sở. Không seed booking, khách, thanh toán hoặc dữ liệu vận hành.
+- Các tích hợp Pay2S, SMTP, Telegram và AI được tạo ở trạng thái tắt/rỗng; đặc biệt không có API key hoặc credential trong seed.
+- Schema phải được migrate trong quy trình deploy trước khi truy cập `/setup`; HTTP setup không tự chạy migration.
+
 ```text
 DeLongHomestay/
 ├── demo/
@@ -134,3 +142,7 @@ Admin, Manager, Staff, Housekeeping, Viewer. Ngoài role còn có `UserPropertyA
 Staff AI là lớp truy vấn chỉ đọc tách khỏi Admin AI mutation. Endpoint bắt buộc `UseStaffAi`, kiểm tra quyền truy cập cơ sở và antiforgery; dữ liệu thực thu chỉ được truy vấn khi principal đạt `ViewFinance`. Mỗi lần gọi công cụ được ghi vào `AiToolExecutionLog`, không đưa CCCD, secrets hoặc cấu hình thanh toán vào kết quả.
 
 Admin AI mutation chỉ chạy từ typed proposal đã được server resolve theo `property_id` và dựng snapshot trước/sau. Apply dùng transaction `Serializable`, khóa proposal, kiểm tra hết hạn/stale-state và chỉ xử lý một lần; batch lỗi rollback toàn bộ. Proposal lưu riêng người yêu cầu, người áp dụng hoặc từ chối; audit cấu hình giữ dữ liệu trước/sau. Allowlist không chứa payment, cấu hình email, API credential, custom CSS/JS hoặc mã xác minh.
+
+## SePay payment provider
+
+SePay VietQR/webhook dùng chung vòng đời intent với Pay2s, phân biệt bằng `Provider`; giữ tên bảng/route cũ để tương thích. Hồ sơ theo cơ sở, snapshot khóa/tài khoản cho phiên cũ, sổ SePay chống trùng toàn hệ thống; Payment lịch sử giữ nguyên phương thức. Chi tiết, chuyển đổi và giới hạn: [SEPAY-PAYMENTS.md](SEPAY-PAYMENTS.md).

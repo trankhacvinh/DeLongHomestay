@@ -5,7 +5,32 @@
     const clone = value => JSON.parse(JSON.stringify(value));
     let specialDatePickers = [];
 
-    Vue.createApp({
+    const MoneyInput = {
+        inheritAttrs: false,
+        props: {
+            modelValue: { type: [Number, String], default: null },
+            disabled: { type: Boolean, default: false },
+            placeholder: { type: String, default: '' }
+        },
+        emits: ['update:modelValue'],
+        computed: {
+            displayValue() {
+                const digits = String(this.modelValue ?? '').replace(/\D/g, '');
+                return digits ? Number(digits).toLocaleString('vi-VN') : '';
+            }
+        },
+        methods: {
+            update(event) {
+                const digits = event.target.value.replace(/\D/g, '');
+                const value = digits ? Number(digits) : null;
+                event.target.value = value === null ? '' : value.toLocaleString('vi-VN');
+                this.$emit('update:modelValue', value);
+            }
+        },
+        template: '<input type="text" inputmode="numeric" autocomplete="off" v-bind="$attrs" v-bind:value="displayValue" v-bind:disabled="disabled" v-bind:placeholder="placeholder" v-on:input="update" />'
+    };
+
+    const app = Vue.createApp({
         data() { return { propertyId: initial.propertyId, canManage: initial.canManage === true, rooms: clone(initial.rooms || []), tab: 'rates', saving: false, settings: { threeSlotDiscountEnabled: true, threeSlotCount: 3, threeSlotDiscountPercent: 10, weekendDayMask: 65 }, specialDays: [], weekDays: [{value:1,label:'Thứ 2'},{value:2,label:'Thứ 3'},{value:3,label:'Thứ 4'},{value:4,label:'Thứ 5'},{value:5,label:'Thứ 6'},{value:6,label:'Thứ 7'},{value:0,label:'Chủ nhật'}], editor: {open:false,id:null,error:'',form:{}}, toast:{show:false,type:'success',message:'',timer:null} }; },
         mounted() { this.load(); },
         beforeUnmount() { specialDatePickers.forEach(picker => picker.destroy()); specialDatePickers = []; },
@@ -53,5 +78,7 @@
             profileText(v){ return ['Tự động theo thứ','Giá ngày thường','Giá cuối tuần'][Number(v)] || v; },
             notify(message,type='success'){ clearTimeout(this.toast.timer); this.toast={show:true,type,message,timer:setTimeout(()=>this.toast.show=false,3200)}; }
         }
-    }).mount(root);
+    });
+    app.component('money-input', MoneyInput);
+    app.mount(root);
 })();

@@ -49,6 +49,47 @@ public sealed class Pay2SService(
         var amount = booking.TotalAmount - paid;
         if (amount <= 0) return (null, new("booking_paid", "Booking đã được thanh toán đủ."));
 
+        var sepay = await db.PropertySePaySettings.AsNoTracking().SingleOrDefaultAsync(x => x.PropertyId == propertyId, ct);
+        if (sepay?.Enabled == true)
+        {
+            await using var creation = await db.Database.BeginTransactionAsync(ct);
+            await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM bookings WHERE id = {bookingId} FOR UPDATE", ct);
+            await db.Entry(booking).ReloadAsync(ct);
+            if (booking.Status is BookingStatus.Cancelled or BookingStatus.Completed or BookingStatus.NoShow)
+                return (null, new("booking_not_payable", "Booking không còn ở trạng thái có thể thanh toán."));
+            var concurrent = await db.Pay2SPaymentIntents.AsNoTracking().Where(x => x.BookingId == bookingId &&
+                x.Status == Pay2SPaymentIntentStatus.Pending && x.ExpiresAtUtc > DateTime.UtcNow).SingleOrDefaultAsync(ct);
+            if (concurrent is not null) return (ToDto(concurrent), null);
+            paid = await db.Payments.AsNoTracking().Where(x => x.BookingId == bookingId && !x.IsVoided)
+                .SumAsync(x => x.Type == PaymentType.Receipt ? x.Amount : -x.Amount, ct);
+            amount = booking.TotalAmount - paid;
+            if (amount <= 0) return (null, new("booking_paid", "Booking đã được thanh toán đủ."));
+            if (string.IsNullOrWhiteSpace(sepay.WebhookKeyProtected))
+                return (null, new("sepay_incomplete", "Cấu hình SePay thiếu khóa webhook."));
+            if (amount != decimal.Truncate(amount)) return (null, new("amount_invalid", "SePay chỉ nhận số tiền nguyên dương."));
+            var code = SePayService.PaymentCodePrefix +
+                System.Security.Cryptography.RandomNumberGenerator.GetString("0123456789", 10);
+            var sepayIntent = new Pay2SPaymentIntent
+            {
+                PropertyId = propertyId, BookingId = bookingId, Provider = PaymentMethod.SePay,
+                OrderId = code, RequestId = Guid.NewGuid().ToString("N"), OrderInfo = code,
+                SiteSlug = string.IsNullOrWhiteSpace(siteSlug)
+                    ? await db.Properties.AsNoTracking().Where(x => x.Id == propertyId).Select(x => x.SiteSlug).SingleAsync(ct)
+                    : siteSlug,
+                Amount = amount,
+                PayUrl = "/payment/sepay?orderId=" + code,
+                SePayWebhookKeyProtected = sepay.WebhookKeyProtected,
+                SePayBankAccount = sepay.BankAccountNumber, SePaySubAccount = sepay.SubAccount,
+                SePayQrUrl = SePaySettingsService.QrUrl(sepay, code, amount),
+                ExpiresAtUtc = now.AddMinutes(sepay.HoldMinutes),
+                ReleaseAtUtc = now.AddMinutes(sepay.HoldMinutes + (useSettlementGrace ? sepay.SettlementGraceMinutes : 0)),
+                CancelBookingOnExpiry = cancelBookingOnExpiry
+            };
+            db.Add(sepayIntent);
+            await db.SaveChangesAsync(ct);
+            await creation.CommitAsync(ct);
+            return (ToDto(sepayIntent), null);
+        }
         var (profile, profileError) = await settingsService.GetProfileAsync(propertyId, ct);
         if (profile is null) return (null, profileError);
         var suffix = Guid.CreateVersion7().ToString("N")[..20].ToUpperInvariant();
@@ -117,6 +158,7 @@ public sealed class Pay2SService(
             .Include(x => x.Booking)
             .SingleOrDefaultAsync(ct);
         if (intent is null) return (null, new("intent_not_found", "Không tìm thấy phiên thanh toán."));
+        if (intent.Provider != PaymentMethod.Pay2S) return (null, new("provider_mismatch", "Nhà cung cấp thanh toán không khớp."));
         intent.LastCallbackAttemptAtUtc = DateTime.UtcNow;
         var (profile, profileError) = await settingsService.GetProfileAsync(intent.PropertyId, ct);
         if (profile is null)
@@ -179,7 +221,7 @@ public sealed class Pay2SService(
             await transaction.CommitAsync(ct);
             return (null, new("transaction_conflict", "Phiên thanh toán đã được ghi nhận bằng một giao dịch Pay2S khác."));
         }
-        if (request.TransId > 0 && await db.Pay2SPaymentIntents.AsNoTracking().AnyAsync(x => x.Id != intent.Id && x.TransactionId == request.TransId, ct))
+        if (request.TransId > 0 && await db.Pay2SPaymentIntents.AsNoTracking().AnyAsync(x => x.Id != intent.Id && x.Provider == PaymentMethod.Pay2S && x.TransactionId == request.TransId, ct))
         {
             intent.LastCallbackErrorCode = "transaction_reused";
             await db.SaveChangesAsync(ct);
@@ -256,7 +298,7 @@ public sealed class Pay2SService(
             if (intent.CancelBookingOnExpiry && intent.Booking.Status is BookingStatus.Held or BookingStatus.Requested)
             {
                 intent.Booking.Status = BookingStatus.Cancelled;
-                await voucherService.ReleaseReservedAsync(intent.BookingId, "Booking bị hủy do hết thời gian thanh toán Pay2S.", ct);
+                await voucherService.ReleaseReservedAsync(intent.BookingId, "Booking bị hủy do hết thời gian thanh toán.", ct);
                 cancelledBookingIds.Add((intent.PropertyId, intent.BookingId));
             }
         }
@@ -264,7 +306,7 @@ public sealed class Pay2SService(
         await transaction.CommitAsync(ct);
         foreach (var cancelled in cancelledBookingIds)
         {
-            await notificationService.NotifyBookingStatusChangedAsync(cancelled.PropertyId, cancelled.BookingId, BookingStatus.Held, BookingStatus.Cancelled, "Hết thời gian thanh toán Pay2S.", cancellationToken: ct);
+            await notificationService.NotifyBookingStatusChangedAsync(cancelled.PropertyId, cancelled.BookingId, BookingStatus.Held, BookingStatus.Cancelled, "Hết thời gian thanh toán.", cancellationToken: ct);
             await guestGuideEmailService.QueueCancellationAsync(cancelled.PropertyId, cancelled.BookingId, null, "Booking đã bị hủy do hết thời gian thanh toán.", ct);
         }
         return intents.Count;
@@ -273,8 +315,11 @@ public sealed class Pay2SService(
     public async Task<(Pay2SIntentDto? Intent, Pay2SOperationError? Error)> ResolveLatePaymentAsync(
         Guid propertyId, Guid intentId, ResolveLatePay2SRequest request, Guid? actorUserId, CancellationToken ct = default)
     {
-        var intent = await db.Pay2SPaymentIntents.Include(x => x.Booking)
-            .SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == intentId, ct);
+        await using var resolutionTransaction = await db.Database.BeginTransactionAsync(ct);
+        var intent = await db.Pay2SPaymentIntents
+            .FromSqlInterpolated($"SELECT * FROM pay2_s_payment_intents WHERE property_id = {propertyId} AND id = {intentId} FOR UPDATE")
+            .Include(x => x.Booking)
+            .SingleOrDefaultAsync(ct);
         if (intent is null) return (null, new("intent_not_found", "Không tìm thấy phiên thanh toán."));
         if (intent.Status != Pay2SPaymentIntentStatus.PaidAfterExpiry)
             return (null, new("intent_not_late_paid", "Phiên này không phải khoản thanh toán đến muộn."));
@@ -290,11 +335,11 @@ public sealed class Pay2SService(
                 PropertyId = propertyId,
                 BookingId = intent.BookingId,
                 Type = PaymentType.Refund,
-                Method = PaymentMethod.Pay2S,
+                Method = intent.Provider,
                 Amount = intent.Amount,
                 OccurredAtUtc = DateTime.UtcNow,
                 Reference = intent.TransactionId?.ToString(),
-                Note = $"Hoàn khoản Pay2S đến muộn. {request.Note}".Trim()
+                Note = $"Hoàn khoản {intent.Provider} đến muộn. {request.Note}".Trim()
             });
             intent.LatePaymentResolution = "Refunded";
         }
@@ -322,6 +367,7 @@ public sealed class Pay2SService(
         intent.LatePaymentResolvedAtUtc = DateTime.UtcNow;
         intent.LatePaymentResolvedByUserId = actorUserId;
         await db.SaveChangesAsync(ct);
+        await resolutionTransaction.CommitAsync(ct);
         if (action is "confirm" or "move")
         {
             await notificationService.NotifyBookingStatusChangedAsync(propertyId, intent.BookingId, previousStatus, BookingStatus.Confirmed, cancellationToken: ct);

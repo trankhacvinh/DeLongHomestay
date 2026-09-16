@@ -41,6 +41,20 @@ public sealed class PricingSourceContractTests
     }
 
     [Fact]
+    public void Admin_room_price_inputs_use_vietnamese_thousand_separator_without_changing_numeric_models()
+    {
+        var root = FindRoot();
+        var page = File.ReadAllText(Path.Combine(root, "src/DeLong.Web/Pages/Admin/Pricing/Index.cshtml"));
+        var script = File.ReadAllText(Path.Combine(root, "src/DeLong.Web/wwwroot/js/pages/admin-pricing.js"));
+
+        Assert.Equal(4, page.Split("<money-input", StringSplitOptions.None).Length - 1);
+        Assert.Contains("app.component('money-input', MoneyInput)", script, StringComparison.Ordinal);
+        Assert.Contains("toLocaleString('vi-VN')", script, StringComparison.Ordinal);
+        Assert.Contains("this.$emit('update:modelValue', value)", script, StringComparison.Ordinal);
+        Assert.Contains("inputmode=\"numeric\"", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Public_calendar_handles_full_day_only_and_configurable_three_slot_discount()
     {
         var root = FindRoot();

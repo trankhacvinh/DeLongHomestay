@@ -6,5 +6,6 @@ public enum PaymentMethod
     BankTransfer = 1,
     Card = 2,
     Other = 3,
-    Pay2S = 4
+    Pay2S = 4,
+    SePay = 5
 }

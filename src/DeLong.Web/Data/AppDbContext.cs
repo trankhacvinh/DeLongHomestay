@@ -28,6 +28,8 @@ public sealed class AppDbContext
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<BookingRateSegment> BookingRateSegments => Set<BookingRateSegment>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<PropertySePaySettings> PropertySePaySettings => Set<PropertySePaySettings>();
+    public DbSet<SePayTransaction> SePayTransactions => Set<SePayTransaction>();
     public DbSet<Pay2SPaymentIntent> Pay2SPaymentIntents => Set<Pay2SPaymentIntent>();
     public DbSet<PropertyPay2SSettings> PropertyPay2SSettings => Set<PropertyPay2SSettings>();
     public DbSet<Expense> Expenses => Set<Expense>();
@@ -504,13 +506,42 @@ public sealed class AppDbContext
             entity.ToTable(table => table.HasCheckConstraint("ck_property_pay2s_settings_settlement_grace", "settlement_grace_minutes BETWEEN 0 AND 15"));
         });
 
+        modelBuilder.Entity<PropertySePaySettings>(entity =>
+        {
+            entity.HasIndex(x => x.PropertyId).IsUnique();
+            entity.HasOne<Property>().WithOne().HasForeignKey<PropertySePaySettings>(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.Property(x => x.BankId).HasMaxLength(30);
+            entity.Property(x => x.BankAccountNumber).HasMaxLength(100);
+            entity.Property(x => x.QrAccountNumber).HasMaxLength(100);
+            entity.Property(x => x.AccountHolder).HasMaxLength(200);
+            entity.Property(x => x.SubAccount).HasMaxLength(100);
+            entity.Property(x => x.MemoPrefix).HasMaxLength(100);
+            entity.ToTable(t => t.HasCheckConstraint("ck_sepay_hold", "hold_minutes BETWEEN 1 AND 60 AND settlement_grace_minutes BETWEEN 0 AND 15"));
+        });
+        modelBuilder.Entity<SePayTransaction>(entity =>
+        {
+            entity.HasIndex(x => x.TransactionId).IsUnique();
+            entity.HasIndex(x => new { x.PropertyId, x.CreatedAtUtc });
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.Property(x => x.Code).HasMaxLength(100);
+            entity.Property(x => x.AccountNumber).HasMaxLength(100);
+            entity.Property(x => x.Content).HasMaxLength(4000);
+            entity.Property(x => x.Outcome).HasMaxLength(60);
+            entity.Property(x => x.ResolutionNote).HasMaxLength(2000);
+            entity.HasOne<Property>().WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Pay2SPaymentIntent>().WithMany().HasForeignKey(x => x.IntentId).OnDelete(DeleteBehavior.Restrict);
+        });
         modelBuilder.Entity<Pay2SPaymentIntent>(entity =>
         {
             entity.HasIndex(x => x.OrderId).IsUnique();
             entity.HasIndex(x => x.RequestId).IsUnique();
             entity.HasIndex(x => x.BookingId).IsUnique().HasFilter("\"status\" = 'Pending'");
             entity.HasIndex(x => new { x.Status, x.ReleaseAtUtc });
-            entity.HasIndex(x => x.TransactionId).IsUnique().HasFilter("\"transaction_id\" IS NOT NULL");
+            entity.HasIndex(x => new { x.Provider, x.TransactionId }).IsUnique().HasFilter("\"transaction_id\" IS NOT NULL");
+            entity.Property(x => x.Provider).HasConversion<string>().HasMaxLength(30).HasDefaultValue(PaymentMethod.Pay2S);
+            entity.Property(x => x.SePayBankAccount).HasMaxLength(100);
+            entity.Property(x => x.SePaySubAccount).HasMaxLength(100);
+            entity.Property(x => x.SePayQrUrl).HasMaxLength(2048);
             entity.Property(x => x.OrderId).HasMaxLength(100).IsRequired();
             entity.Property(x => x.RequestId).HasMaxLength(100).IsRequired();
             entity.Property(x => x.OrderInfo).HasMaxLength(32).IsRequired();

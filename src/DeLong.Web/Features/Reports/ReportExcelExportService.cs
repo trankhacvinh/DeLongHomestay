@@ -329,6 +329,7 @@ public sealed class ReportExcelExportService
         "BankTransfer" => "Chuyển khoản",
         "Card" => "Thẻ",
         "Pay2S" => "Pay2S",
+        "SePay" => "SePay",
         "Other" => "Khác",
         _ => value
     };

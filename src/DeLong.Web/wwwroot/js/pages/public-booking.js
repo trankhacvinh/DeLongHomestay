@@ -563,7 +563,10 @@
                     const result = await DeLongApi.post(this.apiUrl('/api/public/booking-requests'), payload, { 'Idempotency-Key': this.requestKey });
                     if (result.paymentUrl && result.paymentOrderId) {
                         localStorage.setItem('delong.pendingPay2S', JSON.stringify({ orderId: result.paymentOrderId, payUrl: result.paymentUrl, expiresAtUtc: result.holdExpiresAtUtc }));
-                        window.location.assign(result.paymentUrl);
+                        if (window.top && window.top !== window)
+                            window.top.location.assign(result.paymentUrl);
+                        else
+                            window.location.assign(result.paymentUrl);
                         return;
                     }
                     const query = new URLSearchParams({ code: result.code, room: result.roomName, amount: String(result.totalAmount) });

@@ -15,6 +15,21 @@ public sealed record StoragePaths(
     bool MediaPublicRootExplicit,
     bool RequirePersistent)
 {
+    public string SitePublicRoot => Path.Combine(
+        Directory.GetParent(MediaPublicRoot)?.FullName ?? MediaPublicRoot,
+        "site");
+
+    public PathString SiteRequestPath
+    {
+        get
+        {
+            var mediaPath = MediaRequestPath.Value?.TrimEnd('/') ?? "/uploads/rooms";
+            var separator = mediaPath.LastIndexOf('/');
+            var parent = separator > 0 ? mediaPath[..separator] : string.Empty;
+            return new PathString($"{parent}/site");
+        }
+    }
+
     public static StoragePaths Resolve(IConfiguration configuration, IWebHostEnvironment environment)
     {
         var dataSetting = configuration["Storage:DataRoot"]?.Trim();
@@ -51,6 +66,7 @@ public sealed record StoragePaths(
         Directory.CreateDirectory(DataProtectionRoot);
         Directory.CreateDirectory(OriginalRoomImagesRoot);
         Directory.CreateDirectory(MediaPublicRoot);
+        Directory.CreateDirectory(SitePublicRoot);
     }
 
     private static string ResolvePath(string? configured, string contentRoot, string fallback)

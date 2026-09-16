@@ -19,7 +19,7 @@ public sealed class BookingNotificationService(
     private const string Pay2SLatePaymentType = "pay2s-paid-after-expiry";
     private static readonly string[] InAppTypes = [BookingRequestedType, Pay2SLatePaymentType];
 
-    public async Task NotifyLatePay2SPaymentAsync(Guid propertyId, Guid bookingId, decimal amount, CancellationToken cancellationToken = default)
+    public async Task NotifyLatePay2SPaymentAsync(Guid propertyId, Guid bookingId, decimal amount, CancellationToken cancellationToken = default, string provider = "Pay2S")
     {
         try
         {
@@ -36,14 +36,14 @@ public sealed class BookingNotificationService(
                     PropertyId = propertyId,
                     BookingId = bookingId,
                     Type = Pay2SLatePaymentType,
-                    Title = $"Tiền Pay2S đến muộn · {booking.Code}",
+                    Title = $"Tiền {provider} đến muộn · {booking.Code}",
                     Message = $"{booking.CustomerName} · {booking.RoomName} · {amount:N0} đ · bắt buộc xử lý",
                     ActionUrl = $"/Admin/Bookings?propertyId={propertyId}&bookingId={bookingId}&paymentIssue=late"
                 };
                 db.Add(notification);
             }
 
-            await AddTelegramOutboxIfEnabledAsync(propertyId, notification, BuildLatePay2SMessage(booking, amount), cancellationToken);
+            await AddTelegramOutboxIfEnabledAsync(propertyId, notification, BuildLatePay2SMessage(booking, amount, provider), cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
             if (existing is null)
                 realtimeBroker.Publish(new NotificationRealtimeEvent(notification.Id, propertyId, notification.Type, notification.CreatedAtUtc));
@@ -429,10 +429,10 @@ public sealed class BookingNotificationService(
             string.Empty, "Vui lòng kiểm tra trước khi yêu cầu khách thanh toán lại."
         ]);
 
-    private static string BuildLatePay2SMessage(BookingTelegramData booking, decimal amount) =>
+    private static string BuildLatePay2SMessage(BookingTelegramData booking, decimal amount, string provider) =>
         string.Join(Environment.NewLine,
         [
-            $"⚠️ {booking.PropertyName} · PAY2S ĐẾN MUỘN", string.Empty,
+            $"⚠️ {booking.PropertyName} · {provider} ĐẾN MUỘN", string.Empty,
             $"Mã: {booking.Code}", $"Khách: {booking.CustomerName}", $"SĐT: {booking.CustomerPhone}", $"Phòng: {booking.RoomName}",
             $"Số tiền: {amount:N0} VND", string.Empty,
             "Trạng thái: Tiền đã về sau khi phiên giữ phòng hết hạn.",
@@ -456,6 +456,7 @@ public sealed class BookingNotificationService(
         PaymentMethod.BankTransfer => "Chuyển khoản",
         PaymentMethod.Card => "Thẻ",
         PaymentMethod.Pay2S => "Pay2S",
+        PaymentMethod.SePay => "SePay",
         _ => "Khác"
     };
 

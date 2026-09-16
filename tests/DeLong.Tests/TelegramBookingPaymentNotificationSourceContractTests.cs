@@ -31,7 +31,7 @@ public sealed class TelegramBookingPaymentNotificationSourceContractTests
         Assert.Contains("autoConfirmed", source, StringComparison.Ordinal);
         Assert.Contains("NotifyPay2SFailedAsync", source, StringComparison.Ordinal);
         Assert.Contains("NotifyLatePay2SPaymentAsync", source, StringComparison.Ordinal);
-        Assert.Contains("Hết thời gian thanh toán Pay2S.", source, StringComparison.Ordinal);
+        Assert.Contains("Hết thời gian thanh toán.", source, StringComparison.Ordinal);
     }
 
     [Fact]

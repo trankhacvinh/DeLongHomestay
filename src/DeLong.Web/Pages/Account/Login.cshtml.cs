@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using DeLong.Web.Identity;
+using DeLong.Web.Features.Setup;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +12,7 @@ namespace DeLong.Web.Pages.Account;
 public sealed class LoginModel(
     SignInManager<ApplicationUser> signInManager,
     UserManager<ApplicationUser> userManager,
+    InitialSetupService setupService,
     IConfiguration configuration,
     ILogger<LoginModel> logger) : PageModel
 {
@@ -18,10 +20,20 @@ public sealed class LoginModel(
     public LoginInput Input { get; set; } = new();
     public string? ReturnUrl { get; set; }
 
-    public void OnGet(string? returnUrl = null) => ReturnUrl = NormalizeReturnUrl(returnUrl);
+    public async Task<IActionResult> OnGetAsync(string? returnUrl = null, CancellationToken cancellationToken = default)
+    {
+        if (await setupService.IsRequiredAsync(cancellationToken))
+            return RedirectToPage("/Setup");
+
+        ReturnUrl = NormalizeReturnUrl(returnUrl);
+        return Page();
+    }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
+        if (await setupService.IsRequiredAsync(HttpContext.RequestAborted))
+            return RedirectToPage("/Setup");
+
         ReturnUrl = NormalizeReturnUrl(returnUrl);
         var target = ReturnUrl ?? Url.Page("/Admin/Index")!;
         if (!ModelState.IsValid) return Page();

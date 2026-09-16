@@ -12,19 +12,21 @@ public static class DbSeeder
     public static readonly Guid DeLongPropertyId = Guid.Parse("0198A5A0-1000-7000-8000-000000000001");
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public static async Task SeedAsync(IServiceProvider services, IConfiguration configuration)
+    public static async Task SeedAsync(
+        IServiceProvider services,
+        IConfiguration configuration,
+        CancellationToken cancellationToken = default)
     {
         var db = services.GetRequiredService<AppDbContext>();
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
 
         await SeedRolesAsync(roleManager);
-        await SeedPropertyAsync(db);
-        await SeedWebsiteStarterAsync(db);
-        await SeedDevelopmentAdminAsync(db, userManager, configuration);
+        await SeedDeLongAsync(db, cancellationToken);
+        await SeedDevelopmentAdminAsync(db, userManager, configuration, cancellationToken);
     }
 
-    private static async Task SeedRolesAsync(RoleManager<IdentityRole<Guid>> roleManager)
+    public static async Task SeedRolesAsync(RoleManager<IdentityRole<Guid>> roleManager)
     {
         foreach (var roleName in new[] { "Admin", "Manager", "Staff", "Housekeeping", "Viewer" })
         {
@@ -42,9 +44,16 @@ public static class DbSeeder
         }
     }
 
-    private static async Task SeedPropertyAsync(AppDbContext db)
+    public static async Task SeedDeLongAsync(AppDbContext db, CancellationToken cancellationToken = default)
     {
-        if (await db.Properties.AnyAsync(x => x.Id == DeLongPropertyId)) return;
+        await SeedPropertyAsync(db, cancellationToken);
+        await SeedPropertyConfigurationAsync(db, cancellationToken);
+        await SeedWebsiteStarterAsync(db, cancellationToken);
+    }
+
+    private static async Task SeedPropertyAsync(AppDbContext db, CancellationToken cancellationToken)
+    {
+        if (await db.Properties.AnyAsync(x => x.Id == DeLongPropertyId, cancellationToken)) return;
 
         var property = new Property
         {
@@ -57,22 +66,46 @@ public static class DbSeeder
 
         var roomDefinitions = new[]
         {
-            RoomSeed("COCO-01", "Coco Blue #1", 1, 250_000m, 360_000m),
-            RoomSeed("ABAUS-02", "Abaus #2", 2, 210_000m, 330_000m),
-            RoomSeed("HONGKONG-03", "Hongkong #3", 3, 250_000m, 360_000m),
-            RoomSeed("MOON-04", "Moon Stone #4", 4, 270_000m, 390_000m),
-            RoomSeed("AMBER-05", "Amber Stay #5", 5, 300_000m, 439_000m),
-            RoomSeed("ROMAN-06", "La Roman #6", 6, 270_000m, 390_000m)
+            RoomSeed("COCO-01", "Coco Blue #1", 1, 250_000m, 360_000m, 780_000m, 910_000m),
+            RoomSeed("ABAUS-02", "Abaus #2", 2, 210_000m, 330_000m, 680_000m, 790_000m),
+            RoomSeed("HONGKONG-03", "Hongkong #3", 3, 250_000m, 360_000m, 730_000m, 860_000m),
+            RoomSeed("MOON-04", "Moon Stone #4", 4, 270_000m, 390_000m, 780_000m, 910_000m),
+            RoomSeed("AMBER-05", "Amber Stay #5", 5, 300_000m, 439_000m, 880_000m, 990_000m),
+            RoomSeed("ROMAN-06", "La Roman #6", 6, 270_000m, 390_000m, 780_000m, 910_000m)
         };
 
         foreach (var room in roomDefinitions) property.Rooms.Add(room);
         db.Properties.Add(property);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
     }
 
-    private static async Task SeedWebsiteStarterAsync(AppDbContext db)
+    private static async Task SeedPropertyConfigurationAsync(AppDbContext db, CancellationToken cancellationToken)
     {
-        var property = await db.Properties.SingleOrDefaultAsync(x => x.Id == DeLongPropertyId);
+        if (!await db.PropertyPricingSettings.AnyAsync(x => x.PropertyId == DeLongPropertyId, cancellationToken))
+            db.PropertyPricingSettings.Add(new PropertyPricingSettings { PropertyId = DeLongPropertyId });
+        if (!await db.PropertyPay2SSettings.AnyAsync(x => x.PropertyId == DeLongPropertyId, cancellationToken))
+            db.PropertyPay2SSettings.Add(new PropertyPay2SSettings { PropertyId = DeLongPropertyId });
+        if (!await db.PropertyNotificationSettings.AnyAsync(x => x.PropertyId == DeLongPropertyId, cancellationToken))
+            db.PropertyNotificationSettings.Add(new PropertyNotificationSettings { PropertyId = DeLongPropertyId });
+        if (!await db.CustomerAccountSettings.AnyAsync(x => x.PropertyId == DeLongPropertyId, cancellationToken))
+            db.CustomerAccountSettings.Add(new CustomerAccountSettings { PropertyId = DeLongPropertyId });
+        if (!await db.PropertyAiProfiles.AnyAsync(x => x.PropertyId == DeLongPropertyId, cancellationToken))
+        {
+            db.PropertyAiProfiles.Add(new PropertyAiProfile
+            {
+                PropertyId = DeLongPropertyId,
+                IsEnabled = false,
+                IsPublicAiEnabled = false,
+                ProtectedApiKey = string.Empty
+            });
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedWebsiteStarterAsync(AppDbContext db, CancellationToken cancellationToken)
+    {
+        var property = await db.Properties.SingleOrDefaultAsync(x => x.Id == DeLongPropertyId, cancellationToken);
         if (property is null) return;
 
         var settings = await db.Set<PropertySiteSettings>().SingleOrDefaultAsync(x => x.PropertyId == property.Id);
@@ -212,7 +245,7 @@ public static class DbSeeder
             });
         }
 
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private static HomeSection Section(Guid? propertyId, int sortOrder, string type, string name, string variant, object content) => new()
@@ -237,7 +270,14 @@ public static class DbSeeder
         PublishedAtUtc = publishedAtUtc
     };
 
-    private static Room RoomSeed(string code, string name, int sortOrder, decimal dayPrice, decimal overnightPrice)
+    private static Room RoomSeed(
+        string code,
+        string name,
+        int sortOrder,
+        decimal dayPrice,
+        decimal overnightPrice,
+        decimal fullDayPrice,
+        decimal weekendFullDayPrice)
     {
         var room = new Room
         {
@@ -256,7 +296,11 @@ public static class DbSeeder
             Capacity = 2,
             SortOrder = sortOrder,
             IsActive = true,
-            IsPublished = true
+            IsPublished = true,
+            FullDayPricingEnabled = true,
+            FullDayPrice = fullDayPrice,
+            UseWeekdayFullDayPriceOnWeekend = false,
+            WeekendFullDayPrice = weekendFullDayPrice
         };
 
         var schedule = code switch
@@ -320,7 +364,8 @@ public static class DbSeeder
     private static async Task SeedDevelopmentAdminAsync(
         AppDbContext db,
         UserManager<ApplicationUser> userManager,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        CancellationToken cancellationToken)
     {
         var email = configuration["Seed:AdminEmail"]?.Trim();
         var password = configuration["Seed:AdminPassword"];
@@ -356,14 +401,16 @@ public static class DbSeeder
             }
         }
 
-        if (!await db.UserPropertyAccesses.AnyAsync(x => x.UserId == user.Id && x.PropertyId == DeLongPropertyId))
+        if (!await db.UserPropertyAccesses.AnyAsync(
+                x => x.UserId == user.Id && x.PropertyId == DeLongPropertyId,
+                cancellationToken))
         {
             db.UserPropertyAccesses.Add(new UserPropertyAccess
             {
                 UserId = user.Id,
                 PropertyId = DeLongPropertyId
             });
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(cancellationToken);
         }
     }
 }

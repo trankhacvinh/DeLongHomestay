@@ -115,7 +115,7 @@ public static class VoucherEndpoints
             if (property is null) return Results.NotFound();
             var (result, error) = await service.PreviewAsync(property.Id, request, ct);
             return error is null ? Results.Ok(result) : Problem(error);
-        }).AllowAnonymous().RequireRateLimiting("public-booking").AddEndpointFilter<ApiAntiforgeryFilter>();
+        }).AllowAnonymous().RequireRateLimiting("public-voucher").AddEndpointFilter<ApiAntiforgeryFilter>();
 
         return app;
     }

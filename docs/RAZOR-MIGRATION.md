@@ -59,6 +59,7 @@ Hướng dẫn khách là nội dung hiện hành trên `Room`, được làm s�
 - Antiforgery bắt buộc cho mutation API dùng cookie auth.
 - Authorization theo role + property access.
 - Password/connection string nằm trong User Secrets/environment, không commit Git.
+- Cài đặt mới truy cập `/setup` sau khi migration hoàn tất để tạo Admin đầu tiên. Setup dùng Razor form + antiforgery, tự khóa khi đã có Admin và chỉ seed credential rỗng cho các tích hợp ngoài.
 ## Báo cáo tình trạng phòng
 
 - Trang độc lập `/Admin/RoomConditionReports` progressive-enhance bằng Vue, có bảng lọc/trạng thái/chi tiết và form mobile bottom-sheet; `/Admin/Housekeeping` chỉ liên kết sang chức năng này.
@@ -74,3 +75,7 @@ Hướng dẫn khách là nội dung hiện hành trên `Room`, được làm s�
 - Không lưu API key, CCCD, payment credential hoặc dữ liệu booking cá nhân trong knowledge snapshot/cache công khai.
 - Migration `AddPublicAiBookingDrafts` thêm draft đặt phòng không chứa PII, TTL 30 phút và chỉ lưu SHA-256 của token công khai.
 Staff/Manager/Housekeeping/Viewer dùng drawer `staff-ai-chat.js` và endpoint read-only `/staff-ai/chat`; Admin tiếp tục dùng drawer proposal riêng. Không dùng chung endpoint mutation của Admin cho vai trò vận hành.
+
+## SePay
+
+Áp dụng `20260915091623_AddSePayProvider` trước khi dùng bản có SePay. Razor `/payment/sepay` hiển thị QR; server webhook/API đối soát mới ghi Payment. Giữ callback Pay2s và Data Protection key ring. Không rollback schema khi đã có tiền SePay. Xem [SEPAY-PAYMENTS.md](SEPAY-PAYMENTS.md).

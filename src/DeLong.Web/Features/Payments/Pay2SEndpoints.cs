@@ -44,7 +44,7 @@ public static class Pay2SEndpoints
                 .OrderByDescending(x => x.CreatedAtUtc)
                 .Select(x => new
                 {
-                    x.Id, x.OrderId, x.Amount, Status = x.Status.ToString(), x.ExpiresAtUtc, x.ReleaseAtUtc,
+                    x.Id, Provider = x.Provider.ToString(), x.OrderId, x.Amount, Status = x.Status.ToString(), x.ExpiresAtUtc, x.ReleaseAtUtc,
                     x.TransactionId, x.CallbackReceivedAtUtc, x.LastCallbackAttemptAtUtc, x.LastCallbackErrorCode,
                     x.LatePaymentResolution, x.LatePaymentResolutionNote, x.LatePaymentResolvedAtUtc
                 }).FirstOrDefaultAsync(ct);

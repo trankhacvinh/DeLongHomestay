@@ -168,7 +168,7 @@
                 return ({ Website: 'Trang web', website: 'Trang web' })[value] || value;
             },
             paymentMethodText(method) {
-                return ({ 0: 'Tiền mặt', 1: 'Chuyển khoản', 2: 'Thẻ', 3: 'Khác', 4: 'Pay2S' })[method] || 'Khác';
+                return ({ 0: 'Tiền mặt', 1: 'Chuyển khoản', 2: 'Thẻ', 3: 'Khác', 4: 'Pay2S', 5: 'SePay' })[method] || 'Khác';
             },
             friendlyError(error, fallback) {
                 const problem = error?.problem || {};
@@ -248,7 +248,7 @@
                     this.pay2sIntent = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/pay2s/bookings/${bookingId}/latest-intent`);
                 } catch (error) {
                     if (error?.status === 204 || error?.status === 404) this.pay2sIntent = null;
-                    else this.notify(this.friendlyError(error, 'Không thể tải trạng thái Pay2S.'), 'error');
+                    else this.notify(this.friendlyError(error, 'Không thể tải trạng thái thanh toán.'), 'error');
                 }
             },
             async resolveLatePay2S() {
@@ -268,7 +268,7 @@
                         checkOutUtc: action === 'move' && this.lateResolution.checkOutUtc ? new Date(this.lateResolution.checkOutUtc).toISOString() : null
                     });
                     await Promise.all([this.loadPayments(), this.reloadSelectedBooking(), this.loadPay2SIntent(this.selectedBooking.id)]);
-                    this.notify('Đã xử lý khoản thanh toán Pay2S đến muộn.', 'success');
+                    this.notify('Đã xử lý khoản thanh toán đến muộn.', 'success');
                 } catch (error) { this.notify(this.friendlyError(error, 'Không thể xử lý khoản thanh toán đến muộn.'), 'error'); }
                 finally { this.saving = false; }
             },
@@ -429,11 +429,11 @@
                         cancelBookingOnExpiry: status === 0 || status === 1
                     });
                     this.pay2sEditor = { open: true, payUrl: intent.payUrl, amount: intent.amount, expiresAtUtc: intent.expiresAtUtc, releaseAtUtc: intent.releaseAtUtc };
-                } catch (error) { this.notify(error.message || 'Không thể tạo QR Pay2S.', 'error'); }
+                } catch (error) { this.notify(error.message || 'Không thể tạo QR thanh toán.', 'error'); }
                 finally { this.saving = false; }
             },
             async copyPay2SLink() {
-                try { await navigator.clipboard.writeText(this.pay2sEditor.payUrl); this.notify('Đã sao chép liên kết thanh toán.', 'success'); }
+                try { await navigator.clipboard.writeText(new URL(this.pay2sEditor.payUrl, window.location.origin).href); this.notify('Đã sao chép liên kết thanh toán.', 'success'); }
                 catch { this.notify('Không thể sao chép tự động. Hãy mở QR rồi sao chép địa chỉ.', 'error'); }
             },
             closePayment() { if (!this.saving) this.paymentEditor.open = false; },

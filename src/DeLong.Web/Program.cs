@@ -26,6 +26,7 @@ using DeLong.Web.Features.Vouchers;
 using DeLong.Web.Features.Pricing;
 using DeLong.Web.Features.AdminAi;
 using DeLong.Web.Features.PublicAi;
+using DeLong.Web.Features.Setup;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -243,12 +244,36 @@ builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        var retryAfter = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var value)
+            ? Math.Max(1, (int)Math.Ceiling(value.TotalSeconds))
+            : 60;
+        context.HttpContext.Response.Headers.RetryAfter = retryAfter.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            type = "https://delong.local/problems/rate-limit",
+            title = "Bạn thao tác quá nhanh",
+            status = StatusCodes.Status429TooManyRequests,
+            detail = $"Vui lòng chờ khoảng {Math.Max(1, (int)Math.Ceiling(retryAfter / 60d))} phút rồi thử lại."
+        }, cancellationToken);
+    };
     options.AddPolicy("public-booking", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 5,
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+    options.AddPolicy("public-voucher", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
                 Window = TimeSpan.FromMinutes(10),
                 QueueLimit = 0,
                 AutoReplenishment = true
@@ -316,6 +341,7 @@ builder.Services.AddRateLimiter(options =>
 });
 
 builder.Services.AddScoped<ApiAntiforgeryFilter>();
+builder.Services.AddScoped<InitialSetupService>();
 builder.Services.AddScoped<PropertyAccessService>();
 builder.Services.AddScoped<PropertyAccessFilter>();
 builder.Services.AddScoped<CurrentPropertyService>();
@@ -344,6 +370,8 @@ builder.Services.AddSingleton<Pay2SCredentialProtector>();
 builder.Services.AddScoped<Pay2SSettingsService>();
 builder.Services.AddHttpClient<Pay2SClient>(client => client.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddScoped<Pay2SService>();
+builder.Services.AddScoped<SePaySettingsService>();
+builder.Services.AddHttpClient<SePayService>(client => client.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddHostedService<Pay2SExpiryWorker>();
 builder.Services.AddScoped<HousekeepingService>();
 builder.Services.AddScoped<ExpenseService>();
@@ -448,6 +476,20 @@ if (!string.Equals(defaultMediaRoot, storagePaths.MediaPublicRoot, StringCompari
     });
 }
 
+var defaultSiteRoot = Path.GetFullPath(Path.Combine(
+    app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"),
+    "uploads",
+    "site"));
+if (!string.Equals(defaultSiteRoot, storagePaths.SitePublicRoot, StringComparison.OrdinalIgnoreCase))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(storagePaths.SitePublicRoot),
+        RequestPath = storagePaths.SiteRequestPath,
+        OnPrepareResponse = PrepareStaticResponse
+    });
+}
+
 app.UseRouting();
 app.UseAuthentication();
 app.UseMiddleware<ForcePasswordChangeMiddleware>();
@@ -465,6 +507,19 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("ready"),
     ResponseWriter = HealthResponseWriter.WriteAsync
+}).AllowAnonymous();
+
+app.MapGet("/version", (HttpContext httpContext) =>
+{
+    httpContext.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+    var build = ApplicationBuildInfo.Current;
+    return Results.Ok(new
+    {
+        build.Version,
+        build.BuildId,
+        build.Commit,
+        build.StartedAtUtc
+    });
 }).AllowAnonymous();
 
 app.MapGet("/api/antiforgery/token", (
@@ -492,6 +547,7 @@ app.MapBookingEndpoints();
 app.MapImportEndpoints();
 app.MapPaymentEndpoints();
 app.MapPay2SEndpoints();
+app.MapSePayEndpoints();
 app.MapHousekeepingEndpoints();
 app.MapExpenseEndpoints();
 app.MapAuditEndpoints();

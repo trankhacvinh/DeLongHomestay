@@ -109,7 +109,7 @@
             relativeWidth(value, max) { return `${Math.max(Number(value || 0) === 0 ? 0 : 3, Math.abs(Number(value || 0)) / Math.max(1, max) * 100)}%`; },
             barHeight(value) { return Math.max(Number(value || 0) === 0 ? 0 : 2, Math.round(Math.abs(Number(value || 0)) / this.trendMax * 100)); },
             statusLabel(value) { return ({ Requested: 'Yêu cầu', Held: 'Đang giữ', Confirmed: 'Đã xác nhận', CheckedIn: 'Đang ở', Completed: 'Hoàn tất', Cancelled: 'Đã hủy', NoShow: 'Không đến' })[value] || value; },
-            paymentMethodLabel(value) { return ({ Cash: 'Tiền mặt', BankTransfer: 'Chuyển khoản', Card: 'Thẻ', Other: 'Khác', Pay2S: 'Pay2S' })[value] || value; },
+            paymentMethodLabel(value) { return ({ Cash: 'Tiền mặt', BankTransfer: 'Chuyển khoản', Card: 'Thẻ', Other: 'Khác', Pay2S: 'Pay2S', SePay: 'SePay' })[value] || value; },
             donutStyle(items) {
                 let cursor = 0;
                 const stops = items.map(item => {

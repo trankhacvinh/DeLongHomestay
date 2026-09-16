@@ -254,6 +254,7 @@ public sealed class FinanceExcelExportService
         PaymentMethod.BankTransfer => "Chuyển khoản",
         PaymentMethod.Card => "Thẻ",
         PaymentMethod.Pay2S => "Pay2S",
+        PaymentMethod.SePay => "SePay",
         _ => "Khác"
     };
 

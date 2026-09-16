@@ -116,6 +116,7 @@
 - [ ] Tài khoản/role nhân viên thật.
 - [ ] Hướng dẫn nhân viên.
 - [ ] Go-live.
+- [x] First-run setup tạo Admin đầu tiên, tùy chọn seed trọn bộ De Long và cấu hình an toàn không chứa API key/credential.
 - [x] Chức năng độc lập báo cáo tình trạng phòng: ảnh/video nhiều file, ảnh tối ưu, tag tự điền nội dung, đánh giá 5 sao, bảng lọc, trạng thái xử lý và lịch sử theo cơ sở.
 - [ ] UAT thực tế camera trên iOS Safari và Android Chrome; kiểm tra retry khi mạng di động yếu.
 - [ ] Màn hình quản lý đầy đủ cho thêm, sắp xếp và ngừng dùng tag mẫu.
@@ -151,3 +152,10 @@
 - [x] AI hardening: prompt injection từ chat, file đính kèm và dữ liệu database không thể vượt server allowlist.
 - [x] AI booking draft concurrency: draft không khóa phòng; khi hai draft gửi đồng thời, PostgreSQL conflict guard chỉ tạo đúng một booking `Held`.
 - [x] AI production hardening: PostgreSQL quota/budget reservation, provider cached-token, dashboard lỗi/cache/latency/cost/blocked, persistent cache restart/invalidation, global kill switch và rollback checklist.
+
+## SePay thay Pay2s
+
+- [x] Cấu hình cơ sở, QR VietQR, webhook xác thực, chống trùng, vòng đời booking/voucher và sổ đối soát.
+- [x] Đối soát thủ công qua API SePay v1 theo ID giao dịch; giữ tương thích Pay2s cũ.
+- [ ] Nghiệm thu SePay Test Mode qua domain staging và giao dịch ngân hàng thật trước khi bật production.
+- Chi tiết vận hành: [SEPAY-PAYMENTS.md](SEPAY-PAYMENTS.md).

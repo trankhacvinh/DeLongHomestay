@@ -373,7 +373,7 @@ public sealed class MediaLibraryService(
     private async Task ImportLegacyScopeAsync(Guid? propertyId, string propertyCode, string propertyName, CancellationToken ct)
     {
         var safeProperty = SafeProperty(propertyCode);
-        var root = Path.Combine(UploadsRoot(), "site", safeProperty);
+        var root = Path.Combine(paths.SitePublicRoot, safeProperty);
         if (!Directory.Exists(root)) return;
 
         var files = Directory.EnumerateFiles(root, "section-*.*", SearchOption.TopDirectoryOnly)
@@ -407,7 +407,7 @@ public sealed class MediaLibraryService(
             {
                 PropertyId = propertyId,
                 Kind = "section",
-                Url = $"/uploads/{storageKey}",
+                Url = $"{paths.SiteRequestPath.Value?.TrimEnd('/')}/{safeProperty}/{fileName}",
                 StorageKey = storageKey,
                 OriginalFileName = fileName,
                 ContentType = ContentTypeFromExtension(Path.GetExtension(fileName)),
@@ -482,8 +482,6 @@ public sealed class MediaLibraryService(
         }
         catch { return 0; }
     }
-
-    private string UploadsRoot() => Directory.GetParent(paths.MediaPublicRoot)?.FullName ?? paths.MediaPublicRoot;
 
     private static MediaAssetDto ToDto(MediaAsset asset, string propertyName, int usage, bool canManage = true) =>
         new(

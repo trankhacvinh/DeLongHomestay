@@ -35,7 +35,7 @@ public sealed class Pay2SSettingsService(AppDbContext db, Pay2SCredentialProtect
              !string.Equals(request.PartnerCode?.Trim(), entity.PartnerCode, StringComparison.Ordinal) ||
              !string.Equals(NormalizeApiEndpoint(apiUri.ToString()), entity.ApiEndpoint, StringComparison.OrdinalIgnoreCase));
         if (changesVerificationIdentity && await db.Pay2SPaymentIntents.AsNoTracking().AnyAsync(x =>
-                x.PropertyId == propertyId &&
+                x.PropertyId == propertyId && x.Provider == Domain.Enums.PaymentMethod.Pay2S &&
                 (x.Status == Domain.Enums.Pay2SPaymentIntentStatus.Pending ||
                  x.Status == Domain.Enums.Pay2SPaymentIntentStatus.Failed) &&
                 x.ReleaseAtUtc > DateTime.UtcNow, ct))

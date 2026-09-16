@@ -1,0 +1,68 @@
+@page "/setup"
+@model DeLong.Web.Pages.SetupModel
+@{
+    Layout = null;
+}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Thiết lập hệ thống - De Long Homestay</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="setup-page">
+<main class="setup-shell">
+    <section class="setup-card">
+        <header class="setup-head">
+            <span class="eyebrow">Thiết lập lần đầu</span>
+            <h1>Tạo tài khoản quản trị</h1>
+            <p>Trang này chỉ hoạt động khi hệ thống chưa có Admin và sẽ tự khóa ngay sau khi hoàn tất.</p>
+        </header>
+
+        <form method="post" class="setup-form">
+            <div asp-validation-summary="ModelOnly" class="validation" role="alert"></div>
+            <div class="setup-grid">
+                <div class="field">
+                    <label asp-for="Input.DisplayName"></label>
+                    <input asp-for="Input.DisplayName" autocomplete="name" />
+                    <span asp-validation-for="Input.DisplayName" class="validation"></span>
+                </div>
+                <div class="field">
+                    <label asp-for="Input.Email"></label>
+                    <input asp-for="Input.Email" autocomplete="username" inputmode="email" />
+                    <span asp-validation-for="Input.Email" class="validation"></span>
+                </div>
+                <div class="field">
+                    <label asp-for="Input.Password"></label>
+                    <input asp-for="Input.Password" autocomplete="new-password" />
+                    <small>Tối thiểu 8 ký tự; nên kết hợp chữ hoa, chữ thường, số và ký tự đặc biệt.</small>
+                    <span asp-validation-for="Input.Password" class="validation"></span>
+                </div>
+                <div class="field">
+                    <label asp-for="Input.ConfirmPassword"></label>
+                    <input asp-for="Input.ConfirmPassword" autocomplete="new-password" />
+                    <span asp-validation-for="Input.ConfirmPassword" class="validation"></span>
+                </div>
+            </div>
+
+            <label class="setup-seed-option">
+                <input asp-for="Input.SeedDeLongData" />
+                <span>
+                    <strong>Tạo sẵn dữ liệu De Long Homestay</strong>
+                    <small>Gồm 6 phòng, khung giờ, giá thường/cuối tuần, combo, website và các cấu hình vận hành. Pay2S, email, Telegram và AI được tạo ở trạng thái an toàn, không có khóa bí mật/API key.</small>
+                </span>
+            </label>
+
+            <div class="setup-note">
+                <strong>Nếu bỏ chọn</strong>
+                <span>Hệ thống chỉ tạo tài khoản Admin. Bạn sẽ tự tạo cơ sở và cấu hình dữ liệu từ trang quản trị.</span>
+            </div>
+
+            <button class="btn btn-primary setup-submit" type="submit">Hoàn tất thiết lập</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>
