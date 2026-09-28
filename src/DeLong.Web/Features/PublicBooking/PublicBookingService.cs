@@ -6,6 +6,7 @@ using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Site;
 using DeLong.Web.Features.Pricing;
+using DeLong.Web.Features.Operations;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicBooking;
@@ -14,6 +15,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
 {
     private readonly PublicPropertyResolver publicPropertyResolver = resolver ?? new PublicPropertyResolver(db);
     private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
+    private const int TurnoverMinutes = 30;
     private sealed record BookingConflictWindow(Guid RoomId, DateTime CheckInUtc, DateTime CheckOutUtc);
     private sealed class ResolvedPublicSlot(
         DateOnly serviceDate,
@@ -278,17 +280,29 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         {
             ApplyPricing(resolved, room.Rates.Count, room.FullDayPricingEnabled, room.FullDayPrice, policy?.MultiSlotDiscountTiers ?? []);
         }
-        var checkInUtc = resolved[0].CheckInUtc;
-        var checkOutUtc = resolved[^1].CheckOutUtc;
+        var nominalCheckInUtc = resolved[0].CheckInUtc;
+        var nominalCheckOutUtc = resolved[^1].CheckOutUtc;
+        var (bookableWindow, windowError) = await ResolveBookableWindowAsync(
+            context.PropertyId, room.Id, nominalCheckInUtc, nominalCheckOutUtc, ct);
+        if (windowError is not null) return (null, windowError);
+        var checkInUtc = bookableWindow!.StartUtc;
+        var checkOutUtc = bookableWindow.EndUtc;
         if (await bookingService.HasConflictAsync(context.PropertyId, room.Id, checkInUtc, checkOutUtc, null, ct)) return (null, new("booking_conflict", "Phòng vừa được giữ hoặc xác nhận trong khoảng thời gian này. Vui lòng chọn lại."));
         var amount = resolved.Sum(x => x.AppliedAmount);
         var specialSurchargeAmount = resolved.Sum(x => x.SpecialSurchargeAmount);
         var rateLabel = resolved.Count == 1 ? resolved[0].RateName : $"{resolved.Count} khung liên tiếp";
-        var segments = resolved.Select((x, index) => new CreateBookingRateSegmentRequest(
-            x.RateId, x.ServiceDate, x.CheckInUtc, x.CheckOutUtc, index, x.RateName, x.ListPrice, x.AppliedAmount, x.PricingRule,
-            x.SpecialSurchargeAmount, x.ComboDiscountPercent, x.ComboDiscountAmount, x.DayProfile, x.SpecialPricingDayId,
-            x.SpecialDayName, x.SpecialSurchargePercent)).ToList();
-        var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = room.Id, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.TimeSlot, RoomRateId = resolved.Count == 1 ? resolved[0].RateId : null, RateName = rateLabel, UnitPrice = resolved.Count == 1 ? resolved[0].ListPrice : null, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Held, RoomAmount = amount, SpecialSurchargeAmount = specialSurchargeAmount, Source = "Website", PublicRequestKey = idempotencyKey, Note = Clean(request.Note), RateSegments = segments }, null, ct);
+        var segments = resolved
+            .Select(x => new { Slot = x, Start = x.CheckInUtc < checkInUtc ? checkInUtc : x.CheckInUtc, End = x.CheckOutUtc > checkOutUtc ? checkOutUtc : x.CheckOutUtc })
+            .Where(x => x.End > x.Start)
+            .Select((x, index) => new CreateBookingRateSegmentRequest(
+                x.Slot.RateId, x.Slot.ServiceDate, x.Start, x.End, index, x.Slot.RateName, x.Slot.ListPrice, x.Slot.AppliedAmount, x.Slot.PricingRule,
+                x.Slot.SpecialSurchargeAmount, x.Slot.ComboDiscountPercent, x.Slot.ComboDiscountAmount, x.Slot.DayProfile, x.Slot.SpecialPricingDayId,
+                x.Slot.SpecialDayName, x.Slot.SpecialSurchargePercent)).ToList();
+        var adjustmentNote = checkInUtc != nominalCheckInUtc || checkOutUtc != nominalCheckOutUtc
+            ? BuildScheduleAdjustmentNote(bookableWindow, context.TimeZone)
+            : null;
+        var bookingNote = string.Join(Environment.NewLine, new[] { Clean(request.Note), adjustmentNote }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        var (booking, error) = await bookingService.CreateAsync(context.PropertyId, new CreateBookingRequest { RoomId = room.Id, CustomerName = context.Name, CustomerPhone = context.Phone, Type = BookingType.TimeSlot, RoomRateId = resolved.Count == 1 ? resolved[0].RateId : null, RateName = rateLabel, UnitPrice = resolved.Count == 1 ? resolved[0].ListPrice : null, CheckIn = new DateTimeOffset(checkInUtc, TimeSpan.Zero), CheckOut = new DateTimeOffset(checkOutUtc, TimeSpan.Zero), Status = BookingStatus.Held, RoomAmount = amount, SpecialSurchargeAmount = specialSurchargeAmount, Source = "Website", PublicRequestKey = idempotencyKey, Note = bookingNote, RateSegments = segments }, null, ct);
         if (booking is null && error?.Code == "public_request_retry" && idempotencyKey is not null && db.Database.CurrentTransaction is null)
         {
             db.ChangeTracker.Clear();
@@ -296,6 +310,36 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         }
         if (booking is null) return (null, new(error?.Code ?? "booking_failed", error?.Message ?? "Không thể tạo yêu cầu đặt phòng."));
         return (new PublicBookingResult(booking.Id, booking.Code, booking.Type, room.Name, rateLabel, null, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
+    }
+
+    private async Task<(AvailabilityRangeDto? Window, PublicBookingError? Error)> ResolveBookableWindowAsync(
+        Guid propertyId,
+        Guid roomId,
+        DateTime nominalStartUtc,
+        DateTime nominalEndUtc,
+        CancellationToken cancellationToken)
+    {
+        var bookings = await db.Bookings.AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.RoomId == roomId && LockingStatuses.Contains(x.Status) &&
+                        x.CheckInUtc < nominalEndUtc.AddMinutes(TurnoverMinutes) &&
+                        nominalStartUtc.AddMinutes(-TurnoverMinutes) < x.CheckOutUtc)
+            .Select(x => new AvailabilityOccupancyInput(
+                x.Id, x.Status, x.CheckInUtc.AddMinutes(-TurnoverMinutes), x.CheckOutUtc.AddMinutes(TurnoverMinutes)))
+            .ToListAsync(cancellationToken);
+        var projection = AvailabilityIntervalProjector.Project(nominalStartUtc, nominalEndUtc, bookings);
+        if (projection.Free.Count != 1)
+            return (null, new PublicBookingError("booking_conflict", "Khung giờ này không còn một khoảng sử dụng liên tục sau khi dành thời gian dọn phòng. Vui lòng chọn khung khác."));
+        var window = projection.Free[0];
+        if (window.EndUtc <= window.StartUtc)
+            return (null, new PublicBookingError("booking_conflict", "Khung giờ này không còn đủ thời gian sử dụng."));
+        return (window, null);
+    }
+
+    private static string? BuildScheduleAdjustmentNote(AvailabilityRangeDto window, TimeZoneInfo timeZone)
+    {
+        var checkIn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(window.StartUtc, DateTimeKind.Utc), timeZone);
+        var checkOut = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(window.EndUtc, DateTimeKind.Utc), timeZone);
+        return $"Điều chỉnh thời gian do cần {TurnoverMinutes} phút dọn phòng: nhận {checkIn:dd/MM/yyyy HH:mm}, trả {checkOut:dd/MM/yyyy HH:mm}.";
     }
 
     private async Task<(PublicBookingResult?, PublicBookingError?)> CreateMultiDayRequestAsync(string? siteSlug, PublicBookingRequest request, string? idempotencyKey, CancellationToken ct)
@@ -380,11 +424,18 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
     private async Task<HashSet<(Guid RoomId, Guid RateId)>> GetUnavailableRateKeysAsync(Guid propertyId, string timeZoneId, DateOnly date, CancellationToken ct)
     {
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId); var windowStartLocal = DateTime.SpecifyKind(date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified); var windowEndLocal = windowStartLocal.AddDays(2);
-        var windowStartUtc = TimeZoneInfo.ConvertTimeToUtc(windowStartLocal, timeZone); var windowEndUtc = TimeZoneInfo.ConvertTimeToUtc(windowEndLocal, timeZone);
+        var windowStartUtc = TimeZoneInfo.ConvertTimeToUtc(windowStartLocal, timeZone).AddMinutes(-TurnoverMinutes); var windowEndUtc = TimeZoneInfo.ConvertTimeToUtc(windowEndLocal, timeZone).AddMinutes(TurnoverMinutes);
         var locked = await db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && LockingStatuses.Contains(x.Status) && x.CheckInUtc < windowEndUtc && windowStartUtc < x.CheckOutUtc).Select(x => new { x.RoomId, x.CheckInUtc, x.CheckOutUtc }).ToListAsync(ct);
         var rates = await db.RoomRates.AsNoTracking().Where(x => x.Room.PropertyId == propertyId && x.Room.IsActive && x.Room.IsPublished && x.IsActive && x.Type != RoomRateType.Nightly).Select(x => new { x.Id, x.RoomId, x.StartTime, x.EndTime, x.Type }).ToListAsync(ct);
         HashSet<(Guid RoomId, Guid RateId)> unavailable = [];
-        foreach (var rate in rates) { var range = ToUtcTimeSlotRange(date, rate.StartTime, rate.EndTime, rate.Type == RoomRateType.Overnight, timeZone); if (locked.Any(x => x.RoomId == rate.RoomId && x.CheckInUtc < range.CheckOutUtc && range.CheckInUtc < x.CheckOutUtc)) unavailable.Add((rate.RoomId, rate.Id)); }
+        foreach (var rate in rates)
+        {
+            var range = ToUtcTimeSlotRange(date, rate.StartTime, rate.EndTime, rate.Type == RoomRateType.Overnight, timeZone);
+            var occupancy = locked.Where(x => x.RoomId == rate.RoomId).Select(x => new AvailabilityOccupancyInput(
+                Guid.Empty, BookingStatus.Confirmed, x.CheckInUtc.AddMinutes(-TurnoverMinutes), x.CheckOutUtc.AddMinutes(TurnoverMinutes)));
+            if (AvailabilityIntervalProjector.Project(range.CheckInUtc, range.CheckOutUtc, occupancy).Free.Count != 1)
+                unavailable.Add((rate.RoomId, rate.Id));
+        }
         return unavailable;
     }
 

@@ -102,6 +102,26 @@ public sealed class PublicAvailabilityCalendarSourceContractTests
 
     [Fact]
     [Trait("Category", "Unit")]
+    public void Partial_slot_exposes_adjusted_check_in_and_check_out_before_booking()
+    {
+        var calendar = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/public-availability-calendar.js");
+        var booking = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/public-booking.js");
+        var service = ReadRepositoryFile("src/DeLong.Web/Features/PublicBooking/PublicBookingService.cs");
+        var availability = ReadRepositoryFile("src/DeLong.Web/Features/Operations/AvailabilityIntervalService.cs");
+
+        Assert.Contains("bookableStartUtc", calendar, StringComparison.Ordinal);
+        Assert.Contains("bookableEndUtc", calendar, StringComparison.Ordinal);
+        Assert.Contains("Nhận ${timeLabel(slot.bookableStartUtc)} · Trả ${timeLabel(slot.bookableEndUtc)}", calendar, StringComparison.Ordinal);
+        Assert.Contains("effectiveCheckIn", booking, StringComparison.Ordinal);
+        Assert.Contains("scheduleNote", booking, StringComparison.Ordinal);
+        Assert.Contains("private const int TurnoverMinutes = 30", service, StringComparison.Ordinal);
+        Assert.Contains("ResolveBookableWindowAsync", service, StringComparison.Ordinal);
+        Assert.Contains("projection.Free.Count != 1", service, StringComparison.Ordinal);
+        Assert.Contains("const int turnoverMinutes = 30", availability, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public void Guest_guide_editor_has_its_own_expand_control()
     {
         var page = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/Rooms/Content.cshtml");

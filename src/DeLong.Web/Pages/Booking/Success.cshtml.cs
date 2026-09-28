@@ -20,6 +20,8 @@ public sealed class SuccessModel(
     public string? SiteSlug { get; private set; }
     public string? GuestGuideHtml { get; private set; }
     public string GuidePdfUrl { get; private set; } = string.Empty;
+    public string ScheduleText { get; private set; } = string.Empty;
+    public string ScheduleAdjustment { get; private set; } = string.Empty;
 
     public async Task<IActionResult> OnGetAsync(string? siteSlug, string? code, string? room, decimal? amount, CancellationToken ct)
     {
@@ -41,6 +43,12 @@ public sealed class SuccessModel(
                 GuestGuideHtml = booking.GuestGuideHtml;
                 IsPay2SPaid = booking.IsPay2SPaid;
                 PaidAmount = booking.PaidAmount;
+                var timeZone = TimeZoneInfo.FindSystemTimeZoneById(booking.TimeZoneId);
+                var checkIn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(booking.CheckInUtc, DateTimeKind.Utc), timeZone);
+                var checkOut = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(booking.CheckOutUtc, DateTimeKind.Utc), timeZone);
+                ScheduleText = $"{checkIn:dd/MM/yyyy HH:mm} → {checkOut:dd/MM/yyyy HH:mm}";
+                ScheduleAdjustment = (booking.Note ?? string.Empty).Split('\n', StringSplitOptions.TrimEntries)
+                    .FirstOrDefault(x => x.StartsWith("Điều chỉnh thời gian", StringComparison.Ordinal)) ?? string.Empty;
                 var scope = string.IsNullOrWhiteSpace(SiteSlug) ? string.Empty : $"&siteSlug={Uri.EscapeDataString(SiteSlug)}";
                 GuidePdfUrl = $"/api/public/booking-guide-pdf?code={Uri.EscapeDataString(booking.Code)}{scope}";
             }

@@ -38,7 +38,11 @@ public sealed record PublicBookingSuccessDto(
     string RoomName,
     string? GuestGuideHtml,
     bool IsPay2SPaid,
-    decimal PaidAmount);
+    decimal PaidAmount,
+    DateTime CheckInUtc,
+    DateTime CheckOutUtc,
+    string TimeZoneId,
+    string? Note);
 
 public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyResolver? resolver = null)
 {
@@ -147,7 +151,11 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
                 x.Room.GuestGuideHtml,
                 x.Payments.Any(p => !p.IsVoided && p.Type == PaymentType.Receipt && (p.Method == PaymentMethod.Pay2S || p.Method == PaymentMethod.SePay)),
                 x.Payments.Where(p => !p.IsVoided)
-                    .Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount)))
+                    .Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
+                x.CheckInUtc,
+                x.CheckOutUtc,
+                x.Property.TimeZoneId,
+                x.Note))
             .SingleOrDefaultAsync(ct);
     }
 

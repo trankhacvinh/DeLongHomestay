@@ -61,7 +61,10 @@ public sealed record PublicAvailabilitySlotDto(
     string State,
     double OccupiedRatio,
     IReadOnlyList<PublicAvailabilityOccupancyDto> Occupied,
-    IReadOnlyList<AvailabilityRangeDto> Free);
+    IReadOnlyList<AvailabilityRangeDto> Free,
+    DateTime? BookableStartUtc,
+    DateTime? BookableEndUtc,
+    string? AvailabilityNote);
 
 public sealed record PublicAvailabilityDayDto(
     DateOnly Date,
@@ -183,7 +186,7 @@ public sealed class AvailabilityIntervalService(
             .SingleOrDefaultAsync(cancellationToken);
         if (room is null) return null;
 
-        var calendar = await BuildAsync(propertyId, roomId, property.TimeZoneId, from, days, cancellationToken);
+        var calendar = await BuildAsync(propertyId, roomId, property.TimeZoneId, from, days, 0, cancellationToken);
         return new AdminRoomAvailabilityDto(
             propertyId, room.Id, room.Code, room.Name, property.TimeZoneId, from, days,
             calendar.Select(day => new AdminAvailabilityDayDto(
@@ -215,7 +218,8 @@ public sealed class AvailabilityIntervalService(
             .SingleOrDefaultAsync(cancellationToken);
         if (room is null) return null;
 
-        var calendar = await BuildAsync(property.Id, roomId, property.TimeZoneId, from, days, cancellationToken);
+        const int turnoverMinutes = 30;
+        var calendar = await BuildAsync(property.Id, roomId, property.TimeZoneId, from, days, turnoverMinutes, cancellationToken);
         var pricingSettings = await pricingService.GetSettingsAsync(property.Id, cancellationToken);
         return new PublicRoomAvailabilityDto(
             room.Id, room.Code, room.Name, room.FullDayPricingEnabled, room.FullDayPrice, room.UseWeekdayFullDayPriceOnWeekend, room.WeekendFullDayPrice,
@@ -223,14 +227,23 @@ public sealed class AvailabilityIntervalService(
             property.TimeZoneId, from, days,
             calendar.Select(day => new PublicAvailabilityDayDto(
                 day.Date,
-                day.Slots.Select(slot => new PublicAvailabilitySlotDto(
-                    slot.RateId, slot.RateName, slot.RateType, slot.Price,
-                    slot.StartUtc, slot.EndUtc, slot.Projection.State, slot.Projection.OccupiedRatio,
-                    slot.Projection.Occupied.Select(x => new PublicAvailabilityOccupancyDto(
-                        x.Status == BookingStatus.Held ? "held" : "booked",
-                        x.StartUtc,
-                        x.EndUtc)).ToList(),
-                    slot.Projection.Free)).ToList(),
+                day.Slots.Select(slot =>
+                {
+                    var bookable = slot.Projection.Free.Count == 1 ? slot.Projection.Free[0] : null;
+                    var adjusted = bookable is not null &&
+                                   (bookable.StartUtc > slot.StartUtc || bookable.EndUtc < slot.EndUtc);
+                    return new PublicAvailabilitySlotDto(
+                        slot.RateId, slot.RateName, slot.RateType, slot.Price,
+                        slot.StartUtc, slot.EndUtc, slot.Projection.State, slot.Projection.OccupiedRatio,
+                        slot.Projection.Occupied.Select(x => new PublicAvailabilityOccupancyDto(
+                            x.Status == BookingStatus.Held ? "held" : "booked",
+                            x.StartUtc,
+                            x.EndUtc)).ToList(),
+                        slot.Projection.Free,
+                        bookable?.StartUtc,
+                        bookable?.EndUtc,
+                        adjusted ? "Thời gian được điều chỉnh để dành 30 phút dọn phòng giữa hai lượt khách." : null);
+                }).ToList(),
                 day.Policy.DayProfile,
                 day.Policy.SpecialDayName,
                 day.Policy.SurchargePercent,
@@ -249,6 +262,7 @@ public sealed class AvailabilityIntervalService(
         string timeZoneId,
         DateOnly from,
         int days,
+        int turnoverMinutes,
         CancellationToken cancellationToken)
     {
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
@@ -264,8 +278,8 @@ public sealed class AvailabilityIntervalService(
 
         var windowStartLocal = from.ToDateTime(TimeOnly.MinValue);
         var windowEndLocal = from.AddDays(days + 1).ToDateTime(TimeOnly.MaxValue);
-        var windowStartUtc = ToUtc(windowStartLocal, timeZone);
-        var windowEndUtc = ToUtc(windowEndLocal, timeZone);
+        var windowStartUtc = ToUtc(windowStartLocal, timeZone).AddMinutes(-turnoverMinutes);
+        var windowEndUtc = ToUtc(windowEndLocal, timeZone).AddMinutes(turnoverMinutes);
         var bookings = await db.Bookings.AsNoTracking()
             .Where(x => x.PropertyId == propertyId && x.RoomId == roomId &&
                         LockingStatuses.Contains(x.Status) &&
@@ -273,8 +287,8 @@ public sealed class AvailabilityIntervalService(
             .Select(x => new AvailabilityOccupancyInput(
                 x.Id,
                 x.Status,
-                x.CheckInUtc,
-                x.CheckOutUtc,
+                x.CheckInUtc.AddMinutes(-turnoverMinutes),
+                x.CheckOutUtc.AddMinutes(turnoverMinutes),
                 x.Customer.Name,
                 x.Customer.Phone,
                 x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount -

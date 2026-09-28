@@ -86,7 +86,8 @@ public sealed class BookingNotificationService(
                 localTimes.CheckOut,
                 total,
                 BookingGuestGuideEmailService.HtmlToText(booking.GuestGuideHtml),
-                string.Empty);
+                string.Empty,
+                ScheduleAdjustment(booking.Note));
             var notification = new PropertyNotification
             {
                 PropertyId = propertyId,
@@ -314,7 +315,8 @@ public sealed class BookingNotificationService(
                 x.Room.Name,
                 x.Room.GuestGuideHtml,
                 x.Property.Name,
-                x.Property.TimeZoneId))
+                x.Property.TimeZoneId,
+                x.Note))
             .SingleOrDefaultAsync(cancellationToken);
 
     private async Task AddTelegramOutboxIfEnabledAsync(Guid propertyId, PropertyNotification notification, string message, CancellationToken cancellationToken)
@@ -401,8 +403,8 @@ public sealed class BookingNotificationService(
     private static string BuildBookingCreatedMessage(BookingTelegramData booking)
     {
         var local = GetLocalTimes(booking);
-        return string.Join(Environment.NewLine,
-        [
+        var lines = new List<string>
+        {
             $"🏡 {booking.PropertyName} · BOOKING MỚI",
             string.Empty,
             $"Mã: {booking.Code}",
@@ -414,8 +416,15 @@ public sealed class BookingNotificationService(
             $"Tổng tiền: {booking.TotalAmount:N0} VND",
             string.Empty,
             "Vui lòng mở trang quản trị để xử lý."
-        ]);
+        };
+        var adjustment = ScheduleAdjustment(booking.Note);
+        if (!string.IsNullOrWhiteSpace(adjustment)) lines.Insert(lines.Count - 2, $"Lưu ý: {adjustment}");
+        return string.Join(Environment.NewLine, lines);
     }
+
+    private static string ScheduleAdjustment(string? note) =>
+        (note ?? string.Empty).Split('\n', StringSplitOptions.TrimEntries)
+            .FirstOrDefault(x => x.StartsWith("Điều chỉnh thời gian", StringComparison.Ordinal)) ?? string.Empty;
 
     private static string BuildStatusMessage(BookingTelegramData booking, BookingStatus status, string? reason, DateTime occurredAtUtc)
     {
@@ -526,5 +535,6 @@ public sealed class BookingNotificationService(
         string RoomName,
         string? GuestGuideHtml,
         string PropertyName,
-        string TimeZoneId);
+        string TimeZoneId,
+        string? Note);
 }

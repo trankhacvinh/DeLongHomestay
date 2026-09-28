@@ -51,6 +51,9 @@
                 bookingType: 0,
                 embeddedSlotSelection: initial.embeddedSlotSelection === true || querySlots.length > 0,
                 selectedSlots: initialSlots,
+                effectiveCheckIn: initial.effectiveCheckIn || null,
+                effectiveCheckOut: initial.effectiveCheckOut || null,
+                scheduleNote: initial.scheduleNote || '',
                 today,
                 date: arrival,
                 checkInDate: arrival,
@@ -146,6 +149,11 @@
                 return this.selectedSlotDetails.some(item => Number(item.rate.type) === 1 || item.rate.endTime <= item.rate.startTime);
             },
             embeddedSelectionRangeText() {
+                if (this.effectiveCheckIn && this.effectiveCheckOut) {
+                    const options = { timeZone: initial.timeZoneId || 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false };
+                    const format = value => new Intl.DateTimeFormat('vi-VN', options).format(new Date(value));
+                    return `${format(this.effectiveCheckIn)} → ${format(this.effectiveCheckOut)}`;
+                }
                 if (!this.selectedSlotDetails.length) return '';
                 const first = this.selectedSlotDetails[0];
                 const last = this.selectedSlotDetails[this.selectedSlotDetails.length - 1];

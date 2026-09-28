@@ -27,7 +27,7 @@ public sealed class IndexModel(
     public bool RequiresPropertySelection { get; private set; }
     public IReadOnlyList<PublicPropertyCardDto> Properties { get; private set; } = [];
 
-    public async Task<IActionResult> OnGetAsync(string? siteSlug, string? site, string? date, string? room, Guid? rate, string? slots, string? voucher, string? embed, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(string? siteSlug, string? site, string? date, string? room, Guid? rate, string? slots, string? voucher, string? embed, DateTime? effectiveCheckIn, DateTime? effectiveCheckOut, string? scheduleNote, CancellationToken cancellationToken)
     {
         var isEmbedded = string.Equals(embed, "1", StringComparison.OrdinalIgnoreCase)
                          || string.Equals(embed, "true", StringComparison.OrdinalIgnoreCase);
@@ -164,6 +164,9 @@ public sealed class IndexModel(
             initialSlots,
             initialVoucherCode = string.IsNullOrWhiteSpace(voucher) ? string.Empty : voucher.Trim(),
             embeddedSlotSelection = initialSlots.Count > 0,
+            effectiveCheckIn,
+            effectiveCheckOut,
+            scheduleNote = string.IsNullOrWhiteSpace(scheduleNote) ? null : scheduleNote.Trim(),
             embeddedPricingTotal,
             bookingPolicy,
             properties = Properties.Select(x => new

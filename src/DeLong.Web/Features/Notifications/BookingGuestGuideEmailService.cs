@@ -122,6 +122,7 @@ public sealed partial class BookingGuestGuideEmailService(
                 CustomerEmail = x.Customer.Email,
                 RoomName = x.Room.Name,
                 GuestGuideHtml = x.Room.GuestGuideHtml,
+                x.Note,
                 PropertyName = x.Property.Name,
                 x.Property.TimeZoneId
             })
@@ -147,7 +148,9 @@ public sealed partial class BookingGuestGuideEmailService(
             checkOut,
             booking.RoomAmount + booking.SpecialSurchargeAmount + booking.ExtraAmount - booking.DiscountAmount,
             guide,
-            string.IsNullOrWhiteSpace(cancellationReason) ? "Booking đã được hủy trên hệ thống." : cancellationReason.Trim());
+            string.IsNullOrWhiteSpace(cancellationReason) ? "Booking đã được hủy trên hệ thống." : cancellationReason.Trim(),
+            (booking.Note ?? string.Empty).Split('\n', StringSplitOptions.TrimEntries)
+                .FirstOrDefault(x => x.StartsWith("Điều chỉnh thời gian", StringComparison.Ordinal)) ?? string.Empty);
         var cancellation = string.Equals(templateKey, "Cancellation", StringComparison.Ordinal);
         var subject = NotificationEmailTemplateRenderer.Render(
             cancellation ? settings?.GuestCancellationEmailSubjectTemplate : settings?.GuestCheckInEmailSubjectTemplate,
