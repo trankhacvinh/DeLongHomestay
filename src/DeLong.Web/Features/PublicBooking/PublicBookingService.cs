@@ -4,14 +4,13 @@ using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Customers;
-using DeLong.Web.Features.Notifications;
 using DeLong.Web.Features.Site;
 using DeLong.Web.Features.Pricing;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.PublicBooking;
 
-public sealed class PublicBookingService(AppDbContext db, BookingService bookingService, PublicPropertyResolver? resolver = null, BookingNotificationService? notificationService = null, PricingService? pricingService = null)
+public sealed class PublicBookingService(AppDbContext db, BookingService bookingService, PublicPropertyResolver? resolver = null, PricingService? pricingService = null)
 {
     private readonly PublicPropertyResolver publicPropertyResolver = resolver ?? new PublicPropertyResolver(db);
     private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
@@ -296,7 +295,6 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
             if (await FindIdempotentResultAsync(context.PropertyId, idempotencyKey, ct) is { } idempotentReplay1) return (idempotentReplay1, null);
         }
         if (booking is null) return (null, new(error?.Code ?? "booking_failed", error?.Message ?? "Không thể tạo yêu cầu đặt phòng."));
-        if (notificationService is not null) await notificationService.NotifyBookingCreatedAsync(context.PropertyId, booking.Id, ct);
         return (new PublicBookingResult(booking.Id, booking.Code, booking.Type, room.Name, rateLabel, null, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
     }
 
@@ -320,7 +318,6 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
             if (await FindIdempotentResultAsync(context.PropertyId, idempotencyKey, ct) is { } idempotentReplay2) return (idempotentReplay2, null);
         }
         if (booking is null) return (null, new(error?.Code ?? "booking_failed", error?.Message ?? "Không thể tạo yêu cầu lưu trú."));
-        if (notificationService is not null) await notificationService.NotifyBookingCreatedAsync(context.PropertyId, booking.Id, ct);
         return (new PublicBookingResult(booking.Id, booking.Code, booking.Type, rate.RoomName, rate.Name, nights, booking.CheckInUtc, booking.CheckOutUtc, booking.TotalAmount), null);
     }
 

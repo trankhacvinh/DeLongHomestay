@@ -204,6 +204,8 @@ public sealed class BookingNotificationService(
                 ActionUrl = $"/Admin/Bookings?propertyId={propertyId}&bookingId={bookingId}"
             };
             db.Add(notification);
+            if (autoConfirmed)
+                await AddInternalBookingEmailIfEnabledAsync(propertyId, notification, booking, cancellationToken);
             await AddTelegramOutboxIfEnabledAsync(
                 propertyId,
                 notification,
@@ -322,6 +324,48 @@ public sealed class BookingNotificationService(
             .SingleOrDefaultAsync(x => x.PropertyId == propertyId, cancellationToken);
         if (!IsTelegramConfigured(settings)) return;
         AddTelegramOutbox(propertyId, notification, settings!.TelegramChatIds!, message);
+    }
+
+    private async Task AddInternalBookingEmailIfEnabledAsync(
+        Guid propertyId,
+        PropertyNotification notification,
+        BookingTelegramData booking,
+        CancellationToken cancellationToken)
+    {
+        var settings = await db.Set<PropertyNotificationSettings>().AsNoTracking()
+            .SingleOrDefaultAsync(x => x.PropertyId == propertyId, cancellationToken);
+        if (settings?.EmailBookingEnabled != true || string.IsNullOrWhiteSpace(settings.EmailRecipients)) return;
+
+        var localTimes = GetLocalTimes(booking);
+        var templateData = new BookingEmailTemplateData(
+            booking.PropertyName,
+            booking.Code,
+            booking.CustomerName,
+            booking.CustomerPhone,
+            booking.CustomerEmail ?? string.Empty,
+            booking.RoomName,
+            localTimes.CheckIn,
+            localTimes.CheckOut,
+            booking.TotalAmount,
+            BookingGuestGuideEmailService.HtmlToText(booking.GuestGuideHtml),
+            string.Empty);
+        var bodyHtml = NotificationEmailTemplateRenderer.RenderHtml(
+            settings.InternalBookingEmailBodyTemplate,
+            NotificationEmailTemplateRenderer.DefaultInternalBookingBody,
+            templateData);
+        db.Add(new NotificationEmailOutbox
+        {
+            PropertyId = propertyId,
+            NotificationId = notification.Id,
+            ToRecipients = settings.EmailRecipients,
+            Subject = NotificationEmailTemplateRenderer.Render(
+                settings.InternalBookingEmailSubjectTemplate,
+                NotificationEmailTemplateRenderer.DefaultInternalBookingSubject,
+                templateData),
+            BodyHtml = bodyHtml,
+            BodyText = NotificationEmailTemplateRenderer.ToPlainText(bodyHtml),
+            NextAttemptAtUtc = DateTime.UtcNow
+        });
     }
 
     private void AddTelegramOutbox(Guid propertyId, PropertyNotification notification, string chatIds, string message) =>

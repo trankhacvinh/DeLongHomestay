@@ -111,7 +111,6 @@ public static class PublicBookingEndpoints
                     booking.Status = BookingStatus.Cancelled;
                     await voucherService.ReleaseReservedAsync(result.BookingId, "Booking bị hủy vì không thể khởi tạo thanh toán Pay2S.", ct);
                     await db.SaveChangesAsync(ct);
-                    await guestEmailService.QueueCancellationAsync(paymentProperty.Id, result.BookingId, null, "Booking đã bị hủy vì chưa thể khởi tạo thanh toán.", ct);
                     return Results.Problem(statusCode: 503, title: "Chưa thể tạo thanh toán", detail: paymentError?.Message, type: "pay2s_unavailable");
                 }
                 result = result with { HoldExpiresAtUtc = intent.ExpiresAtUtc, PaymentOrderId = intent.OrderId, PaymentUrl = intent.PayUrl };

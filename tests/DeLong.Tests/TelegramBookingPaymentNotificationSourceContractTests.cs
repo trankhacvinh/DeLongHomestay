@@ -5,12 +5,12 @@ namespace DeLong.Tests;
 public sealed class TelegramBookingPaymentNotificationSourceContractTests
 {
     [Fact]
-    public void Booking_service_centrally_queues_created_and_status_notifications()
+    public void Website_booking_waits_for_payment_before_notifying_management()
     {
-        var source = Read("src/DeLong.Web/Features/Bookings/BookingService.cs");
-        Assert.Contains("NotifyBookingCreatedAsync", source, StringComparison.Ordinal);
-        Assert.Contains("NotifyBookingStatusChangedAsync", source, StringComparison.Ordinal);
-        Assert.Contains("previousStatus", source, StringComparison.Ordinal);
+        var bookingService = Read("src/DeLong.Web/Features/Bookings/BookingService.cs");
+        var publicBooking = Read("src/DeLong.Web/Features/PublicBooking/PublicBookingService.cs");
+        Assert.Contains("!string.Equals(booking.Source, \"Website\", StringComparison.OrdinalIgnoreCase)", bookingService, StringComparison.Ordinal);
+        Assert.DoesNotContain(".NotifyBookingCreatedAsync", publicBooking, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -31,7 +31,11 @@ public sealed class TelegramBookingPaymentNotificationSourceContractTests
         Assert.Contains("autoConfirmed", source, StringComparison.Ordinal);
         Assert.Contains("NotifyPay2SFailedAsync", source, StringComparison.Ordinal);
         Assert.Contains("NotifyLatePay2SPaymentAsync", source, StringComparison.Ordinal);
-        Assert.Contains("Hết thời gian thanh toán.", source, StringComparison.Ordinal);
+        var expiry = Between(source, "public async Task<int> ExpirePendingAsync", "public async Task<(Pay2SIntentDto? Intent");
+        Assert.DoesNotContain("NotifyBookingStatusChangedAsync", expiry, StringComparison.Ordinal);
+        Assert.DoesNotContain("QueueCancellationAsync", expiry, StringComparison.Ordinal);
+        var notificationSource = Read("src/DeLong.Web/Features/Notifications/BookingNotificationService.cs");
+        Assert.Contains("if (autoConfirmed)\n                await AddInternalBookingEmailIfEnabledAsync", notificationSource, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -55,5 +59,13 @@ public sealed class TelegramBookingPaymentNotificationSourceContractTests
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "DeLongHomestay.sln"))) directory = directory.Parent;
         if (directory is null) throw new InvalidOperationException("Could not locate repository root.");
         return File.ReadAllText(Path.Combine(directory.FullName, relativePath));
+    }
+
+    private static string Between(string source, string start, string end)
+    {
+        var startIndex = source.IndexOf(start, StringComparison.Ordinal);
+        var endIndex = source.IndexOf(end, startIndex + start.Length, StringComparison.Ordinal);
+        Assert.True(startIndex >= 0 && endIndex > startIndex);
+        return source[startIndex..endIndex];
     }
 }

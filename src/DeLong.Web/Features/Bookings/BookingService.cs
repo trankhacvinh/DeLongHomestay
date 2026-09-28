@@ -84,7 +84,8 @@ public sealed class BookingService(
         var saveError = await SaveWithConflictGuardAsync(cancellationToken, !string.IsNullOrWhiteSpace(request.PublicRequestKey)); if (saveError is not null) return (null, saveError);
         if (request.Status == BookingStatus.Confirmed && guestGuideEmailService is not null)
             await guestGuideEmailService.QueueAutomaticAsync(propertyId, booking.Id, cancellationToken);
-        if (notificationService is not null)
+        if (notificationService is not null &&
+            !string.Equals(booking.Source, "Website", StringComparison.OrdinalIgnoreCase))
             await notificationService.NotifyBookingCreatedAsync(propertyId, booking.Id, cancellationToken);
         return (await GetAsync(propertyId, booking.Id, cancellationToken), null);
     }

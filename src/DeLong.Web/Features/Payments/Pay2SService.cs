@@ -291,7 +291,6 @@ public sealed class Pay2SService(
                 """)
             .Include(x => x.Booking)
             .ToListAsync(ct);
-        var cancelledBookingIds = new List<(Guid PropertyId, Guid BookingId)>();
         foreach (var intent in intents)
         {
             intent.Status = Pay2SPaymentIntentStatus.Expired;
@@ -299,16 +298,10 @@ public sealed class Pay2SService(
             {
                 intent.Booking.Status = BookingStatus.Cancelled;
                 await voucherService.ReleaseReservedAsync(intent.BookingId, "Booking bị hủy do hết thời gian thanh toán.", ct);
-                cancelledBookingIds.Add((intent.PropertyId, intent.BookingId));
             }
         }
         if (intents.Count > 0) await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-        foreach (var cancelled in cancelledBookingIds)
-        {
-            await notificationService.NotifyBookingStatusChangedAsync(cancelled.PropertyId, cancelled.BookingId, BookingStatus.Held, BookingStatus.Cancelled, "Hết thời gian thanh toán.", cancellationToken: ct);
-            await guestGuideEmailService.QueueCancellationAsync(cancelled.PropertyId, cancelled.BookingId, null, "Booking đã bị hủy do hết thời gian thanh toán.", ct);
-        }
         return intents.Count;
     }
 
