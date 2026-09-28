@@ -7,7 +7,7 @@ public static class MediaLibraryEndpoints
     public static IEndpointRouteBuilder MapMediaLibraryEndpoints(this IEndpointRouteBuilder app)
     {
         var property = app.MapGroup("/api/admin/properties/{propertyId:guid}/media")
-            .RequireAuthorization("ManageSiteContent")
+            .RequireAuthorization("ManageMediaContent")
             .AddEndpointFilter<PropertyAccessFilter>();
 
         property.MapGet("/", async (Guid propertyId, MediaLibraryService service, CancellationToken ct) =>

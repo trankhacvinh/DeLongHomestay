@@ -72,11 +72,14 @@
                             </div>
                         </td>
                         <td class="col-actions" data-label="Thao tác">
-                            @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                            @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Media"))
                             {
                                 <div class="room-actions">
                                     <a class="btn btn-light btn-sm room-content-action" v-bind:href="'/Admin/Rooms/' + room.id + '/Content?propertyId=' + propertyId">Nội dung</a>
-                                    <button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(room)">Sửa</button>
+                                    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                                    {
+                                        <button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(room)">Sửa</button>
+                                    }
                                 </div>
                             }
                         </td>

@@ -20,6 +20,7 @@ public sealed class StaffAccountService(
         new(StaffRoles.Manager, "Quản lý", "Quản lý phòng, đặt phòng, vận hành, tài chính và báo cáo.", "warning"),
         new(StaffRoles.Staff, "Nhân viên", "Xử lý khách hàng, đặt phòng, thanh toán và hỗ trợ vận hành.", "info"),
         new(StaffRoles.Housekeeping, "Dọn phòng", "Tập trung vào trạng thái phòng và quy trình dọn phòng.", "success"),
+        new(StaffRoles.Media, "Media", "Chỉnh nội dung phòng, hình ảnh, Gallery và đăng bài Blog tại cơ sở được cấp.", "info"),
         new(StaffRoles.Viewer, "Chỉ xem", "Xem dữ liệu được cấp quyền nhưng không thực hiện thao tác thay đổi.", "neutral")
     ];
 

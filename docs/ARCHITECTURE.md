@@ -98,6 +98,7 @@ Màu hiển thị booking trên Calendar V2 là metadata theo từng cơ sở, l
 - Payment, audit, housekeeping là entity riêng; không nhồi JSON vào booking.
 - Thời điểm việc dọn phòng được suy ra từ giờ booking thật và hai offset theo cơ sở trên `Property`: số phút trước check-in và sau check-out; mặc định đều `0`.
 - `BookingLifecycleAutomationWorker` đối chiếu giờ UTC định kỳ. Hai công tắc theo cơ sở mặc định bật; worker chỉ chuyển `Confirmed → CheckedIn` khi đến giờ nhận và `CheckedIn → Completed` khi đến giờ trả, qua `BookingService` để giữ audit, notification, loyalty và housekeeping side effects.
+- Vai trò `Media` chỉ được vào danh sách phòng để sửa nội dung/ảnh, Media Library, Gallery và Blog. Mọi API mutation của vai trò này vẫn bắt buộc `PropertyAccessFilter`; phạm vi cơ sở lấy từ `UserPropertyAccess`, hỗ trợ một tài khoản thuộc một hoặc nhiều cơ sở.
 - `Room.GuestGuideHtml` là nội dung hướng dẫn hiện hành của phòng, được soạn bằng editor và làm sạch server-side. Trang đặt thành công và tra cứu chỉ đọc hướng dẫn của phòng, không sao chép HTML vào booking.
 - PDF hướng dẫn chỉ chứa mã đơn, tên phòng và nội dung hướng dẫn; không chứa dữ liệu cá nhân. Tra cứu và tải PDF bằng mã + số điện thoại bị từ chối khi booking đã ở trạng thái terminal (`Completed`, `Cancelled`, `NoShow`).
 - Thông báo booking nội bộ dùng outbox bền vững cho email và Telegram, retry ở background worker; lỗi kênh ngoài không rollback booking. Danh sách email, Telegram bot token và chat ID cấu hình theo cơ sở; bot token được bảo vệ bằng ASP.NET Core Data Protection.

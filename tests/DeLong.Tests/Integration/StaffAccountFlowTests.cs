@@ -133,7 +133,25 @@ public sealed class StaffAccountFlowTests
         Assert.True(await userManager.IsInRoleAsync(staffUser, StaffRoles.Housekeeping));
         Assert.False(await userManager.IsInRoleAsync(staffUser, StaffRoles.Staff));
         Assert.False(await userManager.IsInRoleAsync(staffUser, StaffRoles.Viewer));
-        Assert.Single((await userManager.GetRolesAsync(staffUser)).Where(StaffRoles.IsAllowed));
+        Assert.Single(await userManager.GetRolesAsync(staffUser), StaffRoles.IsAllowed);
+
+        var (media, mediaError) = await service.UpdateAsync(
+            admin.Id,
+            staffUser.Id,
+            new UpdateStaffAccountRequest(
+                "Nhân viên Media",
+                $"staff-{suffix}",
+                staffEmail,
+                StaffRoles.Media,
+                [property.Id],
+                true));
+
+        Assert.Null(mediaError);
+        Assert.NotNull(media);
+        Assert.Equal(StaffRoles.Media, media!.Role);
+        Assert.True(await userManager.IsInRoleAsync(staffUser, StaffRoles.Media));
+        Assert.False(await userManager.IsInRoleAsync(staffUser, StaffRoles.Housekeeping));
+        Assert.Single(await userManager.GetRolesAsync(staffUser), StaffRoles.IsAllowed);
 
         var resetPassword = "Reset-staff-456";
         var resetError = await service.ResetPasswordAsync(

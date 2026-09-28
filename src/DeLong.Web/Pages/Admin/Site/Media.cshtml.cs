@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace DeLong.Web.Pages.Admin.Site;
 
-[Authorize(Policy = "ManageSiteContent")]
+[Authorize(Policy = "ManageMediaContent")]
 public sealed class MediaModel(CurrentPropertyService currentPropertyService) : PageModel
 {
     public string PageDataJson { get; private set; } = "{}";

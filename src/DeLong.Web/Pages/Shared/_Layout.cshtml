@@ -38,17 +38,20 @@
 
     var canViewOperations = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") || User.IsInRole("Viewer");
     var canViewVouchers = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff");
-    var canViewRooms = canViewOperations;
+    var canViewRooms = canViewOperations || User.IsInRole("Media");
+    var canViewPricing = canViewOperations;
     var canManageSettings = User.IsInRole("Admin") || User.IsInRole("Manager");
     var canManageStaff = User.IsInRole("Admin");
     var canManageProperties = User.IsInRole("Admin");
     var canManageSite = User.IsInRole("Admin") || User.IsInRole("Manager");
+    var canManageMedia = canManageSite || User.IsInRole("Media");
     var canUseStaffAi = User.IsInRole("Manager") || User.IsInRole("Staff") || User.IsInRole("Housekeeping") || User.IsInRole("Viewer");
     var displayName = User.FindFirst("delong_display_name")?.Value ?? User.Identity?.Name ?? "Tài khoản";
     var roleLabel = User.IsInRole("Admin") ? "Quản trị viên"
         : User.IsInRole("Manager") ? "Quản lý"
         : User.IsInRole("Staff") ? "Nhân viên"
         : User.IsInRole("Housekeeping") ? "Dọn phòng"
+        : User.IsInRole("Media") ? "Media"
         : User.IsInRole("Viewer") ? "Chỉ xem"
         : "Tài khoản";
     var applicationBuild = DeLong.Web.Common.Operations.ApplicationBuildInfo.Current;
@@ -356,10 +359,13 @@
                                     <use href="#i-bed"/>
                                 </svg>
                                 <span>Phòng</span></a>
-                            <a class="@NavClass("/Admin/Pricing")" asp-page="/Admin/Pricing/Index"
-                               asp-route-propertyId="@propertyId">
-                                <svg><use href="#i-calendar"/></svg>
-                                <span>Giá & ngày đặc biệt</span></a>
+                            @if (canViewPricing)
+                            {
+                                <a class="@NavClass("/Admin/Pricing")" asp-page="/Admin/Pricing/Index"
+                                   asp-route-propertyId="@propertyId">
+                                    <svg><use href="#i-calendar"/></svg>
+                                    <span>Giá & ngày đặc biệt</span></a>
+                            }
                         }
                         @if (canManageSettings)
                         {
@@ -413,16 +419,19 @@
                             <span>Báo cáo</span></a>
                     </div>
                 }
-                @if (canManageSite)
+                @if (canManageMedia)
                 {
                     <div class="nav-group">
                         <div class="nav-label">Website</div>
-                        <a class="@NavClass("/Admin/Site", true)" asp-page="/Admin/Site/Index"
-                           asp-route-propertyId="@propertyId">
-                            <svg>
-                                <use href="#i-settings"/>
-                            </svg>
-                            <span>Trang cơ sở</span></a>
+                        @if (canManageSite)
+                        {
+                            <a class="@NavClass("/Admin/Site", true)" asp-page="/Admin/Site/Index"
+                               asp-route-propertyId="@propertyId">
+                                <svg>
+                                    <use href="#i-settings"/>
+                                </svg>
+                                <span>Trang cơ sở</span></a>
+                        }
                         @if (User.IsInRole("Admin"))
                         {
                             <a class="@NavClass("/Admin/Site/Global", true)" asp-page="/Admin/Site/Global">

@@ -6,9 +6,10 @@ public static class StaffRoles
     public const string Manager = "Manager";
     public const string Staff = "Staff";
     public const string Housekeeping = "Housekeeping";
+    public const string Media = "Media";
     public const string Viewer = "Viewer";
 
-    public static readonly string[] All = [Admin, Manager, Staff, Housekeeping, Viewer];
+    public static readonly string[] All = [Admin, Manager, Staff, Housekeeping, Media, Viewer];
 
     public static bool IsAllowed(string? role) =>
         !string.IsNullOrWhiteSpace(role) && All.Contains(role.Trim(), StringComparer.OrdinalIgnoreCase);

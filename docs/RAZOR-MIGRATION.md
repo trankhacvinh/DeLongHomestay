@@ -13,6 +13,8 @@
 
 ## Nguyên tắc
 
+- Phân quyền nội dung dùng policy `ManageMediaContent` cho `Admin`, `Manager`, `Media`; quyền này không bao gồm booking, giá, tài chính, cấu hình website hoặc phạm vi cơ sở ngoài `UserPropertyAccess`.
+
 `demo/` là UI/UX specification. Không viết lại giao diện tùy tiện khi port production.
 
 - Static HTML → Razor Page.

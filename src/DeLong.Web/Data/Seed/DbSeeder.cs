@@ -2,6 +2,7 @@ using System.Text.Json;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Identity;
+using DeLong.Web.Features.Staff;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,7 +29,7 @@ public static class DbSeeder
 
     public static async Task SeedRolesAsync(RoleManager<IdentityRole<Guid>> roleManager)
     {
-        foreach (var roleName in new[] { "Admin", "Manager", "Staff", "Housekeeping", "Viewer" })
+        foreach (var roleName in StaffRoles.All)
         {
             if (await roleManager.RoleExistsAsync(roleName)) continue;
             var result = await roleManager.CreateAsync(new IdentityRole<Guid>

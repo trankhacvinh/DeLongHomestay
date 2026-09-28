@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace DeLong.Web.Pages.Admin.Rooms;
 
-[Authorize(Policy = "ManageRooms")]
+[Authorize(Policy = "ManageMediaContent")]
 public sealed class ContentModel(
     RoomContentService contentService,
     CurrentPropertyService currentPropertyService,

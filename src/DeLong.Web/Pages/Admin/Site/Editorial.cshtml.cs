@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace DeLong.Web.Pages.Admin.Site;
 
-[Authorize(Policy = "ManageSiteContent")]
+[Authorize(Policy = "ManageMediaContent")]
 public sealed class EditorialModel(
     CurrentPropertyService currentPropertyService,
     PublicPropertyResolver publicPropertyResolver) : PageModel

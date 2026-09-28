@@ -7,7 +7,7 @@ public static class RoomContentEndpoints
     public static IEndpointRouteBuilder MapRoomContentEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/admin/properties/{propertyId:guid}/rooms/{roomId:guid}/content")
-            .RequireAuthorization("ManageRooms")
+            .RequireAuthorization("ManageMediaContent")
             .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Room Content");
 

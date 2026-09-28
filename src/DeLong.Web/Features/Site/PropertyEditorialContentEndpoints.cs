@@ -8,7 +8,7 @@ public static class PropertyEditorialContentEndpoints
     public static IEndpointRouteBuilder MapPropertyEditorialContentEndpoints(this IEndpointRouteBuilder app)
     {
         var admin = app.MapGroup("/api/admin/properties/{propertyId:guid}/editorial")
-            .RequireAuthorization("ManageSiteContent")
+            .RequireAuthorization("ManageMediaContent")
             .AddEndpointFilter<PropertyAccessFilter>();
 
         admin.MapGet("/", async (Guid propertyId, PropertyEditorialContentService service, CancellationToken ct) =>

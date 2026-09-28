@@ -74,6 +74,14 @@ public sealed class IndexModel(
             return RedirectToPage("/Admin/Housekeeping/Index", new { propertyId = PropertyId });
         }
 
+        var mediaOnly = User.IsInRole("Media") &&
+            !User.IsInRole("Admin") &&
+            !User.IsInRole("Manager");
+        if (mediaOnly)
+        {
+            return RedirectToPage("/Admin/Rooms/Index", new { propertyId = PropertyId });
+        }
+
         IsAllScope = string.Equals(scope, "all", StringComparison.OrdinalIgnoreCase) && Properties.Count > 1;
         CurrentPropertyDto? selectedProperty = null;
         if (!IsAllScope && Guid.TryParse(scope, out var scopedId))

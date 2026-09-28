@@ -62,6 +62,8 @@ Dùng checklist này sau khi apply migrations/seed trên `delong_dev`.
 - [ ] Khi bật tự động, booking `Confirmed` đến giờ nhận chuyển `CheckedIn`; đến giờ trả chuyển `Completed` và phòng thành `Dirty`.
 - [ ] Khi tắt từng công tắc, trạng thái tương ứng giữ nguyên để nhân viên xử lý thủ công.
 - [ ] Audit timeline ghi Created/Updated/StatusChanged và actor.
+- [ ] Tài khoản Media một cơ sở chỉ thấy và sửa nội dung phòng/ảnh/Blog của cơ sở đó; URL/API cơ sở khác trả 403.
+- [ ] Tài khoản Media nhiều cơ sở chuyển được giữa đúng các cơ sở được gán và không thấy booking, giá, tài chính, cấu hình website.
 - [ ] Trang đặt thành công hiện đúng hướng dẫn của phòng và tải được PDF mở hợp lệ.
 - [ ] Tra cứu đúng mã + SĐT hiện hướng dẫn và tải được PDF.
 - [ ] Booking `Completed`, `Cancelled` hoặc `NoShow` không còn tra cứu hay tải PDF được.

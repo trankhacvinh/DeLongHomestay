@@ -171,9 +171,9 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminArea", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping", "Viewer"));
+    options.AddPolicy("AdminArea", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping", "Media", "Viewer"));
     options.AddPolicy("ViewOperations", policy => policy.RequireRole("Admin", "Manager", "Staff", "Viewer"));
-    options.AddPolicy("ViewRooms", policy => policy.RequireRole("Admin", "Manager", "Staff", "Viewer"));
+    options.AddPolicy("ViewRooms", policy => policy.RequireRole("Admin", "Manager", "Staff", "Media", "Viewer"));
     options.AddPolicy("ViewHousekeeping", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping", "Viewer"));
     options.AddPolicy("ManageStaff", policy => policy.RequireRole("Admin"));
     options.AddPolicy("ManageProperties", policy => policy.RequireRole("Admin"));
@@ -181,6 +181,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ManageSiteCode", policy => policy.RequireRole("Admin"));
     options.AddPolicy("ManageImports", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageRooms", policy => policy.RequireRole("Admin", "Manager"));
+    options.AddPolicy("ManageMediaContent", policy => policy.RequireRole("Admin", "Manager", "Media"));
     options.AddPolicy("ManageNotifications", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageBookings", policy => policy.RequireRole("Admin", "Manager", "Staff"));
     options.AddPolicy("ManagePayments", policy => policy.RequireRole("Admin", "Manager", "Staff"));
@@ -201,12 +202,12 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Admin/Bookings", "ViewOperations");
     options.Conventions.AuthorizeFolder("/Admin/Customers", "ViewOperations");
     options.Conventions.AuthorizeFolder("/Admin/Rooms", "ViewRooms");
-    options.Conventions.AuthorizeFolder("/Admin/Pricing", "ViewRooms");
-    options.Conventions.AuthorizePage("/Admin/Rooms/Content", "ManageRooms");
+    options.Conventions.AuthorizeFolder("/Admin/Pricing", "ViewOperations");
+    options.Conventions.AuthorizePage("/Admin/Rooms/Content", "ManageMediaContent");
     options.Conventions.AuthorizeFolder("/Admin/Housekeeping", "ViewHousekeeping");
     options.Conventions.AuthorizeFolder("/Admin/Settings", "ManageRooms");
     options.Conventions.AuthorizeFolder("/Admin/Properties", "ManageProperties");
-    options.Conventions.AuthorizeFolder("/Admin/Site", "ManageSiteContent");
+    options.Conventions.AuthorizeFolder("/Admin/Site", "AdminArea");
     options.Conventions.AuthorizeFolder("/Admin/Imports", "ManageImports");
     options.Conventions.AuthorizeFolder("/Admin/Finance", "ViewFinance");
     options.Conventions.AuthorizeFolder("/Admin/Reports", "ViewReports");
