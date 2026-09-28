@@ -31,6 +31,13 @@ public sealed class IndexModel(
     {
         var isEmbedded = string.Equals(embed, "1", StringComparison.OrdinalIgnoreCase)
                          || string.Equals(embed, "true", StringComparison.OrdinalIgnoreCase);
+
+        if (!isEmbedded)
+        {
+            var requestedSiteSlug = string.IsNullOrWhiteSpace(siteSlug) ? site : siteSlug;
+            return Redirect(PublicUrlBuilder.BookingHome(requestedSiteSlug));
+        }
+
         var globalCatalog = await publicRoomContentService.GetGlobalCatalogAsync(cancellationToken);
         Properties = globalCatalog.Properties;
 
@@ -41,7 +48,7 @@ public sealed class IndexModel(
                 var selectedProperty = await publicPropertyResolver.ResolveAsync(site, cancellationToken);
                 return selectedProperty is null
                     ? NotFound()
-                    : Redirect(PublicUrlBuilder.Booking(selectedProperty.SiteSlug, date, room, rate));
+                    : Redirect(PublicUrlBuilder.Booking(selectedProperty.SiteSlug, date, room, rate, embedded: true));
             }
 
             if (Properties.Count == 0) return NotFound();
@@ -51,7 +58,7 @@ public sealed class IndexModel(
             // the first active public property when the legacy/default property is unavailable.
             var defaultProperty = await publicPropertyResolver.ResolveAsync(null, cancellationToken);
             var defaultSlug = defaultProperty?.SiteSlug ?? Properties[0].SiteSlug;
-            return Redirect(PublicUrlBuilder.Booking(defaultSlug, date, room, rate));
+            return Redirect(PublicUrlBuilder.Booking(defaultSlug, date, room, rate, embedded: true));
         }
 
         var property = await publicPropertyResolver.ResolveAsync(siteSlug, cancellationToken);

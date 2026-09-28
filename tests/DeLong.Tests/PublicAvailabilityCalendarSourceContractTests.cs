@@ -16,6 +16,18 @@ public sealed class PublicAvailabilityCalendarSourceContractTests
         Assert.Contains("['AvailabilityCalendar', 'Lịch phòng trống V2']", editor, StringComparison.Ordinal);
         Assert.Contains("case \"AvailabilityCalendar\"", home, StringComparison.Ordinal);
         Assert.Contains("data-public-availability-calendar", home, StringComparison.Ordinal);
+        Assert.Contains("\"lich-phong\"", home, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Standalone_booking_page_redirects_to_the_home_calendar_but_embed_mode_remains_available()
+    {
+        var pageModel = ReadRepositoryFile("src/DeLong.Web/Pages/Booking/Index.cshtml.cs");
+
+        Assert.Contains("if (!isEmbedded)", pageModel, StringComparison.Ordinal);
+        Assert.Contains("Redirect(PublicUrlBuilder.BookingHome(requestedSiteSlug))", pageModel, StringComparison.Ordinal);
+        Assert.Contains("GetGlobalCatalogAsync", pageModel, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -43,6 +55,10 @@ public sealed class PublicAvailabilityCalendarSourceContractTests
         Assert.Contains("url.searchParams.set('embed', '1')", source, StringComparison.Ordinal);
         Assert.Contains("bookingModal.open", source, StringComparison.Ordinal);
         Assert.Contains("<iframe", source, StringComparison.Ordinal);
+        Assert.Contains("data-room-cover", source, StringComparison.Ordinal);
+        Assert.Contains("room?.coverImageUrl?.trim()", source, StringComparison.Ordinal);
+        Assert.Contains(".public-v2-room-cover{position:absolute", styles, StringComparison.Ordinal);
+        Assert.Contains("filter:blur(12px)", styles, StringComparison.Ordinal);
         Assert.DoesNotContain("backdrop.addEventListener('click'", source, StringComparison.Ordinal);
         Assert.DoesNotContain("event.key === 'Escape'", source, StringComparison.Ordinal);
     }

@@ -64,7 +64,7 @@ public sealed class RoomSlugTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task Legacy_root_detail_redirects_to_property_scope_and_scoped_detail_resolves_missing_slug()
+    public async Task Public_room_detail_routes_redirect_to_the_home_booking_calendar()
     {
         var connectionString = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
@@ -97,16 +97,17 @@ public sealed class RoomSlugTests
         var propertyContext = await resolver.ResolveByIdAsync(property.Id);
         Assert.NotNull(propertyContext);
 
-        var page = new DetailsModel(new PublicRoomContentService(db), resolver, db);
+        var page = new DetailsModel();
         var legacyResult = await page.OnGetAsync(requestedSlug, null, CancellationToken.None);
         var redirect = Assert.IsType<RedirectResult>(legacyResult);
         Assert.True(redirect.Permanent);
         Assert.Equal(PublicUrlBuilder.Room(propertyContext!.SiteSlug, requestedSlug), redirect.Url);
 
-        var scopedPage = new DetailsModel(new PublicRoomContentService(db), resolver, db);
+        var scopedPage = new DetailsModel();
         var scopedResult = await scopedPage.OnGetAsync(requestedSlug, propertyContext.SiteSlug, CancellationToken.None);
-        Assert.IsType<PageResult>(scopedResult);
-        Assert.Equal(legacyRoom.Id, scopedPage.Room.Id);
+        var scopedRedirect = Assert.IsType<RedirectResult>(scopedResult);
+        Assert.True(scopedRedirect.Permanent);
+        Assert.Equal(PublicUrlBuilder.BookingHome(), scopedRedirect.Url);
     }
 
     private static async Task<Property> EnsurePublicPropertyAsync(AppDbContext db)

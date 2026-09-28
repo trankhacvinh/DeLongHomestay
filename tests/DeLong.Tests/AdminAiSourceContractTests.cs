@@ -162,7 +162,7 @@ public sealed class AdminAiSourceContractTests
         Assert.Contains("RequireRateLimiting(\"public-ai\")", endpoints);
         Assert.Contains("AllowAnonymous()", endpoints);
         Assert.Contains("data-public-ai-drawer", layout);
-        Assert.Contains("@if (!isAdmin)\n{\n    <button class=\"public-ai-launch\"", layout.Replace("\r\n", "\n"));
+        Assert.Contains("@if (!isAdmin && !isPaymentPage)\n{\n    <button class=\"public-ai-launch\"", layout.Replace("\r\n", "\n"));
         Assert.DoesNotContain("@if (!isAdmin && !isGlobalPublic)\n{\n    <button class=\"public-ai-launch\"", layout.Replace("\r\n", "\n"));
     }
 

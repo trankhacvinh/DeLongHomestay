@@ -82,7 +82,7 @@
         };
 
         host.innerHTML = `
-            <div class="public-v2-roombar"><button type="button" data-room-prev aria-label="Phòng trước">‹</button><div><small>PHÒNG</small><strong data-room-name>—</strong><span data-room-meta></span></div><button type="button" data-room-next aria-label="Phòng tiếp theo">›</button></div>
+            <div class="public-v2-roombar"><img class="public-v2-room-cover" data-room-cover alt="" aria-hidden="true" hidden><button type="button" data-room-prev aria-label="Phòng trước">‹</button><div><small>PHÒNG</small><strong data-room-name>—</strong><span data-room-meta></span></div><button type="button" data-room-next aria-label="Phòng tiếp theo">›</button></div>
             <div class="public-v2-legend"><span><i class="available"></i>Còn trống</span><span><i class="selected"></i>Đang chọn</span><span><i class="partial"></i>Trống một phần</span><span><i class="occupied"></i>Đã có khách</span></div>
             <div class="public-v2-status" data-calendar-status></div>
             <div class="public-v2-viewport-shell">
@@ -92,6 +92,7 @@
             <div class="public-v2-selection" data-calendar-selection hidden><div><small data-selection-label></small><strong data-selection-total></strong></div><button type="button" class="clear" data-selection-clear>Xóa</button><button type="button" class="book" data-selection-book>Đặt phòng</button></div>`;
         const name = host.querySelector('[data-room-name]');
         const meta = host.querySelector('[data-room-meta]');
+        const cover = host.querySelector('[data-room-cover]');
         const status = host.querySelector('[data-calendar-status]');
         const viewport = host.querySelector('[data-calendar-viewport]');
         const head = host.querySelector('[data-calendar-head]');
@@ -389,6 +390,10 @@
             bottomSpacer.style.height = '0';
             name.textContent = room?.name || '—';
             meta.textContent = room ? `${room.propertyName || ''} · ${room.code}` : '';
+            const coverUrl = room?.coverImageUrl?.trim();
+            cover.hidden = !coverUrl;
+            if (coverUrl) cover.src = coverUrl;
+            else cover.removeAttribute('src');
             status.textContent = 'Đang tải lịch phòng…';
             status.className = 'public-v2-status show';
             section.classList.add('loading');

@@ -42,6 +42,26 @@ public sealed class SePayPaymentIntegrationTests
         Assert.Equal(PaymentMethod.SePay, (await f.Db.Payments.SingleAsync(x => x.BookingId == f.Booking.Id)).Method);
     }
 
+    [PostgresFact]
+    [Trait("Category", "Integration")]
+    public async Task Truncated_provider_code_stores_the_full_code_resolved_from_content()
+    {
+        await using var f = await Fixture.Create();
+        var (created, error) = await f.Lifecycle.CreateIntentAsync(f.Property.Id, f.Booking.Id, true);
+        Assert.Null(error);
+
+        var request = f.Request(created!.OrderId) with
+        {
+            Code = created.OrderId[..^2],
+            Content = created.OrderId
+        };
+
+        Assert.Equal((200, "succeeded"),
+            await f.Service.ReceiveAsync(f.Property.Id, request, "Apikey " + Key, default));
+        var transaction = await f.Db.SePayTransactions.SingleAsync(x => x.TransactionId == request.Id);
+        Assert.Equal(created.OrderId, transaction.Code);
+    }
+
     [PostgresTheory]
     [InlineData("auth", 401)]
     [InlineData("account", 400)]

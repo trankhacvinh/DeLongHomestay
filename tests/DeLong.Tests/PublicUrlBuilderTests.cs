@@ -18,11 +18,27 @@ public sealed class PublicUrlBuilderTests
     }
 
     [Fact]
-    public void Global_and_property_room_urls_are_unambiguous()
+    public void Public_property_and_room_pages_collapse_to_the_home_booking_calendar()
     {
-        Assert.Equal("/rooms", PublicUrlBuilder.Rooms());
-        Assert.Equal("/h/nana/rooms", PublicUrlBuilder.Rooms("nana"));
-        Assert.Equal("/h/nana/rooms/nana-1", PublicUrlBuilder.Room("nana", "nana-1"));
+        Assert.Equal("/", PublicUrlBuilder.PropertyHome("nana"));
+        Assert.Equal("/#lich-phong", PublicUrlBuilder.Rooms());
+        Assert.Equal("/#lich-phong", PublicUrlBuilder.Rooms("nana"));
+        Assert.Equal("/#lich-phong", PublicUrlBuilder.Room("nana", "nana-1"));
         Assert.Equal("/booking?site=nana&date=2026-08-15", PublicUrlBuilder.GlobalBooking("nana", "2026-08-15"));
     }
+
+    [Theory]
+    [InlineData(null, "/#lich-phong")]
+    [InlineData("nana", "/#lich-phong")]
+    public void Booking_home_points_to_the_vertical_calendar(string? siteSlug, string expected) =>
+        Assert.Equal(expected, PublicUrlBuilder.BookingHome(siteSlug));
+
+    [Fact]
+    public void Embedded_booking_url_preserves_the_internal_modal_mode() =>
+        Assert.Equal("/h/nana/booking?room=NN-1&embed=1",
+            PublicUrlBuilder.Booking("nana", room: "NN-1", embedded: true));
+
+    [Fact]
+    public void Booking_lookup_uses_the_root_public_page_with_property_context() =>
+        Assert.Equal("/booking/lookup?siteSlug=nana", PublicUrlBuilder.BookingLookup("nana"));
 }

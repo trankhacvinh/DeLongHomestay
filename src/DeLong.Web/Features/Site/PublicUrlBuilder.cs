@@ -5,22 +5,22 @@ public static class PublicUrlBuilder
 {
     public static string Home() => "/";
 
-    public static string PropertyHome(string siteSlug) =>
-        $"/h/{Segment(siteSlug)}";
+    public static string PropertyHome(string siteSlug) => Home();
 
-    public static string Rooms(string? siteSlug = null) =>
-        string.IsNullOrWhiteSpace(siteSlug) ? "/rooms" : $"{PropertyHome(siteSlug)}/rooms";
+    public static string BookingHome(string? siteSlug = null) => "/#lich-phong";
 
-    public static string Room(string siteSlug, string roomSlug) =>
-        $"{Rooms(siteSlug)}/{Segment(roomSlug)}";
+    public static string Rooms(string? siteSlug = null) => BookingHome(siteSlug);
 
-    public static string Booking(string siteSlug, string? date = null, string? room = null, Guid? rate = null)
+    public static string Room(string siteSlug, string roomSlug) => BookingHome(siteSlug);
+
+    public static string Booking(string siteSlug, string? date = null, string? room = null, Guid? rate = null, bool embedded = false)
     {
         var query = new List<string>();
         Add(query, "date", date);
         Add(query, "room", room);
         if (rate.HasValue) Add(query, "rate", rate.Value.ToString());
-        return WithQuery($"{PropertyHome(siteSlug)}/booking", query);
+        if (embedded) Add(query, "embed", "1");
+        return WithQuery($"/h/{Segment(siteSlug)}/booking", query);
     }
 
     public static string GlobalBooking(string? siteSlug = null, string? date = null)
@@ -32,7 +32,7 @@ public static class PublicUrlBuilder
     }
 
     public static string BookingLookup(string siteSlug) =>
-        $"{PropertyHome(siteSlug)}/booking/lookup";
+        WithQuery("/booking/lookup", [$"siteSlug={Uri.EscapeDataString(siteSlug.Trim())}"]);
 
     private static string Segment(string value) => Uri.EscapeDataString(value.Trim());
 

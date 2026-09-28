@@ -50,13 +50,12 @@ public static class PublicSeoEndpoints
             {
                 var properties = await db.Properties.AsNoTracking().Where(x => x.IsActive)
                     .OrderBy(x => x.Name)
-                    .Select(x => new { x.Id, x.Code, x.SiteSlug, x.UpdatedAtUtc })
+                    .Select(x => new { x.Id, x.Code, x.SiteSlug })
                     .ToListAsync(ct);
                 var baseUrl = BaseUrl(http, null);
                 var urls = new List<SitemapEntry>
                 {
                     new("/"),
-                    new("/rooms"),
                     new("/blog")
                 };
 
@@ -66,23 +65,15 @@ public static class PublicSeoEndpoints
                 foreach (var property in properties)
                 {
                     var siteSlug = PublicPropertyResolver.EffectiveSiteSlug(property.SiteSlug, property.Code);
-                    urls.Add(new(PublicUrlBuilder.PropertyHome(siteSlug), property.UpdatedAtUtc));
-                    urls.Add(new(PublicUrlBuilder.Rooms(siteSlug), property.UpdatedAtUtc));
-
-                    var propertyRooms = await db.Rooms.AsNoTracking()
-                        .Where(x => x.PropertyId == property.Id && x.IsActive && x.IsPublished && x.Slug != null && x.Slug != "")
-                        .OrderBy(x => x.SortOrder)
-                        .Select(x => new { Slug = x.Slug!, x.UpdatedAtUtc })
-                        .ToListAsync(ct);
-                    urls.AddRange(propertyRooms.Select(x => new SitemapEntry(PublicUrlBuilder.Room(siteSlug, x.Slug), x.UpdatedAtUtc)));
-
                     var propertyPosts = await db.BlogPosts.AsNoTracking()
                         .Where(x => x.PropertyId == property.Id && x.IsPublished)
                         .OrderByDescending(x => x.PublishedAtUtc)
-                        .Select(x => new { x.Slug, x.PublishedAtUtc, x.UpdatedAtUtc })
+                        .Select(x => new { x.Slug, x.UpdatedAtUtc })
                         .ToListAsync(ct);
-                    if (propertyPosts.Count > 0) urls.Add(new($"/h/{Uri.EscapeDataString(siteSlug)}/blog", propertyPosts.Max(x => x.UpdatedAtUtc)));
-                    urls.AddRange(propertyPosts.Select(x => new SitemapEntry($"/h/{Uri.EscapeDataString(siteSlug)}/blog/{Uri.EscapeDataString(x.Slug)}", x.UpdatedAtUtc)));
+                    if (propertyPosts.Count > 0)
+                        urls.Add(new($"/h/{Uri.EscapeDataString(siteSlug)}/blog", propertyPosts.Max(x => x.UpdatedAtUtc)));
+                    urls.AddRange(propertyPosts.Select(x =>
+                        new SitemapEntry($"/h/{Uri.EscapeDataString(siteSlug)}/blog/{Uri.EscapeDataString(x.Slug)}", x.UpdatedAtUtc)));
 
                     var propertyPages = await customPageStore.ListAsync(property.Id, true, ct);
                     urls.AddRange(propertyPages.Where(page => !page.NoIndex).Select(page => new SitemapEntry(page.Url, page.UpdatedAtUtc)));
@@ -98,11 +89,6 @@ public static class PublicSeoEndpoints
             if (site.Settings.RobotsIndex == false) return Sitemap(http, BaseUrl(http, site.Settings.CanonicalBaseUrl), []);
 
             var scopedBaseUrl = BaseUrl(http, site.Settings.CanonicalBaseUrl);
-            var rooms = await db.Rooms.AsNoTracking()
-                .Where(x => x.PropertyId == propertyScope.Id && x.Property.IsActive && x.IsActive && x.IsPublished && x.Slug != null && x.Slug != "")
-                .OrderBy(x => x.SortOrder)
-                .Select(x => new { Slug = x.Slug!, x.UpdatedAtUtc })
-                .ToListAsync(ct);
             var posts = await db.BlogPosts.AsNoTracking()
                 .Where(x => x.PropertyId == propertyScope.Id && x.IsPublished)
                 .OrderByDescending(x => x.PublishedAtUtc)
@@ -112,12 +98,12 @@ public static class PublicSeoEndpoints
 
             var scopedUrls = new List<SitemapEntry>
             {
-                new(PublicUrlBuilder.PropertyHome(propertyScope.SiteSlug)),
-                new(PublicUrlBuilder.Rooms(propertyScope.SiteSlug))
+                new(PublicUrlBuilder.Home())
             };
-            scopedUrls.AddRange(rooms.Select(x => new SitemapEntry(PublicUrlBuilder.Room(propertyScope.SiteSlug, x.Slug), x.UpdatedAtUtc)));
-            if (posts.Count > 0) scopedUrls.Add(new($"/h/{Uri.EscapeDataString(propertyScope.SiteSlug)}/blog", posts.Max(x => x.UpdatedAtUtc)));
-            scopedUrls.AddRange(posts.Select(x => new SitemapEntry($"/h/{Uri.EscapeDataString(propertyScope.SiteSlug)}/blog/{Uri.EscapeDataString(x.Slug)}", x.UpdatedAtUtc)));
+            if (posts.Count > 0)
+                scopedUrls.Add(new($"/h/{Uri.EscapeDataString(propertyScope.SiteSlug)}/blog", posts.Max(x => x.UpdatedAtUtc)));
+            scopedUrls.AddRange(posts.Select(x =>
+                new SitemapEntry($"/h/{Uri.EscapeDataString(propertyScope.SiteSlug)}/blog/{Uri.EscapeDataString(x.Slug)}", x.UpdatedAtUtc)));
             scopedUrls.AddRange(pages.Where(page => !page.NoIndex).Select(page => new SitemapEntry(page.Url, page.UpdatedAtUtc)));
             return Sitemap(http, scopedBaseUrl, scopedUrls);
         }).AllowAnonymous();

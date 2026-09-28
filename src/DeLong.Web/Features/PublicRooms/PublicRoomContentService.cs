@@ -89,6 +89,7 @@ public sealed class PublicRoomContentService(AppDbContext db, IFusionCache? fusi
     private async Task<PublicRoomCatalogDto> LoadCatalogAsync(Guid propertyId, CancellationToken cancellationToken)
     {
         var rooms = await db.Rooms.AsNoTracking()
+            .AsSplitQuery()
             .Where(x => x.PropertyId == propertyId && x.Property.IsActive && x.IsActive && x.IsPublished)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
             .Select(x => new

@@ -30,6 +30,9 @@ public sealed class IndexModel(
 
     public async Task<IActionResult> OnGetAsync(string? siteSlug, CancellationToken cancellationToken)
     {
+        if (!string.IsNullOrWhiteSpace(siteSlug))
+            return RedirectPermanent(PublicUrlBuilder.Home());
+
         if (string.IsNullOrWhiteSpace(siteSlug))
         {
             IsGlobalHome = true;

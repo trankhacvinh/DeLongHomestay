@@ -134,7 +134,7 @@ public sealed class PublicPropertyRoutingTests
         Assert.Equal("nana-02", PublicPropertyResolver.ToSiteSlug("NANA_02"));
         Assert.Equal("nana", PublicPropertyResolver.EffectiveSiteSlug("NANA", "NANA_02"));
         Assert.Equal("/h/nana-02", PublicPropertyResolver.ScopePrefix("nana-02"));
-        Assert.Equal("/h/nana-02/rooms/family-room", PublicUrlBuilder.Room("nana-02", "family-room"));
+        Assert.Equal("/#lich-phong", PublicUrlBuilder.Room("nana-02", "family-room"));
         Assert.Equal("/h/nana-02/booking?date=2026-08-15&room=NN-1", PublicUrlBuilder.Booking("nana-02", "2026-08-15", "NN-1"));
     }
 

@@ -174,7 +174,7 @@
                                 <div class="public-rate-compact-list">
                                     @foreach (var rate in timeSlotRates)
                                     {
-                                        <a href="@PublicUrlBuilder.Booking(Model.SiteSlug!, room: Model.Room.Code, rate: rate.Id)">
+                                        <a href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">
                                             <span><strong>@rate.Name</strong><small>@rate.StartTime → @rate.EndTime</small></span>
                                             <b>@rate.Price.ToString("N0")đ</b>
                                         </a>
@@ -186,7 +186,7 @@
                         {
                             <div class="public-rate-group">
                                 <div class="public-rate-group-title"><strong>Qua đêm</strong><span>Một đêm ngắn</span></div>
-                                <a class="public-rate-feature" href="@PublicUrlBuilder.Booking(Model.SiteSlug!, room: Model.Room.Code, rate: overnightRate.Id)">
+                                <a class="public-rate-feature" href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">
                                     <span><strong>@overnightRate.StartTime → @overnightRate.EndTime</strong><small>@overnightRate.Name</small></span>
                                     <b>@overnightRate.Price.ToString("N0")đ</b>
                                 </a>
@@ -196,7 +196,7 @@
                         {
                             <div class="public-rate-group public-rate-group-nightly">
                                 <div class="public-rate-group-title"><strong>Lưu trú nhiều ngày</strong><span>Giá riêng theo đêm</span></div>
-                                <a class="public-rate-feature" href="@PublicUrlBuilder.Booking(Model.SiteSlug!, room: Model.Room.Code)">
+                                <a class="public-rate-feature" href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">
                                     <span><strong>Nhận @nightlyRate.StartTime · trả @nightlyRate.EndTime</strong><small>Tính theo số đêm lưu trú</small></span>
                                     <b>@nightlyRate.Price.ToString("N0")đ/đêm</b>
                                 </a>
@@ -219,11 +219,7 @@
                         @if (Model.Room.OvernightPrice.HasValue) { <span><b>Qua đêm @Model.Room.OvernightPrice.Value.ToString("N0")đ</b></span> }
                         @if (Model.Room.NightlyPrice.HasValue) { <span><b>Lưu trú @Model.Room.NightlyPrice.Value.ToString("N0")đ/đêm</b></span> }
                     </div>
-                    <form class="public-room-quick-book" method="get" action="@PublicUrlBuilder.Booking(Model.SiteSlug!)">
-                        <input type="hidden" name="room" value="@Model.Room.Code" />
-                        <label><span>Ngày sử dụng</span><input type="date" name="date" value="@Model.Today" min="@Model.Today" /></label>
-                        <button class="public-btn public-btn-primary public-room-booking-cta" type="submit">Đặt phòng</button>
-                    </form>
+                    <a class="public-btn public-btn-primary public-room-booking-cta" href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">Xem lịch và đặt phòng</a>
                     <div class="public-room-booking-trust"><span>✓ Gửi yêu cầu online nhanh</span><span>✓ Nhân viên xác nhận trước khi giữ phòng</span></div>
                     <p>Bạn chưa cần thanh toán chỉ để gửi yêu cầu. Giờ thực tế có thể được xác nhận lại theo tình trạng phòng.</p>
                 </div>
@@ -232,11 +228,11 @@
     </section>
     <div class="public-room-mobile-bookbar">
         <div><small>@Model.Room.Name · giá từ</small><strong>@Model.Room.QuickFromPrice.ToString("N0")đ</strong></div>
-        <a class="public-btn public-btn-primary" href="@PublicUrlBuilder.Booking(Model.SiteSlug!, Model.Today, Model.Room.Code)">Đặt phòng</a>
+        <a class="public-btn public-btn-primary" href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">Đặt phòng</a>
     </div>
     @if (Model.SimilarRooms.Count > 0)
     {
-        <section class="public-section public-similar-rooms"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">PHÒNG TƯƠNG TỰ</span><h2>Bạn cũng có thể thích</h2></div><a class="public-text-link" href="@PublicUrlBuilder.Rooms(Model.SiteSlug)">Xem tất cả phòng →</a></div><div class="public-room-grid">@foreach (var room in Model.SimilarRooms) { <article class="public-room-card public-room-card-content"><a class="public-room-art" href="@PublicUrlBuilder.Room(Model.SiteSlug!, room.Slug)">@if (!string.IsNullOrWhiteSpace(room.CoverCardUrl)) { <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" loading="lazy" /><span class="public-room-image-scrim"></span><span class="public-room-image-title"><small>@Model.PropertyName</small><strong>@room.Name</strong></span> } else { <span class="public-room-poster"><small>@Model.PropertyName · @room.Code</small><strong>@room.Name</strong></span> }</a><div class="public-room-body"><div><h3><a href="@PublicUrlBuilder.Room(Model.SiteSlug!, room.Slug)">@room.Name</a></h3><p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người" : room.ShortDescription)</p></div><div class="public-room-conversion"><div class="public-room-price"><small>Giá từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div><a class="public-room-book-now" href="@PublicUrlBuilder.Booking(Model.SiteSlug!, room: room.Code)">Đặt ngay</a></div></div></article> }</div></div></section>
+        <section class="public-section public-similar-rooms"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">PHÒNG TƯƠNG TỰ</span><h2>Bạn cũng có thể thích</h2></div><a class="public-text-link" href="@PublicUrlBuilder.Rooms(Model.SiteSlug)">Xem tất cả phòng →</a></div><div class="public-room-grid">@foreach (var room in Model.SimilarRooms) { <article class="public-room-card public-room-card-content"><a class="public-room-art" href="@PublicUrlBuilder.Room(Model.SiteSlug!, room.Slug)">@if (!string.IsNullOrWhiteSpace(room.CoverCardUrl)) { <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" loading="lazy" /><span class="public-room-image-scrim"></span><span class="public-room-image-title"><small>@Model.PropertyName</small><strong>@room.Name</strong></span> } else { <span class="public-room-poster"><small>@Model.PropertyName · @room.Code</small><strong>@room.Name</strong></span> }</a><div class="public-room-body"><div><h3><a href="@PublicUrlBuilder.Room(Model.SiteSlug!, room.Slug)">@room.Name</a></h3><p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người" : room.ShortDescription)</p></div><div class="public-room-conversion"><div class="public-room-price"><small>Giá từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div><a class="public-room-book-now" href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">Đặt ngay</a></div></div></article> }</div></div></section>
     }
 </main>
 

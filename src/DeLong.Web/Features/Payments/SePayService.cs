@@ -110,7 +110,7 @@ public sealed class SePayService(AppDbContext db, SePaySettingsService settings,
         var received = new SePayTransaction
         {
             PropertyId = propertyId, TransactionId = request.Id, IntentId = intent?.Id,
-            Code = request.Code ?? code ?? "", AccountNumber = request.AccountNumber ?? "",
+            Code = code ?? request.Code ?? "", AccountNumber = request.AccountNumber ?? "",
             Content = request.Content ?? "", Amount = request.TransferAmount,
             Outcome = intent is null ? "unmatched_code" : request.TransferAmount != intent.Amount ? "amount_mismatch" :
                 intent.PaymentId.HasValue ? "additional_transfer" : "matched"
