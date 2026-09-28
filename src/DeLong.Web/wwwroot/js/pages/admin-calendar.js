@@ -104,6 +104,7 @@
                     roomId: '', rateId: '', customerId: null, customerName: '', customerPhone: '',
                     checkInLocal: '', checkOutLocal: '', status: 1,
                     roomAmount: 0, extraAmount: 0, discountAmount: 0,
+                    initialPaymentAmount: 0, initialPaymentMethod: 1,
                     source: '', note: '', customerEmail: '', guestCount: 1
                 };
             },
@@ -143,6 +144,7 @@
             },
             bookingVisual(booking) {
                 const colors = this.calendarColors;
+                if (Number(booking?.status) === 4) return { color: '#7A8582', label: 'Hoàn tất' };
                 if (Number(booking?.balanceAmount || 0) > 0) return { color: colors.unpaidColor || '#C94B4B', label: 'Chưa thanh toán hết' };
                 if (String(booking?.note || '').trim()) return { color: colors.specialRequestColor || '#7C5CC4', label: 'Có yêu cầu đặc biệt' };
                 if (Number(booking?.type) === 0 && !booking?.roomRateId && Number(booking?.rateSegmentCount || 0) === 0)
@@ -161,7 +163,7 @@
                 };
             },
             activeBookingRows(roomId) {
-                return this.bookings.filter(x => x.roomId === roomId && [0, 1, 2, 3].includes(Number(x.status)));
+                return this.bookings.filter(x => x.roomId === roomId && [0, 1, 2, 3, 4].includes(Number(x.status)));
             },
             lockingBookingRows(roomId) {
                 return this.bookings.filter(x => x.roomId === roomId && [1, 2, 3].includes(Number(x.status)));
@@ -399,6 +401,9 @@
                 if (!Number.isInteger(Number(this.form.guestCount)) || Number(this.form.guestCount) < 1 || Number(this.form.guestCount) > Number(this.selectedRoom?.capacity || 1)) return `Phòng này tối đa ${this.selectedRoom?.capacity || 1} khách.`;
                 if (!this.form.checkInLocal || !this.form.checkOutLocal) return 'Vui lòng nhập giờ nhận/trả phòng.';
                 if (new Date(`${this.form.checkOutLocal}${utcOffset}`) <= new Date(`${this.form.checkInLocal}${utcOffset}`)) return 'Giờ trả phòng phải sau giờ nhận phòng.';
+                const initialPayment = Number(this.form.initialPaymentAmount || 0);
+                if (initialPayment < 0) return 'Số tiền khách đã thanh toán không được âm.';
+                if (this.editor.mode === 'create' && initialPayment > this.totalAmount) return 'Số tiền khách đã thanh toán không được lớn hơn tổng lượt đặt.';
                 return null;
             },
             async saveBooking() {
@@ -439,7 +444,31 @@
                             `/api/admin/properties/${this.propertyId}/bookings`,
                             { ...common, customerId: null, status: Number(this.form.status) });
                         this.bookings.push(booking);
-                        this.notify(`Đã tạo ${booking.code}.`, 'success');
+                        const initialPayment = Number(this.form.initialPaymentAmount || 0);
+                        if (initialPayment > 0) {
+                            try {
+                                await DeLongApi.post(
+                                    `/api/admin/properties/${this.propertyId}/bookings/${booking.id}/payments`,
+                                    {
+                                        type: 0,
+                                        method: Number(this.form.initialPaymentMethod),
+                                        amount: initialPayment,
+                                        occurredAt: null,
+                                        reference: null,
+                                        note: 'Ghi nhận khi quản trị tạo lượt đặt từ lịch phòng.'
+                                    });
+                                const updated = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/bookings/${booking.id}`);
+                                const index = this.bookings.findIndex(x => x.id === booking.id);
+                                if (index >= 0) this.bookings.splice(index, 1, updated);
+                                booking = updated;
+                            } catch (paymentError) {
+                                this.notify(`Đã tạo ${booking.code}, nhưng chưa ghi nhận được tiền cọc: ${paymentError.message || 'lỗi thanh toán'}.`, 'error');
+                                await this.saveGuestDetails(booking);
+                                this.editor.open = false;
+                                return;
+                            }
+                        }
+                        this.notify(`Đã tạo ${booking.code}${initialPayment > 0 ? ` và ghi nhận ${this.money(initialPayment)}` : ''}.`, 'success');
                     }
                     await this.saveGuestDetails(booking);
                     this.editor.open = false;

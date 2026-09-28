@@ -79,6 +79,41 @@ public sealed class CalendarV2SourceContractTests
         Assert.Contains(".calendar-v2-booking-guest", styles, StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Both_calendar_editors_can_record_an_initial_payment()
+    {
+        var calendar = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/Calendar.cshtml");
+        var calendarV2 = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/CalendarV2.cshtml");
+        var script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar.js");
+
+        Assert.Contains("form.initialPaymentAmount", calendar, StringComparison.Ordinal);
+        Assert.Contains("form.initialPaymentMethod", calendar, StringComparison.Ordinal);
+        Assert.Contains("form.initialPaymentAmount", calendarV2, StringComparison.Ordinal);
+        Assert.Contains("form.initialPaymentMethod", calendarV2, StringComparison.Ordinal);
+        Assert.Contains("/bookings/${booking.id}/payments", script, StringComparison.Ordinal);
+        Assert.Contains("initialPayment > this.totalAmount", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Completed_bookings_remain_visible_without_becoming_occupancy_locks()
+    {
+        var calendarModel = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/Calendar.cshtml.cs");
+        var calendarV2Model = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/CalendarV2.cshtml.cs");
+        var calendarScript = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar.js");
+        var calendarV2Script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar-v2.js");
+        var availability = ReadRepositoryFile("src/DeLong.Web/Features/Operations/AvailabilityIntervalService.cs");
+
+        Assert.Contains("or BookingStatus.Completed", calendarModel, StringComparison.Ordinal);
+        Assert.Contains("or BookingStatus.Completed", calendarV2Model, StringComparison.Ordinal);
+        Assert.Contains("[0, 1, 2, 3, 4]", calendarScript, StringComparison.Ordinal);
+        Assert.Contains("completedBookingsForSlot", calendarV2Script, StringComparison.Ordinal);
+        Assert.Contains("Number(booking.status) === 4", calendarV2Script, StringComparison.Ordinal);
+        Assert.Contains("[BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn]", availability, StringComparison.Ordinal);
+        Assert.DoesNotContain("BookingStatus.Completed];", availability, StringComparison.Ordinal);
+    }
+
     private static string ReadRepositoryFile(string relativePath)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

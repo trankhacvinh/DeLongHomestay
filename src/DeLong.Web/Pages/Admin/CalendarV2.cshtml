@@ -113,6 +113,10 @@
                         <div class="field"><label>Phụ thu</label><input type="number" min="0" step="1000" v-model.number="form.extraAmount" /></div>
                         <div class="field"><label>Giảm giá</label><input type="number" min="0" step="1000" v-model.number="form.discountAmount" /></div>
                     </div>
+                    <div class="booking-money-grid booking-initial-payment" v-if="editor.mode === 'create'">
+                        <div class="field"><label>Khách đã thanh toán / tiền cọc</label><input type="number" min="0" v-bind:max="totalAmount" step="1000" v-model.number="form.initialPaymentAmount" /></div>
+                        <div class="field"><label>Phương thức thu</label><select v-model.number="form.initialPaymentMethod"><option v-bind:value="1">Chuyển khoản</option><option v-bind:value="0">Tiền mặt</option><option v-bind:value="2">Thẻ</option><option v-bind:value="3">Khác</option></select></div>
+                    </div>
                     <div class="field mt-16"><label>Ghi chú</label><textarea v-model.trim="form.note" maxlength="2000" placeholder="Ví dụ: nhận phòng 22:30, thêm gối, khách cần hóa đơn..."></textarea></div>
                 </section>
 

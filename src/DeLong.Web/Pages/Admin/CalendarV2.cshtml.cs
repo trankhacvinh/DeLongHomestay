@@ -61,7 +61,7 @@ public sealed class CalendarV2Model(
                 new DateTimeOffset(startUtc, TimeSpan.Zero),
                 new DateTimeOffset(endUtc, TimeSpan.Zero),
                 cancellationToken))
-            .Where(booking => booking.Status is BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn)
+            .Where(booking => booking.Status is BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn or BookingStatus.Completed)
             .ToList();
         var calendarDisplaySettings = await new BookingCalendarDisplaySettingsStore(storagePaths)
             .GetAsync(PropertyId, cancellationToken);

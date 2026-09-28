@@ -104,7 +104,7 @@
         '  <div><strong data-v2-range>—</strong><span>Cuộn dọc để xem ngày · bấm phần trống để tạo booking · bấm phần đã đặt để mở chi tiết</span></div>',
         '  <div class="calendar-v2-date-tools"><label class="calendar-date-range"><span>Khoảng ngày</span><input type="text" data-v2-date-range aria-label="Chọn ngày bắt đầu và ngày kết thúc" placeholder="Chọn khoảng ngày"></label><div class="calendar-v2-date-actions"><button type="button" data-v2-date-prev>‹ 7 ngày</button><button type="button" data-v2-today>Hôm nay</button><button type="button" data-v2-date-next>7 ngày ›</button></div></div>',
         '</div>',
-        '<div class="calendar-v2-legend"><span><i class="available"></i>Trống</span><span><i class="partial"></i>Còn trống một phần</span><span><i data-v2-color="unpaid"></i>Chưa thanh toán hết</span><span><i data-v2-color="flexible"></i>Giờ linh động</span><span><i data-v2-color="special"></i>Có ghi chú</span><span><i data-v2-color="mixed"></i>Nhiều khung</span><span><i data-v2-color="held"></i>Giữ phòng</span><span><i data-v2-color="confirmed"></i>Đã xác nhận</span></div>',
+        '<div class="calendar-v2-legend"><span><i class="available"></i>Trống</span><span><i class="partial"></i>Còn trống một phần</span><span><i data-v2-color="unpaid"></i>Chưa thanh toán hết</span><span><i data-v2-color="flexible"></i>Giờ linh động</span><span><i data-v2-color="special"></i>Có ghi chú</span><span><i data-v2-color="mixed"></i>Nhiều khung</span><span><i data-v2-color="held"></i>Giữ phòng</span><span><i data-v2-color="confirmed"></i>Đã xác nhận</span><span><i data-v2-color="completed"></i>Hoàn tất</span></div>',
         '<div class="calendar-v2-status show" data-v2-status>Đang tải lịch phòng…</div>',
         '<div class="calendar-v2-scroll" data-v2-scroll></div>'
     ].join('');
@@ -125,7 +125,8 @@
         special: state.colors.specialRequestColor || '#7C5CC4',
         mixed: state.colors.mixedSlotColor || '#287D9B',
         held: state.colors.heldColor || '#D39B3C',
-        confirmed: state.colors.confirmedColor || '#397967'
+        confirmed: state.colors.confirmedColor || '#397967',
+        completed: '#7A8582'
     };
     panel.querySelectorAll('[data-v2-color]').forEach(icon => {
         icon.style.backgroundColor = legendColors[icon.dataset.v2Color];
@@ -312,6 +313,24 @@
         });
     }
 
+    function completedBookingsForSlot(slot) {
+        const app = vm();
+        const room = currentRoom();
+        if (!app || !room || !Array.isArray(app.bookings)) return [];
+        const slotStart = new Date(slot.startUtc).getTime();
+        const slotEnd = new Date(slot.endUtc).getTime();
+        return app.bookings
+            .filter(booking => booking.roomId === room.id && Number(booking.status) === 4 &&
+                new Date(booking.checkInUtc).getTime() < slotEnd && slotStart < new Date(booking.checkOutUtc).getTime())
+            .map(booking => ({
+                bookingId: booking.id,
+                startUtc: new Date(Math.max(slotStart, new Date(booking.checkInUtc).getTime())).toISOString(),
+                endUtc: new Date(Math.min(slotEnd, new Date(booking.checkOutUtc).getTime())).toISOString(),
+                customerName: booking.customerName,
+                customerPhone: booking.customerPhone
+            }));
+    }
+
     function renderSlot(slot, day, previousSlot, nextSlot) {
         const cell = document.createElement('div');
         cell.className = `calendar-v2-slot state-${slot.state}`;
@@ -351,6 +370,28 @@
             segment.title = `${stateText}${guestText ? ` · ${guestText}` : ''} · ${timeText(range.startUtc)}–${timeText(range.endUtc)} · bấm để xem booking`;
             segment.setAttribute('aria-label', segment.title);
             if (guestText && !continuesLeft) {
+                const label = document.createElement('span');
+                label.className = 'calendar-v2-booking-guest';
+                label.textContent = guestText;
+                segment.appendChild(label);
+            }
+            segment.addEventListener('click', event => {
+                event.stopPropagation();
+                openBooking(range.bookingId);
+            });
+            track.appendChild(segment);
+        });
+
+        completedBookingsForSlot(slot).forEach(range => {
+            const segment = document.createElement('button');
+            segment.type = 'button';
+            segment.className = 'calendar-v2-segment occupied booking-completed';
+            segment.dataset.bookingId = range.bookingId;
+            segment.setAttribute('style', segmentStyle(range.startUtc, range.endUtc, slot.startUtc, slot.endUtc));
+            const guestText = bookingGuestText(range);
+            segment.title = `Hoàn tất${guestText ? ` · ${guestText}` : ''} · ${timeText(range.startUtc)}–${timeText(range.endUtc)} · bấm để xem lịch sử`;
+            segment.setAttribute('aria-label', segment.title);
+            if (guestText) {
                 const label = document.createElement('span');
                 label.className = 'calendar-v2-booking-guest';
                 label.textContent = guestText;

@@ -55,9 +55,8 @@ public sealed class CalendarModel(
                 new DateTimeOffset(startUtc, TimeSpan.Zero),
                 new DateTimeOffset(endUtc, TimeSpan.Zero),
                 cancellationToken))
-            // The calendar is an operations/occupancy view. Finished rows stay available in the
-            // Booking ledger, but no longer occupy visual space after completion/cancellation/no-show.
-            .Where(booking => booking.Status is BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn)
+            // Completed rows remain visible as history, while only active statuses lock occupancy.
+            .Where(booking => booking.Status is BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn or BookingStatus.Completed)
             .ToList();
         var calendarDisplaySettings = await new BookingCalendarDisplaySettingsStore(storagePaths)
             .GetAsync(PropertyId, cancellationToken);
