@@ -74,7 +74,7 @@
 - [ ] CurrentProperty resolver/selector thay seed property ID trong các PageModel.
 - [ ] Chốt logic thanh toán/cọc/hoàn tiền.
 - [ ] Thêm Payment ledger thay vì số tiền thanh toán nằm trong Booking.
-- [ ] Check-out tự tạo housekeeping task/trạng thái Bẩn.
+- [x] Check-out tự động chuyển booking hoàn tất và phòng sang trạng thái Bẩn; có thể tắt theo cơ sở.
 - [ ] Áp dụng migration `AddRoomConditionReports`, sau đó migration bổ sung rating/video trước khi mở chức năng báo cáo phòng.
 - [ ] Kiểm tra nhân viên chỉ thấy/tạo báo cáo tại cơ sở được cấp quyền.
 - [ ] Chụp/quay trực tiếp và chọn nhiều ảnh/video trên iPhone/Android; xác nhận ảnh xoay đúng, WebP tải nhanh và video phát được.

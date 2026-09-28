@@ -8,6 +8,7 @@
 - Migration `AddPay2SSettlementGrace` bổ sung `release_at_utc`, mặc định đệm IPN 3 phút, dấu vết callback và quyết định xử lý `PaidAfterExpiry`.
 - Migration `AddConsecutiveSlotBookings` thêm giá cả ngày trên `Room` và bảng snapshot `booking_rate_segments`. Phải áp dụng trước khi bật UI chọn nhiều khung.
 - Migration `AddBookingEmailAndTelegramNotifications` thêm cấu hình Telegram/email hướng dẫn khách và hai outbox `notification_telegram_outbox`, `booking_guest_guide_emails`. Phải áp dụng trước khi bật các kênh thông báo mới.
+- Migration `AddAutomaticBookingLifecycle` thêm hai công tắc tự động nhận/trả phòng trên `Property`, mặc định bật cho cả cơ sở hiện có và cơ sở mới.
 - Migration `AddVoucherSystem` thêm voucher, sổ cái lượt sử dụng, outbox email voucher và mẫu email theo cơ sở. Phải áp dụng trước khi mở menu Voucher hoặc cho khách nhập mã.
 
 ## Nguyên tắc

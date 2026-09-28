@@ -96,6 +96,8 @@
         </div>
         <div class="panel-body">
             <div class="notification-settings-grid">
+                <label class="check-row full"><input type="checkbox" v-model="housekeeping.automaticCheckInEnabled" /> <span><strong>Tự động nhận phòng</strong><small>Đúng giờ nhận, booking đã xác nhận tự chuyển sang “Đang ở”.</small></span></label>
+                <label class="check-row full"><input type="checkbox" v-model="housekeeping.automaticCheckOutEnabled" /> <span><strong>Tự động trả phòng</strong><small>Đúng giờ trả, booking đang ở tự chuyển sang “Hoàn tất” và phòng chuyển sang cần dọn.</small></span></label>
                 <div class="field">
                     <label for="housekeeping-before-checkin">Dọn trước giờ nhận phòng</label>
                     <div class="housekeeping-minute-input"><input id="housekeeping-before-checkin" type="number" min="0" max="1440" step="5" inputmode="numeric" v-model.number="housekeeping.beforeCheckInMinutes" /><span>phút</span></div>
@@ -108,7 +110,7 @@
                 </div>
             </div>
             <div class="notification-settings-actions">
-                <button class="btn btn-primary" type="button" v-bind:disabled="savingHousekeeping" v-on:click="saveHousekeepingSettings">{{ savingHousekeeping ? 'Đang lưu...' : 'Lưu thời điểm dọn phòng' }}</button>
+                <button class="btn btn-primary" type="button" v-bind:disabled="savingHousekeeping" v-on:click="saveHousekeepingSettings">{{ savingHousekeeping ? 'Đang lưu...' : 'Lưu vận hành phòng' }}</button>
             </div>
         </div>
     </section>

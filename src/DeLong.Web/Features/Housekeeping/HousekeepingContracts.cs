@@ -6,11 +6,15 @@ public sealed record ChangeHousekeepingStatusRequest(HousekeepingStatus Status);
 
 public sealed record UpdateHousekeepingSettingsRequest(
     int BeforeCheckInMinutes,
-    int AfterCheckOutMinutes);
+    int AfterCheckOutMinutes,
+    bool AutomaticCheckInEnabled,
+    bool AutomaticCheckOutEnabled);
 
 public sealed record HousekeepingSettingsDto(
     int BeforeCheckInMinutes,
-    int AfterCheckOutMinutes);
+    int AfterCheckOutMinutes,
+    bool AutomaticCheckInEnabled,
+    bool AutomaticCheckOutEnabled);
 
 public sealed record HousekeepingRoomDto(
     Guid RoomId,

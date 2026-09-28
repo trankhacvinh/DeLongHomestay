@@ -215,6 +215,8 @@ public sealed class AppDbContext
             entity.Property(x => x.TimeZoneId).HasMaxLength(100).IsRequired();
             entity.Property(x => x.HousekeepingBeforeCheckInMinutes).HasDefaultValue(0).IsRequired();
             entity.Property(x => x.HousekeepingAfterCheckOutMinutes).HasDefaultValue(0).IsRequired();
+            entity.Property(x => x.AutomaticCheckInEnabled).HasDefaultValue(true).IsRequired();
+            entity.Property(x => x.AutomaticCheckOutEnabled).HasDefaultValue(true).IsRequired();
             entity.ToTable(table =>
             {
                 table.HasCheckConstraint(

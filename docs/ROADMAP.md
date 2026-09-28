@@ -76,6 +76,7 @@
 - [x] Dashboard vận hành.
 - [x] UI/UX redesign desktop + mobile admin.
 - [x] Housekeeping Schedule V2 sinh việc từ giờ booking thật + chế độ văn bản sao chép + offset phút cấu hình theo cơ sở.
+- [x] Tự động check-in/check-out theo giờ booking thật, có hai công tắc theo cơ sở và mặc định bật.
 
 ## Phase 5 — Public booking
 

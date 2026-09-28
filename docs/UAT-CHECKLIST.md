@@ -59,6 +59,8 @@ Dùng checklist này sau khi apply migrations/seed trên `delong_dev`.
 - [ ] Confirmed → CheckedIn/Cancelled/NoShow đúng.
 - [ ] CheckedIn → Completed đúng.
 - [ ] Booking terminal không sửa giờ/phòng được.
+- [ ] Khi bật tự động, booking `Confirmed` đến giờ nhận chuyển `CheckedIn`; đến giờ trả chuyển `Completed` và phòng thành `Dirty`.
+- [ ] Khi tắt từng công tắc, trạng thái tương ứng giữ nguyên để nhân viên xử lý thủ công.
 - [ ] Audit timeline ghi Created/Updated/StatusChanged và actor.
 - [ ] Trang đặt thành công hiện đúng hướng dẫn của phòng và tải được PDF mở hợp lệ.
 - [ ] Tra cứu đúng mã + SĐT hiện hướng dẫn và tải được PDF.

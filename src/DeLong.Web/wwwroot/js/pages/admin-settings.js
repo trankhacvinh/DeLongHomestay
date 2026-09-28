@@ -11,7 +11,7 @@
                 propertyId: initial.propertyId,
                 activeTab: 'rooms',
                 rooms: initial.rooms || [],
-                housekeeping: { beforeCheckInMinutes: 0, afterCheckOutMinutes: 0, ...(initial.housekeepingSettings || {}) },
+                housekeeping: { beforeCheckInMinutes: 0, afterCheckOutMinutes: 0, automaticCheckInEnabled: true, automaticCheckOutEnabled: true, ...(initial.housekeepingSettings || {}) },
                 notification: { guestCheckInEmailEnabled: false, guestCancellationEmailEnabled: true, telegramBookingEnabled: false, telegramBotTokenConfigured: false, telegramChatIds: '', ...(initial.notificationSettings || {}), smtpPassword: '', clearSmtpPassword: false, telegramBotToken: '', clearTelegramBotToken: false },
                 emailVariables: [
                     { code: '{{PropertyName}}', meaning: 'Tên cơ sở' },
@@ -223,8 +223,13 @@
                 try {
                     this.housekeeping = await DeLongApi.put(
                         `/api/admin/properties/${this.propertyId}/housekeeping/settings`,
-                        { beforeCheckInMinutes: before, afterCheckOutMinutes: after });
-                    this.notify('Đã lưu thời điểm dọn phòng.', 'success');
+                        {
+                            beforeCheckInMinutes: before,
+                            afterCheckOutMinutes: after,
+                            automaticCheckInEnabled: this.housekeeping.automaticCheckInEnabled === true,
+                            automaticCheckOutEnabled: this.housekeeping.automaticCheckOutEnabled === true
+                        });
+                    this.notify('Đã lưu cấu hình vận hành phòng.', 'success');
                 } catch (error) {
                     this.notify(error.message || 'Không thể lưu thời điểm dọn phòng.', 'error');
                 } finally {

@@ -49,7 +49,9 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
             .Where(x => x.Id == propertyId && x.IsActive)
             .Select(x => new HousekeepingSettingsDto(
                 x.HousekeepingBeforeCheckInMinutes,
-                x.HousekeepingAfterCheckOutMinutes))
+                x.HousekeepingAfterCheckOutMinutes,
+                x.AutomaticCheckInEnabled,
+                x.AutomaticCheckOutEnabled))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<(HousekeepingSettingsDto? Settings, string? Error)> SaveSettingsAsync(
@@ -67,10 +69,14 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
 
         property.HousekeepingBeforeCheckInMinutes = request.BeforeCheckInMinutes;
         property.HousekeepingAfterCheckOutMinutes = request.AfterCheckOutMinutes;
+        property.AutomaticCheckInEnabled = request.AutomaticCheckInEnabled;
+        property.AutomaticCheckOutEnabled = request.AutomaticCheckOutEnabled;
         await db.SaveChangesAsync(cancellationToken);
         return (new HousekeepingSettingsDto(
             property.HousekeepingBeforeCheckInMinutes,
-            property.HousekeepingAfterCheckOutMinutes), null);
+            property.HousekeepingAfterCheckOutMinutes,
+            property.AutomaticCheckInEnabled,
+            property.AutomaticCheckOutEnabled), null);
     }
 
     public async Task<HousekeepingScheduleDto?> GetScheduleAsync(
@@ -86,7 +92,9 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
             {
                 x.TimeZoneId,
                 x.HousekeepingBeforeCheckInMinutes,
-                x.HousekeepingAfterCheckOutMinutes
+                x.HousekeepingAfterCheckOutMinutes,
+                x.AutomaticCheckInEnabled,
+                x.AutomaticCheckOutEnabled
             })
             .SingleOrDefaultAsync(cancellationToken);
         if (propertySettings is null || string.IsNullOrWhiteSpace(propertySettings.TimeZoneId)) return null;
@@ -163,7 +171,8 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
             from,
             days,
             timeZoneId,
-            new HousekeepingSettingsDto(beforeMinutes, afterMinutes),
+            new HousekeepingSettingsDto(beforeMinutes, afterMinutes,
+                propertySettings.AutomaticCheckInEnabled, propertySettings.AutomaticCheckOutEnabled),
             daysResult);
     }
 

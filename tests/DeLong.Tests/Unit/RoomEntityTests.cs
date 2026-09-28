@@ -22,6 +22,8 @@ public sealed class RoomEntityTests
         var property = new Property();
         Assert.Equal(0, property.HousekeepingBeforeCheckInMinutes);
         Assert.Equal(0, property.HousekeepingAfterCheckOutMinutes);
+        Assert.True(property.AutomaticCheckInEnabled);
+        Assert.True(property.AutomaticCheckOutEnabled);
     }
 
     [Fact]

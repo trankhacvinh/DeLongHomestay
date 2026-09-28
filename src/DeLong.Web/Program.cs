@@ -362,6 +362,8 @@ builder.Services.AddSingleton<IRoomImageStorage, LocalRoomImageStorage>();
 builder.Services.AddSingleton<IRoomConditionMediaStorage, LocalRoomConditionMediaStorage>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<BookingService>();
+builder.Services.AddScoped<BookingLifecycleAutomationService>();
+builder.Services.AddHostedService<BookingLifecycleAutomationWorker>();
 builder.Services.AddScoped<BookingMoveService>();
 builder.Services.AddScoped<ExcelBookingImportService>();
 builder.Services.AddScoped<LegacyCalendarConversionService>();
