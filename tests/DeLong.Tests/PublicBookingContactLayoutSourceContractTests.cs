@@ -83,10 +83,20 @@ public sealed class PublicBookingContactLayoutSourceContractTests
 
         Assert.Contains("data-capture-id", script, StringComparison.Ordinal);
         Assert.Contains("data-browse-id", script, StringComparison.Ordinal);
+        Assert.Contains("data-browse-preview", script, StringComparison.Ordinal);
+        Assert.Contains("Chọn từ thư viện", script, StringComparison.Ordinal);
         Assert.Contains("capture=\"environment\" data-camera-input", script, StringComparison.Ordinal);
         Assert.Contains("data-library-input", script, StringComparison.Ordinal);
         Assert.Contains("cameraInput.addEventListener('change'", script, StringComparison.Ordinal);
         Assert.Contains("libraryInput.addEventListener('change'", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Application_version_identifies_the_current_public_booking_release()
+    {
+        var project = ReadRepositoryFile("src/DeLong.Web/DeLong.Web.csproj");
+
+        Assert.Contains("<VersionPrefix>1.1.0</VersionPrefix>", project, StringComparison.Ordinal);
     }
 
     [Fact]

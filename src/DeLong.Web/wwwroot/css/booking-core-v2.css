@@ -18,7 +18,7 @@
 .booking-id-heading>span{flex:0 0 auto;justify-self:start;padding:5px 9px;border-radius:999px;background:#e7f4ef;color:#217258;font-size:.72rem;font-weight:800;white-space:nowrap}
 .booking-id-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .booking-id-card{position:relative;min-width:0}
-.booking-id-picker{display:block;width:100%;aspect-ratio:1.72/1;border:1.5px dashed #b8cfca;border-radius:15px;background:#fff;overflow:hidden;padding:0;color:#3d5452}
+.booking-id-picker{display:block;width:100%;aspect-ratio:1.72/1;border:1.5px dashed #b8cfca;border-radius:15px;background:#fff;overflow:hidden;padding:0;color:#3d5452;font:inherit;cursor:pointer}
 .booking-id-picker:hover{border-color:#2a7b79;background:#f8fcfb}
 .booking-id-picker>img{width:100%;height:100%;object-fit:cover;display:block}
 .booking-id-picker>img[hidden]{display:none!important}
