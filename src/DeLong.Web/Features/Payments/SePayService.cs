@@ -84,10 +84,10 @@ public sealed class SePayService(AppDbContext db, SePaySettingsService settings,
             return (200, "other_property_ignored");
         if (request.TransferType == "out") return (200, "outgoing_ignored");
         if (request.TransferType != "in") return (400, "invalid_direction");
-        var account = snapshot?.SePayBankAccount ?? profile?.BankAccountNumber;
-        var sub = snapshot?.SePaySubAccount ?? profile?.SubAccount;
-        var matchesAccount = string.Equals(account, request.AccountNumber, StringComparison.Ordinal) &&
-            string.Equals(sub ?? "", request.SubAccount ?? "", StringComparison.Ordinal);
+        // Keep old QR sessions valid after a destination rotation, while allowing an
+        // administrator to correct the current bank/VA configuration for an open session.
+        var matchesAccount = MatchesDestination(snapshot?.SePayBankAccount, snapshot?.SePaySubAccount, request) ||
+            MatchesDestination(profile?.BankAccountNumber, profile?.SubAccount, request);
 
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         // Serialize duplicate deliveries even when they arrive at different property endpoints.
@@ -154,4 +154,9 @@ public sealed class SePayService(AppDbContext db, SePaySettingsService settings,
         }
         return (200, received.Outcome);
     }
+
+    private static bool MatchesDestination(string? accountNumber, string? subAccount, SePayWebhook request) =>
+        !string.IsNullOrWhiteSpace(accountNumber) &&
+        string.Equals(accountNumber.Trim(), request.AccountNumber?.Trim(), StringComparison.Ordinal) &&
+        string.Equals(subAccount?.Trim() ?? "", request.SubAccount?.Trim() ?? "", StringComparison.OrdinalIgnoreCase);
 }

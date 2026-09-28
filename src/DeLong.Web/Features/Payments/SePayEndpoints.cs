@@ -70,6 +70,38 @@ public static class SePayEndpoints
                 SuccessUrl = (string.IsNullOrEmpty(intent.SiteSlug) ? "" : "/h/" + Uri.EscapeDataString(intent.SiteSlug)) +
                     "/booking/success?code=" + Uri.EscapeDataString(intent.Booking.Code) });
         }).AllowAnonymous().RequireRateLimiting("pay2s-status");
+        app.MapGet("/api/public/payments/sepay/{orderId}/qr", async (string orderId, AppDbContext db,
+            IHttpClientFactory httpClientFactory, CancellationToken ct) =>
+        {
+            var intent = await db.Pay2SPaymentIntents.AsNoTracking().Include(x => x.Booking)
+                .SingleOrDefaultAsync(x => x.Provider == PaymentMethod.SePay && x.OrderId == orderId, ct);
+            var canPay = intent is not null && intent.Status == Pay2SPaymentIntentStatus.Pending &&
+                intent.ExpiresAtUtc > DateTime.UtcNow &&
+                intent.Booking.Status is not (BookingStatus.Cancelled or BookingStatus.Completed or BookingStatus.NoShow);
+            if (!canPay || !Uri.TryCreate(intent!.SePayQrUrl, UriKind.Absolute, out var qrUri) ||
+                qrUri.Scheme != Uri.UriSchemeHttps || !qrUri.Host.Equals("vietqr.app", StringComparison.OrdinalIgnoreCase) ||
+                qrUri.AbsolutePath != "/img")
+                return Results.NotFound();
+
+            try
+            {
+                using var response = await httpClientFactory.CreateClient().GetAsync(qrUri, ct);
+                if (!response.IsSuccessStatusCode) return Results.StatusCode(StatusCodes.Status502BadGateway);
+                if (response.Content.Headers.ContentLength is > 5 * 1024 * 1024)
+                    return Results.StatusCode(StatusCodes.Status502BadGateway);
+                var contentType = response.Content.Headers.ContentType?.MediaType;
+                if (contentType is null || !contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                    return Results.StatusCode(StatusCodes.Status502BadGateway);
+                var image = await response.Content.ReadAsByteArrayAsync(ct);
+                if (image.Length == 0 || image.Length > 5 * 1024 * 1024)
+                    return Results.StatusCode(StatusCodes.Status502BadGateway);
+                return Results.File(image, contentType, $"vietqr-{intent.OrderId}.png");
+            }
+            catch (HttpRequestException)
+            {
+                return Results.StatusCode(StatusCodes.Status502BadGateway);
+            }
+        }).AllowAnonymous().RequireRateLimiting("pay2s-status");
         return app;
     }
 }

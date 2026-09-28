@@ -17,6 +17,10 @@
                 <img data-sepay-qr hidden width="360" height="360" alt="Mã VietQR thanh toán" referrerpolicy="no-referrer" />
             </div>
             <p class="sepay-qr-help">Mở ứng dụng ngân hàng và chọn chức năng quét QR</p>
+            <a class="sepay-qr-download" data-sepay-download hidden
+               href="/api/public/payments/sepay/@Uri.EscapeDataString(Model.OrderId)/qr" download>
+                <span aria-hidden="true">⇩</span> Tải ảnh QR về máy
+            </a>
         </div>
         <div class="sepay-detail-column">
             <div class="sepay-state" data-sepay-state>

@@ -127,6 +127,31 @@ public sealed class SePayPaymentIntegrationTests
 
     [PostgresFact]
     [Trait("Category", "Integration")]
+    public async Task Open_session_accepts_corrected_current_bank_and_va_destination()
+    {
+        await using var f = await Fixture.Create();
+        var (created, _) = await f.Lifecycle.CreateIntentAsync(f.Property.Id, f.Booking.Id, true);
+        var profile = await f.Db.PropertySePaySettings.SingleAsync(x => x.PropertyId == f.Property.Id);
+        profile.BankAccountNumber = "1069029363";
+        profile.QrAccountNumber = "QRPSEP1ZZZZ51200231";
+        profile.SubAccount = "QRPSEP1ZZZZ51200231";
+        await f.Db.SaveChangesAsync();
+
+        var request = f.Request(created!.OrderId) with
+        {
+            AccountNumber = profile.BankAccountNumber,
+            SubAccount = profile.SubAccount
+        };
+
+        Assert.Equal((200, "succeeded"),
+            await f.Service.ReceiveAsync(f.Property.Id, request, "Apikey " + Key, default));
+        Assert.Equal(BookingStatus.Confirmed, f.Booking.Status);
+        Assert.True(await f.Db.Payments.AnyAsync(x =>
+            x.BookingId == f.Booking.Id && x.Method == PaymentMethod.SePay));
+    }
+
+    [PostgresFact]
+    [Trait("Category", "Integration")]
     public async Task Parallel_webhooks_commit_exactly_one_payment()
     {
         await using var f = await Fixture.Create();

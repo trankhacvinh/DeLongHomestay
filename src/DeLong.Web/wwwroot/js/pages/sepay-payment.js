@@ -3,6 +3,7 @@
     if (!root) return;
     const qr = root.querySelector('[data-sepay-qr]');
     const qrPlaceholder = root.querySelector('[data-sepay-qr-placeholder]');
+    const qrDownload = root.querySelector('[data-sepay-download]');
     const message = root.querySelector('[data-sepay-status]');
     const time = root.querySelector('[data-sepay-time]');
     const stateBox = root.querySelector('[data-sepay-state]');
@@ -13,7 +14,7 @@
         if (!state) return;
         const remaining = Math.max(0, Math.ceil((Date.parse(state.expiresAtUtc) - Date.now()) / 1000));
         time.textContent = remaining ? `${Math.floor(remaining / 60)} phút ${String(remaining % 60).padStart(2, '0')} giây` : 'Đã hết thời gian';
-        if (!remaining) { qr.hidden = true; qrPlaceholder.hidden = false; qrPlaceholder.textContent = 'Phiên thanh toán đã hết hạn'; qr.removeAttribute('src'); root.querySelector('[data-sepay-memo]').textContent = 'Đã hết thời gian chuyển khoản'; root.querySelector('[data-sepay-destination]').textContent = '—'; }
+        if (!remaining) { qr.hidden = true; qrDownload.hidden = true; qrPlaceholder.hidden = false; qrPlaceholder.textContent = 'Phiên thanh toán đã hết hạn'; qr.removeAttribute('src'); root.querySelector('[data-sepay-memo]').textContent = 'Đã hết thời gian chuyển khoản'; root.querySelector('[data-sepay-destination]').textContent = '—'; }
     }
     async function poll() {
         try {
@@ -25,6 +26,7 @@
             root.querySelector('[data-sepay-memo]').textContent = state.transferContent || 'Phiên đã đóng';
             root.querySelector('[data-sepay-destination]').textContent = state.accountNumber ? `${state.bank} · ${state.accountNumber}` : '';
             qr.hidden = !state.qrUrl;
+            qrDownload.hidden = !state.qrUrl;
             qrPlaceholder.hidden = Boolean(state.qrUrl);
             if (state.qrUrl) qr.src = state.qrUrl;
             else qr.removeAttribute('src');
@@ -49,6 +51,7 @@
             tick();
         } catch {
             qr.hidden = true;
+            qrDownload.hidden = true;
             qrPlaceholder.hidden = false;
             qrPlaceholder.textContent = 'Chưa tải được mã QR';
             stateBox.classList.add('is-warning');

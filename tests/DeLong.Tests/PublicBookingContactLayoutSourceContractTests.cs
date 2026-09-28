@@ -77,6 +77,34 @@ public sealed class PublicBookingContactLayoutSourceContractTests
     }
 
     [Fact]
+    public void Identity_picker_offers_camera_and_existing_photo_separately()
+    {
+        var script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/public-booking-core-v2.js");
+
+        Assert.Contains("data-capture-id", script, StringComparison.Ordinal);
+        Assert.Contains("data-browse-id", script, StringComparison.Ordinal);
+        Assert.Contains("capture=\"environment\" data-camera-input", script, StringComparison.Ordinal);
+        Assert.Contains("data-library-input", script, StringComparison.Ordinal);
+        Assert.Contains("cameraInput.addEventListener('change'", script, StringComparison.Ordinal);
+        Assert.Contains("libraryInput.addEventListener('change'", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SePay_checkout_downloads_qr_through_a_validated_same_origin_endpoint()
+    {
+        var page = ReadRepositoryFile("src/DeLong.Web/Pages/Payment/SePay.cshtml");
+        var script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/sepay-payment.js");
+        var endpoints = ReadRepositoryFile("src/DeLong.Web/Features/Payments/SePayEndpoints.cs");
+
+        Assert.Contains("data-sepay-download", page, StringComparison.Ordinal);
+        Assert.Contains("Tải ảnh QR về máy", page, StringComparison.Ordinal);
+        Assert.Contains("qrDownload.hidden = !state.qrUrl", script, StringComparison.Ordinal);
+        Assert.Contains("/api/public/payments/sepay/{orderId}/qr", endpoints, StringComparison.Ordinal);
+        Assert.Contains("qrUri.Host.Equals(\"vietqr.app\"", endpoints, StringComparison.Ordinal);
+        Assert.Contains("Results.File(image, contentType", endpoints, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Authentication_changes_refresh_the_claim_bound_antiforgery_token()
     {
         var program = ReadRepositoryFile("src/DeLong.Web/Program.cs");

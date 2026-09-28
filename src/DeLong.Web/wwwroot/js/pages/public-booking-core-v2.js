@@ -259,15 +259,22 @@
         card.className = 'booking-id-card';
         card.dataset.identitySide = side;
         card.innerHTML = `
-            <button type="button" class="booking-id-picker" data-pick-id>
+            <div class="booking-id-picker">
                 <img alt="${escapeHtml(label)}" hidden />
-                <span class="booking-id-empty"><span class="booking-id-icon" aria-hidden="true">▧+</span><strong>${escapeHtml(label)}</strong><small>Chạm để chọn ảnh</small></span>
-            </button>
+                <span class="booking-id-empty"><span class="booking-id-icon" aria-hidden="true">▧+</span><strong>${escapeHtml(label)}</strong><small>Chụp mới hoặc chọn ảnh có sẵn</small></span>
+            </div>
             <button type="button" class="booking-id-remove" data-remove-id title="Bỏ ảnh" aria-label="Bỏ ${escapeHtml(label)}" hidden>×</button>
-            <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden />`;
-        const input = card.querySelector('input[type="file"]');
-        card.querySelector('[data-pick-id]').addEventListener('click', () => input.click());
-        input.addEventListener('change', () => {
+            <div class="booking-id-actions">
+                <button type="button" data-capture-id><span aria-hidden="true">⌾</span> Chụp ảnh</button>
+                <button type="button" data-browse-id><span aria-hidden="true">▧</span> Chọn ảnh</button>
+            </div>
+            <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" data-camera-input hidden />
+            <input type="file" accept="image/jpeg,image/png,image/webp" data-library-input hidden />`;
+        const cameraInput = card.querySelector('[data-camera-input]');
+        const libraryInput = card.querySelector('[data-library-input]');
+        card.querySelector('[data-capture-id]').addEventListener('click', () => cameraInput.click());
+        card.querySelector('[data-browse-id]').addEventListener('click', () => libraryInput.click());
+        const selectFile = input => {
             const file = input.files?.[0] || null;
             if (file && file.size > 8 * 1024 * 1024) {
                 window.alert('Mỗi ảnh CCCD tối đa 8 MB.');
@@ -275,10 +282,13 @@
                 return;
             }
             setDocument(side, file, card);
-        });
+        };
+        cameraInput.addEventListener('change', () => selectFile(cameraInput));
+        libraryInput.addEventListener('change', () => selectFile(libraryInput));
         card.querySelector('[data-remove-id]').addEventListener('click', event => {
             event.stopPropagation();
-            input.value = '';
+            cameraInput.value = '';
+            libraryInput.value = '';
             setDocument(side, null, card);
         });
         return card;
