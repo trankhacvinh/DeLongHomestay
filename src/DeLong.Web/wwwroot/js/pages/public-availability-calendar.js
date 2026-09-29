@@ -298,8 +298,12 @@
                     const adjustedTime = canBook && (slot.bookableStartUtc !== slot.startUtc || slot.bookableEndUtc !== slot.endUtc)
                         ? `Nhận ${timeLabel(slot.bookableStartUtc)} · Trả ${timeLabel(slot.bookableEndUtc)}`
                         : '';
-                    const stateText = slot.state === 'available' ? (Number(day.bookingMode) === 1 ? 'Chọn cả ngày' : 'Còn trống') : slot.state === 'partial' && canBook ? adjustedTime : 'Đã có khách';
-                    button.innerHTML = `<span>${stateText}</span><small>${money(slot.price)}</small>`;
+                    const selectedTime = selected && canBook ? `Nhận ${timeLabel(slot.bookableStartUtc)} · Trả ${timeLabel(slot.bookableEndUtc)}` : '';
+                    const stateText = selectedTime || (slot.state === 'available' ? (Number(day.bookingMode) === 1 ? 'Chọn cả ngày' : 'Còn trống') : slot.state === 'partial' && canBook ? adjustedTime : 'Đã có khách');
+                    const selectedSchedule = selected && canBook
+                        ? `<span class="public-v2-selected-schedule"><b>Nhận ${timeLabel(slot.bookableStartUtc)}</b><b>Trả ${timeLabel(slot.bookableEndUtc)}</b></span>`
+                        : `<span>${stateText}</span><small>${money(slot.price)}</small>`;
+                    button.innerHTML = selectedSchedule;
                     button.title = `${stateText} · ${money(slot.price)}`;
                     button.setAttribute('aria-label', `${dateLabel(day.date)}, ${slot.rateName}, ${stateText}, ${money(slot.price)}`);
                     button.setAttribute('aria-pressed', String(selected));

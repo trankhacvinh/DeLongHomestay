@@ -114,6 +114,16 @@ public sealed class CustomerAccountAndLoyaltyTests
         Assert.Contains("@media (max-width: 900px)", styles, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Public_header_keeps_customer_login_visible_for_anonymous_guests()
+    {
+        var layout = ReadRepositoryFile("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+
+        Assert.Contains("var customerLoginUrl", layout, StringComparison.Ordinal);
+        Assert.Contains("public-customer-login-link", layout, StringComparison.Ordinal);
+        Assert.Contains("href=\"@customerLoginUrl\">Đăng nhập</a>", layout, StringComparison.Ordinal);
+    }
+
     private static AccountModel CreateAccountPage(string path, ClaimsPrincipal user)
     {
         var httpContext = new DefaultHttpContext { User = user };

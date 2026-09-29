@@ -43,10 +43,13 @@ public sealed class PublicAvailabilityCalendarSourceContractTests
         Assert.Contains("data-selection-book", source, StringComparison.Ordinal);
         Assert.Contains("selectSlot(day, slot, button)", source, StringComparison.Ordinal);
         Assert.Contains("trigger?.classList.toggle('is-selected', selected)", source, StringComparison.Ordinal);
+        Assert.Contains("public-v2-selected-schedule", source, StringComparison.Ordinal);
+        Assert.Contains("<b>Nhận ${timeLabel(slot.bookableStartUtc)}</b><b>Trả ${timeLabel(slot.bookableEndUtc)}</b>", source, StringComparison.Ordinal);
         Assert.Contains("existing >= 0 && existing === state.selected.length - 1", source, StringComparison.Ordinal);
         Assert.Contains("button.setAttribute('aria-pressed', String(selected))", source, StringComparison.Ordinal);
         Assert.Contains(".public-v2-selection{position:fixed", styles, StringComparison.Ordinal);
-        Assert.Contains(".public-v2-slot-bar.state-available.is-selected::after{content:'✓'", styles, StringComparison.Ordinal);
+        Assert.Contains(".public-v2-slot-bar.state-available.is-selected::after,.public-v2-slot-bar.state-partial.is-selected::after{content:'✓'", styles, StringComparison.Ordinal);
+        Assert.Contains(".public-v2-slot-bar.is-selected .public-v2-selected-schedule", styles, StringComparison.Ordinal);
         Assert.Contains("public-v2-viewport-shell", source, StringComparison.Ordinal);
         Assert.Contains("remainingIndicatorTime", source, StringComparison.Ordinal);
         Assert.Contains("Vuốt thêm để tải tiếp", source, StringComparison.Ordinal);

@@ -561,6 +561,7 @@ else
     var bookingUrl = DeLong.Web.Features.Site.PublicUrlBuilder.BookingHome(publicSiteSlug);
     var lookupUrl = isGlobalPublic ? "/booking/lookup" : DeLong.Web.Features.Site.PublicUrlBuilder.BookingLookup(publicSiteSlug!);
     var customerAccountUrl = isGlobalPublic ? "/customer/account" : $"/h/{publicSiteSlug}/customer/account";
+    var customerLoginUrl = isGlobalPublic ? "/customer/login" : $"/h/{publicSiteSlug}/customer/login";
     <header class="public-site-header">
         <div class="public-container public-site-nav">
             <a class="public-site-brand"
@@ -596,6 +597,10 @@ else
                 else if (User.Identity?.IsAuthenticated == true)
                 {
                     <a class="public-admin-link" asp-page="/Admin/Index">Quản trị</a>
+                }
+                else
+                {
+                    <a class="public-admin-link public-customer-login-link" href="@customerLoginUrl">Đăng nhập</a>
                 }
                 <a class="public-btn public-btn-primary" href="@bookingUrl">Đặt phòng</a>
             </div>
