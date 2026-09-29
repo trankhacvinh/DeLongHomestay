@@ -73,10 +73,10 @@ public sealed record PublicShellSettingsDto(
 public static class PublicShellSettingsStore
 {
     public const string MetadataSectionType = "__PublicShell";
-    public static readonly IReadOnlyList<string> DefaultNavigationOrder = ["home", "rooms", "branches", "booking", "lookup"];
+    public static readonly IReadOnlyList<string> DefaultNavigationOrder = ["home", "rooms", "branches", "booking", "policies", "lookup"];
 
     private static readonly HashSet<string> SystemNavigationKeys = new(DefaultNavigationOrder, StringComparer.OrdinalIgnoreCase);
-    private static readonly HashSet<string> SystemUrlTokens = new(["@home", "@rooms", "@branches", "@booking", "@lookup"], StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> SystemUrlTokens = new(["@home", "@rooms", "@branches", "@booking", "@policies", "@lookup"], StringComparer.OrdinalIgnoreCase);
     private static readonly Regex NavigationIdRegex = new("^[a-zA-Z0-9_-]{1,64}$", RegexOptions.Compiled);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -251,6 +251,7 @@ public static class PublicShellSettingsStore
             ["rooms"] = new() { Id = "rooms", Label = First(payload.RoomsLabel, "Phòng"), Url = "@rooms", IsVisible = payload.ShowRooms ?? true },
             ["branches"] = new() { Id = "branches", Label = First(payload.BranchesLabel, "Cơ sở"), Url = "@branches", IsVisible = payload.ShowBranches ?? true },
             ["booking"] = new() { Id = "booking", Label = First(payload.BookingLabel, "Đặt phòng"), Url = "@booking", IsVisible = true },
+            ["policies"] = new() { Id = "policies", Label = "Chính sách", Url = "@policies", IsVisible = true },
             ["lookup"] = new() { Id = "lookup", Label = First(payload.LookupLabel, "Tra cứu"), Url = "@lookup", IsVisible = true }
         };
         return order.Select(key => map[key]).ToList();
@@ -265,6 +266,7 @@ public static class PublicShellSettingsStore
             ["rooms"] = new() { Id = "rooms", Label = First(request.RoomsLabel, "Phòng"), Url = "@rooms", IsVisible = request.ShowRooms },
             ["branches"] = new() { Id = "branches", Label = First(request.BranchesLabel, "Cơ sở"), Url = "@branches", IsVisible = request.ShowBranches },
             ["booking"] = new() { Id = "booking", Label = First(request.BookingLabel, "Đặt phòng"), Url = "@booking", IsVisible = true },
+            ["policies"] = new() { Id = "policies", Label = "Chính sách", Url = "@policies", IsVisible = true },
             ["lookup"] = new() { Id = "lookup", Label = First(request.LookupLabel, "Tra cứu"), Url = "@lookup", IsVisible = true }
         };
         return order.Select(key => map[key]).ToList();
@@ -287,6 +289,8 @@ public static class PublicShellSettingsStore
                 item.OpenInNewTab ?? false,
                 SystemNavigationKeys.Contains(id)));
         }
+        if (result.All(x => !string.Equals(x.Id, "policies", StringComparison.OrdinalIgnoreCase)))
+            result.Add(new PublicNavigationItemDto("policies", "Chính sách", "@policies", true, false, true));
         return result;
     }
 

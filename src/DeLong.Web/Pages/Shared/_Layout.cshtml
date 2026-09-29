@@ -583,6 +583,7 @@ else
                     <a href="/#co-so">Cơ sở</a>
                 }
                 <a href="@bookingUrl">Đặt phòng</a>
+                <a href="/chinh-sach-dat-phong">Chính sách</a>
                 <a href="@lookupUrl">Tra cứu</a>
             </nav>
             <div class="public-site-actions">
@@ -630,6 +631,13 @@ else
                 <a href="/">Trang chủ</a>
                 <a href="@bookingUrl">Đặt phòng</a>
                 <a href="@lookupUrl">Tra cứu</a>
+            </div>
+            <div class="public-footer-column public-footer-policies">
+                <strong>Chính sách</strong>
+                @foreach (var policy in DeLong.Web.Features.Site.PublicPolicyLinks.All)
+                {
+                    <a href="/@policy.Slug">@policy.Title</a>
+                }
             </div>
             @if (showPublicBranches)
             {

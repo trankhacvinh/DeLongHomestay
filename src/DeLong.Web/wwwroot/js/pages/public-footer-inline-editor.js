@@ -38,6 +38,7 @@
             case '@rooms': return prefix ? `${prefix}/rooms` : '/rooms';
             case '@branches': return '/#co-so';
             case '@booking': return prefix ? `${prefix}/booking` : '/booking';
+            case '@policies': return '/chinh-sach-dat-phong';
             case '@lookup': return prefix ? `${prefix}/booking/lookup` : '/booking/lookup';
             default: return '#';
         }

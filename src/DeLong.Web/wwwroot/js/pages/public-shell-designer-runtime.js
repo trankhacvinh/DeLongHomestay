@@ -16,6 +16,7 @@
             case '@rooms': return prefix ? `${prefix}/rooms` : '/rooms';
             case '@branches': return '/#co-so';
             case '@booking': return prefix ? `${prefix}/booking` : '/booking';
+            case '@policies': return '/chinh-sach-dat-phong';
             case '@lookup': return prefix ? `${prefix}/booking/lookup` : '/booking/lookup';
             default: return '#';
         }
@@ -23,12 +24,12 @@
 
     function shellItems(shell) {
         if (Array.isArray(shell?.navigationItems)) return shell.navigationItems;
-        const order = Array.isArray(shell?.navigationOrder) ? shell.navigationOrder : ['home', 'rooms', 'branches', 'booking', 'lookup'];
+        const order = Array.isArray(shell?.navigationOrder) ? shell.navigationOrder : ['home', 'rooms', 'branches', 'booking', 'policies', 'lookup'];
         const labels = {
             home: shell?.homeLabel || 'Trang chủ', rooms: shell?.roomsLabel || 'Phòng', branches: shell?.branchesLabel || 'Cơ sở',
-            booking: shell?.bookingLabel || 'Đặt phòng', lookup: shell?.lookupLabel || 'Tra cứu'
+            booking: shell?.bookingLabel || 'Đặt phòng', policies: 'Chính sách', lookup: shell?.lookupLabel || 'Tra cứu'
         };
-        const urls = { home: '@home', rooms: '@rooms', branches: '@branches', booking: '@booking', lookup: '@lookup' };
+        const urls = { home: '@home', rooms: '@rooms', branches: '@branches', booking: '@booking', policies: '@policies', lookup: '@lookup' };
         return order.map(id => ({ id, label: labels[id] || id, url: urls[id] || '#', isVisible: true, openInNewTab: false }));
     }
 

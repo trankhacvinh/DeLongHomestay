@@ -58,7 +58,6 @@ public static class PublicSeoEndpoints
                     new("/"),
                     new("/blog")
                 };
-
                 var globalPages = await customPageStore.ListAsync(null, true, ct);
                 urls.AddRange(globalPages.Where(page => !page.NoIndex).Select(page => new SitemapEntry(page.Url, page.UpdatedAtUtc)));
 

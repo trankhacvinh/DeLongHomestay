@@ -10,6 +10,7 @@
         { token: '@home', label: 'Trang chủ', icon: '⌂' },
         { token: '@rooms', label: 'Danh sách phòng', icon: '▦' },
         { token: '@booking', label: 'Đặt phòng', icon: '◷' },
+        { token: '@policies', label: 'Chính sách', icon: '▤' },
         { token: '@lookup', label: 'Tra cứu đặt phòng', icon: '⌕' },
         { token: '@branches', label: 'Cơ sở', icon: '⌖' }
     ];
@@ -43,6 +44,7 @@
             case '@rooms': return prefix ? `${prefix}/rooms` : '/rooms';
             case '@branches': return '/#co-so';
             case '@booking': return prefix ? `${prefix}/booking` : '/booking';
+            case '@policies': return '/chinh-sach-dat-phong';
             case '@lookup': return prefix ? `${prefix}/booking/lookup` : '/booking/lookup';
             default: return String(token || '');
         }
@@ -69,7 +71,7 @@
     function defaultTokenFor(target, input) {
         if (target?.matches?.('[data-nav-id]')) {
             const id = String(target.dataset.navId || '').toLowerCase();
-            if (['home', 'rooms', 'branches', 'booking', 'lookup'].includes(id)) return `@${id}`;
+            if (['home', 'rooms', 'branches', 'booking', 'policies', 'lookup'].includes(id)) return `@${id}`;
         }
         if (input?.name === 'headerCtaUrl' || input?.name === 'footerBookingUrl') return '@booking';
         return '';
