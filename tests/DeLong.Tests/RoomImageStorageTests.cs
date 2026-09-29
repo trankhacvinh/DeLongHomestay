@@ -11,6 +11,84 @@ namespace DeLong.Tests;
 public sealed class RoomImageStorageTests
 {
     [Fact]
+    public async Task Upload_accepts_phone_photo_larger_than_legacy_25_megabyte_limit()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "delong-room-image-tests", Guid.NewGuid().ToString("N"));
+        var webRoot = Path.Combine(root, "wwwroot");
+        Directory.CreateDirectory(webRoot);
+        try
+        {
+            var environment = new FakeWebHostEnvironment(root, webRoot);
+            var paths = new StoragePaths(
+                Path.Combine(root, "data"),
+                Path.Combine(root, "media"),
+                new PathString("/uploads/rooms"),
+                true,
+                true,
+                true);
+            paths.EnsureDirectories();
+            var storage = new LocalRoomImageStorage(paths, environment);
+            var jpeg = CreateJpeg(1200, 800);
+            var source = new byte[26 * 1024 * 1024];
+            jpeg.CopyTo(source, 0);
+            var formFile = new FormFile(new MemoryStream(source), 0, source.Length, "file", "phone.jpg")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "image/jpeg"
+            };
+
+            var (stored, error) = await storage.SaveAsync(Guid.NewGuid(), Guid.NewGuid(), formFile);
+
+            Assert.Null(error);
+            Assert.NotNull(stored);
+            Assert.Equal(source.LongLength, stored!.OriginalBytes);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task Upload_rejects_source_larger_than_shared_image_limit()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "delong-room-image-tests", Guid.NewGuid().ToString("N"));
+        var webRoot = Path.Combine(root, "wwwroot");
+        Directory.CreateDirectory(webRoot);
+        try
+        {
+            var environment = new FakeWebHostEnvironment(root, webRoot);
+            var paths = new StoragePaths(
+                Path.Combine(root, "data"),
+                Path.Combine(root, "media"),
+                new PathString("/uploads/rooms"),
+                true,
+                true,
+                true);
+            var storage = new LocalRoomImageStorage(paths, environment);
+            var formFile = new FormFile(
+                new MemoryStream([0]),
+                0,
+                ImageUploadPolicy.MaxSourceBytes + 1,
+                "file",
+                "large.jpg")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "image/jpeg"
+            };
+
+            var (stored, error) = await storage.SaveAsync(Guid.NewGuid(), Guid.NewGuid(), formFile);
+
+            Assert.Null(stored);
+            Assert.Equal("Mỗi ảnh tối đa 60 MB.", error);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public async Task Upload_creates_original_and_optimized_webp_variants_and_can_regenerate_focal_crops()
     {
         var root = Path.Combine(Path.GetTempPath(), "delong-room-image-tests", Guid.NewGuid().ToString("N"));
@@ -25,15 +103,7 @@ public sealed class RoomImageStorageTests
             paths.EnsureDirectories();
             var storage = new LocalRoomImageStorage(paths, environment);
 
-            byte[] jpeg;
-            using (var bitmap = new SKBitmap(1200, 800))
-            using (var canvas = new SKCanvas(bitmap))
-            using (var image = SKImage.FromBitmap(bitmap))
-            {
-                canvas.Clear(new SKColor(32, 112, 116));
-                using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 90);
-                jpeg = encoded.ToArray();
-            }
+            var jpeg = CreateJpeg(1200, 800);
 
             await using var stream = new MemoryStream(jpeg);
             var formFile = new FormFile(stream, 0, jpeg.Length, "file", "room.jpg")
@@ -85,6 +155,16 @@ public sealed class RoomImageStorageTests
         Assert.NotNull(bitmap);
         Assert.Equal(width, bitmap.Width);
         Assert.Equal(height, bitmap.Height);
+    }
+
+    private static byte[] CreateJpeg(int width, int height)
+    {
+        using var bitmap = new SKBitmap(width, height);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(new SKColor(32, 112, 116));
+        using var image = SKImage.FromBitmap(bitmap);
+        using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 90);
+        return encoded.ToArray();
     }
 
     private sealed class FakeWebHostEnvironment(string contentRootPath, string webRootPath) : IWebHostEnvironment

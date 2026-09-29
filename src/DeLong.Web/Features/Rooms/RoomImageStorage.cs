@@ -23,8 +23,6 @@ public interface IRoomImageStorage
 
 public sealed class LocalRoomImageStorage(StoragePaths paths, IWebHostEnvironment environment) : IRoomImageStorage
 {
-    private const long MaxBytes = 25L * 1024 * 1024;
-    private const long MaxPixels = 80_000_000;
     private const string StoragePrefix = "storage://";
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
     private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase) { "image/jpeg", "image/png", "image/webp" };
@@ -33,7 +31,8 @@ public sealed class LocalRoomImageStorage(StoragePaths paths, IWebHostEnvironmen
     public async Task<(StoredRoomImage? Image, string? Error)> SaveAsync(Guid roomId, Guid imageId, IFormFile file, CancellationToken cancellationToken = default)
     {
         if (file.Length <= 0) return (null, "File ảnh trống.");
-        if (file.Length > MaxBytes) return (null, "Mỗi ảnh tối đa 25 MB.");
+        if (file.Length > ImageUploadPolicy.MaxSourceBytes)
+            return (null, $"Mỗi ảnh tối đa {ImageUploadPolicy.MaxSourceMegabytes} MB.");
 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (!AllowedExtensions.Contains(extension) || !AllowedContentTypes.Contains(file.ContentType))
@@ -145,7 +144,7 @@ public sealed class LocalRoomImageStorage(StoragePaths paths, IWebHostEnvironmen
         using var data = SKData.CreateCopy(bytes);
         using var codec = SKCodec.Create(data);
         if (codec is null) return (null, "File tải lên không phải ảnh hợp lệ.");
-        if ((long)codec.Info.Width * codec.Info.Height > MaxPixels) return (null, "Ảnh vượt quá 80 megapixel.");
+        if ((long)codec.Info.Width * codec.Info.Height > ImageUploadPolicy.MaxPixels) return (null, "Ảnh vượt quá 80 megapixel.");
         using var decoded = SKBitmap.Decode(codec);
         if (decoded is null || decoded.Width <= 0 || decoded.Height <= 0) return (null, "File tải lên không phải ảnh hợp lệ.");
         return (NormalizeOrientation(decoded, codec.EncodedOrigin), null);

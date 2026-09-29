@@ -14,8 +14,6 @@ public interface ISiteAssetStorage
 
 public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorage
 {
-    private const long MaxBytes = 25L * 1024 * 1024;
-    private const long MaxPixels = 80_000_000;
     private static readonly HashSet<string> AllowedTypes = new(StringComparer.OrdinalIgnoreCase)
         { "image/jpeg", "image/png", "image/webp" };
 
@@ -26,7 +24,8 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         CancellationToken ct = default)
     {
         if (file.Length <= 0) return (null, "File ảnh trống.");
-        if (file.Length > MaxBytes) return (null, "Mỗi ảnh tối đa 25 MB.");
+        if (file.Length > ImageUploadPolicy.MaxSourceBytes)
+            return (null, $"Mỗi ảnh tối đa {ImageUploadPolicy.MaxSourceMegabytes} MB.");
         if (!AllowedTypes.Contains(file.ContentType)) return (null, "Chỉ hỗ trợ JPG, PNG hoặc WebP.");
         if (kind is not ("cover" or "logo" or "favicon" or "og" or "section")) return (null, "Loại ảnh website không hợp lệ.");
 
@@ -35,7 +34,7 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         using var data = SKData.CreateCopy(memory.ToArray());
         using var codec = SKCodec.Create(data);
         if (codec is null) return (null, "File tải lên không phải ảnh hợp lệ.");
-        if ((long)codec.Info.Width * codec.Info.Height > MaxPixels) return (null, "Ảnh vượt quá 80 megapixel.");
+        if ((long)codec.Info.Width * codec.Info.Height > ImageUploadPolicy.MaxPixels) return (null, "Ảnh vượt quá 80 megapixel.");
         using var decoded = SKBitmap.Decode(codec);
         if (decoded is null || decoded.Width <= 0 || decoded.Height <= 0) return (null, "File tải lên không phải ảnh hợp lệ.");
         using var source = NormalizeOrientation(decoded, codec.EncodedOrigin);

@@ -18,8 +18,6 @@ public sealed record IdentityDocumentReadResult(
 
 public sealed class IdentityDocumentStorage
 {
-    private const long MaxBytes = 25L * 1024 * 1024;
-    private const long MaxPixels = 80_000_000;
     private const int MaxStoredDimension = 3000;
     private const int NonceSize = 12;
     private const int TagSize = 16;
@@ -63,7 +61,8 @@ public sealed class IdentityDocumentStorage
         var normalizedSide = NormalizeSide(side);
         if (normalizedSide is null) return (null, "Mặt giấy tờ không hợp lệ.");
         if (file.Length <= 0) return (null, "Ảnh CCCD trống.");
-        if (file.Length > MaxBytes) return (null, "Mỗi ảnh CCCD tối đa 25 MB.");
+        if (file.Length > ImageUploadPolicy.MaxSourceBytes)
+            return (null, $"Mỗi ảnh CCCD tối đa {ImageUploadPolicy.MaxSourceMegabytes} MB.");
 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         var contentType = file.ContentType?.Trim().ToLowerInvariant() ?? string.Empty;
@@ -299,7 +298,7 @@ public sealed class IdentityDocumentStorage
         var contentType = reader.ReadString();
         var fileName = reader.ReadString();
         var length = reader.ReadInt32();
-        if (length <= 0 || length > MaxBytes || length > stream.Length - stream.Position)
+        if (length <= 0 || length > ImageUploadPolicy.MaxSourceBytes || length > stream.Length - stream.Position)
             throw new CryptographicException("Encrypted identity document payload is invalid.");
         var bytes = reader.ReadBytes(length);
         if (bytes.Length != length) throw new CryptographicException("Encrypted identity document payload is truncated.");
@@ -311,7 +310,7 @@ public sealed class IdentityDocumentStorage
         using var data = SKData.CreateCopy(bytes);
         using var codec = SKCodec.Create(data);
         if (codec is null || codec.Info.Width <= 0 || codec.Info.Height <= 0) return null;
-        if ((long)codec.Info.Width * codec.Info.Height > MaxPixels) return null;
+        if ((long)codec.Info.Width * codec.Info.Height > ImageUploadPolicy.MaxPixels) return null;
         using var decoded = SKBitmap.Decode(codec);
         if (decoded is null) return null;
         using var normalized = NormalizeOrientation(decoded, codec.EncodedOrigin);

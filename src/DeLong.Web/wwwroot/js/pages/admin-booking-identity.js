@@ -263,8 +263,8 @@
             pick.addEventListener('click', () => input.click());
             input.addEventListener('change', () => {
                 const file = input.files?.[0] || null;
-                if (file && file.size > 25 * 1024 * 1024) {
-                    flash('Mỗi ảnh CCCD tối đa 25 MB.', 'error');
+                if (file && file.size > 60 * 1024 * 1024) {
+                    flash('Mỗi ảnh CCCD tối đa 60 MB.', 'error');
                     input.value = '';
                     return;
                 }
