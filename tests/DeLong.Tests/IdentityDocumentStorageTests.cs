@@ -3,6 +3,7 @@ using DeLong.Web.Common.Operations;
 using DeLong.Web.Features.PublicBooking;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using SkiaSharp;
 using Xunit;
 
 namespace DeLong.Tests;
@@ -41,8 +42,12 @@ public sealed class IdentityDocumentStorageTests
             var restarted = new IdentityDocumentStorage(paths, new ConfigurationBuilder().Build());
             var read = await restarted.ReadAsync(propertyId, bookingId, "front");
             Assert.NotNull(read);
-            Assert.Equal("image/png", read.ContentType);
-            Assert.Equal(TinyPng, read.Bytes);
+            Assert.Equal("image/webp", read.ContentType);
+            Assert.EndsWith(".webp", read.OriginalFileName, StringComparison.OrdinalIgnoreCase);
+            using var optimized = SKBitmap.Decode(read.Bytes);
+            Assert.NotNull(optimized);
+            Assert.Equal(1, optimized.Width);
+            Assert.Equal(1, optimized.Height);
         }
         finally
         {
@@ -99,7 +104,39 @@ public sealed class IdentityDocumentStorageTests
             var withoutSecret = new IdentityDocumentStorage(paths, new ConfigurationBuilder().Build());
             var read = await withoutSecret.ReadAsync(propertyId, bookingId, "front");
             Assert.NotNull(read);
-            Assert.Equal(TinyPng, read.Bytes);
+            Assert.Equal("image/webp", read.ContentType);
+            using var optimized = SKBitmap.Decode(read.Bytes);
+            Assert.NotNull(optimized);
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    [Fact]
+    public async Task SaveAsync_ResizesLargeIdentityImageBeforeEncryption()
+    {
+        var root = TempRoot();
+        try
+        {
+            var storage = new IdentityDocumentStorage(Paths(root), new ConfigurationBuilder().Build());
+            var source = FormImage("large-cccd.png", CreatePng(3600, 1800));
+            var propertyId = Guid.NewGuid();
+            var bookingId = Guid.NewGuid();
+
+            var (saved, error) = await storage.SaveAsync(propertyId, bookingId, "front", source);
+
+            Assert.Null(error);
+            Assert.NotNull(saved);
+            Assert.Equal("image/webp", saved.ContentType);
+            Assert.True(saved.Bytes < source.Length);
+            var read = await storage.ReadAsync(propertyId, bookingId, "front");
+            Assert.NotNull(read);
+            using var optimized = SKBitmap.Decode(read.Bytes);
+            Assert.NotNull(optimized);
+            Assert.Equal(3000, optimized.Width);
+            Assert.Equal(1500, optimized.Height);
         }
         finally
         {
@@ -131,14 +168,29 @@ public sealed class IdentityDocumentStorageTests
         }
     }
 
-    private static FormFile FormImage(string fileName)
+    private static FormFile FormImage(string fileName, byte[]? bytes = null)
     {
-        var stream = new MemoryStream(TinyPng, writable: false);
-        return new FormFile(stream, 0, TinyPng.Length, "file", fileName)
+        bytes ??= TinyPng;
+        var stream = new MemoryStream(bytes, writable: false);
+        return new FormFile(stream, 0, bytes.Length, "file", fileName)
         {
             Headers = new HeaderDictionary(),
             ContentType = "image/png"
         };
+    }
+
+    private static byte[] CreatePng(int width, int height)
+    {
+        using var bitmap = new SKBitmap(width, height);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.White);
+        using var paint = new SKPaint { Color = SKColors.Black, IsAntialias = true };
+        canvas.DrawRect(SKRect.Create(100, 100, width - 200, height - 200), paint);
+        paint.Color = SKColors.White;
+        canvas.DrawRect(SKRect.Create(180, 180, width - 360, height - 360), paint);
+        using var image = SKImage.FromBitmap(bitmap);
+        using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+        return encoded.ToArray();
     }
 
     private static StoragePaths Paths(string root) =>

@@ -96,7 +96,7 @@ public sealed class PublicBookingContactLayoutSourceContractTests
     {
         var project = ReadRepositoryFile("src/DeLong.Web/DeLong.Web.csproj");
 
-        Assert.Contains("<VersionPrefix>1.5.0</VersionPrefix>", project, StringComparison.Ordinal);
+        Assert.Contains("<VersionPrefix>1.6.0</VersionPrefix>", project, StringComparison.Ordinal);
     }
 
     [Fact]

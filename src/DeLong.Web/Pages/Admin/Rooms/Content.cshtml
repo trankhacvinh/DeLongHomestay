@@ -182,7 +182,7 @@
                         <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" multiple v-on:change="uploadImages" v-bind:disabled="uploading || room.images.length >= 20" />
                     </label>
                 </div>
-                <p class="gallery-help">JPG, PNG hoặc WebP · tối đa 12 MB/ảnh. Bản gốc được giữ riêng; website dùng WebP tối ưu. Ảnh bìa có viền vàng để nhận biết nhanh.</p>
+                <p class="gallery-help">JPG, PNG hoặc WebP · tối đa 25 MB/ảnh. Bản gốc được giữ riêng; website dùng WebP tối ưu. Ảnh bìa có viền vàng để nhận biết nhanh.</p>
 
                 <div v-if="room.images.length" ref="galleryGrid" class="room-gallery-grid">
                     <article class="room-gallery-tile" v-for="(image, index) in room.images" v-bind:key="image.id" v-bind:data-image-id="image.id" v-bind:class="{ 'is-cover': image.isCover }">

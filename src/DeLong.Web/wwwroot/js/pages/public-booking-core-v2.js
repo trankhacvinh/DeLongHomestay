@@ -277,8 +277,8 @@
         card.querySelector('[data-browse-preview]').addEventListener('click', () => libraryInput.click());
         const selectFile = input => {
             const file = input.files?.[0] || null;
-            if (file && file.size > 8 * 1024 * 1024) {
-                window.alert('Mỗi ảnh CCCD tối đa 8 MB.');
+            if (file && file.size > 25 * 1024 * 1024) {
+                window.alert('Mỗi ảnh CCCD tối đa 25 MB.');
                 input.value = '';
                 return;
             }

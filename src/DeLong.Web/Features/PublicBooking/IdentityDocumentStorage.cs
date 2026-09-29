@@ -18,7 +18,9 @@ public sealed record IdentityDocumentReadResult(
 
 public sealed class IdentityDocumentStorage
 {
-    private const long MaxBytes = 8L * 1024 * 1024;
+    private const long MaxBytes = 25L * 1024 * 1024;
+    private const long MaxPixels = 80_000_000;
+    private const int MaxStoredDimension = 3000;
     private const int NonceSize = 12;
     private const int TagSize = 16;
     private const int MasterKeyBytes = 32;
@@ -61,7 +63,7 @@ public sealed class IdentityDocumentStorage
         var normalizedSide = NormalizeSide(side);
         if (normalizedSide is null) return (null, "Mặt giấy tờ không hợp lệ.");
         if (file.Length <= 0) return (null, "Ảnh CCCD trống.");
-        if (file.Length > MaxBytes) return (null, "Mỗi ảnh CCCD tối đa 8 MB.");
+        if (file.Length > MaxBytes) return (null, "Mỗi ảnh CCCD tối đa 25 MB.");
 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         var contentType = file.ContentType?.Trim().ToLowerInvariant() ?? string.Empty;
@@ -70,11 +72,13 @@ public sealed class IdentityDocumentStorage
 
         await using var memory = new MemoryStream((int)Math.Min(file.Length, int.MaxValue));
         await file.CopyToAsync(memory, cancellationToken);
-        var imageBytes = memory.ToArray();
-        if (!IsValidImage(imageBytes)) return (null, "File tải lên không phải ảnh hợp lệ.");
+        var optimized = OptimizeImage(memory.ToArray());
+        if (optimized is null) return (null, "File tải lên không phải ảnh hợp lệ.");
+        var imageBytes = optimized;
 
-        var originalFileName = SafeFileName(file.FileName, extension);
-        var plaintext = BuildPlaintext(contentType, originalFileName, imageBytes);
+        const string optimizedContentType = "image/webp";
+        var originalFileName = SafeFileName(file.FileName, ".webp");
+        var plaintext = BuildPlaintext(optimizedContentType, originalFileName, imageBytes);
         var nonce = RandomNumberGenerator.GetBytes(NonceSize);
         var ciphertext = new byte[plaintext.Length];
         var tag = new byte[TagSize];
@@ -105,7 +109,7 @@ public sealed class IdentityDocumentStorage
             CryptographicOperations.ZeroMemory(ciphertext);
         }
 
-        return (new IdentityDocumentInfo(normalizedSide, contentType, originalFileName, imageBytes.LongLength), null);
+        return (new IdentityDocumentInfo(normalizedSide, optimizedContentType, originalFileName, imageBytes.LongLength), null);
     }
 
     public async Task<IdentityDocumentReadResult?> ReadAsync(
@@ -302,11 +306,61 @@ public sealed class IdentityDocumentStorage
         return new IdentityDocumentReadResult(bytes, contentType, fileName);
     }
 
-    private static bool IsValidImage(byte[] bytes)
+    private static byte[]? OptimizeImage(byte[] bytes)
     {
         using var data = SKData.CreateCopy(bytes);
         using var codec = SKCodec.Create(data);
-        return codec is not null && codec.Info.Width > 0 && codec.Info.Height > 0;
+        if (codec is null || codec.Info.Width <= 0 || codec.Info.Height <= 0) return null;
+        if ((long)codec.Info.Width * codec.Info.Height > MaxPixels) return null;
+        using var decoded = SKBitmap.Decode(codec);
+        if (decoded is null) return null;
+        using var normalized = NormalizeOrientation(decoded, codec.EncodedOrigin);
+        using var resized = ResizeMax(normalized, MaxStoredDimension);
+        using var image = SKImage.FromBitmap(resized);
+        using var encoded = image.Encode(SKEncodedImageFormat.Webp, 90);
+        return encoded?.ToArray();
+    }
+
+    private static SKBitmap ResizeMax(SKBitmap source, int maxSize)
+    {
+        if (source.Width <= maxSize && source.Height <= maxSize) return source.Copy();
+        var scale = Math.Min((float)maxSize / source.Width, (float)maxSize / source.Height);
+        var width = Math.Max(1, (int)Math.Round(source.Width * scale));
+        var height = Math.Max(1, (int)Math.Round(source.Height * scale));
+        var target = new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul));
+        using var canvas = new SKCanvas(target);
+        canvas.Clear(SKColors.White);
+        canvas.DrawBitmap(source, SKRect.Create(0, 0, width, height), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+        canvas.Flush();
+        return target;
+    }
+
+    private static SKBitmap NormalizeOrientation(SKBitmap source, SKEncodedOrigin origin)
+    {
+        if (origin is SKEncodedOrigin.Default or SKEncodedOrigin.TopLeft) return source.Copy();
+        var swap = origin is SKEncodedOrigin.LeftTop or SKEncodedOrigin.RightTop or SKEncodedOrigin.RightBottom or SKEncodedOrigin.LeftBottom;
+        var target = new SKBitmap(new SKImageInfo(swap ? source.Height : source.Width, swap ? source.Width : source.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+        using var canvas = new SKCanvas(target);
+        switch (origin)
+        {
+            case SKEncodedOrigin.TopRight:
+                canvas.Translate(target.Width, 0); canvas.Scale(-1, 1); break;
+            case SKEncodedOrigin.BottomRight:
+                canvas.Translate(target.Width, target.Height); canvas.RotateDegrees(180); break;
+            case SKEncodedOrigin.BottomLeft:
+                canvas.Translate(0, target.Height); canvas.Scale(1, -1); break;
+            case SKEncodedOrigin.LeftTop:
+                canvas.RotateDegrees(90); canvas.Scale(1, -1); break;
+            case SKEncodedOrigin.RightTop:
+                canvas.Translate(target.Width, 0); canvas.RotateDegrees(90); break;
+            case SKEncodedOrigin.RightBottom:
+                canvas.Translate(target.Width, target.Height); canvas.RotateDegrees(90); canvas.Scale(-1, 1); break;
+            case SKEncodedOrigin.LeftBottom:
+                canvas.Translate(0, target.Height); canvas.RotateDegrees(-90); break;
+        }
+        canvas.DrawBitmap(source, 0, 0, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None), null);
+        canvas.Flush();
+        return target;
     }
 
     private static string SafeFileName(string? value, string extension)

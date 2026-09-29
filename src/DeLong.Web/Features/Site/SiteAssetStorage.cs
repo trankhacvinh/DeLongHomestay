@@ -14,7 +14,8 @@ public interface ISiteAssetStorage
 
 public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorage
 {
-    private const long MaxBytes = 12L * 1024 * 1024;
+    private const long MaxBytes = 25L * 1024 * 1024;
+    private const long MaxPixels = 80_000_000;
     private static readonly HashSet<string> AllowedTypes = new(StringComparer.OrdinalIgnoreCase)
         { "image/jpeg", "image/png", "image/webp" };
 
@@ -25,7 +26,7 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         CancellationToken ct = default)
     {
         if (file.Length <= 0) return (null, "File ảnh trống.");
-        if (file.Length > MaxBytes) return (null, "Mỗi ảnh tối đa 12 MB.");
+        if (file.Length > MaxBytes) return (null, "Mỗi ảnh tối đa 25 MB.");
         if (!AllowedTypes.Contains(file.ContentType)) return (null, "Chỉ hỗ trợ JPG, PNG hoặc WebP.");
         if (kind is not ("cover" or "logo" or "favicon" or "og" or "section")) return (null, "Loại ảnh website không hợp lệ.");
 
@@ -34,8 +35,10 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         using var data = SKData.CreateCopy(memory.ToArray());
         using var codec = SKCodec.Create(data);
         if (codec is null) return (null, "File tải lên không phải ảnh hợp lệ.");
+        if ((long)codec.Info.Width * codec.Info.Height > MaxPixels) return (null, "Ảnh vượt quá 80 megapixel.");
         using var decoded = SKBitmap.Decode(codec);
         if (decoded is null || decoded.Width <= 0 || decoded.Height <= 0) return (null, "File tải lên không phải ảnh hợp lệ.");
+        using var source = NormalizeOrientation(decoded, codec.EncodedOrigin);
 
         var safeProperty = SafeProperty(propertyCode);
         var publicRoot = Path.Combine(paths.SitePublicRoot, safeProperty);
@@ -50,31 +53,31 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         {
             case "cover":
                 fileName = $"cover-{uniqueSuffix}.webp";
-                output = ResizeCrop(decoded, 1600, 1000);
+                output = ResizeCrop(source, 1600, 1000);
                 format = SKEncodedImageFormat.Webp;
                 quality = 86;
                 break;
             case "favicon":
                 fileName = $"favicon-64-{uniqueSuffix}.png";
-                output = ResizeContain(decoded, 64, 64);
+                output = ResizeContain(source, 64, 64);
                 format = SKEncodedImageFormat.Png;
                 quality = 100;
                 break;
             case "og":
                 fileName = $"og-{uniqueSuffix}.webp";
-                output = ResizeCrop(decoded, 1200, 630);
+                output = ResizeCrop(source, 1200, 630);
                 format = SKEncodedImageFormat.Webp;
                 quality = 84;
                 break;
             case "logo":
                 fileName = $"logo-{uniqueSuffix}.webp";
-                output = ResizeMax(decoded, 900);
+                output = ResizeMax(source, 900);
                 format = SKEncodedImageFormat.Webp;
                 quality = 86;
                 break;
             default:
                 fileName = $"section-{Guid.NewGuid():N}.webp";
-                output = ResizeMax(decoded, 1800);
+                output = ResizeMax(source, 1800);
                 format = SKEncodedImageFormat.Webp;
                 quality = 84;
                 break;
@@ -138,7 +141,7 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         var scale = Math.Min((float)width / source.Width, (float)height / source.Height);
         var w = source.Width * scale;
         var h = source.Height * scale;
-        canvas.DrawBitmap(source, SKRect.Create((width - w) / 2, (height - h) / 2, w, h), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
+        canvas.DrawBitmap(source, SKRect.Create((width - w) / 2, (height - h) / 2, w, h), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None), null);
         canvas.Flush();
         return target;
     }
@@ -150,7 +153,7 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         var scale = Math.Max((float)width / source.Width, (float)height / source.Height);
         var w = source.Width * scale;
         var h = source.Height * scale;
-        canvas.DrawBitmap(source, SKRect.Create((width - w) / 2, (height - h) / 2, w, h), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
+        canvas.DrawBitmap(source, SKRect.Create((width - w) / 2, (height - h) / 2, w, h), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None), null);
         canvas.Flush();
         return target;
     }
@@ -160,7 +163,36 @@ public sealed class LocalSiteAssetStorage(StoragePaths paths) : ISiteAssetStorag
         var target = new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul));
         using var canvas = new SKCanvas(target);
         canvas.Clear(SKColors.Transparent);
-        canvas.DrawBitmap(source, SKRect.Create(0, 0, width, height), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
+        canvas.DrawBitmap(source, SKRect.Create(0, 0, width, height), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None), null);
+        canvas.Flush();
+        return target;
+    }
+
+    private static SKBitmap NormalizeOrientation(SKBitmap source, SKEncodedOrigin origin)
+    {
+        if (origin is SKEncodedOrigin.Default or SKEncodedOrigin.TopLeft) return source.Copy();
+
+        var swap = origin is SKEncodedOrigin.LeftTop or SKEncodedOrigin.RightTop or SKEncodedOrigin.RightBottom or SKEncodedOrigin.LeftBottom;
+        var target = new SKBitmap(new SKImageInfo(swap ? source.Height : source.Width, swap ? source.Width : source.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+        using var canvas = new SKCanvas(target);
+        switch (origin)
+        {
+            case SKEncodedOrigin.TopRight:
+                canvas.Translate(target.Width, 0); canvas.Scale(-1, 1); break;
+            case SKEncodedOrigin.BottomRight:
+                canvas.Translate(target.Width, target.Height); canvas.RotateDegrees(180); break;
+            case SKEncodedOrigin.BottomLeft:
+                canvas.Translate(0, target.Height); canvas.Scale(1, -1); break;
+            case SKEncodedOrigin.LeftTop:
+                canvas.RotateDegrees(90); canvas.Scale(1, -1); break;
+            case SKEncodedOrigin.RightTop:
+                canvas.Translate(target.Width, 0); canvas.RotateDegrees(90); break;
+            case SKEncodedOrigin.RightBottom:
+                canvas.Translate(target.Width, target.Height); canvas.RotateDegrees(90); canvas.Scale(-1, 1); break;
+            case SKEncodedOrigin.LeftBottom:
+                canvas.Translate(0, target.Height); canvas.RotateDegrees(-90); break;
+        }
+        canvas.DrawBitmap(source, 0, 0, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None), null);
         canvas.Flush();
         return target;
     }
