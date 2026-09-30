@@ -38,16 +38,6 @@ public sealed class LocalRoomImageStorage(StoragePaths paths, IWebHostEnvironmen
         if (!AllowedExtensions.Contains(extension) || !AllowedContentTypes.Contains(file.ContentType))
             return (null, "Chỉ hỗ trợ JPG, PNG hoặc WebP.");
 
-        await using var memory = new MemoryStream((int)Math.Min(file.Length, int.MaxValue));
-        await file.CopyToAsync(memory, cancellationToken);
-        var bytes = memory.ToArray();
-
-        var decodedResult = DecodeNormalized(bytes);
-        if (decodedResult.Bitmap is null) return (null, decodedResult.Error);
-        using var source = decodedResult.Bitmap;
-        var width = source.Width;
-        var height = source.Height;
-
         var roomSegment = roomId.ToString("N");
         var imageSegment = imageId.ToString("N");
         var originalRoot = Path.Combine(paths.OriginalRoomImagesRoot, roomSegment, imageSegment);
@@ -57,25 +47,49 @@ public sealed class LocalRoomImageStorage(StoragePaths paths, IWebHostEnvironmen
 
         var originalName = $"original{extension}";
         var originalPath = Path.Combine(originalRoot, originalName);
-        await File.WriteAllBytesAsync(originalPath, bytes, cancellationToken);
+        var completed = false;
+        try
+        {
+            await using (var original = new FileStream(
+                             originalPath,
+                             FileMode.CreateNew,
+                             FileAccess.Write,
+                             FileShare.None,
+                             1024 * 1024,
+                             FileOptions.Asynchronous | FileOptions.SequentialScan))
+                await file.CopyToAsync(original, cancellationToken);
 
-        SaveWebp(ResizeMax(source, 1600), Path.Combine(publicRoot, "large.webp"), 82);
-        SaveWebp(ResizeCrop(source, 900, 675, 0.5, 0.5), Path.Combine(publicRoot, "card.webp"), 82);
-        SaveWebp(ResizeCrop(source, 480, 360, 0.5, 0.5), Path.Combine(publicRoot, "thumb.webp"), 80);
+            var decodedResult = DecodeNormalized(originalPath);
+            if (decodedResult.Bitmap is null) return (null, decodedResult.Error);
+            using var source = decodedResult.Bitmap;
 
-        var requestRoot = paths.MediaRequestPath.Value?.TrimEnd('/') ?? "/uploads/rooms";
-        var urlRoot = $"{requestRoot}/{roomSegment}/{imageSegment}";
-        var storagePath = $"{StoragePrefix}room-images/{roomSegment}/{imageSegment}/{originalName}";
-        return (new StoredRoomImage(
-            storagePath,
-            $"{urlRoot}/large.webp",
-            $"{urlRoot}/card.webp",
-            $"{urlRoot}/thumb.webp",
-            width,
-            height,
-            file.Length,
-            file.ContentType,
-            Path.GetFileName(file.FileName)), null);
+            SaveWebp(ResizeMax(source, 1600), Path.Combine(publicRoot, "large.webp"), 82);
+            SaveWebp(ResizeCrop(source, 900, 675, 0.5, 0.5), Path.Combine(publicRoot, "card.webp"), 82);
+            SaveWebp(ResizeCrop(source, 480, 360, 0.5, 0.5), Path.Combine(publicRoot, "thumb.webp"), 80);
+
+            var requestRoot = paths.MediaRequestPath.Value?.TrimEnd('/') ?? "/uploads/rooms";
+            var urlRoot = $"{requestRoot}/{roomSegment}/{imageSegment}";
+            var storagePath = $"{StoragePrefix}room-images/{roomSegment}/{imageSegment}/{originalName}";
+            completed = true;
+            return (new StoredRoomImage(
+                storagePath,
+                $"{urlRoot}/large.webp",
+                $"{urlRoot}/card.webp",
+                $"{urlRoot}/thumb.webp",
+                source.Width,
+                source.Height,
+                file.Length,
+                file.ContentType,
+                Path.GetFileName(file.FileName)), null);
+        }
+        finally
+        {
+            if (!completed)
+            {
+                if (Directory.Exists(originalRoot)) Directory.Delete(originalRoot, true);
+                if (Directory.Exists(publicRoot)) Directory.Delete(publicRoot, true);
+            }
+        }
     }
 
     public async Task<string?> RegenerateCropsAsync(StoredRoomImage image, double focalX, double focalY, CancellationToken cancellationToken = default)
@@ -84,8 +98,8 @@ public sealed class LocalRoomImageStorage(StoragePaths paths, IWebHostEnvironmen
         var originalPath = ResolveOriginalPath(image.OriginalStoragePath);
         if (!File.Exists(originalPath)) return "Không tìm thấy ảnh gốc để tạo lại thumbnail.";
 
-        var bytes = await File.ReadAllBytesAsync(originalPath, cancellationToken);
-        var decodedResult = DecodeNormalized(bytes);
+        cancellationToken.ThrowIfCancellationRequested();
+        var decodedResult = DecodeNormalized(originalPath);
         if (decodedResult.Bitmap is null) return decodedResult.Error;
         using var source = decodedResult.Bitmap;
 
@@ -139,10 +153,11 @@ public sealed class LocalRoomImageStorage(StoragePaths paths, IWebHostEnvironmen
         return Path.GetDirectoryName(legacyPath);
     }
 
-    private static (SKBitmap? Bitmap, string? Error) DecodeNormalized(byte[] bytes)
+    private static (SKBitmap? Bitmap, string? Error) DecodeNormalized(string path)
     {
-        using var data = SKData.CreateCopy(bytes);
-        using var codec = SKCodec.Create(data);
+        using var stream = new SKFileStream(path);
+        if (!stream.IsValid) return (null, "Không thể đọc file ảnh đã tải lên.");
+        using var codec = SKCodec.Create(stream);
         if (codec is null) return (null, "File tải lên không phải ảnh hợp lệ.");
         if ((long)codec.Info.Width * codec.Info.Height > ImageUploadPolicy.MaxPixels) return (null, "Ảnh vượt quá 80 megapixel.");
         using var decoded = SKBitmap.Decode(codec);

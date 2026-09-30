@@ -39,8 +39,14 @@
         if (!response.ok) {
             const objectPayload = payload && typeof payload === 'object' ? payload : null;
             const validationMessage = firstValidationMessage(objectPayload);
+            const textPayload = typeof payload === 'string' ? payload.trim() : '';
+            const safeTextPayload = textPayload && !/^\s*</.test(textPayload) && textPayload.length <= 1000
+                ? textPayload
+                : null;
             const message = objectPayload?.detail || validationMessage || objectPayload?.message || objectPayload?.title ||
-                (typeof payload === 'string' && payload.trim() ? payload : `HTTP ${response.status}`);
+                safeTextPayload || (response.status >= 500
+                    ? `Máy chủ không thể xử lý yêu cầu (HTTP ${response.status}). Vui lòng thử lại hoặc kiểm tra log máy chủ.`
+                    : `HTTP ${response.status}`);
             const error = new Error(message);
             error.status = response.status;
             error.problem = objectPayload;

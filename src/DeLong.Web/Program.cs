@@ -29,10 +29,12 @@ using DeLong.Web.Features.PublicAi;
 using DeLong.Web.Features.Setup;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.StaticFiles;
@@ -450,6 +452,26 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 
 if (!app.Environment.IsDevelopment())
 {
+    app.UseWhen(
+        context => context.Request.Path.StartsWithSegments("/api"),
+        branch => branch.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+        {
+            var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+            var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("ApiExceptionHandler");
+            logger.LogError(exception, "Unhandled API error for {Method} {Path}; trace={TraceId}",
+                context.Request.Method,
+                context.Request.Path,
+                context.TraceIdentifier);
+
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "application/problem+json";
+            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Không thể xử lý yêu cầu",
+                Detail = $"Máy chủ gặp lỗi khi xử lý dữ liệu. Mã truy vết: {context.TraceIdentifier}"
+            });
+        })));
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
