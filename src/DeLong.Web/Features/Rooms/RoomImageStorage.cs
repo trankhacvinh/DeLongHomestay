@@ -185,11 +185,13 @@ public sealed class LocalRoomImageStorage(StoragePaths paths, IWebHostEnvironmen
             : Math.Min((float)width / source.Width, (float)height / source.Height);
         var drawWidth = source.Width * scale;
         var drawHeight = source.Height * scale;
+        var minimumLeft = Math.Min(width - drawWidth, 0f);
+        var minimumTop = Math.Min(height - drawHeight, 0f);
         var left = crop
-            ? Math.Clamp((float)(width / 2d - focalX * drawWidth), width - drawWidth, 0f)
+            ? Math.Clamp((float)(width / 2d - focalX * drawWidth), minimumLeft, 0f)
             : (width - drawWidth) / 2f;
         var top = crop
-            ? Math.Clamp((float)(height / 2d - focalY * drawHeight), height - drawHeight, 0f)
+            ? Math.Clamp((float)(height / 2d - focalY * drawHeight), minimumTop, 0f)
             : (height - drawHeight) / 2f;
         var destination = SKRect.Create(left, top, drawWidth, drawHeight);
         canvas.DrawBitmap(source, destination, Sampling, null);

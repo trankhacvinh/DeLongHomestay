@@ -11,6 +11,45 @@ namespace DeLong.Tests;
 public sealed class RoomImageStorageTests
 {
     [Fact]
+    public async Task Upload_portrait_phone_photo_does_not_fail_from_crop_rounding()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "delong-room-image-tests", Guid.NewGuid().ToString("N"));
+        var webRoot = Path.Combine(root, "wwwroot");
+        var dataRoot = Path.Combine(root, "data");
+        var mediaRoot = Path.Combine(root, "media", "rooms");
+        Directory.CreateDirectory(webRoot);
+        try
+        {
+            var environment = new FakeWebHostEnvironment(root, webRoot);
+            var paths = new StoragePaths(dataRoot, mediaRoot, new PathString("/uploads/rooms"), true, true, true);
+            paths.EnsureDirectories();
+            var storage = new LocalRoomImageStorage(paths, environment);
+            var jpeg = CreateJpeg(1086, 1448);
+            var formFile = new FormFile(new MemoryStream(jpeg), 0, jpeg.Length, "file", "portrait.jpg")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "image/jpeg"
+            };
+            var roomId = Guid.NewGuid();
+            var imageId = Guid.NewGuid();
+
+            var (stored, error) = await storage.SaveAsync(roomId, imageId, formFile);
+
+            Assert.Null(error);
+            Assert.NotNull(stored);
+            Assert.Equal(1086, stored!.Width);
+            Assert.Equal(1448, stored.Height);
+            var imageFolder = Path.Combine(roomId.ToString("N"), imageId.ToString("N"));
+            AssertVariantDimensions(Path.Combine(mediaRoot, imageFolder, "card.webp"), 900, 675);
+            AssertVariantDimensions(Path.Combine(mediaRoot, imageFolder, "thumb.webp"), 480, 360);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public async Task Upload_accepts_phone_photo_larger_than_legacy_25_megabyte_limit()
     {
         var root = Path.Combine(Path.GetTempPath(), "delong-room-image-tests", Guid.NewGuid().ToString("N"));
