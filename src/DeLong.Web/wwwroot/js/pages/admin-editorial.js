@@ -159,16 +159,29 @@
                         toolbar: {
                             container: [
                                 [{ header: [2, 3, false] }],
+                            [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
+                            [{ color: [] }, { background: [] }],
                                 ['bold', 'italic', 'blockquote'],
                                 [{ list: 'ordered' }, { list: 'bullet' }],
-                                ['link', 'image'],
+                                ['link', 'image', 'video'],
                                 ['clean']
                             ],
                             handlers: {
+                                link: enabled => DeLongRichTextTools.insertLink(postQuill, enabled),
+                                video: () => DeLongRichTextTools.insertVideo(postQuill),
                                 image: () => this.$refs.postBodyImageInput?.click()
                             }
                         }
                     }
+                });
+                DeLongRichTextTools.addYouTubeButton(postQuill);
+                postQuill.clipboard.addMatcher(Node.ELEMENT_NODE, (node, delta) => {
+                    delta.ops.forEach(op => {
+                        if (!op.attributes) return;
+                        if (/^(#fff(?:fff)?|white|rgb\(255,\s*255,\s*255\))$/i.test(String(op.attributes.color || ''))) delete op.attributes.color;
+                        if (/^(#fff(?:fff)?|white|rgb\(255,\s*255,\s*255\))$/i.test(String(op.attributes.background || ''))) delete op.attributes.background;
+                    });
+                    return delta;
                 });
                 if (this.postForm.bodyHtml) {
                     postQuill.clipboard.dangerouslyPasteHTML(this.postForm.bodyHtml, 'silent');

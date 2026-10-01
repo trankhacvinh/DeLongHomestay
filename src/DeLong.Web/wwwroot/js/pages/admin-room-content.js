@@ -69,17 +69,29 @@
                         toolbar: {
                             container: [
                                 [{ header: [2, 3, false] }],
+                            [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
+                            [{ color: [] }, { background: [] }],
                                 ['bold', 'italic', 'blockquote'],
                                 [{ list: 'ordered' }, { list: 'bullet' }],
                                 ['link', 'image', 'video'],
                                 ['clean']
                             ],
                             handlers: {
+                                link: enabled => DeLongRichTextTools.insertLink(quill, enabled),
                                 image: () => this.openMediaPicker(),
                                 video: () => this.insertYouTubeVideo()
                             }
                         }
                     }
+                });
+                DeLongRichTextTools.addYouTubeButton(quill);
+                quill.clipboard.addMatcher(Node.ELEMENT_NODE, (node, delta) => {
+                    delta.ops.forEach(op => {
+                        if (!op.attributes) return;
+                        if (/^(#fff(?:fff)?|white|rgb\(255,\s*255,\s*255\))$/i.test(String(op.attributes.color || ''))) delete op.attributes.color;
+                        if (/^(#fff(?:fff)?|white|rgb\(255,\s*255,\s*255\))$/i.test(String(op.attributes.background || ''))) delete op.attributes.background;
+                    });
+                    return delta;
                 });
                 if (this.form.descriptionHtml) {
                     quill.clipboard.dangerouslyPasteHTML(this.form.descriptionHtml, 'silent');
@@ -98,12 +110,23 @@
                     modules: {
                         toolbar: [
                             [{ header: [2, 3, false] }],
+                            [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
+                            [{ color: [] }, { background: [] }],
                             ['bold', 'italic', 'blockquote'],
                             [{ list: 'ordered' }, { list: 'bullet' }],
                             ['link'],
                             ['clean']
                         ]
                     }
+                });
+                DeLongRichTextTools.addYouTubeButton(guestGuideQuill);
+                guestGuideQuill.clipboard.addMatcher(Node.ELEMENT_NODE, (node, delta) => {
+                    delta.ops.forEach(op => {
+                        if (!op.attributes) return;
+                        if (/^(#fff(?:fff)?|white|rgb\(255,\s*255,\s*255\))$/i.test(String(op.attributes.color || ''))) delete op.attributes.color;
+                        if (/^(#fff(?:fff)?|white|rgb\(255,\s*255,\s*255\))$/i.test(String(op.attributes.background || ''))) delete op.attributes.background;
+                    });
+                    return delta;
                 });
                 if (this.form.guestGuideHtml) guestGuideQuill.clipboard.dangerouslyPasteHTML(this.form.guestGuideHtml, 'silent');
                 guestGuideQuill.on('text-change', () => {
@@ -153,7 +176,7 @@
                 if (!quill) return;
                 const raw = window.prompt('Dán URL YouTube (youtube.com hoặc youtu.be)');
                 if (!raw) return;
-                const embedUrl = this.toYouTubeEmbed(raw.trim());
+                const embedUrl = DeLongRichTextTools.youtubeUrl(raw.trim());
                 if (!embedUrl) return this.notify('URL YouTube không hợp lệ.', 'error');
                 const selection = quill.getSelection(true);
                 const index = selection ? selection.index : quill.getLength();

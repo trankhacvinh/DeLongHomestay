@@ -44,7 +44,9 @@ public sealed class PublicAvailabilityCalendarSourceContractTests
         Assert.Contains("selectSlot(day, slot, button)", source, StringComparison.Ordinal);
         Assert.Contains("trigger?.classList.toggle('is-selected', selected)", source, StringComparison.Ordinal);
         Assert.Contains("public-v2-selected-schedule", source, StringComparison.Ordinal);
-        Assert.Contains("<b>Nhận ${timeLabel(slot.bookableStartUtc)}</b><b>Trả ${timeLabel(slot.bookableEndUtc)}</b>", source, StringComparison.Ordinal);
+        Assert.Contains("if (isFirstSelected) selectedLabels.push", source, StringComparison.Ordinal);
+        Assert.Contains("if (isLastSelected) selectedLabels.push", source, StringComparison.Ordinal);
+        Assert.Contains("selectedLabels.push('Ở tiếp')", source, StringComparison.Ordinal);
         Assert.Contains("existing >= 0 && existing === state.selected.length - 1", source, StringComparison.Ordinal);
         Assert.Contains("button.setAttribute('aria-pressed', String(selected))", source, StringComparison.Ordinal);
         Assert.Contains(".public-v2-selection{position:fixed", styles, StringComparison.Ordinal);

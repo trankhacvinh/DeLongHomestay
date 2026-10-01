@@ -71,7 +71,10 @@
     global.DeLongApi = {
         get: (url) => request(url),
         post: (url, data, headers) => request(url, { method: 'POST', headers: headers || {}, body: JSON.stringify(data) }),
-        postForm: (url, formData, headers) => request(url, { method: 'POST', headers: headers || {}, body: formData }),
+        postForm: async (url, formData, headers) => request(url, {
+            method: 'POST', headers: headers || {},
+            body: await global.DeLongImageUpload.prepareForm(url, formData)
+        }),
         put: (url, data) => request(url, { method: 'PUT', body: JSON.stringify(data) }),
         patch: (url, data) => request(url, { method: 'PATCH', body: JSON.stringify(data) }),
         delete: (url) => request(url, { method: 'DELETE' }),

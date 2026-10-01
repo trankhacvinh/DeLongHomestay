@@ -1,3 +1,4 @@
+using DeLong.Web.Common.Security;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -354,9 +355,7 @@ public sealed class PropertyEditorialContentService(AppDbContext db, IFusionCach
         var rawBody = request.BodyHtml?.Trim() ?? string.Empty;
         if (rawBody.Length > 120_000)
             return (null, null, null, null, null, new("validation", "Nội dung bài viết quá dài."));
-        var sanitizer = new HtmlSanitizer();
-        sanitizer.AllowedAttributes.Add("class");
-        var body = sanitizer.Sanitize(rawBody);
+        var body = RichTextSanitizer.Sanitize(rawBody);
         var cover = Limit(Clean(request.CoverImageUrl), 1000);
         return (slug, title, excerpt, body, cover, null);
     }

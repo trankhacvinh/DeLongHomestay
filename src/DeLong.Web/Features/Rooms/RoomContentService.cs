@@ -405,11 +405,13 @@ public sealed class RoomContentService(AppDbContext db, IRoomImageStorage imageS
     {
         var sanitizer = new HtmlSanitizer();
         sanitizer.AllowedTags.Clear();
-        foreach (var tag in new[] { "p", "br", "strong", "b", "em", "i", "h2", "h3", "ul", "ol", "li", "a", "blockquote", "img", "iframe" })
+        foreach (var tag in new[] { "p", "span", "br", "strong", "b", "em", "i", "h2", "h3", "ul", "ol", "li", "a", "blockquote", "img", "iframe" })
             sanitizer.AllowedTags.Add(tag);
         sanitizer.AllowedAttributes.Clear();
-        foreach (var attribute in new[] { "href", "target", "rel", "src", "alt", "title", "class", "frameborder", "allowfullscreen", "loading", "referrerpolicy" })
+        foreach (var attribute in new[] { "style", "href", "target", "rel", "src", "alt", "title", "class", "frameborder", "allowfullscreen", "loading", "referrerpolicy" })
             sanitizer.AllowedAttributes.Add(attribute);
+        sanitizer.AllowedCssProperties.Clear();
+        foreach (var property in new[] { "color", "background-color" }) sanitizer.AllowedCssProperties.Add(property);
         sanitizer.AllowedSchemes.Clear();
         foreach (var scheme in new[] { "http", "https", "mailto" }) sanitizer.AllowedSchemes.Add(scheme);
         return sanitizer;

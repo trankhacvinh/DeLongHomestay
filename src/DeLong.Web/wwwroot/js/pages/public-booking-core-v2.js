@@ -480,9 +480,10 @@
     }
 
     async function uploadIdentity(bookingId, side, file, requestKey) {
-        const form = new FormData();
+        let form = new FormData();
         form.append('file', file, file.name || `${side}.jpg`);
         const query = siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : '';
+        form = await window.DeLongImageUpload.prepareForm(`/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`, form);
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const response = await fetch(`/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`, {
             method: 'POST',

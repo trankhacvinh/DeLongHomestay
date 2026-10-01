@@ -117,11 +117,11 @@
             url.searchParams.set('room', room.code);
             url.searchParams.set('rate', first.slot.rateId);
             url.searchParams.set('slots', state.selected.map(x => `${x.date}:${x.slot.rateId}`).join(','));
-            const window = selectedTimeWindow();
-            if (window) {
-                url.searchParams.set('effectiveCheckIn', window.startUtc);
-                url.searchParams.set('effectiveCheckOut', window.endUtc);
-                if (window.adjusted) url.searchParams.set('scheduleNote', 'Thời gian được điều chỉnh để dành 30 phút dọn phòng giữa hai lượt khách.');
+            const timeWindow = selectedTimeWindow();
+            if (timeWindow) {
+                url.searchParams.set('effectiveCheckIn', timeWindow.startUtc);
+                url.searchParams.set('effectiveCheckOut', timeWindow.endUtc);
+                if (timeWindow.adjusted) url.searchParams.set('scheduleNote', 'Thời gian được điều chỉnh để dành 30 phút dọn phòng giữa hai lượt khách.');
             }
             url.searchParams.set('embed', '1');
             return `${url.pathname}${url.search}`;
@@ -298,10 +298,19 @@
                     const adjustedTime = canBook && (slot.bookableStartUtc !== slot.startUtc || slot.bookableEndUtc !== slot.endUtc)
                         ? `Nhận ${timeLabel(slot.bookableStartUtc)} · Trả ${timeLabel(slot.bookableEndUtc)}`
                         : '';
-                    const selectedTime = selected && canBook ? `Nhận ${timeLabel(slot.bookableStartUtc)} · Trả ${timeLabel(slot.bookableEndUtc)}` : '';
+                    const selectedIndex = state.selected.findIndex(item => slotKey(item.date, item.slot) === slotKey(day.date, slot));
+                    const isFirstSelected = selectedIndex === 0;
+                    const isLastSelected = selectedIndex === state.selected.length - 1;
+                    const selectedLabels = [];
+                    if (selected && canBook) {
+                        if (isFirstSelected) selectedLabels.push(`Nhận ${timeLabel(slot.bookableStartUtc)}`);
+                        if (isLastSelected) selectedLabels.push(`Trả ${timeLabel(slot.bookableEndUtc)}`);
+                        if (!selectedLabels.length) selectedLabels.push('Ở tiếp');
+                    }
+                    const selectedTime = selectedLabels.join(' · ');
                     const stateText = selectedTime || (slot.state === 'available' ? (Number(day.bookingMode) === 1 ? 'Chọn cả ngày' : 'Còn trống') : slot.state === 'partial' && canBook ? adjustedTime : 'Đã có khách');
                     const selectedSchedule = selected && canBook
-                        ? `<span class="public-v2-selected-schedule"><b>Nhận ${timeLabel(slot.bookableStartUtc)}</b><b>Trả ${timeLabel(slot.bookableEndUtc)}</b></span>`
+                        ? `<span class="public-v2-selected-schedule">${selectedLabels.map(label => `<b>${label}</b>`).join('')}</span>`
                         : `<span>${stateText}</span><small>${money(slot.price)}</small>`;
                     button.innerHTML = selectedSchedule;
                     button.title = `${stateText} · ${money(slot.price)}`;

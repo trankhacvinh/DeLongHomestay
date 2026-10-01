@@ -1,3 +1,4 @@
+using DeLong.Web.Common.Security;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DeLong.Web.Common.Caching;
@@ -413,9 +414,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         }
         if (request.Type == "RichText" && json["html"] is JsonValue value && value.TryGetValue<string>(out var html))
         {
-            var sanitizer = new HtmlSanitizer();
-            sanitizer.AllowedAttributes.Add("class");
-            json["html"] = sanitizer.Sanitize(html);
+            json["html"] = RichTextSanitizer.Sanitize(html);
         }
         return (json.ToJsonString(JsonOptions), null);
     }

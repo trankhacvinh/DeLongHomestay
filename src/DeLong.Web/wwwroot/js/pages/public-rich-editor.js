@@ -10,7 +10,12 @@
     function cleanForVisual(markup) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(`<div>${markup || ''}</div>`, 'text/html');
-        doc.querySelectorAll('script,style,iframe,object,embed,link,meta,form').forEach(node => node.remove());
+        doc.querySelectorAll('script,style,object,embed,link,meta,form').forEach(node => node.remove());
+        doc.querySelectorAll('iframe').forEach(node => {
+            const url = DeLongRichTextTools.youtubeUrl(node.getAttribute('src'));
+            if (!url) node.remove();
+            else node.setAttribute('src', url);
+        });
         doc.querySelectorAll('*').forEach(node => {
             [...node.attributes].forEach(attr => {
                 const name = attr.name.toLowerCase();
@@ -233,8 +238,12 @@
             quillHost.innerHTML = '';
             const editor = document.createElement('div');
             quillHost.appendChild(editor);
-            const inlineTools = opts.allowImages === false ? ['link'] : ['link', 'image'];
-            const toolbarHandlers = opts.allowImages === false ? {} : { image: () => imageInput.click() };
+            const inlineTools = opts.allowImages === false ? ['link', 'video'] : ['link', 'image', 'video'];
+            const toolbarHandlers = {
+                link: enabled => DeLongRichTextTools.insertLink(quill, enabled),
+                video: () => DeLongRichTextTools.insertVideo(quill),
+                ...(opts.allowImages === false ? {} : { image: () => imageInput.click() })
+            };
             quill = new Quill(editor, {
                 theme: 'snow',
                 placeholder: opts.placeholder || 'Nhập nội dung…',
@@ -242,6 +251,8 @@
                     toolbar: {
                         container: [
                             [{ header: [2, 3, false] }],
+                            [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
+                            [{ color: [] }, { background: [] }],
                             ['bold', 'italic', 'blockquote'],
                             [{ list: 'ordered' }, { list: 'bullet' }],
                             inlineTools,
@@ -251,6 +262,15 @@
                     }
                 }
             });
+                DeLongRichTextTools.addYouTubeButton(quill);
+                quill.clipboard.addMatcher(Node.ELEMENT_NODE, (node, delta) => {
+                    delta.ops.forEach(op => {
+                        if (!op.attributes) return;
+                        if (/^(#fff(?:fff)?|white|rgb\(255,\s*255,\s*255\))$/i.test(String(op.attributes.color || ''))) delete op.attributes.color;
+                        if (/^(#fff(?:fff)?|white|rgb\(255,\s*255,\s*255\))$/i.test(String(op.attributes.background || ''))) delete op.attributes.background;
+                    });
+                    return delta;
+                });
             syncVisualFromSource();
             quill.on('text-change', () => {
                 if (mode === 'visual') syncSourceFromVisual();
