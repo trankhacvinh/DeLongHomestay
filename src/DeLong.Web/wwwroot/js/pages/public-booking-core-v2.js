@@ -266,7 +266,7 @@
             <button type="button" class="booking-id-remove" data-remove-id title="Bỏ ảnh" aria-label="Bỏ ${escapeHtml(label)}" hidden>×</button>
             <div class="booking-id-actions">
                 <button type="button" data-capture-id><span aria-hidden="true">⌾</span> Chụp ảnh</button>
-                <button type="button" data-browse-id><span aria-hidden="true">▧</span> Chọn từ thư viện</button>
+                <button type="button" data-browse-id><span aria-hidden="true">▧</span> Chọn ảnh</button>
             </div>
             <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" data-camera-input hidden />
             <input type="file" accept="image/jpeg,image/png,image/webp" data-library-input hidden />`;

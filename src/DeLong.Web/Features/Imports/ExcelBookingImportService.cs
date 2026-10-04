@@ -552,7 +552,7 @@ public sealed class ExcelBookingImportService(AppDbContext db, AuditService audi
         return builder.ToString();
     }
 
-    private static string CreateBookingCode() => $"BK-{DateTime.UtcNow:yyMMdd}-{Guid.NewGuid().ToString("N")[..10].ToUpperInvariant()}";
+    private static string CreateBookingCode() => DeLong.Web.Features.Bookings.BookingCodeGenerator.Create();
 
     private static string? BuildImportNote(ParsedBookingRow row)
     {

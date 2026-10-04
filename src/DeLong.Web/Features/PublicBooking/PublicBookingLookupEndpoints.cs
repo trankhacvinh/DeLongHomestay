@@ -8,6 +8,21 @@ public static class PublicBookingLookupEndpoints
 {
     public static IEndpointRouteBuilder MapPublicBookingLookupEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapPost("/api/public/booking-lookup/email", async (
+            [FromQuery] string? siteSlug,
+            PublicBookingEmailLookupRequest request,
+            PublicBookingEmailLookupService service,
+            CancellationToken ct) =>
+        {
+            if (!PublicBookingEmailLookupService.IsValidEmail(request.Email))
+                return Results.BadRequest(new { message = "Vui lòng nhập email hợp lệ." });
+            await service.QueueAsync(siteSlug, request.Email, ct);
+            return Results.Ok(new { message = PublicBookingEmailLookupService.ResponseMessage });
+        })
+        .AllowAnonymous()
+        .AddEndpointFilter<ApiAntiforgeryFilter>()
+        .RequireRateLimiting("public-lookup");
+
         app.MapPost("/api/public/booking-lookup", async (
             [FromQuery] string? siteSlug,
             PublicBookingLookupRequest request,

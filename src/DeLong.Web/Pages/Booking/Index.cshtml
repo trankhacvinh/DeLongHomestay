@@ -197,7 +197,6 @@ else
                     <div class="public-form-grid">
                         <label v-bind:class="{ invalid: fieldErrors.customerPhone }"><span>Số điện thoại *</span><input ref="customerPhone" data-booking-customer-phone v-model.trim="form.customerPhone" v-on:input="clearFieldError('customerPhone')" v-bind:aria-invalid="!!fieldErrors.customerPhone" maxlength="30" inputmode="tel" autocomplete="off" placeholder="09xx xxx xxx" /><small class="public-field-error" v-if="fieldErrors.customerPhone">{{ fieldErrors.customerPhone }}</small></label>
                         <label v-bind:class="{ invalid: fieldErrors.customerName }"><span>Họ và tên *</span><input ref="customerName" data-booking-customer-name v-model.trim="form.customerName" v-on:input="clearFieldError('customerName')" v-bind:aria-invalid="!!fieldErrors.customerName" maxlength="200" autocomplete="off" placeholder="Nguyễn Minh Anh" /><small class="public-field-error" v-if="fieldErrors.customerName">{{ fieldErrors.customerName }}</small></label>
-                        <label class="public-form-full"><span>Ghi chú</span><textarea v-model.trim="form.note" maxlength="1000" placeholder="Ví dụ: muốn nhận phòng trễ hơn 30 phút..."></textarea></label>
                         <label class="public-honeypot" aria-hidden="true"><span>Website</span><input v-model="form.website" tabindex="-1" autocomplete="off" /></label>
                     </div>
                     <section class="public-voucher-box" v-if="bookingType === 0">

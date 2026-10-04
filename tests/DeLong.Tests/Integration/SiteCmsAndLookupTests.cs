@@ -241,6 +241,20 @@ public sealed class SiteCmsAndLookupTests
         await db.SaveChangesAsync();
 
         var service = new PublicBookingLookupService(db);
+        customer.Email = $"lookup-{suffix}@example.test";
+        await db.SaveChangesAsync();
+        var emailLookup = new PublicBookingEmailLookupService(db, new PublicPropertyResolver(db));
+        await emailLookup.QueueAsync(null, $"unknown-{suffix}@example.test");
+        Assert.False(await db.BookingGuestGuideEmails.AnyAsync(x => x.BookingId == booking.Id));
+        await emailLookup.QueueAsync(null, customer.Email.ToUpperInvariant());
+        var emailResult = await db.BookingGuestGuideEmails.SingleAsync(x => x.BookingId == booking.Id);
+        Assert.Equal("BookingLookup", emailResult.TemplateKey);
+        Assert.Equal(customer.Email, emailResult.RecipientEmail);
+        Assert.Contains(booking.Code, emailResult.BodyText);
+        Assert.Contains("Nhận phòng: 14:00 20/08/2026", emailResult.BodyText);
+        Assert.Contains("Trả phòng: 17:00 20/08/2026", emailResult.BodyText);
+        await emailLookup.QueueAsync(null, customer.Email);
+        Assert.Equal(1, await db.BookingGuestGuideEmails.CountAsync(x => x.BookingId == booking.Id));
         var found = await service.LookupAsync(booking.Code.ToLowerInvariant(), "+84" + phone[1..]);
         Assert.NotNull(found);
         Assert.Equal("Đã xác nhận", found!.StatusLabel);

@@ -3,7 +3,7 @@
 @{
     ViewData["Title"] = "Tra cứu đặt phòng";
     ViewData["Robots"] = "noindex,follow";
-    ViewData["MetaDescription"] = "Tra cứu trạng thái đặt phòng bằng mã đặt phòng và số điện thoại đã dùng khi gửi yêu cầu.";
+    ViewData["MetaDescription"] = "Tra cứu đặt phòng bằng mã và số điện thoại, hoặc nhận thông tin qua email đã dùng đặt phòng.";
 }
 
 @section Head {
@@ -15,23 +15,34 @@
     <section class="lookup-hero public-container">
         <span class="public-eyebrow">Tra cứu đặt phòng</span>
         <h1>Kiểm tra lượt đặt của bạn</h1>
-        <p>Nhập mã đặt phòng và số điện thoại đã dùng khi gửi yêu cầu. Chúng tôi chỉ hiển thị thông tin khi cả hai dữ liệu khớp.</p>
+        <p>Chọn tra cứu bằng mã đặt phòng và số điện thoại, hoặc nhận thông tin qua email đã dùng đặt phòng.</p>
     </section>
 
     <section class="public-container lookup-shell">
         <form class="lookup-form" v-on:submit.prevent="lookup">
-            <label>
+            <fieldset class="lookup-modes">
+                <legend>Cách tra cứu</legend>
+                <label><input type="radio" value="code" v-model="mode" v-bind:disabled="loading" v-on:change="resetResult" /> Mã đặt phòng + SĐT</label>
+                <label><input type="radio" value="email" v-model="mode" v-bind:disabled="loading" v-on:change="resetResult" /> Nhận qua email</label>
+            </fieldset>
+            <label v-if="mode === 'code'">
                 <span>Mã đặt phòng</span>
-                <input v-model.trim="form.code" autocomplete="off" maxlength="50" placeholder="BK-260815-XXXXXXXXXX" required />
+                <input v-model.trim="form.code" autocomplete="off" maxlength="50" placeholder="Ví dụ: BK7M4P9X2A" required />
             </label>
-            <label>
+            <label v-if="mode === 'code'">
                 <span>Số điện thoại</span>
                 <input v-model.trim="form.phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="30" placeholder="09xx xxx xxx" required />
             </label>
+            <label class="lookup-email-field" v-if="mode === 'email'">
+                <span>Email đã dùng đặt phòng</span>
+                <input v-model.trim="email" type="email" autocomplete="email" maxlength="320" placeholder="ten@email.com" required />
+                <small>Thông tin được gửi về email, không hiển thị trên website.</small>
+            </label>
             <button class="public-btn public-btn-primary" type="submit" v-bind:disabled="loading || !canSubmit">
-                {{ loading ? 'Đang tra cứu…' : 'Tra cứu đặt phòng' }}
+                {{ loading ? 'Đang xử lý…' : (mode === 'email' ? 'Gửi thông tin về email' : 'Tra cứu đặt phòng') }}
             </button>
             <p class="lookup-error" v-if="error">{{ error }}</p>
+            <p class="lookup-message" v-if="message" role="status">{{ message }}</p>
         </form>
 
         <article class="lookup-result" v-if="result" aria-live="polite">

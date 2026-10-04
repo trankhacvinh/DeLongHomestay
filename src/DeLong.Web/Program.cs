@@ -389,6 +389,7 @@ builder.Services.AddScoped<CustomerAccountSettingsService>();
 builder.Services.AddScoped<CustomerAccountService>();
 builder.Services.AddScoped<PublicBookingService>();
 builder.Services.AddScoped<PublicBookingLookupService>();
+builder.Services.AddScoped<PublicBookingEmailLookupService>();
 builder.Services.AddScoped<PublicRoomContentService>();
 builder.Services.AddScoped<PublicRequestInboxService>();
 builder.Services.AddScoped<VoucherService>();

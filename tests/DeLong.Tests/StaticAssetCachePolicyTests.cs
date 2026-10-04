@@ -45,14 +45,16 @@ public sealed class StaticAssetCachePolicyTests
         Assert.Equal("public,max-age=2592000", context.Response.Headers.CacheControl.ToString());
     }
 
-    [Fact]
-    public void Production_uses_short_cache_for_unversioned_static_assets()
+    [Theory]
+    [InlineData("/js/pages/custom.js")]
+    [InlineData("/css/booking-core-v2.css")]
+    public void Production_revalidates_unversioned_scripts_and_styles(string path)
     {
         var context = new DefaultHttpContext();
-        context.Request.Path = "/js/pages/custom.js";
+        context.Request.Path = path;
 
         StaticAssetCachePolicy.Apply(context, isDevelopment: false);
 
-        Assert.Equal("public,max-age=3600", context.Response.Headers.CacheControl.ToString());
+        Assert.Equal("public,no-cache", context.Response.Headers.CacheControl.ToString());
     }
 }

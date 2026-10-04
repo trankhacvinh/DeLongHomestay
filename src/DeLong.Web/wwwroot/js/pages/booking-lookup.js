@@ -8,6 +8,9 @@
         data() {
             return {
                 form: { code: '', phone: '' },
+                mode: 'code',
+                email: '',
+                message: '',
                 loading: false,
                 result: null,
                 error: '',
@@ -16,10 +19,16 @@
         },
         computed: {
             canSubmit() {
+                if (this.mode === 'email') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email.trim());
                 return this.form.code.trim().length >= 8 && this.form.phone.trim().length >= 8;
             }
         },
         methods: {
+            resetResult() {
+                this.result = null;
+                this.message = '';
+                this.error = '';
+            },
             money(value) {
                 return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
             },
@@ -33,11 +42,20 @@
                 this.loading = true;
                 this.result = null;
                 this.error = '';
+                this.message = '';
+                const mode = this.mode;
                 try {
+                    if (mode === 'email') {
+                        const query = siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : '';
+                        const response = await DeLongApi.post(`/api/public/booking-lookup/email${query}`, { email: this.email });
+                        if (this.mode === mode) this.message = response.message;
+                        return;
+                    }
                     const endpoint = siteSlug
                         ? `/api/public/booking-lookup?siteSlug=${encodeURIComponent(siteSlug)}`
                         : '/api/public/booking-lookup';
-                    this.result = await DeLongApi.post(endpoint, this.form);
+                    const result = await DeLongApi.post(endpoint, this.form);
+                    if (this.mode === mode) this.result = result;
                 } catch (error) {
                     this.error = error.status === 429
                         ? 'Bạn đã tra cứu quá nhiều lần. Vui lòng thử lại sau ít phút.'

@@ -41,7 +41,8 @@ public sealed record PublicRoomCardDto(
     decimal? NightlyPrice,
     IReadOnlyList<string> Tags,
     IReadOnlyList<string> Amenities,
-    IReadOnlyList<PublicRoomRateDto> Rates);
+    IReadOnlyList<PublicRoomRateDto> Rates,
+    IReadOnlyList<string>? GalleryCardUrls = null);
 
 public sealed record PublicRoomDetailDto(
     Guid Id,

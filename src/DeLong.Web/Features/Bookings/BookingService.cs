@@ -78,7 +78,7 @@ public sealed class BookingService(
                 PricingRule = segment.PricingRule.Trim()
             });
         }
-        booking.Code = CreateBookingCode(booking.CreatedAtUtc);
+        booking.Code = BookingCodeGenerator.Create();
         db.Bookings.Add(booking);
         auditService.Add(propertyId, "Booking", booking.Id, "Created", actorUserId, after: Snapshot(booking));
         var saveError = await SaveWithConflictGuardAsync(cancellationToken, !string.IsNullOrWhiteSpace(request.PublicRequestKey)); if (saveError is not null) return (null, saveError);
@@ -272,7 +272,6 @@ public sealed class BookingService(
         return null;
     }
 
-    private static string CreateBookingCode(DateTime createdAtUtc) { var token = Guid.NewGuid().ToString("N")[..10].ToUpperInvariant(); return $"BK-{createdAtUtc:yyMMdd}-{token}"; }
     private static BookingOperationError ConflictError() => new("booking_conflict", "Phòng đã có booking trong khoảng thời gian này.");
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

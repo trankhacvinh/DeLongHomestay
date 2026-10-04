@@ -23,6 +23,9 @@ public static class StaticAssetCachePolicy
         var request = context.Request;
         headers.CacheControl = request.Query.ContainsKey("v")
             ? "public,max-age=31536000,immutable"
+            : request.Path.Value?.EndsWith(".js", StringComparison.OrdinalIgnoreCase) == true ||
+              request.Path.Value?.EndsWith(".css", StringComparison.OrdinalIgnoreCase) == true
+                ? "public,no-cache"
             : request.Path.StartsWithSegments("/uploads/rooms")
                 ? "public,max-age=2592000"
                 : "public,max-age=3600";

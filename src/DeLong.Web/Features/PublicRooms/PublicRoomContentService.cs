@@ -104,6 +104,8 @@ public sealed class PublicRoomContentService(AppDbContext db, IFusionCache? fusi
                 Tags = x.Tags.Where(t => t.RoomTag.IsActive).Select(t => t.RoomTag.Name).OrderBy(t => t).ToList(),
                 Cover = x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder)
                     .Select(i => new { i.CardPath, i.FocalX, i.FocalY }).FirstOrDefault(),
+                Gallery = x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder).ThenBy(i => i.Id)
+                    .Select(i => new { i.CardPath, i.FocalX, i.FocalY }).ToList(),
                 Rates = x.Rates.Where(r => r.IsActive && r.Price > 0).OrderBy(r => r.SortOrder)
                     .Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Type, r.Price }).ToList()
             })
@@ -130,7 +132,9 @@ public sealed class PublicRoomContentService(AppDbContext db, IFusionCache? fusi
                 prices.Nightly,
                 x.Tags,
                 x.Amenities,
-                rates);
+                rates,
+                x.Gallery.Select(i => MediaUrlVersioner.WithCropVersion(i.CardPath, i.FocalX, i.FocalY)!)
+                    .Where(url => !string.IsNullOrWhiteSpace(url)).Distinct().ToList());
         }).ToList();
 
         return new PublicRoomCatalogDto(result);

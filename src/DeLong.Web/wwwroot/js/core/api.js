@@ -85,7 +85,12 @@
     const localAssetNonce = localHostnames.has(window.location.hostname.toLowerCase()) ? Date.now().toString(36) : '';
 
     function assetUrl(value) {
-        if (!localAssetNonce) return value;
+        if (!localAssetNonce) {
+            // Lazy assets use fixed legacy version strings, not content hashes.
+            const url = new URL(value, window.location.origin);
+            url.searchParams.delete('v');
+            return `${url.pathname}${url.search}`;
+        }
         const separator = value.includes('?') ? '&' : '?';
         return `${value}${separator}dev=${localAssetNonce}`;
     }
