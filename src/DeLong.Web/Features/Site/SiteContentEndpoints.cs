@@ -189,6 +189,12 @@ public static class SiteContentEndpoints
             return Results.Ok(await PublicThemeStore.SaveAsync(db, request, ct));
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        global.MapPost("/reset-standard", async (SiteContentService service, CancellationToken ct) =>
+        {
+            var archived = await service.ResetGlobalHomeToStandardAsync(ct);
+            return Results.Ok(new { archived, theme = new PublicThemeDto(PublicThemeStore.StandardMode) });
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
         global.MapGet("/shell", async (
             AppDbContext db,
             SiteContentService service,

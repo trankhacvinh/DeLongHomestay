@@ -23,6 +23,31 @@
     string V(JsonObject content, string path, bool image = false) => Model.ThemeStandard ? string.Empty : CustomPageModel.VisualClass(content, path, image);
     // Standard theme renders every block in its default layout so the built-in design stays consistent.
     string Variant(string variant) => Model.ThemeStandard ? "standard" : variant;
+    // Standard theme renders FeatureGrid as the "ways to book" card band from the approved design.
+    // Items written as "Title — description" become a card title and its text.
+    string HowBand(JsonObject content, string fallbackEyebrow)
+    {
+        var enc = System.Text.Encodings.Web.HtmlEncoder.Default;
+        var html = new System.Text.StringBuilder();
+        html.Append("<section class=\"public-section public-how-band\"><div class=\"public-container\"><div class=\"public-section-head\"><div>");
+        html.Append("<span class=\"public-eyebrow\">").Append(enc.Encode(Text(content, "eyebrow", fallbackEyebrow))).Append("</span>");
+        html.Append("<h2>").Append(enc.Encode(Text(content, "title"))).Append("</h2></div>");
+        var body = Text(content, "body");
+        if (!string.IsNullOrWhiteSpace(body)) html.Append("<p class=\"public-how-lead\">").Append(enc.Encode(body)).Append("</p>");
+        html.Append("</div><div class=\"public-how-grid\">");
+        var index = 0;
+        foreach (var item in (content["items"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString()).Where(x => !string.IsNullOrWhiteSpace(x)).Take(8))
+        {
+            var parts = item!.Split(new[] { " — ", " – ", " - ", ": " }, 2, StringSplitOptions.TrimEntries);
+            index++;
+            html.Append("<article class=\"public-how-card\"><span class=\"public-how-index\">").Append(index.ToString("00")).Append("</span>");
+            html.Append("<h3>").Append(enc.Encode(parts[0])).Append("</h3>");
+            if (parts.Length > 1) html.Append("<p>").Append(enc.Encode(parts[1])).Append("</p>");
+            html.Append("</article>");
+        }
+        html.Append("</div></div></section>");
+        return html.ToString();
+    }
     string ScopedUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url)) return url;
@@ -163,6 +188,7 @@
             }
             case "FeatureGrid":
             {
+                if (Model.ThemeStandard) { <text>@Html.Raw(HowBand(block.Content, "DE LONG HOMESTAY"))</text> break; }
                 var items = block.Content["items"] as JsonArray;
                 var featureImage = Text(block.Content, "imageUrl");
                 if (string.IsNullOrWhiteSpace(featureImage)) featureImage = Model.GlobalCatalog.Properties.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? string.Empty;
@@ -249,6 +275,7 @@ else
                 }
                 case "FeatureGrid":
                 {
+                    if (Model.ThemeStandard) { <text>@Html.Raw(HowBand(block.Content, siteName))</text> break; }
                     var items = block.Content["items"] as JsonArray;
                     var featureImage = Text(block.Content, "imageUrl");
                     if (string.IsNullOrWhiteSpace(featureImage)) featureImage = Model.SiteSettings?.CoverImageUrl ?? Model.Catalog.Rooms.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? string.Empty;

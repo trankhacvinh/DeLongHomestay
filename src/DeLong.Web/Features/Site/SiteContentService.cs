@@ -529,6 +529,81 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         })
     ];
 
+    /// <summary>The approved redesign layout: hero, room calendar, rooms, branches, booking ways. Blog/gallery come from editorial content.</summary>
+    private static IReadOnlyList<HomeSection> StandardGlobalSections() =>
+    [
+        New(null, 0, "Hero", "Mở đầu", "standard", new
+        {
+            eyebrow = "DE LONG HOMESTAY",
+            title = "Một khoảng nghỉ riêng, vừa đủ.",
+            body = "Phòng theo chủ đề cho hai người. Đặt theo khung giờ, qua đêm hoặc theo ngày. Giá rõ ràng, nhân viên xác nhận từng đơn.",
+            primaryText = "Xem lịch phòng", primaryUrl = "/#lich-phong",
+            secondaryText = "Khám phá các phòng", secondaryUrl = "/rooms"
+        }),
+        New(null, 1, "AvailabilityCalendar", "Lịch phòng", "standard", new
+        {
+            eyebrow = "CHỌN KHUNG TRỐNG ĐỂ ĐẶT",
+            title = "Lịch phòng",
+            days = 7
+        }),
+        New(null, 2, "RoomGrid", "Các phòng", "standard", new
+        {
+            eyebrow = "PHÒNG",
+            title = "Mỗi phòng một tâm trạng",
+            mode = "all",
+            limit = 6,
+            propertyQuotas = new Dictionary<string, int>(),
+            roomIds = Array.Empty<Guid>()
+        }),
+        New(null, 3, "BranchGrid", "Các cơ sở", "standard", new
+        {
+            eyebrow = "CƠ SỞ",
+            title = "Các cơ sở",
+            propertyIds = Array.Empty<Guid>()
+        }),
+        New(null, 4, "FeatureGrid", "Cách đặt phòng", "standard", new
+        {
+            eyebrow = "CÁCH ĐẶT",
+            title = "Đặt thẳng với De Long",
+            body = "Chọn cách nghỉ phù hợp, xem giá ngay trên lịch và gửi yêu cầu. Nhân viên xác nhận từng đơn.",
+            items = new[]
+            {
+                "Theo khung giờ — Một khoảng nghỉ ngắn trong ngày, trả đúng phần thời gian bạn dùng.",
+                "Qua đêm — Nhận phòng buổi tối, trả phòng sáng hôm sau, không cần nhìn đồng hồ.",
+                "Theo ngày — Trọn một ngày dài để nghỉ ngơi, làm việc hay đón khách.",
+                "Giá rõ ràng — Không qua trung gian, không phí ẩn, nhân viên xác nhận từng đơn."
+            }
+        })
+    ];
+
+    /// <summary>
+    /// "Khôi phục giao diện mặc định": switches to the standard theme and replaces the visible global homepage
+    /// blocks with the approved layout. Previous blocks are kept hidden (renamed "[Bản cũ] …") so nothing is lost
+    /// and any of them can be shown again from the admin list. Custom pages and property homepages are untouched.
+    /// </summary>
+    public async Task<int> ResetGlobalHomeToStandardAsync(CancellationToken ct = default)
+    {
+        var existing = await db.Set<HomeSection>()
+            .Where(x => x.PropertyId == null && AllowedSectionTypes.Contains(x.Type))
+            .ToListAsync(ct);
+        var defaults = StandardGlobalSections();
+        var archiveOrder = defaults.Count;
+        foreach (var section in existing.OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc))
+        {
+            section.IsVisible = false;
+            section.SortOrder = archiveOrder++;
+            if (!section.Name.StartsWith(ArchivedSectionPrefix, StringComparison.Ordinal))
+                section.Name = Truncate($"{ArchivedSectionPrefix}{section.Name}", 200);
+        }
+        db.Set<HomeSection>().AddRange(defaults);
+        await db.SaveChangesAsync(ct);
+        await PublicThemeStore.SaveAsync(db, new SavePublicThemeRequest { Mode = PublicThemeStore.StandardMode }, ct);
+        return existing.Count;
+    }
+
+    public const string ArchivedSectionPrefix = "[Bản cũ] ";
+    private static string Truncate(string value, int max) => value.Length <= max ? value : value[..max];
+
     private static IReadOnlyList<HomeSection> DefaultSections(Property property) =>
     [
         New(property.Id, 0, "Hero", "Mở đầu", "split", new

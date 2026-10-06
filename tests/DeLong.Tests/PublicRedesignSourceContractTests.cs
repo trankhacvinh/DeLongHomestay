@@ -93,6 +93,28 @@ public sealed class PublicRedesignSourceContractTests
         Assert.Contains("body.dl-theme-standard .dl-builder-row .dl-row-heading", styles, StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Admin_can_restore_the_global_home_to_the_approved_layout_without_losing_old_blocks()
+    {
+        var service = ReadRepositoryFile("src/DeLong.Web/Features/Site/SiteContentService.cs");
+        var endpoints = ReadRepositoryFile("src/DeLong.Web/Features/Site/SiteContentEndpoints.cs");
+        var page = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/Site/Global.cshtml");
+        var script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-global-site.js");
+        var home = ReadRepositoryFile("src/DeLong.Web/Pages/Index.cshtml");
+
+        Assert.Contains("public async Task<int> ResetGlobalHomeToStandardAsync", service, StringComparison.Ordinal);
+        Assert.Contains("section.IsVisible = false;", service, StringComparison.Ordinal);
+        Assert.Contains("ArchivedSectionPrefix", service, StringComparison.Ordinal);
+        Assert.Contains("\"AvailabilityCalendar\", \"Lịch phòng\"", service, StringComparison.Ordinal);
+        Assert.Contains("global.MapPost(\"/reset-standard\"", endpoints, StringComparison.Ordinal);
+        Assert.Contains("Khôi phục giao diện mặc định", page, StringComparison.Ordinal);
+        Assert.Contains("resetConfirm", page, StringComparison.Ordinal);
+        Assert.Contains("/api/admin/site/global/reset-standard", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("window.confirm('Thay", script, StringComparison.Ordinal);
+        Assert.Contains("HowBand(block.Content", home, StringComparison.Ordinal);
+    }
+
     private static string ReadRepositoryFile(string relativePath) => File.ReadAllText(RepositoryPath(relativePath));
 
     private static string RepositoryPath(string relativePath)

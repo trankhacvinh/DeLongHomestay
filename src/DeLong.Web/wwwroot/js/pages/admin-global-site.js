@@ -37,7 +37,7 @@
         };
     }
     createApp({
-        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, brandingEffective: initial.branding || {}, branding: brandingForm(initial.branding), brandingSaving: false, brandingUploading: '', themeMode: initial.theme?.mode || 'standard', themeSaved: initial.theme?.mode || 'standard', themeSaving: false, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
+        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, brandingEffective: initial.branding || {}, branding: brandingForm(initial.branding), brandingSaving: false, brandingUploading: '', themeMode: initial.theme?.mode || 'standard', themeSaved: initial.theme?.mode || 'standard', themeSaving: false, resetConfirm: false, resetting: false, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
         computed: {
             brandPreviewLogo() { return this.branding.logoUrl || this.brandingEffective.logoUrl || ''; },
             brandPreviewName() { return this.branding.siteName || this.brandingEffective.siteName || 'De Long Homestay'; },
@@ -70,6 +70,20 @@
                     this.notify(this.themeMode === 'standard' ? 'Đã bật Giao diện chuẩn.' : 'Đã chuyển sang Tùy chỉnh tự do.');
                 } catch (err) { this.notify(err.message || 'Không thể lưu chế độ giao diện.', 'error'); }
                 finally { this.themeSaving = false; }
+            },
+            async resetToStandard() {
+                if (this.resetting) return;
+                this.resetting = true;
+                try {
+                    const result = await DeLongApi.post('/api/admin/site/global/reset-standard', {});
+                    const fresh = await DeLongApi.get('/api/admin/site/global');
+                    this.sections = fresh?.sections || [];
+                    this.themeMode = this.themeSaved = result?.theme?.mode || 'standard';
+                    this.resetConfirm = false;
+                    this.notify(`Đã khôi phục giao diện mặc định${result?.archived ? `; ${result.archived} khối cũ được ẩn` : ''}.`);
+                    this.$nextTick(() => this.mountSortable());
+                } catch (err) { this.notify(err.message || 'Không thể khôi phục giao diện mặc định.', 'error'); }
+                finally { this.resetting = false; }
             },
             async saveBranding() {
                 if (this.brandingSaving || this.brandingUploading) return;

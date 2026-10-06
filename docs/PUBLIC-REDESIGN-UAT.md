@@ -57,6 +57,15 @@ Phạm vi: chỉ đổi giao diện trang khách (header, trang chủ, lịch ph
 9. Bật Giao diện chuẩn: trang public không còn chữ quá to/quá nhỏ do chỉnh tay; người quản trị đang sửa trang thấy dải thông báo ở đầu trang.
 10. Chuyển sang Tùy chỉnh tự do: mọi tùy chỉnh cũ hiện lại như trước, không mất dữ liệu.
 
+## Khôi phục giao diện mặc định
+
+Nút **Khôi phục mặc định…** trong Quản trị › Trang chủ chung (có bước xác nhận ngay trên trang):
+
+11. Bấm và xác nhận: trang chủ chung có đúng bố cục chuẩn theo bản thiết kế đã duyệt — Hero, Lịch phòng, Các phòng (kèm dải chữ chạy), Các cơ sở (tự ẩn khi chỉ có 1 cơ sở), Cách đặt phòng (4 thẻ); Blog và footer liên hệ hiển thị như cũ. Chế độ giao diện chuyển về Giao diện chuẩn.
+12. Các khối cũ vẫn còn trong danh sách, ở trạng thái ẩn, tên bắt đầu bằng `[Bản cũ]`; bật lại hoặc xóa tùy ý.
+13. Trang tự tạo (custom pages), trang riêng từng cơ sở, menu, thông tin liên hệ và dữ liệu đặt phòng không thay đổi.
+14. Trong Giao diện chuẩn, khối "Nội dung + điểm nổi bật" hiển thị thành dải thẻ: mỗi dòng điểm nổi bật viết dạng `Tiêu đề — mô tả` thành một thẻ.
+
 ## Ghi chú vận hành
 
 - Lịch nhiều phòng gọi `/api/public/room-availability` cho từng phòng đang hiển thị, tối đa 4 request song song mỗi lượt tải.
