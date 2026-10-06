@@ -234,6 +234,11 @@
     function setDocument(side, file, card) {
         revokePreview(side);
         state[side] = file || null;
+        if (file) {
+            const uploadSide = side.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+            window.DeLongImageUpload.prepareFile(`/api/public/booking-requests/prepare/identity-documents/${uploadSide}`, file)
+                .catch(() => {}); // Upload retries preparation and reports errors through the booking form.
+        }
         const preview = card.querySelector('img');
         const empty = card.querySelector('.booking-id-empty');
         const remove = card.querySelector('[data-remove-id]');
@@ -480,10 +485,10 @@
     }
 
     async function uploadIdentity(bookingId, side, file, requestKey) {
-        let form = new FormData();
-        form.append('file', file, file.name || `${side}.jpg`);
         const query = siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : '';
-        form = await window.DeLongImageUpload.prepareForm(`/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`, form);
+        const prepared = await window.DeLongImageUpload.prepareFile(`/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`, file);
+        const form = new FormData();
+        form.append('file', prepared, prepared.name || `${side}.jpg`);
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const response = await fetch(`/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`, {
             method: 'POST',
@@ -529,10 +534,15 @@
             const result = await originalPost(url, payload, headers);
             const requestKey = headers?.['Idempotency-Key'] || headers?.['idempotency-key'] || '';
             if (result?.bookingId && requestKey) {
-                if (state.front) await uploadIdentity(result.bookingId, 'front', state.front, requestKey);
-                if (state.back) await uploadIdentity(result.bookingId, 'back', state.back, requestKey);
-                if (state.secondFront) await uploadIdentity(result.bookingId, 'second-front', state.secondFront, requestKey);
-                if (state.secondBack) await uploadIdentity(result.bookingId, 'second-back', state.secondBack, requestKey);
+                const documents = [['front', state.front], ['back', state.back],
+                    ['second-front', state.secondFront], ['second-back', state.secondBack]].filter(([, file]) => file);
+                // Two uploads at a time; wait for all started requests before allowing a retry.
+                for (let i = 0; i < documents.length; i += 2) {
+                    const results = await Promise.allSettled(documents.slice(i, i + 2)
+                        .map(([side, file]) => uploadIdentity(result.bookingId, side, file, requestKey)));
+                    const failure = results.find(item => item.status === 'rejected');
+                    if (failure) throw failure.reason;
+                }
             }
             return result;
         };

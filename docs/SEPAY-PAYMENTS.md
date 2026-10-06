@@ -76,3 +76,13 @@ QR dùng `https://vietqr.app/img` theo tài liệu hiện hành. Khách thấy s
 - JavaScript của 5 file thay đổi vượt qua `node --check`; `git diff --check` sạch.
 - Trình duyệt chạy với database QA giao diện riêng: lưu cấu hình thành công; thiếu antiforgery trả **400**; cấu hình chưa đăng nhập và webhook thiếu khóa trả **401**; không có lỗi JavaScript; QR tải được; viewport mobile 390px không tràn ngang.
 - Đây là kiểm tra mã nguồn, PostgreSQL và UI local. Chưa nghiệm thu webhook SePay Test Mode qua domain công khai, chưa gọi API đối soát thật hoặc chuyển khoản ngân hàng thật; chưa áp dụng migration/deploy vào database ứng dụng hay production.
+
+## Tối ưu thời gian mở QR (2026-10-04)
+
+- Chuẩn bị ảnh CCCD ngay khi chọn, giữ kết quả nén theo File trong bộ nhớ; không lưu giấy tờ vào localStorage. Cả bốn mặt ảnh đều resize cạnh dài tối đa 2000 px. Xử lý nén tuần tự để hạn chế bộ nhớ điện thoại.
+- Tải giấy tờ tối đa hai yêu cầu đồng thời; chỉ chuyển thanh toán khi tất cả ảnh tải thành công. Nếu một yêu cầu lỗi, chờ các yêu cầu đang chạy kết thúc rồi mới cho thử lại.
+- Razor lấy trạng thái phiên và xuất URL QR ngay trong HTML, preconnect tới vietqr.app; JavaScript sử dụng trạng thái ban đầu và bắt đầu polling sau 4 giây. Không gán lại src QR nếu URL không đổi.
+- API trạng thái chỉ đọc phiên cần xem. Worker tiếp tục ghi trạng thái hết hạn; API tự kiểm tra hạn QR và hạn giữ phòng ngay cả khi worker chưa chạy. Không thay đổi thời gian đệm xác nhận ngân hàng.
+- Không cần migration. Cần publish/deploy cả DLL, Razor và JavaScript cùng phiên bản.
+- Tài liệu tham chiếu: https://developer.sepay.vn/vi/sepay-webhooks/tao-qr-va-form-thanh-toan và https://docs.sepay.vn/tao-qr-code-vietqr-dong.html.
+- Build, unit test trạng thái và JavaScript là kiểm chứng cục bộ; độ trễ thực tế còn cần đo trên VPS và điện thoại/Zalo sau deploy. Chưa cam kết thời gian tải QR hoặc loại trừ ảnh hưởng mạng/database.

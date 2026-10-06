@@ -14,8 +14,8 @@ public static partial class BookingGuestGuidePdf
     {
         using var stream = new MemoryStream();
         using var document = SKDocument.CreatePdf(stream);
-        using var regularTypeface = SKTypeface.FromFamilyName("Arial") ?? SKTypeface.Default;
-        using var boldTypeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold) ?? SKTypeface.Default;
+        using var regularTypeface = LoadTypeface("NotoSans-Regular.ttf");
+        using var boldTypeface = LoadTypeface("NotoSans-Bold.ttf");
         using var regularFont = new SKFont(regularTypeface, 12.5f);
         using var mutedFont = new SKFont(regularTypeface, 10.5f);
         using var headingFont = new SKFont(boldTypeface, 22f);
@@ -82,6 +82,16 @@ public static partial class BookingGuestGuidePdf
         if (canvas is not null) document.EndPage();
         document.Close();
         return stream.ToArray();
+    }
+
+    private static SKTypeface LoadTypeface(string name)
+    {
+        using var resource = typeof(BookingGuestGuidePdf).Assembly.GetManifestResourceStream(
+            $"DeLong.Web.Assets.Fonts.{name}")
+            ?? throw new InvalidOperationException($"Missing embedded PDF font: {name}");
+        using var data = SKData.Create(resource);
+        return SKTypeface.FromData(data)
+            ?? throw new InvalidOperationException($"Cannot load PDF font: {name}");
     }
 
     private static IReadOnlyList<string> HtmlToParagraphs(string? html)

@@ -1,7 +1,7 @@
 (function (global) {
     function profile(url) {
         const path = new URL(url, global.location.origin).pathname;
-        if (/\/identity-documents\/(front|back)$/.test(path)) return { maxEdge: 2000, quality: 0.9 };
+        if (/\/identity-documents\/(front|back|second-front|second-back)$/.test(path)) return { maxEdge: 2000, quality: 0.9 };
         if (/\/assets\/[^/]+$|\/content\/images$|\/media\/upload$/.test(path)) return { maxEdge: 2560, quality: 0.85 };
         return null;
     }
@@ -49,6 +49,23 @@
         }
     }
 
+    const preparedFiles = new WeakMap();
+    let processing = Promise.resolve();
+    function prepareFile(url, file) {
+        const settings = profile(url);
+        if (!settings) return Promise.resolve(file);
+        const key = `${settings.maxEdge}:${settings.quality}`;
+        let entries = preparedFiles.get(file);
+        if (!entries) { entries = new Map(); preparedFiles.set(file, entries); }
+        if (!entries.has(key)) {
+            const task = processing.then(() => optimize(file, settings));
+            processing = task.catch(() => {});
+            entries.set(key, task);
+            task.catch(() => entries.delete(key));
+        }
+        return entries.get(key);
+    }
+
     async function prepareForm(url, form) {
         const settings = profile(url);
         if (!settings) return form;
@@ -56,12 +73,12 @@
         // Process sequentially so several large phone photos do not fill memory together.
         for (const [key, value] of form.entries()) {
             if (value instanceof File) {
-                const file = await optimize(value, settings);
+                const file = await prepareFile(url, value);
                 prepared.append(key, file, file.name);
             } else prepared.append(key, value);
         }
         return prepared;
     }
 
-    global.DeLongImageUpload = { prepareForm };
+    global.DeLongImageUpload = { prepareForm, prepareFile };
 })(window);

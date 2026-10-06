@@ -29,8 +29,24 @@ public sealed class BookingGuestGuideSourceContractTests
             "Coco Blue #1",
             "<h2>Check-in</h2><p>Nhận khóa tại quầy lễ tân.</p><ul><li>Giữ yên tĩnh</li></ul>"));
 
-        Assert.True(bytes.Length > 500);
+        Assert.True(bytes.Length > 10000, "PDF must contain embedded fonts and rendered text, not an empty page.");
         Assert.Equal("%PDF", Encoding.ASCII.GetString(bytes, 0, 4));
+        var previewPath = Environment.GetEnvironmentVariable("DELONG_PDF_PREVIEW_PATH");
+        if (!string.IsNullOrWhiteSpace(previewPath)) File.WriteAllBytes(previewPath, bytes);
+    }
+
+    [Theory]
+    [InlineData("NotoSans-Regular.ttf")]
+    [InlineData("NotoSans-Bold.ttf")]
+    public void Embedded_fonts_cover_Vietnamese_without_system_fonts(string filename)
+    {
+        using var stream = typeof(BookingGuestGuidePdf).Assembly.GetManifestResourceStream($"DeLong.Web.Assets.Fonts.{filename}");
+        Assert.NotNull(stream);
+        using var data = SkiaSharp.SKData.Create(stream);
+        using var typeface = SkiaSharp.SKTypeface.FromData(data);
+        Assert.NotNull(typeface);
+        using var font = new SkiaSharp.SKFont(typeface, 12);
+        Assert.All(font.GetGlyphs("Hướng dẫn sử dụng phòng · Nhận khóa tại quầy lễ tân"), glyph => Assert.NotEqual((ushort)0, glyph));
     }
 
     private static string ReadRepositoryFile(string relativePath)

@@ -39,3 +39,11 @@ Calendar V2 giữ nguyên Calendar V1 nhưng là **một màn hình/menu riêng*
 - Modal booking trên V2 vẫn tải Email / Số khách / CCCD qua guest-details API.
 - Admin V2 vẫn nghe operations realtime hiện có; notification SSE không bị dùng làm nguồn occupancy.
 - Public booking / room detail cũ vẫn hoạt động khi endpoint availability tạm lỗi; người dùng vẫn có nút Đặt phòng thường.
+
+## Cập nhật 05/10/2026: ngày trước và kích thước lịch
+
+- Lịch V1/V2 mặc định bắt đầu từ hôm qua theo timezone cơ sở. Nút Hôm nay trở về khoảng này; khoảng ngày tự chọn vẫn được giữ nguyên.
+- Lịch V2 có nút −/+ từ 60% đến 140% áp dụng toàn bộ bảng (tất cả các khung). Vừa màn hình co toàn bộ cột theo chiều rộng vùng lịch; mobile tối đa 640 px mặc định bật chế độ này.
+- Chế độ vừa màn hình rút gọn chữ trong ô; bấm booking để xem chi tiết. Không thay đổi thời gian nhận/trả hay dữ liệu booking.
+- Đã kiểm tra fixture với CSS/JS thực tế ở 320/390 px và các nút thu/phóng. Cần nghiệm thu trên trang admin đã đăng nhập và iPhone/Zalo sau deploy.
+- Không có migration database.

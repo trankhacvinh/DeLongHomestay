@@ -313,7 +313,7 @@
                 this.openCalendarRange(target, addDays(target, this.rangeDays - 1));
             },
             goToday() {
-                this.openCalendarRange(this.today, addDays(this.today, this.rangeDays - 1));
+                this.openCalendarRange(addDays(this.today, -1), addDays(this.today, this.rangeDays - 2));
             },
             openCalendarRange(from, to) {
                 const query = new URLSearchParams({ propertyId: this.propertyId, from, to });

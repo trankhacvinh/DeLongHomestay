@@ -66,7 +66,7 @@
     const pageQuery = new URLSearchParams(window.location.search);
     const queryFrom = pageQuery.get('from');
     const queryTo = pageQuery.get('to');
-    const startDate = queryFrom || root.dataset.startDate || initial.startDate || bootVm?.startDate || today;
+    const startDate = queryFrom || root.dataset.startDate || initial.startDate || bootVm?.startDate || addDays(today, -1);
     const queryRangeDays = queryFrom && queryTo
         ? Math.round((Date.parse(`${queryTo}T00:00:00Z`) - Date.parse(`${queryFrom}T00:00:00Z`)) / 86400000) + 1
         : 0;
@@ -106,6 +106,7 @@
         '</div>',
         '<div class="calendar-v2-legend"><span><i class="available"></i>Trống</span><span><i class="partial"></i>Còn trống một phần</span><span><i data-v2-color="unpaid"></i>Chưa thanh toán hết</span><span><i data-v2-color="flexible"></i>Giờ linh động</span><span><i data-v2-color="special"></i>Có ghi chú</span><span><i data-v2-color="mixed"></i>Nhiều khung</span><span><i data-v2-color="held"></i>Giữ phòng</span><span><i data-v2-color="confirmed"></i>Đã xác nhận</span><span><i data-v2-color="completed"></i>Hoàn tất</span></div>',
         '<div class="calendar-v2-status show" data-v2-status>Đang tải lịch phòng…</div>',
+        '<div class="calendar-v2-zoom" role="group" aria-label="Kích thước lịch"><span>Kích thước lịch</span><button type="button" data-v2-zoom-out aria-label="Thu nhỏ lịch">−</button><output data-v2-zoom-label aria-live="polite">100%</output><button type="button" data-v2-zoom-in aria-label="Phóng to lịch">+</button><button type="button" data-v2-zoom-fit aria-pressed="false">Vừa màn hình</button></div>',
         '<div class="calendar-v2-scroll" data-v2-scroll></div>'
     ].join('');
 
@@ -118,6 +119,31 @@
     const statusBox = panel.querySelector('[data-v2-status]');
     const scroll = panel.querySelector('[data-v2-scroll]');
     let dateRangePicker = null;
+    let calendarScale = 1;
+    let fitCalendar = window.matchMedia?.('(max-width:640px)').matches === true;
+    function applyCalendarScale() {
+        panel.style.setProperty('--calendar-scale', String(calendarScale));
+        scroll.classList.toggle('calendar-v2-fit', fitCalendar);
+        panel.querySelector('[data-v2-zoom-label]').textContent = fitCalendar ? 'Vừa màn hình' : `${Math.round(calendarScale * 100)}%`;
+        panel.querySelector('[data-v2-zoom-fit]').setAttribute('aria-pressed', String(fitCalendar));
+        panel.querySelector('[data-v2-zoom-out]').disabled = !fitCalendar && calendarScale <= 0.6;
+        panel.querySelector('[data-v2-zoom-in]').disabled = !fitCalendar && calendarScale >= 1.4;
+    }
+    panel.querySelector('[data-v2-zoom-out]').addEventListener('click', () => {
+        fitCalendar = false;
+        calendarScale = Math.max(0.6, Math.round((calendarScale - 0.1) * 10) / 10);
+        applyCalendarScale();
+    });
+    panel.querySelector('[data-v2-zoom-in]').addEventListener('click', () => {
+        fitCalendar = false;
+        calendarScale = Math.min(1.4, Math.round((calendarScale + 0.1) * 10) / 10);
+        applyCalendarScale();
+    });
+    panel.querySelector('[data-v2-zoom-fit]').addEventListener('click', () => {
+        fitCalendar = !fitCalendar;
+        applyCalendarScale();
+    });
+    applyCalendarScale();
 
     const legendColors = {
         unpaid: state.colors.unpaidColor || '#C94B4B',
@@ -436,6 +462,7 @@
 
         const table = document.createElement('table');
         table.className = 'calendar-v2-table';
+        table.style.setProperty('--calendar-slot-count', String(headerSlots.length));
         const thead = document.createElement('thead');
         const headRow = document.createElement('tr');
         const dateHead = document.createElement('th');
@@ -539,7 +566,7 @@
     panel.querySelector('[data-v2-room-next]').addEventListener('click', () => moveRoom(1));
     panel.querySelector('[data-v2-date-prev]').addEventListener('click', () => setRange(addDays(state.from, -7), state.days, 'date'));
     panel.querySelector('[data-v2-date-next]').addEventListener('click', () => setRange(addDays(state.from, 7), state.days, 'date'));
-    panel.querySelector('[data-v2-today]').addEventListener('click', () => setRange(today || state.from, state.days, 'today'));
+    panel.querySelector('[data-v2-today]').addEventListener('click', () => setRange(today ? addDays(today, -1) : state.from, state.days, 'today'));
 
     dateRangePicker = window.DeLongCalendarRangePicker?.create(panel.querySelector('[data-v2-date-range]'), {
         startDate: state.from,

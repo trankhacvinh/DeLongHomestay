@@ -5,6 +5,15 @@ namespace DeLong.Tests;
 public sealed class CalendarV2SourceContractTests
 {
     [Fact]
+    public void Default_and_today_ranges_include_yesterday_but_explicit_ranges_are_preserved()
+    {
+        foreach (var page in new[] { "Calendar", "CalendarV2" })
+            Assert.Contains("var startDate = from ?? todayLocal.AddDays(-1);", ReadRepositoryFile($"src/DeLong.Web/Pages/Admin/{page}.cshtml.cs"));
+        Assert.Contains("this.openCalendarRange(addDays(this.today, -1)", ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar.js"));
+        Assert.Contains("setRange(today ? addDays(today, -1) : state.from", ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar-v2.js"));
+    }
+
+    [Fact]
     [Trait("Category", "Unit")]
     public void Standalone_calendar_v2_resolves_property_without_private_vue_state()
     {

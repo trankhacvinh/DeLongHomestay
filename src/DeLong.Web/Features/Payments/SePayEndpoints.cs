@@ -50,25 +50,12 @@ public static class SePayEndpoints
             var result = await service.ReceiveAsync(propertyId, request, http.Request.Headers.Authorization, ct);
             return Results.Json(new { success = result.Status == 200, code = result.Outcome }, statusCode: result.Status);
         }).AllowAnonymous().RequireRateLimiting("pay2s-ipn");
-        app.MapGet("/api/public/payments/sepay/{orderId}", async (string orderId, AppDbContext db, Pay2SService lifecycle,
+        app.MapGet("/api/public/payments/sepay/{orderId}", async (string orderId, AppDbContext db,
             HttpContext http, CancellationToken ct) =>
         {
             http.Response.Headers.CacheControl = "no-store";
-            await lifecycle.ExpirePendingAsync(ct);
-            var intent = await db.Pay2SPaymentIntents.AsNoTracking().Include(x => x.Booking)
-                .SingleOrDefaultAsync(x => x.Provider == PaymentMethod.SePay && x.OrderId == orderId, ct);
-            if (intent is null) return Results.NotFound();
-            var canPay = intent.Status == Pay2SPaymentIntentStatus.Pending && intent.ExpiresAtUtc > DateTime.UtcNow &&
-                intent.Booking.Status is not (BookingStatus.Cancelled or BookingStatus.Completed or BookingStatus.NoShow);
-            var qrParameters = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(
-                Uri.TryCreate(intent.SePayQrUrl, UriKind.Absolute, out var qrUri) ? qrUri.Query : "");
-            return Results.Ok(new { intent.OrderId, intent.Amount,
-                TransferContent = canPay ? qrParameters["des"].ToString() : null,
-                AccountNumber = canPay ? qrParameters["acc"].ToString() : null,
-                Bank = canPay ? qrParameters["bank"].ToString() : null, Status = intent.Status.ToString(), intent.ExpiresAtUtc,
-                intent.ReleaseAtUtc, QrUrl = canPay ? intent.SePayQrUrl : null,
-                SuccessUrl = (string.IsNullOrEmpty(intent.SiteSlug) ? "" : "/h/" + Uri.EscapeDataString(intent.SiteSlug)) +
-                    "/booking/success?code=" + Uri.EscapeDataString(intent.Booking.Code) });
+            var state = await SePayPaymentState.LoadAsync(db, orderId, ct);
+            return state is null ? Results.NotFound() : Results.Ok(state);
         }).AllowAnonymous().RequireRateLimiting("pay2s-status");
         app.MapGet("/api/public/payments/sepay/{orderId}/qr", async (string orderId, AppDbContext db,
             IHttpClientFactory httpClientFactory, CancellationToken ct) =>

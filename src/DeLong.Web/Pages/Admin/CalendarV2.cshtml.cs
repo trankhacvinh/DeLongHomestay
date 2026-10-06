@@ -33,7 +33,7 @@ public sealed class CalendarV2Model(
 
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
         var todayLocal = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
-        var startDate = from ?? todayLocal;
+        var startDate = from ?? todayLocal.AddDays(-1);
         StartDate = startDate.ToString("yyyy-MM-dd");
         Today = todayLocal.ToString("yyyy-MM-dd");
         var requestedDays = to.HasValue && to.Value >= startDate

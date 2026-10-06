@@ -71,3 +71,22 @@ test('Unrelated document import is untouched', async () => {
     assert.equal(await env.prepare('/api/admin/import', form), form);
     assert.equal(env.draws.length, 0);
 });
+
+for (const side of ['second-front', 'second-back']) {
+    test(`Second guest identity is resized: ${side}`, async () => {
+        const env = setup(10000, 7500);
+        const form = new FormData();
+        form.append('file', new File(['large'], 'id.jpg', { type: 'image/jpeg' }));
+        await env.prepare(`/api/public/booking-requests/b/identity-documents/${side}`, form);
+        assert.deepEqual(env.draws[0], [0, 0, 2000, 1500]);
+    });
+}
+
+test('Preparing the same File twice reuses its compressed result', async () => {
+    const env = setup(10000, 7500);
+    const form = new FormData();
+    form.append('file', new File(['large'], 'id.jpg', { type: 'image/jpeg' }));
+    const url = '/api/public/booking-requests/b/identity-documents/front';
+    await Promise.all([env.prepare(url, form), env.prepare(url, form)]);
+    assert.equal(env.draws.length, 2);
+});

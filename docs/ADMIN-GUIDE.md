@@ -50,3 +50,7 @@ Vào `Cấu hình`:
 - `Khôi phục demo`: quay về seed data.
 
 LocalStorage chỉ tồn tại trên trình duyệt/domain hiện tại. Xóa browser data sẽ mất dữ liệu nếu chưa backup.
+
+### PDF hướng dẫn phòng trên Ubuntu
+
+PDF hướng dẫn dùng Noto Sans Regular/Bold nhúng trong DLL để không phụ thuộc Arial hoặc font hệ thống của VPS. Font lấy từ kho chính thức https://github.com/notofonts/noto-fonts/tree/main/hinted/ttf/NotoSans; giấy phép đi kèm trong `src/DeLong.Web/Assets/Fonts/OFL.txt`. Publish toàn bộ ứng dụng để nhận thay đổi; không cần cài font bằng tay hoặc chạy migration. PDF đã tải trắng trước đó cần tải lại sau deploy.

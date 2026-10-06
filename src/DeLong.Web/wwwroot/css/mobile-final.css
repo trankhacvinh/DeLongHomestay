@@ -337,3 +337,91 @@
 @media (prefers-reduced-motion:reduce) {
     .sidebar,.sidebar-overlay { transition:none!important; }
 }
+
+/* Room galleries: one heading and one aligned action row on phones. */
+@media (max-width:640px) {
+    .public-body .public-room-card.public-room-card-content {
+        overflow:hidden;
+        border:1px solid #dce5e0;
+        border-radius:20px;
+        background:#fff;
+        box-shadow:none;
+    }
+    .public-body .public-room-card.public-room-card-content .public-room-art {
+        aspect-ratio:4/3;
+        min-height:0;
+        padding:0;
+        border-radius:0;
+        box-shadow:none;
+    }
+    .public-body .public-room-card.public-room-card-content .public-room-art::after {
+        display:none;
+    }
+    .public-body .public-room-card.public-room-card-content .public-room-art:has(.public-room-cover-image) .public-room-image-title,
+    .public-body .public-room-card.public-room-card-content .public-room-art:has(.public-room-cover-image) .public-room-image-scrim {
+        display:none;
+    }
+    .public-body .public-room-card.public-room-card-content .public-room-body {
+        display:flex;
+        flex-direction:column;
+        align-items:stretch;
+        gap:14px;
+        padding:16px;
+        background:#fff;
+    }
+    .public-body .public-room-card.public-room-card-content .public-room-body h3 {
+        margin:0 0 6px;
+        font-size:22px;
+        line-height:1.3;
+    }
+    .public-body .public-room-card.public-room-card-content .public-room-body p {
+        min-height:0;
+        margin:0;
+        color:#596e68;
+        font-size:13px;
+        line-height:1.5;
+        overflow-wrap:anywhere;
+    }
+    .public-body .public-room-card.public-room-card-content .public-room-conversion {
+        display:grid;
+        grid-template-columns:minmax(0,1fr) auto;
+        align-items:center;
+        gap:12px;
+        padding-top:14px;
+        border-top:1px solid #e5ebe7;
+    }
+    .public-body .public-room-card.public-room-card-content .public-room-price {
+        grid-column:auto;
+        grid-row:auto;
+        align-self:center;
+        text-align:left;
+    }
+    .public-body .public-room-card.public-room-card-content .public-room-price small {
+        display:block;
+        margin-bottom:3px;
+        color:#596e68;
+        font-size:11px;
+        letter-spacing:0;
+        text-transform:none;
+    }
+    .public-body .public-room-card.public-room-card-content .public-room-price strong {
+        font-size:20px;
+        line-height:1.3;
+        white-space:nowrap;
+    }
+    .public-body .public-room-card.public-room-card-content .public-room-book-now {
+        grid-column:auto;
+        grid-row:auto;
+        justify-self:end;
+        width:auto;
+        min-height:44px;
+        padding:12px 16px;
+        border-radius:12px;
+        font-size:14px;
+        line-height:1.2;
+        box-shadow:none;
+    }
+    .public-body .public-room-card.public-room-card-content .public-room-book-now::after {
+        content:none;
+    }
+}
