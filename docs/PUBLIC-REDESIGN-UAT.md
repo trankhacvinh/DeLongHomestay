@@ -4,7 +4,7 @@ Phạm vi: chỉ đổi giao diện trang khách (header, trang chủ, lịch ph
 
 ## Thành phần
 
-- `wwwroot/css/public-redesign.css`: lớp giao diện mới. Nạp sau `hospitality-shell.css` và trước `custom.css` của từng cơ sở, nên CSS tùy biến của cơ sở vẫn ghi đè được.
+- `wwwroot/css/public-redesign.css`: lớp giao diện mới. Nạp sau `hospitality-shell.css`; ở chế độ Tùy chỉnh tự do, `custom.css` của cơ sở nạp sau nên vẫn ghi đè được.
 - `wwwroot/fonts/brand/`: Be Vietnam Pro (400/600/700/900), tự host, subset Latin + tiếng Việt, giấy phép OFL đi kèm. Một font duy nhất, thang chữ cố định (`--dl-h1`, `--dl-h2`, `--dl-h3`), tiêu đề không viết hoa toàn bộ và line-height ≥ 1.15 để dấu tiếng Việt không đè lên dòng khác.
 - **Chế độ giao diện** (Quản trị › Trang chủ chung): lưu trong HomeSection ẩn `__PublicTheme`, không đổi schema. Mặc định là **Giao diện chuẩn**.
 - `SiteContentService.GetPublicContactsAsync`: danh sách liên hệ của các cơ sở đang hoạt động, lấy từ `PropertySiteSettings` (logo, địa chỉ, hotline, Zalo, Facebook, Google Maps). Cache dưới tag `public-content`, nên tự làm mới khi lưu cài đặt website.
@@ -13,7 +13,7 @@ Phạm vi: chỉ đổi giao diện trang khách (header, trang chủ, lịch ph
 ## Kiểm thử
 
 1. **Trang chủ, desktop ≥ 1080px.**
-   - Hero có tiêu đề in hoa cỡ lớn, ảnh dạng vòm và nhãn tròn "đặt nhanh từ …K" khi có giá.
+   - Hero có tiêu đề rõ ràng theo thang chữ chuẩn, ảnh dạng vòm và nhãn tròn "đặt nhanh từ …K" khi có giá.
    - Thứ tự các khối vẫn theo CMS.
 2. **Lịch phòng khi có nhiều cơ sở, desktop.**
    - Danh sách tick hiện tên cơ sở kèm số phòng.
@@ -38,7 +38,7 @@ Phạm vi: chỉ đổi giao diện trang khách (header, trang chủ, lịch ph
    - Website tổng: mỗi cơ sở đang hoạt động có một thẻ gồm logo (hoặc chữ viết tắt), tagline, địa chỉ, hotline (`tel:`), Zalo, Facebook và ô "Chỉ đường" mở Google Maps.
    - Website của từng cơ sở: chỉ hiện thẻ của cơ sở đó.
    - Trường nào trống trong Cài đặt website thì phần tương ứng tự ẩn.
-7. **Cơ sở có `custom.css`:** CSS của cơ sở vẫn ghi đè được giao diện mới.
+7. **Cơ sở có `custom.css`:** chỉ áp dụng ở chế độ Tùy chỉnh tự do.
 8. **Trợ năng.**
    - Mọi nút và link có focus-visible và vùng chạm tối thiểu 40–44px.
    - Dải chữ chạy và hiệu ứng tắt khi bật `prefers-reduced-motion`.
