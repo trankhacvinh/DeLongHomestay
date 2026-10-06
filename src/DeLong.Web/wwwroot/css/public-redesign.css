@@ -2,15 +2,15 @@
  * De Long public redesign (2026-10).
  * Loaded last on every public page (after hospitality-shell.css, before the property's custom.css),
  * so it restyles the existing CMS markup without changing CMS data, booking rules or APIs.
- * Look: warm paper ground, deep ink, amber accent, oversized uppercase display type
- * (Be Vietnam Pro) mixed with small italic serif accents (Playfair Display).
+ * Look: warm paper ground, deep ink, amber accent. One typeface (Be Vietnam Pro) on a fixed
+ * type scale (--dl-h1/--dl-h2/--dl-h3); headings are sentence case with line-height >= 1.15 so
+ * Vietnamese stacked diacritics never collide between lines.
  */
 
 @font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:400;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-400.woff") format("woff")}
 @font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:500 600;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-600.woff") format("woff")}
 @font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:700 800;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-700.woff") format("woff")}
 @font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:900;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-900.woff") format("woff")}
-@font-face{font-family:"Playfair Display";font-style:italic;font-weight:400 600;font-display:swap;src:url("../fonts/brand/playfair-display-italic-500.woff") format("woff")}
 
 body.public-body{
     --dl-ground:#f7f3ec;
@@ -29,8 +29,10 @@ body.public-body{
     --dl-sand:#f4e3c9;
     --dl-radius:22px;
     --dl-sans:"Be Vietnam Pro","Noto Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
-    --dl-serif:"Playfair Display","Noto Serif",Georgia,serif;
-    --dl-display:clamp(44px,6.4vw,92px);
+    --dl-h1:clamp(34px,4vw,54px);
+    --dl-h2:clamp(28px,2.8vw,40px);
+    --dl-h3:clamp(19px,1.5vw,22px);
+    --dl-body:16px;
     background:var(--dl-ground);
     color:var(--dl-ink);
     font-family:var(--dl-sans);
@@ -49,27 +51,26 @@ body.public-body .public-main .public-cms-cta h2,
 body.public-body .public-main .public-check-card h2,
 body.public-body .public-footer-contacts-head h2{
     font-family:var(--dl-sans)!important;
-    font-weight:900!important;
-    text-transform:uppercase;
-    letter-spacing:-.045em!important;
-    line-height:1.02!important;
+    font-weight:800!important;
+    text-transform:none!important;
+    letter-spacing:-.025em!important;
+    line-height:1.18!important;
     color:var(--dl-ink);
     text-wrap:balance;
 }
-body.public-body .public-main .public-section-head h2{font-size:var(--dl-display)!important;margin:6px 0 0}
+body.public-body .public-main .public-section-head h2{font-size:var(--dl-h2)!important;margin:8px 0 0}
 body.public-body .public-main .public-eyebrow,
 body.public-body .public-hospitality-footer .public-eyebrow{
     display:inline-block;
-    font-family:var(--dl-serif);
-    font-style:italic;
-    font-weight:500;
-    font-size:clamp(19px,1.7vw,24px);
-    letter-spacing:0!important;
-    text-transform:lowercase;
+    font-family:var(--dl-sans);
+    font-style:normal;
+    font-weight:700;
+    font-size:12px;
+    line-height:1.4;
+    letter-spacing:.14em!important;
+    text-transform:uppercase;
     color:var(--dl-accent-ink);
 }
-body.public-body .public-main .public-eyebrow::first-letter,
-body.public-body .public-hospitality-footer .public-eyebrow::first-letter{text-transform:uppercase}
 body.public-body .public-main .public-section{padding-block:clamp(64px,8vw,104px)}
 body.public-body .public-main .public-section-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px 40px;margin-bottom:clamp(28px,3.4vw,44px)}
 body.public-body .public-main .public-section-head>div{min-width:0;max-width:900px}
@@ -101,8 +102,8 @@ body.public-body .public-site-brand .brand-mark{
     font-family:var(--dl-sans);font-weight:900;font-size:15px;letter-spacing:-.04em;
     display:inline-flex;align-items:center;justify-content:center;
 }
-body.public-body .public-site-brand strong{font-family:var(--dl-sans);font-weight:900;font-size:18px;letter-spacing:-.03em;text-transform:uppercase;color:var(--dl-ink)}
-body.public-body .public-site-brand small{font-family:var(--dl-serif);font-style:italic;font-size:14px;letter-spacing:0;text-transform:none;color:var(--dl-accent-ink)}
+body.public-body .public-site-brand strong{font-family:var(--dl-sans);font-weight:800;font-size:17px;letter-spacing:-.01em;text-transform:none;color:var(--dl-ink)}
+body.public-body .public-site-brand small{font-size:13px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--dl-muted)}
 body.public-body .public-site-links{gap:4px 26px}
 body.public-body .public-site-links a{color:var(--dl-text);font-weight:600;font-size:15px;padding-block:12px}
 body.public-body .public-site-links a:hover{color:var(--dl-ink)}
@@ -115,14 +116,14 @@ body.public-body .public-site-actions .public-mobile-lookup{color:var(--dl-text)
 body.public-body .public-hotel-hero{background:var(--dl-ground);padding:clamp(36px,5vw,64px) 0 clamp(64px,8vw,104px)}
 body.public-body .public-hotel-hero-grid{gap:clamp(36px,6vw,88px);min-height:0}
 body.public-body .public-hotel-hero-copy h1{
-    font-size:clamp(50px,7.2vw,112px)!important;line-height:.95!important;letter-spacing:-.05em!important;
+    font-size:var(--dl-h1)!important;line-height:1.15!important;letter-spacing:-.03em!important;
     margin:18px 0 24px;max-width:780px;
 }
-body.public-body .public-hotel-hero-copy>p{color:var(--dl-text);font-size:clamp(17px,1.4vw,19px);line-height:1.6;max-width:540px}
+body.public-body .public-hotel-hero-copy>p{color:var(--dl-text);font-size:17px;line-height:1.65;max-width:540px}
 body.public-body .public-hotel-hero-copy .public-btn{border-radius:999px!important;min-height:52px;padding:15px 28px}
 body.public-body .public-hotel-hero-metrics{border:0;border-top:1px solid var(--dl-line);margin-top:34px;padding-top:6px;gap:0 36px;display:flex;flex-wrap:wrap}
 body.public-body .public-hotel-hero-metrics span{border:0;padding:14px 0 0}
-body.public-body .public-hotel-hero-metrics strong{font-family:var(--dl-sans);font-weight:900;font-size:clamp(26px,2.4vw,34px);letter-spacing:-.04em;color:var(--dl-ink)}
+body.public-body .public-hotel-hero-metrics strong{font-family:var(--dl-sans);font-weight:800;font-size:clamp(22px,2vw,28px);letter-spacing:-.02em;color:var(--dl-ink)}
 body.public-body .public-hotel-hero-metrics small{font-size:13px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--dl-muted)}
 body.public-body .public-hotel-hero-media{min-height:clamp(420px,46vw,600px);background:transparent}
 body.public-body .public-hotel-hero-media:before{display:none}
@@ -136,8 +137,8 @@ body.public-body .public-hotel-hero-label{
     left:22px;right:auto;bottom:22px;max-width:52%;border-radius:16px;
     background:rgba(255,255,255,.92);padding:12px 16px;
 }
-body.public-body .public-hotel-hero-label small{font-family:var(--dl-serif);font-style:italic;font-size:14px;letter-spacing:0;text-transform:none;color:var(--dl-accent-ink)}
-body.public-body .public-hotel-hero-label strong{font-family:var(--dl-sans);font-weight:900;font-size:18px;letter-spacing:-.02em;text-transform:uppercase;color:var(--dl-ink)}
+body.public-body .public-hotel-hero-label small{font-size:13px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--dl-muted)}
+body.public-body .public-hotel-hero-label strong{font-family:var(--dl-sans);font-weight:800;font-size:16px;letter-spacing:0;text-transform:none;color:var(--dl-ink)}
 body.public-body .public-hero-price-sticker{
     position:absolute;z-index:5;right:30%;top:8%;
     width:128px;height:128px;border-radius:50%;
@@ -146,7 +147,7 @@ body.public-body .public-hero-price-sticker{
     transform:rotate(-12deg);box-shadow:5px 5px 0 var(--dl-ink);
 }
 body.public-body .public-hero-price-sticker small{font-size:11px;font-weight:700}
-body.public-body .public-hero-price-sticker strong{font-size:30px;font-weight:900;letter-spacing:-.05em}
+body.public-body .public-hero-price-sticker strong{font-size:26px;font-weight:900;letter-spacing:-.03em;line-height:1.15}
 /* Full-image hero variants keep their dark overlay but get the new type. */
 body.public-body .public-cms-hero.variant-image-full h1,
 body.public-body .public-cms-hero.variant-booking-overlay h1{color:#fff}
@@ -161,7 +162,7 @@ body.public-body .public-hero-art{border-radius:240px 240px 26px 26px!important}
 /* ---------- Quick search strip (if still used) ---------- */
 body.public-body .public-cms-availability{background:var(--dl-ground)}
 body.public-body .public-cms-availability .public-check-card{border:1px solid var(--dl-line);border-radius:var(--dl-radius);box-shadow:0 18px 40px rgba(18,41,43,.08)}
-body.public-body .public-cms-availability .public-check-card h2{font-size:clamp(24px,2.4vw,32px)!important}
+body.public-body .public-cms-availability .public-check-card h2{font-size:clamp(22px,2vw,28px)!important}
 body.public-body .public-cms-availability .public-date-field input,
 body.public-body .public-cms-availability .public-date-field select{border-radius:12px;border-color:var(--dl-line-2);background:#fff}
 body.public-body .public-cms-availability .public-btn{border-radius:12px!important;height:52px}
@@ -170,9 +171,9 @@ body.public-body .public-cms-availability .public-btn{border-radius:12px!importa
 body.public-body .public-cms-availability-calendar{background:var(--dl-surface)!important;border-block:1px solid var(--dl-line)}
 
 /* ---------- Room marquee ---------- */
-.public-room-marquee{overflow:hidden;background:var(--dl-accent,#f2b35a);color:var(--dl-ink,#12292b);padding:14px 0;margin:calc(-1 * clamp(64px,8vw,104px)) 0 clamp(56px,7vw,88px)}
+.public-room-marquee{overflow:hidden;background:var(--dl-accent,#f2b35a);color:var(--dl-ink,#12292b);padding:12px 0;margin:calc(-1 * clamp(64px,8vw,104px)) 0 clamp(56px,7vw,88px)}
 .public-room-marquee-track{display:flex;width:max-content;animation:dl-marquee 40s linear infinite}
-.public-room-marquee-track span{padding-right:.6em;font-family:var(--dl-sans,sans-serif);font-weight:900;font-size:clamp(22px,2.6vw,34px);letter-spacing:-.03em;text-transform:uppercase;white-space:nowrap}
+.public-room-marquee-track span{padding-right:.6em;font-family:var(--dl-sans,sans-serif);font-weight:800;font-size:clamp(17px,1.6vw,22px);letter-spacing:.02em;line-height:1.4;text-transform:uppercase;white-space:nowrap}
 @keyframes dl-marquee{to{transform:translateX(-50%)}}
 @media(prefers-reduced-motion:reduce){.public-room-marquee-track{animation:none}}
 
@@ -193,8 +194,8 @@ body.public-body .public-main .public-cms-room-grid .public-room-card:nth-child(
 body.public-body .public-main .public-cms-room-grid .public-room-card:nth-child(6n+5){--dl-tone:#8c5e26}
 body.public-body .public-main .public-cms-room-grid .public-room-card:nth-child(6n+6){--dl-tone:#7e4e3b}
 body.public-body .public-main .public-cms-room-grid .public-room-card::before{
-    content:counter(dl-room,decimal-leading-zero);position:absolute;z-index:0;right:12px;top:-22px;
-    font-family:var(--dl-sans);font-weight:900;font-size:150px;line-height:1;letter-spacing:-.07em;color:rgba(255,255,255,.14);pointer-events:none;
+    content:counter(dl-room,decimal-leading-zero);position:absolute;z-index:0;right:14px;top:-10px;
+    font-family:var(--dl-sans);font-weight:900;font-size:96px;line-height:1;letter-spacing:-.05em;color:rgba(255,255,255,.13);pointer-events:none;
 }
 body.public-body .public-main .public-cms-room-grid .public-room-card:hover{transform:translateY(-3px)}
 body.public-body .public-main .public-cms-room-grid .public-room-art{
@@ -206,9 +207,9 @@ body.public-body .public-main .public-cms-room-grid .public-room-cover-image{pos
 body.public-body .public-main .public-cms-room-grid .public-room-image-scrim,
 body.public-body .public-main .public-cms-room-grid .public-room-image-title{display:none}
 body.public-body .public-main .public-cms-room-grid .public-room-poster{position:absolute;inset:auto 0 18px;text-align:center;display:grid;gap:2px;color:rgba(255,255,255,.9)}
-body.public-body .public-main .public-cms-room-grid .public-room-poster strong{font-weight:900;text-transform:uppercase;letter-spacing:-.03em}
+body.public-body .public-main .public-cms-room-grid .public-room-poster strong{font-weight:800;letter-spacing:-.01em}
 body.public-body .public-main .public-cms-room-grid .public-room-body{position:relative;z-index:1;padding:4px 4px 0;background:transparent;display:flex;flex-direction:column;align-items:stretch;gap:16px;flex:1}
-body.public-body .public-main .public-cms-room-grid .public-room-body h3{font-family:var(--dl-sans);font-weight:900;font-size:30px;letter-spacing:-.045em;line-height:1;text-transform:uppercase}
+body.public-body .public-main .public-cms-room-grid .public-room-body h3{font-family:var(--dl-sans);font-weight:800;font-size:var(--dl-h3);letter-spacing:-.015em;line-height:1.25;text-transform:none}
 body.public-body .public-main .public-cms-room-grid .public-room-body h3 a{color:#fff}
 body.public-body .public-main .public-cms-room-grid .public-room-body p{color:rgba(255,255,255,.88);font-size:15px;line-height:1.5;margin:8px 0 0}
 body.public-body .public-main .public-cms-room-grid .public-room-conversion{
@@ -217,7 +218,7 @@ body.public-body .public-main .public-cms-room-grid .public-room-conversion{
 }
 body.public-body .public-main .public-cms-room-grid .public-room-price{text-align:left}
 body.public-body .public-main .public-cms-room-grid .public-room-price small{display:block;color:rgba(255,255,255,.8);font-size:12px;font-weight:600;letter-spacing:0;text-transform:none}
-body.public-body .public-main .public-cms-room-grid .public-room-price strong{color:#fff;font-family:var(--dl-sans);font-weight:900;font-size:22px;letter-spacing:-.02em}
+body.public-body .public-main .public-cms-room-grid .public-room-price strong{color:#fff;font-family:var(--dl-sans);font-weight:800;font-size:19px;letter-spacing:-.01em}
 body.public-body .public-main .public-cms-room-grid .public-room-book-now{
     width:auto;justify-self:auto;min-height:44px;padding:11px 20px;border-radius:999px;background:#fff;color:var(--dl-ink)!important;
     font-weight:800;font-size:15px;text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;
@@ -234,8 +235,8 @@ body.public-body .public-branch-card{
 body.public-body .public-branch-media{display:block;height:200px;border-radius:16px;overflow:hidden;background:var(--dl-line)}
 body.public-body .public-branch-media img{width:100%;height:100%;object-fit:cover}
 body.public-body .public-branch-copy{padding:0 6px;display:grid;gap:8px}
-body.public-body .public-branch-copy .public-eyebrow{font-size:17px}
-body.public-body .public-branch-copy h3{margin:0;font-family:var(--dl-sans);font-weight:900;font-size:24px;letter-spacing:-.035em;text-transform:uppercase;line-height:1.05}
+
+body.public-body .public-branch-copy h3{margin:0;font-family:var(--dl-sans);font-weight:800;font-size:var(--dl-h3);letter-spacing:-.015em;text-transform:none;line-height:1.25}
 body.public-body .public-branch-copy h3 a{color:var(--dl-ink);text-decoration:none}
 body.public-body .public-branch-copy p{margin:0;color:var(--dl-text)}
 body.public-body .public-branch-copy small{color:var(--dl-muted);font-size:14px}
@@ -243,10 +244,10 @@ body.public-body .public-branch-actions{margin-top:6px}
 
 /* ---------- Feature / story ---------- */
 body.public-body .public-cms-feature{background:var(--dl-ground)!important}
-body.public-body .public-cms-feature h2{font-size:clamp(36px,4.6vw,64px)!important}
+body.public-body .public-cms-feature h2{font-size:var(--dl-h2)!important}
 body.public-body .public-story-media img{border-radius:200px 200px 24px 24px}
 body.public-body .public-story-media:after,body.public-body .public-story-media:before{display:none}
-body.public-body .public-story-copy p{color:var(--dl-text);font-size:17px;line-height:1.65}
+body.public-body .public-story-copy p{color:var(--dl-text);font-size:var(--dl-body);line-height:1.7}
 body.public-body .public-benefits{display:flex;flex-wrap:wrap;gap:10px}
 body.public-body .public-benefits span{
     border:1.5px solid var(--dl-ink)!important;border-radius:999px!important;background:var(--dl-surface)!important;
@@ -262,8 +263,8 @@ body.public-body .public-cms-cta-card{
     padding:clamp(28px,4vw,52px)!important;box-shadow:none!important;
     display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:20px 40px;
 }
-body.public-body .public-cms-cta-card h2{font-size:clamp(34px,4.4vw,60px)!important;color:var(--dl-ink)!important}
-body.public-body .public-cms-cta-card p{color:var(--dl-ink)!important;opacity:.85;font-size:17px}
+body.public-body .public-cms-cta-card h2{font-size:clamp(24px,2.4vw,34px)!important;color:var(--dl-ink)!important}
+body.public-body .public-cms-cta-card p{color:var(--dl-ink)!important;opacity:.85;font-size:var(--dl-body)}
 body.public-body .public-cms-cta-card .public-eyebrow{color:var(--dl-ink)!important}
 body.public-body .public-cms-cta.variant-dark .public-cms-cta-card{background:var(--dl-ink)!important;color:#fff!important}
 body.public-body .public-cms-cta.variant-dark .public-cms-cta-card h2,
@@ -282,8 +283,8 @@ body.public-body .public-blog-media img{width:100%!important;height:100%!importa
 body.public-body .public-blog-card:hover .public-blog-media img{transform:scale(1.03)}
 body.public-body .public-blog-media span{display:grid;place-items:end start;height:100%;padding:16px;color:var(--dl-text);font-size:13px}
 body.public-body .public-blog-copy{padding:0;display:grid;gap:8px}
-body.public-body .public-blog-copy small{font-family:var(--dl-serif);font-style:italic;font-size:16px;letter-spacing:0;text-transform:none;color:var(--dl-accent-ink)}
-body.public-body .public-blog-copy h3{margin:0;font-family:var(--dl-sans);font-weight:800;font-size:clamp(20px,1.9vw,24px);letter-spacing:-.03em;line-height:1.25}
+body.public-body .public-blog-copy small{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--dl-accent-ink)}
+body.public-body .public-blog-copy h3{margin:0;font-family:var(--dl-sans);font-weight:700;font-size:var(--dl-h3);letter-spacing:-.01em;line-height:1.35}
 body.public-body .public-blog-copy h3 a{color:var(--dl-ink);text-decoration:none}
 body.public-body .public-blog-copy p{margin:0;color:var(--dl-text);font-size:15px;line-height:1.55}
 body.public-body .public-blog-copy .public-text-link{justify-self:start;font-size:14px;min-height:40px}
@@ -299,7 +300,7 @@ body.public-body .public-policy-grid article span{font-weight:900;color:var(--dl
 body.public-body .public-hospitality-footer{background:var(--dl-ground-2);color:var(--dl-text);padding:clamp(56px,7vw,88px) 0 0;border-top:1px solid var(--dl-line);overflow:hidden}
 body.public-body .public-footer-contacts{margin-bottom:clamp(40px,5vw,64px)}
 body.public-body .public-footer-contacts-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px 30px;margin-bottom:32px}
-body.public-body .public-footer-contacts-head h2{margin:6px 0 0;font-size:clamp(36px,4.6vw,64px)}
+body.public-body .public-footer-contacts-head h2{margin:8px 0 0;font-size:var(--dl-h2)}
 body.public-body .public-footer-contact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:18px}
 body.public-body .public-footer-contact-grid.is-single{grid-template-columns:minmax(0,820px)}
 body.public-body .public-footer-contact-card{
@@ -314,12 +315,12 @@ body.public-body .public-footer-contact-brand .brand-mark{
     font-weight:900;font-size:16px;letter-spacing:-.04em;
 }
 body.public-body .public-footer-contact-brand span{display:grid;gap:2px;min-width:0}
-body.public-body .public-footer-contact-brand strong{font-weight:900;font-size:18px;letter-spacing:-.02em;line-height:1.2}
-body.public-body .public-footer-contact-brand small{font-family:var(--dl-serif);font-style:italic;font-size:14px;color:var(--dl-accent-ink)}
+body.public-body .public-footer-contact-brand strong{font-weight:800;font-size:17px;letter-spacing:-.01em;line-height:1.3}
+body.public-body .public-footer-contact-brand small{font-size:13px;color:var(--dl-muted)}
 body.public-body .public-hospitality-footer svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 body.public-body .public-footer-contact-address{display:flex;gap:10px;align-items:flex-start;font-style:normal;font-size:14px;line-height:1.5;color:var(--dl-text)}
 body.public-body .public-footer-contact-address svg{margin-top:2px}
-body.public-body .public-footer-contact-hotline{display:inline-flex;align-items:center;gap:10px;color:var(--dl-ink);font-weight:900;font-size:20px;letter-spacing:-.02em;text-decoration:none;min-height:40px}
+body.public-body .public-footer-contact-hotline{display:inline-flex;align-items:center;gap:10px;color:var(--dl-ink);font-weight:800;font-size:18px;letter-spacing:0em;text-decoration:none;min-height:40px}
 body.public-body .public-footer-contact-hotline:hover{color:var(--dl-accent-ink)}
 body.public-body .public-footer-contact-social{display:flex;flex-wrap:wrap;gap:8px}
 body.public-body .public-footer-contact-social a{
@@ -341,8 +342,8 @@ body.public-body .public-footer-contact-map small{font-size:12px;color:var(--dl-
 body.public-body .public-footer-contact-map:hover{background-color:#cfe0e3}
 body.public-body .public-hospitality-footer-grid{padding-top:clamp(32px,4vw,48px);border-top:1px solid var(--dl-line-2)}
 body.public-body .public-footer-brand-link{color:var(--dl-ink)}
-body.public-body .public-footer-brand-link strong{color:var(--dl-ink);font-weight:900;text-transform:uppercase;letter-spacing:-.03em}
-body.public-body .public-footer-brand-link small{color:var(--dl-accent-ink);font-family:var(--dl-serif);font-style:italic;font-size:14px;letter-spacing:0;text-transform:none}
+body.public-body .public-footer-brand-link strong{color:var(--dl-ink);font-weight:800;letter-spacing:-.01em}
+body.public-body .public-footer-brand-link small{color:var(--dl-muted);font-size:13px;font-weight:500;letter-spacing:0;text-transform:none}
 body.public-body .public-footer-brand-link .brand-mark{background:var(--dl-ink);color:var(--dl-accent)}
 body.public-body .public-footer-brand>p{color:var(--dl-text);font-size:15px;line-height:1.6}
 body.public-body .public-footer-book{color:var(--dl-ink);font-size:15px;font-weight:800}
@@ -352,7 +353,7 @@ body.public-body .public-footer-column a{color:var(--dl-text);font-size:14px}
 body.public-body .public-footer-column a:hover{color:var(--dl-ink)}
 body.public-body .public-footer-bottom{border-top:1px solid var(--dl-line-2);color:var(--dl-muted);font-size:13px}
 body.public-body .public-footer-wordmark{
-    font-family:var(--dl-sans);font-weight:900;font-size:clamp(84px,21vw,300px);letter-spacing:-.07em;line-height:.78;
+    font-family:var(--dl-sans);font-weight:900;font-size:clamp(64px,14vw,200px);letter-spacing:-.05em;line-height:.8;
     color:#e3dacb;text-align:center;white-space:nowrap;margin-bottom:-.06em;user-select:none;
 }
 
@@ -364,20 +365,41 @@ body.public-body .public-footer-wordmark{
 @media(max-width:820px){
     body.public-body .public-site-nav{min-height:64px}
     body.public-body .public-hero-price-sticker{width:104px;height:104px;right:4%;top:auto;bottom:18%}
-    body.public-body .public-hero-price-sticker strong{font-size:24px}
+    body.public-body .public-hero-price-sticker strong{font-size:22px}
     body.public-body .public-hotel-hero-label{max-width:70%}
 }
 @media(max-width:560px){
-    body.public-body .public-main .public-section-head h2{font-size:clamp(38px,11vw,56px)!important}
-    body.public-body .public-hotel-hero-copy h1{font-size:clamp(42px,12.5vw,64px)!important}
+    body.public-body{--dl-h1:clamp(30px,8.6vw,40px);--dl-h2:clamp(24px,7vw,32px);--dl-h3:19px}
     body.public-body .public-hotel-hero-main-image{right:0;width:100%!important}
     body.public-body .public-hotel-hero-inset{display:none}
     body.public-body .public-hotel-hero-label{left:14px;bottom:14px}
-    body.public-body .public-cms-room-grid .public-room-card::before{font-size:120px}
     body.public-body .public-footer-contact-grid{grid-template-columns:1fr}
     body.public-body .public-footer-contact-hotline{font-size:18px}
 }
 @media(prefers-reduced-motion:reduce){
     body.public-body .public-btn,
     body.public-body .public-blog-media img{transition:none}
+}
+
+/* ---------- Standard theme (Admin › Trang chủ chung › Chế độ giao diện = Giao diện chuẩn) ----------
+   The server already drops visual-editor size/width/spacing classes and layout variants, and skips
+   custom.css plus the header/footer designer runtime. These rules also bring free-form content
+   (row builder blocks, rich text) onto the same type scale. */
+body.dl-theme-standard .dl-builder-row .dl-row-heading,
+body.dl-theme-standard .public-cms-rich-inner h1,
+body.dl-theme-standard .public-cms-rich-inner h2{
+    font-family:var(--dl-sans)!important;font-weight:800!important;font-size:var(--dl-h2)!important;
+    line-height:1.2!important;letter-spacing:-.02em!important;text-transform:none!important;
+}
+body.dl-theme-standard .public-cms-rich-inner h3,
+body.dl-theme-standard .dl-builder-row h3{font-family:var(--dl-sans)!important;font-weight:700!important;font-size:var(--dl-h3)!important;line-height:1.3!important;letter-spacing:-.01em!important}
+body.dl-theme-standard .dl-builder-row .dl-row-text,
+body.dl-theme-standard .public-cms-rich-inner{font-family:var(--dl-sans)!important;font-size:var(--dl-body)!important;line-height:1.7!important}
+body.dl-theme-standard .dl-builder-row .dl-row-text *{font-family:inherit!important}
+body.dl-theme-standard .dl-builder-row .dl-row-button{border-radius:999px!important;font-family:var(--dl-sans)!important;font-weight:800!important;font-size:15px!important;min-height:48px;padding:13px 24px!important}
+body.dl-theme-standard .public-main [style*="font-family"]{font-family:var(--dl-sans)!important}
+body.dl-theme-standard.public-editor-enabled .public-main::before{
+    content:"Đang dùng Giao diện chuẩn: cỡ chữ, độ rộng, màu header/footer và CSS tùy chỉnh không được áp dụng. Nội dung vẫn sửa bình thường. Đổi ở Quản trị › Trang chủ chung › Chế độ giao diện.";
+    display:block;margin:12px auto 0;max-width:1320px;padding:10px 16px;border-radius:12px;
+    background:var(--dl-accent-soft);color:var(--dl-accent-ink);font-size:13px;font-weight:600;line-height:1.5;
 }

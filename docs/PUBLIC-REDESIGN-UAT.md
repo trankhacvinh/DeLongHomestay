@@ -5,7 +5,8 @@ Phạm vi: chỉ đổi giao diện trang khách (header, trang chủ, lịch ph
 ## Thành phần
 
 - `wwwroot/css/public-redesign.css`: lớp giao diện mới. Nạp sau `hospitality-shell.css` và trước `custom.css` của từng cơ sở, nên CSS tùy biến của cơ sở vẫn ghi đè được.
-- `wwwroot/fonts/brand/`: Be Vietnam Pro (400/600/700/900) và Playfair Display Italic. Cả hai tự host, subset Latin + tiếng Việt, giấy phép OFL đi kèm.
+- `wwwroot/fonts/brand/`: Be Vietnam Pro (400/600/700/900), tự host, subset Latin + tiếng Việt, giấy phép OFL đi kèm. Một font duy nhất, thang chữ cố định (`--dl-h1`, `--dl-h2`, `--dl-h3`), tiêu đề không viết hoa toàn bộ và line-height ≥ 1.15 để dấu tiếng Việt không đè lên dòng khác.
+- **Chế độ giao diện** (Quản trị › Trang chủ chung): lưu trong HomeSection ẩn `__PublicTheme`, không đổi schema. Mặc định là **Giao diện chuẩn**.
 - `SiteContentService.GetPublicContactsAsync`: danh sách liên hệ của các cơ sở đang hoạt động, lấy từ `PropertySiteSettings` (logo, địa chỉ, hotline, Zalo, Facebook, Google Maps). Cache dưới tag `public-content`, nên tự làm mới khi lưu cài đặt website.
 - `public-availability-calendar.js`: lịch nhiều phòng và danh sách tick chọn cơ sở. Logic chọn khung liên tiếp giữ nguyên.
 
@@ -41,6 +42,20 @@ Phạm vi: chỉ đổi giao diện trang khách (header, trang chủ, lịch ph
 8. **Trợ năng.**
    - Mọi nút và link có focus-visible và vùng chạm tối thiểu 40–44px.
    - Dải chữ chạy và hiệu ứng tắt khi bật `prefers-reduced-motion`.
+
+## Chế độ giao diện
+
+| | Giao diện chuẩn (mặc định) | Tùy chỉnh tự do |
+|---|---|---|
+| Nội dung: chữ, ảnh, khối, thứ tự, menu | Sửa được | Sửa được |
+| Cỡ chữ / độ rộng / khoảng cách / căn lề chỉnh tay (`cp-*`) | Bỏ qua (server không render class) | Áp dụng |
+| Layout biến thể của khối (`variant-*`) | Luôn dùng bố cục chuẩn | Áp dụng |
+| Màu và hàng footer từ trình thiết kế header/footer | Bỏ qua | Áp dụng |
+| `custom.css` của cơ sở | Không nạp | Nạp |
+| Tiêu đề và chữ trong row builder / rich text | Đưa về thang chữ chuẩn | Giữ nguyên |
+
+9. Bật Giao diện chuẩn: trang public không còn chữ quá to/quá nhỏ do chỉnh tay; người quản trị đang sửa trang thấy dải thông báo ở đầu trang.
+10. Chuyển sang Tùy chỉnh tự do: mọi tùy chỉnh cũ hiện lại như trước, không mất dữ liệu.
 
 ## Ghi chú vận hành
 

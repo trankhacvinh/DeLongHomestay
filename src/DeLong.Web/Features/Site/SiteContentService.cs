@@ -270,6 +270,17 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
             token: ct);
     }
 
+    /// <summary>Public theme mode (standard/custom); cached under the public-content tag, which HomeSection writes invalidate.</summary>
+    public async Task<PublicThemeDto> GetPublicThemeAsync(CancellationToken ct = default)
+    {
+        if (cache is null) return await PublicThemeStore.ReadAsync(db, ct);
+        return await cache.GetOrSetAsync<PublicThemeDto>(
+            PublicCacheKeys.Theme,
+            async (_, token) => await PublicThemeStore.ReadAsync(db, token),
+            tags: [PublicCacheKeys.Tag],
+            token: ct);
+    }
+
     public async Task<(SiteSettingsDto? Settings, SiteContentError? Error)> SaveSettingsAsync(
         Guid propertyId,
         SaveSiteSettingsRequest request,

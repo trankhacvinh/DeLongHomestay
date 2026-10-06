@@ -8,12 +8,22 @@
     <link rel="stylesheet" href="~/css/site-cms.css" asp-append-version="true" />
     <style>
         .global-branding-panel{margin-bottom:18px;padding:22px}.global-branding-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:18px}.global-branding-head h2{margin:4px 0 6px}.global-branding-head p{margin:0;color:#75827f}.global-branding-preview{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid #dce5e1;border-radius:14px;background:#f8fbf9;margin-bottom:18px}.global-branding-preview img,.global-branding-preview .brand-mark{width:56px;height:56px;object-fit:contain;border-radius:14px}.global-branding-preview strong,.global-branding-preview small{display:block}.global-branding-preview small{margin-top:4px;color:#74817e}.global-branding-note{margin-top:8px;padding:10px 12px;border-radius:11px;background:#eef6f3;color:#47635d;font-size:12px}.global-branding-assets{display:grid;gap:12px}.global-branding-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}@@media(max-width:760px){.global-branding-head{display:grid}.global-branding-actions{justify-content:stretch;flex-direction:column}.global-branding-actions .btn{width:100%}}
+        .global-theme-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:16px}.global-theme-option{display:flex;gap:12px;align-items:flex-start;padding:16px;border:1.5px solid #dce5e1;border-radius:14px;cursor:pointer;background:#fff}.global-theme-option.active{border-color:#174b4f;box-shadow:0 0 0 3px rgba(23,75,79,.1)}.global-theme-option input{margin-top:3px;accent-color:#174b4f}.global-theme-option span{display:grid;gap:6px}.global-theme-option strong{font-size:15px}.global-theme-option em{margin-left:6px;padding:2px 8px;border-radius:999px;background:#dff0ed;color:#174b4f;font-size:11px;font-style:normal;font-weight:700}.global-theme-option small{color:#667472;line-height:1.5}
     </style>
 }
 
 <div id="global-site-cms" class="site-admin-page" v-cloak>
     <script id="global-site-cms-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
     <div class="page-title-row site-page-head"><div><div class="page-eyebrow">Website chung</div><h1>Trang chủ toàn hệ thống</h1><p>Cấu hình thương hiệu và các section xuất hiện tại <code>/</code>. Trang riêng từng cơ sở tiếp tục cấu hình ở mục Website của cơ sở đó.</p></div><div class="site-head-actions"><a class="btn btn-light" asp-page="/Admin/Site/Index">Trang cơ sở</a><a class="btn btn-light" href="/" target="_blank" rel="noopener">Xem trang chủ ↗</a></div></div>
+
+    <section class="panel global-branding-panel global-theme-panel">
+        <div class="global-branding-head"><div><span class="page-eyebrow">Chế độ giao diện</span><h2>Giữ website luôn đồng bộ</h2><p>Áp dụng cho toàn bộ trang public của mọi cơ sở. Nội dung (chữ, ảnh, khối, menu) vẫn sửa được ở cả hai chế độ.</p></div></div>
+        <div class="global-theme-options" role="radiogroup" aria-label="Chế độ giao diện">
+            <label class="global-theme-option" v-bind:class="{ active: themeMode === 'standard' }"><input type="radio" value="standard" v-model="themeMode" /><span><strong>Giao diện chuẩn <em>khuyến nghị</em></strong><small>Dùng thiết kế có sẵn: font, cỡ chữ, màu và bố cục thống nhất. Bỏ qua cỡ chữ/độ rộng/khoảng cách chỉnh tay, layout biến thể của từng khối, màu header/footer từ trình thiết kế và CSS tùy chỉnh.</small></span></label>
+            <label class="global-theme-option" v-bind:class="{ active: themeMode === 'custom' }"><input type="radio" value="custom" v-model="themeMode" /><span><strong>Tùy chỉnh tự do</strong><small>Áp dụng mọi tùy chỉnh từ trình chỉnh sửa trực quan, trình thiết kế header/footer và CSS tùy chỉnh như trước đây.</small></span></label>
+        </div>
+        <div class="global-branding-actions"><button class="btn btn-primary" type="button" v-bind:disabled="themeSaving || themeMode === themeSaved" v-on:click="saveTheme">{{ themeSaving ? 'Đang lưu…' : 'Lưu chế độ giao diện' }}</button></div>
+    </section>
 
     <section class="panel global-branding-panel">
         <div class="global-branding-head"><div><span class="page-eyebrow">Thương hiệu chung</span><h2>Logo & nhận diện toàn hệ thống</h2><p>Trường để trống sẽ tự dùng cấu hình của cơ sở duy nhất đang hoạt động. Khi có nhiều cơ sở, chỉ các giá trị ghi đè bên dưới được dùng cho trang chung.</p></div></div>

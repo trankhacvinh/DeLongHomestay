@@ -37,7 +37,7 @@
         };
     }
     createApp({
-        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, brandingEffective: initial.branding || {}, branding: brandingForm(initial.branding), brandingSaving: false, brandingUploading: '', editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
+        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, brandingEffective: initial.branding || {}, branding: brandingForm(initial.branding), brandingSaving: false, brandingUploading: '', themeMode: initial.theme?.mode || 'standard', themeSaved: initial.theme?.mode || 'standard', themeSaving: false, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
         computed: {
             brandPreviewLogo() { return this.branding.logoUrl || this.brandingEffective.logoUrl || ''; },
             brandPreviewName() { return this.branding.siteName || this.brandingEffective.siteName || 'De Long Homestay'; },
@@ -61,6 +61,16 @@
             toggleArray(key, id) { const list = Array.isArray(this.form.content[key]) ? [...this.form.content[key]] : []; const i = list.findIndex(x => String(x) === String(id)); if (i >= 0) list.splice(i, 1); else list.push(id); this.form.content[key] = list; },
             normalizeContent(type, content) { const base = Object.assign(defaultContent(type), content || {}); if (type === 'BranchGrid' && !Array.isArray(base.propertyIds)) base.propertyIds = []; if (type === 'RoomGrid') { if (!Array.isArray(base.roomIds)) base.roomIds = []; if (!base.propertyQuotas || typeof base.propertyQuotas !== 'object' || Array.isArray(base.propertyQuotas)) base.propertyQuotas = {}; } return base; },
             mountSortable() { if (!window.Sortable) return; if (this.sortable) this.sortable.destroy(); const el = document.getElementById('global-section-list'); if (!el) return; this.sortable = Sortable.create(el, { animation: 160, handle: '.home-drag-handle', ghostClass: 'dragging', onEnd: async e => { if (e.oldIndex === e.newIndex) return; const moved = this.sections.splice(e.oldIndex, 1)[0]; this.sections.splice(e.newIndex, 0, moved); try { await DeLongApi.put('/api/admin/site/global/sections/reorder', { ids: this.sections.map(x => x.id) }); this.notify('Đã cập nhật thứ tự.'); } catch (err) { this.notify(err.message || 'Không thể đổi thứ tự.', 'error'); } } }); },
+            async saveTheme() {
+                if (this.themeSaving) return;
+                this.themeSaving = true;
+                try {
+                    const saved = await DeLongApi.put('/api/admin/site/global/theme', { mode: this.themeMode });
+                    this.themeMode = this.themeSaved = saved?.mode || this.themeMode;
+                    this.notify(this.themeMode === 'standard' ? 'Đã bật Giao diện chuẩn.' : 'Đã chuyển sang Tùy chỉnh tự do.');
+                } catch (err) { this.notify(err.message || 'Không thể lưu chế độ giao diện.', 'error'); }
+                finally { this.themeSaving = false; }
+            },
             async saveBranding() {
                 if (this.brandingSaving || this.brandingUploading) return;
                 this.brandingSaving = true;

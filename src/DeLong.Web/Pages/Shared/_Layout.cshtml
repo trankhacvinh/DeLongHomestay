@@ -23,8 +23,11 @@
     var publicTagline = string.IsNullOrWhiteSpace(publicSettings?.Tagline) ? "Long Thành · Đồng Nai" : publicSettings.Tagline;
     // Footer contact cards: every active property on the global site, only the current property on a property site.
     IReadOnlyList<DeLong.Web.Features.Site.PublicPropertyContactDto> publicContacts = [];
+    // Standard theme: the built-in design wins over visual-editor styling, header/footer designer and custom.css.
+    var publicThemeStandard = false;
     if (!isAdmin)
     {
+        publicThemeStandard = (await SiteContentService.GetPublicThemeAsync(Context.RequestAborted)).IsStandard;
         var allContacts = await SiteContentService.GetPublicContactsAsync(Context.RequestAborted);
         publicContacts = isGlobalPublic
             ? allContacts
@@ -226,7 +229,7 @@
         <link rel="preload" href="~/fonts/brand/be-vietnam-pro-900.woff" as="font" type="font/woff" crossorigin/>
         <link rel="stylesheet" href="~/css/public-redesign.css" asp-append-version="true"/>
     }
-    @if (!isAdmin && !isGlobalPublic)
+    @if (!isAdmin && !isGlobalPublic && !publicThemeStandard)
     {
         <link rel="stylesheet" href="@(publicScopePrefix + "/site/custom.css")"/>
     }
@@ -237,7 +240,7 @@
 </head>
 <body class="@(isAdmin
     ? "admin-body"
-    : $"public-body{(canManageSite && !isPaymentPage ? " public-editor-enabled" : string.Empty)}{(Context.Request.Query["embed"] == "1" ? " public-embedded-page" : string.Empty)}")">
+    : $"public-body{(publicThemeStandard ? " dl-theme-standard" : " dl-theme-custom")}{(canManageSite && !isPaymentPage ? " public-editor-enabled" : string.Empty)}{(Context.Request.Query["embed"] == "1" ? " public-embedded-page" : string.Empty)}")">
 <a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
 <svg class="svg-sprite" aria-hidden="true">
     <symbol id="i-grid" viewBox="0 0 24 24">

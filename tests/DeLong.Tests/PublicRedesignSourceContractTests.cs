@@ -18,7 +18,9 @@ public sealed class PublicRedesignSourceContractTests
         Assert.True(custom > redesign, "A property's custom.css must still be able to override the redesign.");
 
         Assert.Contains("../fonts/brand/be-vietnam-pro-400.woff", styles, StringComparison.Ordinal);
-        Assert.Contains("../fonts/brand/playfair-display-italic-500.woff", styles, StringComparison.Ordinal);
+        Assert.DoesNotContain("text-transform:uppercase;\n    letter-spacing:-", styles, StringComparison.Ordinal);
+        Assert.Contains("--dl-h1:", styles, StringComparison.Ordinal);
+        Assert.Contains("line-height:1.18!important", styles, StringComparison.Ordinal);
         Assert.True(File.Exists(RepositoryPath("src/DeLong.Web/wwwroot/fonts/brand/be-vietnam-pro-900.woff")));
         Assert.True(File.Exists(RepositoryPath("src/DeLong.Web/wwwroot/fonts/brand/OFL-BeVietnamPro.txt")));
         Assert.DoesNotContain("fonts.googleapis.com", styles, StringComparison.Ordinal);
@@ -62,6 +64,33 @@ public sealed class PublicRedesignSourceContractTests
         Assert.Contains(".public-v2-slot-cell.is-room-start", styles, StringComparison.Ordinal);
         Assert.Contains("fromPrice = item.Room.QuickFromPrice", home, StringComparison.Ordinal);
         Assert.Contains("public-hero-price-sticker", home, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Standard_theme_keeps_the_built_in_design_authoritative()
+    {
+        var store = ReadRepositoryFile("src/DeLong.Web/Features/Site/PublicThemeStore.cs");
+        var layout = ReadRepositoryFile("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var home = ReadRepositoryFile("src/DeLong.Web/Pages/Index.cshtml");
+        var custom = ReadRepositoryFile("src/DeLong.Web/Pages/CustomPage.cshtml");
+        var api = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/core/api.js");
+        var endpoints = ReadRepositoryFile("src/DeLong.Web/Features/Site/SiteContentEndpoints.cs");
+        var styles = ReadRepositoryFile("src/DeLong.Web/wwwroot/css/public-redesign.css");
+
+        Assert.Contains("MetadataSectionType = \"__PublicTheme\"", store, StringComparison.Ordinal);
+        Assert.Contains("return new PublicThemeDto(StandardMode);", store, StringComparison.Ordinal);
+        Assert.Contains("!isGlobalPublic && !publicThemeStandard", layout, StringComparison.Ordinal);
+        Assert.Contains("dl-theme-standard", layout, StringComparison.Ordinal);
+        Assert.Contains("Model.ThemeStandard ? string.Empty : CustomPageModel.VisualClass", home, StringComparison.Ordinal);
+        Assert.Contains("Model.ThemeStandard ? string.Empty : CustomPageModel.VisualClass", custom, StringComparison.Ordinal);
+        Assert.DoesNotContain("variant-@(block.Variant)", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("variant-@(section.Variant)", custom, StringComparison.Ordinal);
+        Assert.Contains("if (!standardTheme) addScript('data-public-shell-designer-runtime'", api, StringComparison.Ordinal);
+        Assert.Contains("if (!standardTheme) addScript('data-public-visual-typography-runtime'", api, StringComparison.Ordinal);
+        Assert.Contains("global.MapPut(\"/theme\"", endpoints, StringComparison.Ordinal);
+        Assert.Contains("x.Type != PublicThemeStore.MetadataSectionType", endpoints, StringComparison.Ordinal);
+        Assert.Contains("body.dl-theme-standard .dl-builder-row .dl-row-heading", styles, StringComparison.Ordinal);
     }
 
     private static string ReadRepositoryFile(string relativePath) => File.ReadAllText(RepositoryPath(relativePath));
