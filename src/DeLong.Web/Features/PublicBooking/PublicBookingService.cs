@@ -1,4 +1,5 @@
 using System.Globalization;
+using DeLong.Web.Features.Rooms;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
@@ -63,7 +64,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var rooms = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == property.Id && x.IsActive && x.IsPublished).OrderBy(x => x.SortOrder).ThenBy(x => x.Name)
             .Select(x => new
             {
-                x.Id, x.Code, x.Name, x.Capacity, x.FullDayPricingEnabled, x.FullDayPrice,
+                x.Id, x.Code, x.Name, x.Capacity, x.IsBookingLocked, x.FullDayPricingEnabled, x.FullDayPrice,
                 x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice,
                 Rates = x.Rates.Where(r => r.IsActive).OrderBy(r => r.SortOrder).Select(r => new
                 {
@@ -95,7 +96,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
                 }
                 rates.Add(new PublicRateDto(rate.Id, rate.Name, rate.StartTime.ToString("HH:mm"),
                     rate.EndTime.ToString("HH:mm"), rate.Type, rate.IsOvernight, price,
-                    (!availabilityDate.HasValue || !unavailable.Contains((room.Id, rate.Id))) &&
+                    !room.IsBookingLocked && (!availabilityDate.HasValue || !unavailable.Contains((room.Id, rate.Id))) &&
                     (rate.Type == RoomRateType.Nightly || datePolicy?.BookingMode != SpecialDayBookingMode.FullDayOnly)));
             }
             var fullDayPrice = room.FullDayPrice;
@@ -114,7 +115,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
             }
             var publicPrices = rates.Where(r => r.Price > 0).Select(r => r.Price).ToList();
             roomDtos.Add(new PublicRoomDto(room.Id, room.Code, room.Name, room.Capacity, HasBathtub(room.Code),
-                publicPrices.Count == 0 ? 0 : publicPrices.Min(), room.FullDayPricingEnabled, fullDayPrice, rates));
+                publicPrices.Count == 0 ? 0 : publicPrices.Min(), room.FullDayPricingEnabled, fullDayPrice, rates, room.IsBookingLocked));
         }
         return new PublicCatalogDto(property.Id, property.Name, property.TimeZoneId, roomDtos);
     }
@@ -144,7 +145,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var validation = ValidateStayDates(checkInDate, checkOutDate, property.TimeZoneId); if (validation is not null) return (null, validation);
         var nights = checkOutDate.DayNumber - checkInDate.DayNumber; var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
         var rates = await db.RoomRates.AsNoTracking().Where(r => r.Room.PropertyId == property.Id && r.Room.IsActive && r.Room.IsPublished && r.IsActive && r.Type == RoomRateType.Nightly && r.Price > 0)
-            .OrderBy(r => r.Room.SortOrder).ThenBy(r => r.SortOrder).Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Price, RoomId = r.Room.Id, RoomCode = r.Room.Code, RoomName = r.Room.Name, r.Room.Capacity }).ToListAsync(cancellationToken);
+            .OrderBy(r => r.Room.SortOrder).ThenBy(r => r.SortOrder).Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Price, RoomId = r.Room.Id, RoomCode = r.Room.Code, RoomName = r.Room.Name, r.Room.Capacity, r.Room.IsBookingLocked }).ToListAsync(cancellationToken);
         var roomRates = rates.GroupBy(r => r.RoomId).Select(g => g.First()).ToList();
         var candidates = roomRates.Select(rate =>
         {
@@ -172,7 +173,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
             var conflict = lockedBookings.Any(x =>
                 x.RoomId == rate.RoomId && x.CheckInUtc < candidate.CheckOutUtc && candidate.CheckInUtc < x.CheckOutUtc);
             var dto = new PublicRateDto(rate.Id, rate.Name, rate.StartTime.ToString("HH:mm"), rate.EndTime.ToString("HH:mm"), RoomRateType.Nightly, false, rate.Price, !conflict);
-            results.Add(new PublicStayRoomDto(rate.RoomId, rate.RoomCode, rate.RoomName, rate.Capacity, HasBathtub(rate.RoomCode), dto, nights, rate.Price * nights, !conflict));
+            results.Add(new PublicStayRoomDto(rate.RoomId, rate.RoomCode, rate.RoomName, rate.Capacity, HasBathtub(rate.RoomCode), dto, nights, rate.Price * nights, !conflict && !rate.IsBookingLocked, rate.IsBookingLocked));
         }
         return (new PublicStayAvailabilityDto(checkInDate.ToString("yyyy-MM-dd"), checkOutDate.ToString("yyyy-MM-dd"), nights, results), null);
     }
@@ -217,12 +218,14 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
             .Where(x => x.Id == request.RoomId && x.PropertyId == context.PropertyId && x.IsActive && x.IsPublished)
             .Select(x => new
             {
-                x.Id, x.Name, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice,
+                x.Id, x.Name, x.IsBookingLocked, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice,
                 Rates = x.Rates.Where(r => r.IsActive && r.Type != RoomRateType.Nightly)
                     .OrderBy(r => r.SortOrder).ThenBy(r => r.StartTime).ThenBy(r => r.Name)
                     .Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Type, r.IsOvernight, r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice }).ToList()
             }).SingleOrDefaultAsync(ct);
         if (room is null || room.Rates.Count == 0) return (null, new("rate_not_found", "Khung giờ hoặc phòng không còn khả dụng."));
+
+        if (room.IsBookingLocked) return (null, new(RoomBookingGuard.ErrorCode, RoomBookingGuard.ErrorMessage));
 
         var rateIndexes = room.Rates.Select((rate, index) => (rate.Id, index)).ToDictionary(x => x.Id, x => x.index);
         var resolved = new List<ResolvedPublicSlot>(selected.Count);
@@ -349,9 +352,10 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         if (idempotencyKey is not null && await FindIdempotentResultAsync(context.PropertyId, idempotencyKey, ct) is { } replay) return (replay, null);
         var dateError = ValidateStayDates(checkInDate, checkOutDate, context.TimeZone.Id); if (dateError is not null) return (null, dateError);
         var rate = await db.RoomRates.AsNoTracking().Where(x => x.Id == request.RateId && x.RoomId == request.RoomId && x.IsActive && x.Type == RoomRateType.Nightly && x.Price > 0 && x.Room.IsActive && x.Room.IsPublished && x.Room.PropertyId == context.PropertyId)
-            .Select(x => new { x.Id, x.Name, x.StartTime, x.EndTime, x.Price, RoomId = x.Room.Id, RoomName = x.Room.Name }).SingleOrDefaultAsync(ct);
+            .Select(x => new { x.Id, x.Name, x.StartTime, x.EndTime, x.Price, RoomId = x.Room.Id, RoomName = x.Room.Name, x.Room.IsBookingLocked }).SingleOrDefaultAsync(ct);
         if (rate is null) return (null, new("rate_not_found", "Phòng chưa có giá lưu trú theo đêm hoặc giá đã ngừng áp dụng."));
         var nights = checkOutDate.DayNumber - checkInDate.DayNumber;
+        if (rate.IsBookingLocked) return (null, new(RoomBookingGuard.ErrorCode, RoomBookingGuard.ErrorMessage));
         var (checkInUtc, checkOutUtc) = ToUtcStayRange(checkInDate, checkOutDate, rate.StartTime, rate.EndTime, context.TimeZone);
         if (await bookingService.HasConflictAsync(context.PropertyId, rate.RoomId, checkInUtc, checkOutUtc, null, ct)) return (null, new("booking_conflict", "Phòng đã có lượt đặt giao với khoảng lưu trú này. Vui lòng chọn ngày hoặc phòng khác."));
         var amount = rate.Price * nights;

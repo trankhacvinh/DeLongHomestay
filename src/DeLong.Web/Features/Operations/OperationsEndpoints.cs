@@ -263,7 +263,7 @@ public static class OperationsEndpoints
             if (!await waitForEvent) break;
             while (subscription.Reader.TryRead(out var evt))
             {
-                if (!evt.Type.StartsWith("booking.", StringComparison.Ordinal)) continue;
+                if (!evt.Type.StartsWith("booking.", StringComparison.Ordinal) && evt.Type != OperationsEventTypes.RoomBookingLockChanged) continue;
                 if (evt.RoomId.HasValue && evt.RoomId.Value != roomId) continue;
 
                 var payload = new PublicAvailabilityRealtimeEvent(evt.Type, roomId, evt.OccurredAtUtc);

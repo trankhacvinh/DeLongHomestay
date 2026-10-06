@@ -1,4 +1,5 @@
 using DeLong.Web.Common.Auditing;
+using DeLong.Web.Features.Rooms;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
@@ -36,7 +37,9 @@ public sealed class BookingService(
     public async Task<(BookingDto? Booking, BookingOperationError? Error)> CreateAsync(Guid propertyId, CreateBookingRequest request, Guid? actorUserId = null, CancellationToken cancellationToken = default)
     {
         var validation = ValidateCreate(request); if (validation is not null) return (null, validation);
-        if (!await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id == request.RoomId && x.IsActive, cancellationToken)) return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
+        await using var admission = await RoomBookingGuard.AcquireAsync(db, propertyId, request.RoomId, cancellationToken);
+        if (admission.Room?.IsBookingLocked == true) return (null, new(RoomBookingGuard.ErrorCode, RoomBookingGuard.ErrorMessage));
+        if (admission.Room is not { IsActive: true }) return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
         var rateError = await ValidateRateReferenceAsync(request.Type, request.RoomId, request.RoomRateId, cancellationToken);
         if (rateError is not null) return (null, rateError);
         var segmentError = await ValidateRateSegmentsAsync(request, cancellationToken);
@@ -82,6 +85,7 @@ public sealed class BookingService(
         db.Bookings.Add(booking);
         auditService.Add(propertyId, "Booking", booking.Id, "Created", actorUserId, after: Snapshot(booking));
         var saveError = await SaveWithConflictGuardAsync(cancellationToken, !string.IsNullOrWhiteSpace(request.PublicRequestKey)); if (saveError is not null) return (null, saveError);
+        await admission.CommitAsync(cancellationToken);
         if (request.Status == BookingStatus.Confirmed && guestGuideEmailService is not null)
             await guestGuideEmailService.QueueAutomaticAsync(propertyId, booking.Id, cancellationToken);
         if (notificationService is not null &&
@@ -102,6 +106,9 @@ public sealed class BookingService(
         if (booking.Type == BookingType.MultiDay && request.Type != BookingType.MultiDay)
             return (null, new("multiday_edit_requires_v2", "Lượt lưu trú nhiều ngày phải được sửa bằng trình chỉnh sửa nhiều ngày."));
 
+        await using var admission = request.RoomId != booking.RoomId
+            ? await RoomBookingGuard.AcquireAsync(db, propertyId, request.RoomId, cancellationToken) : null;
+        if (admission?.Room?.IsBookingLocked == true) return (null, new(RoomBookingGuard.ErrorCode, RoomBookingGuard.ErrorMessage));
         if (!await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id == request.RoomId && (x.IsActive || x.Id == booking.RoomId), cancellationToken)) return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
         var rateError = await ValidateRateReferenceAsync(request.Type, request.RoomId, request.RoomRateId, cancellationToken);
         if (rateError is not null) return (null, rateError);
@@ -132,6 +139,7 @@ public sealed class BookingService(
             await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, bookingId, cancellationToken);
         auditService.Add(propertyId, "Booking", booking.Id, "Updated", actorUserId, before, Snapshot(booking));
         var saveError = await SaveWithConflictGuardAsync(cancellationToken); if (saveError is not null) return (null, saveError);
+        if (admission is not null) await admission.CommitAsync(cancellationToken);
         return (await GetAsync(propertyId, bookingId, cancellationToken), null);
     }
 

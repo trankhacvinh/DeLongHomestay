@@ -148,3 +148,7 @@ Admin AI mutation chỉ chạy từ typed proposal đã được server resolve 
 ## SePay payment provider
 
 SePay VietQR/webhook dùng chung vòng đời intent với Pay2s, phân biệt bằng `Provider`; giữ tên bảng/route cũ để tương thích. Hồ sơ theo cơ sở, snapshot khóa/tài khoản cho phiên cũ, sổ SePay chống trùng toàn hệ thống; Payment lịch sử giữ nguyên phương thức. Chi tiết, chuyển đổi và giới hạn: [SEPAY-PAYMENTS.md](SEPAY-PAYMENTS.md).
+
+### Room booking admission lock (2026-10-06)
+
+Temporary booking locks are independent from room activation, publication and housekeeping. `RoomBookingGuard` serializes lock/unlock, new booking admission and transfers into a room using PostgreSQL row locks, reusing an existing transaction where present. Existing bookings and payment callbacks do not depend on this flag. See `docs/ROOM-BOOKING-LOCK.md` for migration and operational contracts.

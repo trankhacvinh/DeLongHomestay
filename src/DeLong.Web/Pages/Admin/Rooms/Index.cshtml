@@ -4,9 +4,10 @@
     ViewData["Title"] = "Phòng";
 }
 @section Head {
+    <link rel="stylesheet" href="~/css/room-booking-lock.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-rooms-list.css" asp-append-version="true" />
 }
-<div id="rooms-page" class="rooms-admin-page" v-cloak>
+<div id="rooms-page" data-can-lock-rooms="@((User.IsInRole("Admin") || User.IsInRole("Manager")) ? "true" : "false")" class="rooms-admin-page" v-cloak>
     <script id="rooms-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
     <div class="page-title-row rooms-page-head">
@@ -55,6 +56,12 @@
                         </td>
                         <td class="col-status" data-label="Trạng thái">
                             <div class="room-status-stack">
+                                <span v-if="room.isBookingLocked" class="pill danger">Tạm ngừng nhận đặt phòng</span>
+                                <small v-if="room.isBookingLocked" style="white-space:normal;overflow-wrap:anywhere">{{ roomLockDetails(room) }}</small>
+                                @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                                {
+                                    <button class="btn btn-light btn-sm" type="button" v-on:click="openRoomBookingLock(room)">{{ room.isBookingLocked ? 'Mở khóa' : 'Khóa phòng' }}</button>
+                                }
                                 @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                                 {
                                     <button class="room-status-toggle" v-bind:class="room.isActive ? 'is-on' : 'is-off'" type="button" v-bind:disabled="statusSavingId === room.id" v-on:click="toggleActive(room)" v-bind:title="room.isActive ? 'Bấm để ngừng hoạt động' : 'Bấm để bật hoạt động'">
@@ -111,8 +118,10 @@
         </section>
     </div>
 
+    <partial name="_RoomBookingLockDialog" />
     <div class="toast" v-if="toast.show" v-bind:class="toast.type" aria-live="polite">{{ toast.message }}</div>
 </div>
 @section Scripts {
+    <script src="~/js/pages/admin-room-booking-lock.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-rooms.js" asp-append-version="true"></script>
 }

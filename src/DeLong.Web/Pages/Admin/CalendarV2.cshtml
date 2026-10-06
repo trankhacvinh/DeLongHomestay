@@ -4,13 +4,14 @@
     ViewData["Title"] = "Lịch phòng V2";
 }
 @section Head {
+    <link rel="stylesheet" href="~/css/room-booking-lock.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="~/css/calendar-v2-polish.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-booking-guest-details.css" asp-append-version="true" />
     <link data-admin-calendar-v2 rel="stylesheet" href="~/css/admin-calendar-v2.css" asp-append-version="true" />
     <style>#calendar-page[data-calendar-v2-page="true"] .calendar-v2-view-switch{display:none!important}</style>
 }
-<div id="calendar-page"
+<div id="calendar-page" data-can-lock-rooms="@((User.IsInRole("Admin") || User.IsInRole("Manager")) ? "true" : "false")"
      data-calendar-v2-page="true"
      data-property-id="@Model.PropertyId"
      data-time-zone-id="@Model.TimeZoneId"
@@ -58,7 +59,7 @@
                             <label>Phòng *</label>
                             <select v-model="form.roomId" v-on:change="roomChanged">
                                 <option value="">Chọn phòng</option>
-                                <option v-for="room in activeRooms" v-bind:key="room.id" v-bind:value="room.id">{{ room.name }}</option>
+                                <option v-for="room in activeRooms" v-bind:key="room.id" v-bind:value="room.id" v-bind:disabled="room.isBookingLocked && (editor.mode === 'create' || room.id !== selectedBooking?.roomId)">{{ room.name }}{{ room.isBookingLocked ? ' · Đang khóa' : '' }}</option>
                             </select>
                         </div>
                         <div class="field">
@@ -177,10 +178,12 @@
         </section>
     </div>
 
+    <partial name="_RoomBookingLockDialog" />
     <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
 </div>
 
 @section Scripts {
+    <script src="~/js/pages/admin-room-booking-lock.js" asp-append-version="true"></script>
     <script>window.DeLongCalendarCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") ? "true" : "false"); try { localStorage.setItem('delong.calendar.view.@Model.PropertyId', 'v2'); } catch { }</script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script src="~/js/pages/admin-calendar-range.js" asp-append-version="true"></script>

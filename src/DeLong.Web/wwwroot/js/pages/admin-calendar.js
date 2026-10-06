@@ -321,7 +321,8 @@
             },
             openCreate(room, day) {
                 if (!this.canManage) return;
-                const selectedRoom = room || this.activeRooms[0] || null;
+                const selectedRoom = room || this.activeRooms.find(x => !x.isBookingLocked) || null;
+                if (!selectedRoom || selectedRoom.isBookingLocked) return this.notify('Phòng đang tạm ngừng nhận đặt phòng. Vui lòng chọn phòng khác.', 'error');
                 this.selectedDayKey = day?.key || this.today;
                 this.form = this.emptyForm();
                 if (selectedRoom) this.form.roomId = selectedRoom.id;
@@ -395,6 +396,7 @@
             },
             validateForm() {
                 if (!this.form.roomId) return 'Vui lòng chọn phòng.';
+                if (this.selectedRoom?.isBookingLocked && (this.editor.mode === 'create' || this.form.roomId !== this.selectedBooking?.roomId)) return 'Phòng đang tạm ngừng nhận đặt phòng.';
                 if (!this.form.customerName.trim()) return 'Vui lòng nhập tên khách.';
                 if (!this.form.customerPhone.trim()) return 'Vui lòng nhập số điện thoại.';
                 if (this.form.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.customerEmail)) return 'Email khách không hợp lệ.';
@@ -624,6 +626,6 @@
             dateRangePicker = null;
         }
     });
-    const calendarVm = calendarApp.mount(root);
+    const calendarVm = calendarApp.mixin(window.DeLongRoomBookingLock).mount(root);
     root.__delongCalendarVm = calendarVm;
 })();

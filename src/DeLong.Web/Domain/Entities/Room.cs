@@ -21,6 +21,10 @@ public sealed class Room : EntityBase
     public int Capacity { get; set; } = 2;
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
+    public bool IsBookingLocked { get; set; }
+    public string? BookingLockReason { get; set; }
+    public DateTime? BookingLockedAtUtc { get; set; }
+    public Guid? BookingLockedByUserId { get; set; }
 
     public HousekeepingStatus HousekeepingStatus { get; set; } = HousekeepingStatus.Clean;
     public DateTime? HousekeepingUpdatedAtUtc { get; set; }

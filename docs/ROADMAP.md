@@ -161,3 +161,9 @@
 - [x] Đối soát thủ công qua API SePay v1 theo ID giao dịch; giữ tương thích Pay2s cũ.
 - [ ] Nghiệm thu SePay Test Mode qua domain staging và giao dịch ngân hàng thật trước khi bật production.
 - Chi tiết vận hành: [SEPAY-PAYMENTS.md](SEPAY-PAYMENTS.md).
+
+## Khóa phòng tạm thời (2026-10-06)
+
+- Trạng thái khóa nhận đơn riêng, lý do và audit; quyền Admin/Manager theo chi nhánh.
+- Chặn đơn mới/chuyển phòng/import; giữ nguyên đơn, QR và lịch sử có trước khi khóa.
+- Row lock PostgreSQL bảo vệ thứ tự khóa/tạo đơn; migration `AddRoomBookingLock` và nghiệm thu tại `docs/ROOM-BOOKING-LOCK.md`.

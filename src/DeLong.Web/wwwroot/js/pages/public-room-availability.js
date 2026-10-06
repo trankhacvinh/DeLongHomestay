@@ -101,7 +101,7 @@
     }
 
     function selectAvailable(slot, day, slotNode) {
-        if (slot.state !== 'available') return;
+        if (state.isBookingLocked || slot.state !== 'available') return;
         section.querySelectorAll('.public-room-availability-slot.is-selected').forEach(node => node.classList.remove('is-selected'));
         slotNode.classList.add('is-selected');
         state.selected = { slot, day };
@@ -165,11 +165,13 @@
     }
 
     function render(data) {
+        state.isBookingLocked = data.isBookingLocked === true;
         state.roomCode = data.roomCode || roomRef;
         state.timeZone = data.timeZoneId || state.timeZone;
         range.textContent = `${data.roomName || state.roomCode} · ${dateText(state.from)} → ${dateText(addDays(state.from, state.days - 1))}`;
         status.className = 'public-room-availability-status';
-        status.textContent = '';
+        status.textContent = state.isBookingLocked ? 'Tạm ngừng nhận đặt phòng' : '';
+        if (state.isBookingLocked) status.classList.add('show');
         scroll.replaceChildren();
         clearChoice();
         bookLink.textContent = 'Đặt khung này';

@@ -21,7 +21,8 @@ public sealed record PublicRoomDto(
     decimal FromPrice,
     bool FullDayPricingEnabled,
     decimal? FullDayPrice,
-    IReadOnlyList<PublicRateDto> Rates);
+    IReadOnlyList<PublicRateDto> Rates,
+    bool IsBookingLocked = false);
 
 public sealed record PublicCatalogDto(
     Guid PropertyId,
@@ -42,7 +43,8 @@ public sealed record PublicStayRoomDto(
     PublicRateDto NightlyRate,
     int Nights,
     decimal TotalAmount,
-    bool Available);
+    bool Available,
+    bool IsBookingLocked = false);
 
 public sealed record PublicStayAvailabilityDto(
     string CheckInDate,

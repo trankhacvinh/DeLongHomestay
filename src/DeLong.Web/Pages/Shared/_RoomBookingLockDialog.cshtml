@@ -1,0 +1,11 @@
+<div class="modal-backdrop modal-top" v-if="roomLock.open" v-on:click.self="!roomLock.saving && (roomLock.open = false)">
+    <section class="modal-card modal-small room-booking-lock-dialog" role="dialog" aria-modal="true" aria-labelledby="room-booking-lock-title">
+        <div class="modal-head"><h2 id="room-booking-lock-title">{{ roomLock.room?.isBookingLocked ? 'Mở khóa phòng' : 'Khóa phòng' }}</h2><button class="icon-btn" type="button" v-bind:disabled="roomLock.saving" v-on:click="roomLock.open = false" aria-label="Đóng">×</button></div>
+        <div class="field room-lock-body"><strong>{{ roomLock.room?.name }}</strong><p>Chỉ thay đổi việc nhận đơn mới. Các đơn đã tạo và thanh toán của khách vẫn được giữ nguyên.</p>
+            <template v-if="!roomLock.room?.isBookingLocked"><label for="room-booking-lock-reason">Lý do khóa phòng *</label><textarea id="room-booking-lock-reason" v-model="roomLock.reason" maxlength="500" rows="3" placeholder="Ví dụ: bảo trì điều hòa, sửa phòng..."></textarea><small>{{ roomLock.reason.length }}/500 ký tự</small></template>
+            <p v-else>{{ roomLockDetails(roomLock.room) }}</p>
+            <p role="alert" v-if="roomLock.error" class="error-message">{{ roomLock.error }}</p>
+        </div>
+        <div class="modal-actions"><button class="btn btn-light" type="button" v-bind:disabled="roomLock.saving" v-on:click="roomLock.open = false">Quay lại</button><button class="btn btn-primary" type="button" v-bind:disabled="roomLock.saving" v-on:click="saveRoomBookingLock">{{ roomLock.saving ? 'Đang lưu...' : (roomLock.room?.isBookingLocked ? 'Mở khóa' : 'Khóa phòng') }}</button></div>
+    </section>
+</div>

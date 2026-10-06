@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using DeLong.Web.Common.Security;
 
 namespace DeLong.Web.Features.Rooms;
@@ -45,6 +46,17 @@ public static class RoomEndpoints
         })
         .RequireAuthorization("ManageRooms")
         .AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        group.MapPut("/{roomId:guid}/booking-lock", async (
+            Guid propertyId, Guid roomId, SetRoomBookingLockRequest request, RoomService service,
+            ClaimsPrincipal user, CancellationToken cancellationToken) =>
+        {
+            if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId)) return Results.Forbid();
+            var (room, error) = await service.SetBookingLockAsync(propertyId, roomId, request, actorId, cancellationToken);
+            return error is not null
+                ? Results.Problem(title: "Không thể thay đổi khóa phòng", detail: error, statusCode: 400)
+                : Results.Ok(room);
+        }).RequireAuthorization("ManageRooms").AddEndpointFilter<ApiAntiforgeryFilter>();
 
         group.MapDelete("/{roomId:guid}", async (
             Guid propertyId, Guid roomId, RoomService service, CancellationToken cancellationToken) =>

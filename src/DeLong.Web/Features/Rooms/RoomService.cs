@@ -1,10 +1,14 @@
+using DeLong.Web.Common.Auditing;
+using DeLong.Web.Common.Caching;
+using DeLong.Web.Features.Operations;
+using ZiggyCreatures.Caching.Fusion;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.Rooms;
 
-public sealed class RoomService(AppDbContext db)
+public sealed class RoomService(AppDbContext db, IFusionCache? fusionCache = null)
 {
     public async Task<IReadOnlyList<RoomDto>> GetAllAsync(Guid propertyId, CancellationToken cancellationToken = default)
     {
@@ -15,7 +19,9 @@ public sealed class RoomService(AppDbContext db)
                 x.Images.Count,
                 x.Rates.OrderBy(r => r.SortOrder).Select(r => new RoomRateDto(r.Id, r.Name,
                     r.StartTime.ToString("HH:mm"), r.EndTime.ToString("HH:mm"), r.Type, r.IsOvernight,
-                    r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice, r.IsActive, r.SortOrder)).ToList()))
+                    r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice, r.IsActive, r.SortOrder)).ToList(),
+                x.IsBookingLocked, x.BookingLockReason, x.BookingLockedAtUtc, x.BookingLockedByUserId,
+                db.Users.Where(u => u.Id == x.BookingLockedByUserId).Select(u => u.DisplayName != "" ? u.DisplayName : u.UserName).FirstOrDefault()))
             .ToListAsync(cancellationToken);
     }
 
@@ -28,7 +34,9 @@ public sealed class RoomService(AppDbContext db)
                 x.Images.Count,
                 x.Rates.OrderBy(r => r.SortOrder).Select(r => new RoomRateDto(r.Id, r.Name,
                     r.StartTime.ToString("HH:mm"), r.EndTime.ToString("HH:mm"), r.Type, r.IsOvernight,
-                    r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice, r.IsActive, r.SortOrder)).ToList()))
+                    r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice, r.IsActive, r.SortOrder)).ToList(),
+                x.IsBookingLocked, x.BookingLockReason, x.BookingLockedAtUtc, x.BookingLockedByUserId,
+                db.Users.Where(u => u.Id == x.BookingLockedByUserId).Select(u => u.DisplayName != "" ? u.DisplayName : u.UserName).FirstOrDefault()))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -102,6 +110,37 @@ public sealed class RoomService(AppDbContext db)
         room.IsActive = false;
         await db.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<(RoomDto? Room, string? Error)> SetBookingLockAsync(
+        Guid propertyId, Guid roomId, SetRoomBookingLockRequest request, Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var reason = request.Reason?.Trim();
+        if (request.IsLocked && (string.IsNullOrWhiteSpace(reason) || reason.Length > 500))
+            return (null, "Vui lòng nhập lý do khóa phòng từ 1 đến 500 ký tự.");
+        await using var guard = await RoomBookingGuard.AcquireAsync(db, propertyId, roomId, cancellationToken);
+        if (guard.Room is null) return (null, "Không tìm thấy phòng.");
+        var room = await db.Rooms.SingleAsync(x => x.Id == roomId && x.PropertyId == propertyId, cancellationToken);
+        await db.Entry(room).ReloadAsync(cancellationToken);
+        if (room.IsBookingLocked != request.IsLocked)
+        {
+            var before = new { room.IsBookingLocked, room.BookingLockReason, room.BookingLockedAtUtc, room.BookingLockedByUserId };
+            room.IsBookingLocked = request.IsLocked;
+            room.BookingLockReason = request.IsLocked ? reason : null;
+            room.BookingLockedAtUtc = request.IsLocked ? DateTime.UtcNow : null;
+            room.BookingLockedByUserId = request.IsLocked ? actorUserId : null;
+            new AuditService(db).Add(propertyId, "Room", room.Id,
+                request.IsLocked ? "BookingLocked" : "BookingUnlocked", actorUserId, before,
+                new { room.IsBookingLocked, room.BookingLockReason, room.BookingLockedAtUtc, room.BookingLockedByUserId });
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        await guard.CommitAsync(cancellationToken);
+        // SavedChanges may invalidate before transaction commit; invalidate again after commit.
+        fusionCache?.RemoveByTag(PublicCacheKeys.Tag);
+        OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
+            propertyId, OperationsEventTypes.RoomBookingLockChanged, roomId: roomId));
+        return (await GetAsync(propertyId, roomId, cancellationToken), null);
     }
 
     private async Task<string> CreateUniqueSlugAsync(

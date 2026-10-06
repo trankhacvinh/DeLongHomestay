@@ -44,7 +44,11 @@ public sealed record AdminRoomAvailabilityDto(
     string TimeZoneId,
     DateOnly From,
     int Days,
-    IReadOnlyList<AdminAvailabilityDayDto> Calendar);
+    IReadOnlyList<AdminAvailabilityDayDto> Calendar,
+    bool IsBookingLocked = false,
+    string? BookingLockReason = null,
+    DateTime? BookingLockedAtUtc = null,
+    string? BookingLockedByName = null);
 
 public sealed record PublicAvailabilityOccupancyDto(
     string Kind,
@@ -90,7 +94,8 @@ public sealed record PublicRoomAvailabilityDto(
     string TimeZoneId,
     DateOnly From,
     int Days,
-    IReadOnlyList<PublicAvailabilityDayDto> Calendar);
+    IReadOnlyList<PublicAvailabilityDayDto> Calendar,
+    bool IsBookingLocked = false);
 
 public sealed record AvailabilityOccupancyInput(
     Guid BookingId,
@@ -182,7 +187,8 @@ public sealed class AvailabilityIntervalService(
 
         var room = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == propertyId && x.Id == roomId && x.IsActive)
-            .Select(x => new { x.Id, x.Code, x.Name, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice })
+            .Select(x => new { x.Id, x.Code, x.Name, x.IsBookingLocked, x.BookingLockReason, x.BookingLockedAtUtc,
+                BookingLockedByName = db.Users.Where(u => u.Id == x.BookingLockedByUserId).Select(u => u.DisplayName != "" ? u.DisplayName : u.UserName).FirstOrDefault(), x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice })
             .SingleOrDefaultAsync(cancellationToken);
         if (room is null) return null;
 
@@ -197,7 +203,7 @@ public sealed class AvailabilityIntervalService(
                     slot.Projection.Occupied.Select(x => new AdminAvailabilityOccupancyDto(
                         x.BookingId, x.Status, x.StartUtc, x.EndUtc, x.CustomerName, x.CustomerPhone,
                         x.BalanceAmount, x.HasSpecialRequest, x.IsFlexibleTime, x.IsMixedSlot)).ToList(),
-                    slot.Projection.Free)).ToList())).ToList());
+                    slot.Projection.Free)).ToList())).ToList(), room.IsBookingLocked, room.BookingLockReason, room.BookingLockedAtUtc, room.BookingLockedByName);
     }
 
     public async Task<PublicRoomAvailabilityDto?> GetPublicAsync(
@@ -214,7 +220,7 @@ public sealed class AvailabilityIntervalService(
         await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, property.Id, cancellationToken);
         var room = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == property.Id && x.Id == roomId && x.IsActive && x.IsPublished)
-            .Select(x => new { x.Id, x.Code, x.Name, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice })
+            .Select(x => new { x.Id, x.Code, x.Name, x.IsBookingLocked, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice })
             .SingleOrDefaultAsync(cancellationToken);
         if (room is null) return null;
 
@@ -229,7 +235,7 @@ public sealed class AvailabilityIntervalService(
                 day.Date,
                 day.Slots.Select(slot =>
                 {
-                    var bookable = slot.Projection.Free.Count == 1 ? slot.Projection.Free[0] : null;
+                    var bookable = !room.IsBookingLocked && slot.Projection.Free.Count == 1 ? slot.Projection.Free[0] : null;
                     var adjusted = bookable is not null &&
                                    (bookable.StartUtc > slot.StartUtc || bookable.EndUtc < slot.EndUtc);
                     return new PublicAvailabilitySlotDto(
@@ -253,7 +259,7 @@ public sealed class AvailabilityIntervalService(
                     ? day.Policy.DayProfile == PricingDayProfile.Weekend && !room.UseWeekdayFullDayPriceOnWeekend
                         ? room.WeekendFullDayPrice
                         : room.FullDayPrice
-                    : null)).ToList());
+                    : null)).ToList(), room.IsBookingLocked);
     }
 
     private async Task<IReadOnlyList<AvailabilityDay>> BuildAsync(
