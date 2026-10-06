@@ -47,6 +47,19 @@ public sealed record HomeSectionDto(
     bool IsVisible);
 
 public sealed record SiteAdminDto(SiteSettingsDto Settings, IReadOnlyList<HomeSectionDto> Sections);
+
+/// <summary>Public contact card for one active property, rendered in the shared public footer.</summary>
+public sealed record PublicPropertyContactDto(
+    Guid PropertyId,
+    string Name,
+    string SiteSlug,
+    string Tagline,
+    string Address,
+    string Phone,
+    string ZaloUrl,
+    string FacebookUrl,
+    string GoogleMapsUrl,
+    string LogoUrl);
 public sealed record GlobalSiteAdminDto(IReadOnlyList<HomeSectionDto> Sections);
 
 public sealed class SaveSiteSettingsRequest
@@ -205,6 +218,54 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         return await cache.GetOrSetAsync<SiteAdminDto?>(
             PublicCacheKeys.Site(property.Id),
             async (_, token) => await ReadSiteAsync(property.Id, token),
+            tags: [PublicCacheKeys.Tag],
+            token: ct);
+    }
+
+    /// <summary>
+    /// Contact details (logo, address, hotline, Zalo, Facebook, Google Maps) for every active property,
+    /// in the same order as the public catalog. Cached under the shared public-content tag so a settings
+    /// save invalidates it automatically.
+    /// </summary>
+    public async Task<IReadOnlyList<PublicPropertyContactDto>> GetPublicContactsAsync(CancellationToken ct = default)
+    {
+        async Task<IReadOnlyList<PublicPropertyContactDto>> LoadAsync(CancellationToken token)
+        {
+            var properties = await db.Properties.AsNoTracking()
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Name)
+                .Select(x => new { x.Id, x.Name, x.Code, x.SiteSlug })
+                .ToListAsync(token);
+            if (properties.Count == 0) return [];
+
+            var ids = properties.Select(x => x.Id).ToList();
+            var settings = await db.Set<PropertySiteSettings>().AsNoTracking()
+                .Where(x => ids.Contains(x.PropertyId))
+                .Select(x => new { x.PropertyId, x.SiteName, x.Tagline, x.Address, x.Phone, x.ZaloUrl, x.FacebookUrl, x.GoogleMapsUrl, x.LogoUrl })
+                .ToListAsync(token);
+            var byProperty = settings.GroupBy(x => x.PropertyId).ToDictionary(x => x.Key, x => x.First());
+
+            return properties.Select(property =>
+            {
+                byProperty.TryGetValue(property.Id, out var site);
+                return new PublicPropertyContactDto(
+                    property.Id,
+                    string.IsNullOrWhiteSpace(site?.SiteName) ? property.Name : site.SiteName!,
+                    PublicPropertyResolver.EffectiveSiteSlug(property.SiteSlug, property.Code),
+                    site?.Tagline ?? string.Empty,
+                    site?.Address ?? string.Empty,
+                    site?.Phone ?? string.Empty,
+                    site?.ZaloUrl ?? string.Empty,
+                    site?.FacebookUrl ?? string.Empty,
+                    site?.GoogleMapsUrl ?? string.Empty,
+                    site?.LogoUrl ?? string.Empty);
+            }).ToList();
+        }
+
+        if (cache is null) return await LoadAsync(ct);
+        return await cache.GetOrSetAsync<IReadOnlyList<PublicPropertyContactDto>>(
+            PublicCacheKeys.PropertyContacts,
+            async (_, token) => await LoadAsync(token),
             tags: [PublicCacheKeys.Tag],
             token: ct);
     }
