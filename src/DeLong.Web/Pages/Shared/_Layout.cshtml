@@ -21,6 +21,18 @@
     var publicSettings = publicSite?.Settings;
     var publicSiteName = string.IsNullOrWhiteSpace(publicSettings?.SiteName) ? "De Long Homestay" : publicSettings.SiteName;
     var publicTagline = string.IsNullOrWhiteSpace(publicSettings?.Tagline) ? "Long Thành · Đồng Nai" : publicSettings.Tagline;
+    // Footer contact cards: every active property on the global site, only the current property on a property site.
+    IReadOnlyList<DeLong.Web.Features.Site.PublicPropertyContactDto> publicContacts = [];
+    // Standard theme: the built-in design wins over visual-editor styling, header/footer designer and custom.css.
+    var publicThemeStandard = false;
+    if (!isAdmin)
+    {
+        publicThemeStandard = (await SiteContentService.GetPublicThemeAsync(Context.RequestAborted)).IsStandard;
+        var allContacts = await SiteContentService.GetPublicContactsAsync(Context.RequestAborted);
+        publicContacts = isGlobalPublic
+            ? allContacts
+            : allContacts.Where(x => string.Equals(x.SiteSlug, publicSiteSlug, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
     var path = Context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
     var isPaymentPage = Context.Request.Path.StartsWithSegments("/payment");
     var editorialTab = string.Equals(Context.Request.Query["tab"].ToString(), "blog", StringComparison.OrdinalIgnoreCase) ? "blog" : "gallery";
@@ -213,8 +225,11 @@
     @if (!isAdmin)
     {
         <link rel="stylesheet" href="~/css/hospitality-shell.css" asp-append-version="true"/>
+        <link rel="preload" href="~/fonts/brand/be-vietnam-pro-400.woff" as="font" type="font/woff" crossorigin/>
+        <link rel="preload" href="~/fonts/brand/be-vietnam-pro-900.woff" as="font" type="font/woff" crossorigin/>
+        <link rel="stylesheet" href="~/css/public-redesign.css" asp-append-version="true"/>
     }
-    @if (!isAdmin && !isGlobalPublic)
+    @if (!isAdmin && !isGlobalPublic && !publicThemeStandard)
     {
         <link rel="stylesheet" href="@(publicScopePrefix + "/site/custom.css")"/>
     }
@@ -225,7 +240,7 @@
 </head>
 <body class="@(isAdmin
     ? "admin-body"
-    : $"public-body{(canManageSite && !isPaymentPage ? " public-editor-enabled" : string.Empty)}{(Context.Request.Query["embed"] == "1" ? " public-embedded-page" : string.Empty)}")">
+    : $"public-body{(publicThemeStandard ? " dl-theme-standard" : " dl-theme-custom")}{(canManageSite && !isPaymentPage ? " public-editor-enabled" : string.Empty)}{(Context.Request.Query["embed"] == "1" ? " public-embedded-page" : string.Empty)}")">
 <a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
 <svg class="svg-sprite" aria-hidden="true">
     <symbol id="i-grid" viewBox="0 0 24 24">
@@ -582,7 +597,7 @@ else
                 {
                     <a href="/#co-so">Cơ sở</a>
                 }
-                <a href="@bookingUrl">Đặt phòng</a>
+                <a href="@bookingUrl">Lịch phòng</a>
                 <a href="/chinh-sach-dat-phong">Chính sách</a>
                 <a href="@lookupUrl">Tra cứu</a>
             </nav>
@@ -610,6 +625,101 @@ else
     </header>
     <main class="public-main" id="main-content" tabindex="-1">@RenderBody()</main>
     <footer class="public-hospitality-footer">
+        @if (publicContacts.Count > 0)
+        {
+            <section class="public-container public-footer-contacts" aria-labelledby="public-footer-contacts-title">
+                <div class="public-footer-contacts-head">
+                    <div>
+                        <span class="public-eyebrow">liên hệ</span>
+                        <h2 id="public-footer-contacts-title">@(publicContacts.Count > 1 ? "Liên hệ từng cơ sở" : "Liên hệ với chúng tôi")</h2>
+                    </div>
+                    <a class="public-btn public-btn-primary" href="@bookingUrl">Đặt phòng ngay</a>
+                </div>
+                <div class="public-footer-contact-grid@(publicContacts.Count == 1 ? " is-single" : string.Empty)">
+                    @foreach (var contact in publicContacts)
+                    {
+                        var contactHome = DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(contact.SiteSlug);
+                        var contactInitials = string.Concat(contact.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(word => char.ToUpperInvariant(word[0])));
+                        var contactTel = contact.Phone.Replace(" ", string.Empty);
+                        // Map: an embed link is used as is; otherwise the address is shown on an embedded Google map.
+                        var mapEmbed = contact.GoogleMapsUrl.Contains("/maps/embed", StringComparison.OrdinalIgnoreCase)
+                            ? contact.GoogleMapsUrl
+                            : !string.IsNullOrWhiteSpace(contact.Address) ? $"https://www.google.com/maps?q={Uri.EscapeDataString(contact.Address)}&output=embed" : string.Empty;
+                        var mapLink = !string.IsNullOrWhiteSpace(contact.GoogleMapsUrl) && !contact.GoogleMapsUrl.Contains("/maps/embed", StringComparison.OrdinalIgnoreCase)
+                            ? contact.GoogleMapsUrl
+                            : !string.IsNullOrWhiteSpace(contact.Address) ? $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(contact.Address)}" : contact.GoogleMapsUrl;
+                        var contactEmpty = string.IsNullOrWhiteSpace(contact.Address) && string.IsNullOrWhiteSpace(contact.Phone) && string.IsNullOrWhiteSpace(contact.ZaloUrl) && string.IsNullOrWhiteSpace(contact.FacebookUrl) && string.IsNullOrWhiteSpace(mapLink);
+                        <article class="public-footer-contact-card">
+                            <div class="public-footer-contact-info">
+                                <a class="public-footer-contact-brand" href="@contactHome">
+                                    @if (!string.IsNullOrWhiteSpace(contact.LogoUrl))
+                                    {
+                                        <img src="@contact.LogoUrl" alt="" loading="lazy"/>
+                                    }
+                                    else
+                                    {
+                                        <span class="brand-mark" aria-hidden="true">@contactInitials</span>
+                                    }
+                                    <span><strong>@contact.Name</strong>@if (!string.IsNullOrWhiteSpace(contact.Tagline)) { <small>@contact.Tagline</small> }</span>
+                                </a>
+                                @if (!string.IsNullOrWhiteSpace(contact.Address))
+                                {
+                                    <address class="public-footer-contact-address"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>@contact.Address</address>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(contact.Phone))
+                                {
+                                    <a class="public-footer-contact-hotline" href="tel:@contactTel"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/></svg>@contact.Phone</a>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(contact.ZaloUrl) || !string.IsNullOrWhiteSpace(contact.FacebookUrl))
+                                {
+                                    <div class="public-footer-contact-social">
+                                        @if (!string.IsNullOrWhiteSpace(contact.ZaloUrl))
+                                        {
+                                            <a class="is-zalo" href="@contact.ZaloUrl" target="_blank" rel="noopener"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4Z"/></svg>Zalo</a>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(contact.FacebookUrl))
+                                        {
+                                            <a class="is-facebook" href="@contact.FacebookUrl" target="_blank" rel="noopener"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 3h-3a4 4 0 0 0-4 4v3H5v4h3v7h4v-7h3l1-4h-4V7a1 1 0 0 1 1-1h3Z"/></svg>Facebook</a>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(mapEmbed) || !string.IsNullOrWhiteSpace(mapLink))
+                            {
+                                <div class="public-footer-contact-map@(string.IsNullOrWhiteSpace(mapEmbed) ? " is-link-only" : string.Empty)">
+                                    @if (!string.IsNullOrWhiteSpace(mapEmbed))
+                                    {
+                                        <iframe src="@mapEmbed" title="Bản đồ @contact.Name" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+                                    }
+                                    else
+                                    {
+                                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2ZM9 4v14M15 6v14"/></svg>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(mapLink))
+                                    {
+                                        <a class="public-footer-contact-directions" href="@mapLink" target="_blank" rel="noopener">Chỉ đường ↗</a>
+                                    }
+                                </div>
+                            }
+                            @if (contactEmpty)
+                            {
+                                <p class="public-footer-contact-empty">
+                                    @if (canManageSite)
+                                    {
+                                        <span>Chưa có địa chỉ, hotline, Zalo, Facebook hay bản đồ cho cơ sở này.</span>
+                                        <a href="/Admin/Site?propertyId=@contact.PropertyId">Nhập thông tin liên hệ →</a>
+                                    }
+                                    else
+                                    {
+                                        <a href="@DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(contact.SiteSlug)">Xem các phòng tại @contact.Name →</a>
+                                    }
+                                </p>
+                            }
+                        </article>
+                    }
+                </div>
+            </section>
+        }
         <div class="public-container public-hospitality-footer-grid">
             <div class="public-footer-brand">
                 <a class="public-site-brand public-footer-brand-link"
@@ -650,27 +760,17 @@ else
                     }
                 </div>
             }
-            @if (!isGlobalPublic && publicSettings is not null && (!string.IsNullOrWhiteSpace(publicSettings.Phone) || !string.IsNullOrWhiteSpace(publicSettings.Email) || !string.IsNullOrWhiteSpace(publicSettings.Address)))
+            @if (!isGlobalPublic && publicSettings is not null && !string.IsNullOrWhiteSpace(publicSettings.Email))
             {
                 <div class="public-footer-column public-footer-contact">
-                    <strong>Liên hệ</strong>
-                    @if (!string.IsNullOrWhiteSpace(publicSettings.Address))
-                    {
-                        <span>@publicSettings.Address</span>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(publicSettings.Phone))
-                    {
-                        <a href="tel:@publicSettings.Phone">@publicSettings.Phone</a>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(publicSettings.Email))
-                    {
-                        <a href="mailto:@publicSettings.Email">@publicSettings.Email</a>
-                    }
+                    <strong>Email</strong>
+                    <a href="mailto:@publicSettings.Email">@publicSettings.Email</a>
                 </div>
             }
         </div>
         <div class="public-container public-footer-bottom"><span>© @DateTime.UtcNow.Year De Long Homestay</span><span>Đặt phòng trực tiếp · Giá rõ ràng · Xác nhận bởi nhân viên</span>
         </div>
+        <div class="public-footer-wordmark" aria-hidden="true">DE LONG</div>
     </footer>
 }
 @if (isAdmin && User.IsInRole("Admin") && currentProperty is not null)

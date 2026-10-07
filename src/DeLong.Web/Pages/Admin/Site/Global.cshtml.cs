@@ -22,10 +22,13 @@ public sealed class GlobalModel(
         var catalog = await publicRoomContentService.GetGlobalCatalogAsync(ct);
         var activeProperties = await publicPropertyResolver.GetActiveAsync(ct);
         var branding = await GlobalSiteBrandingStore.ResolveAsync(db, siteContentService, activeProperties, ct);
+        var theme = await PublicThemeStore.ReadAsync(db, ct);
         PageDataJson = JsonSerializer.Serialize(new
         {
             branding,
+            theme,
             sections = site.Sections.Where(x =>
+                x.Type != PublicThemeStore.MetadataSectionType &&
                 x.Type != GlobalSiteBrandingStore.MetadataSectionType &&
                 x.Type != EditorialPlacementStore.MetadataSectionType &&
                 x.Type != PublicShellSettingsStore.MetadataSectionType &&

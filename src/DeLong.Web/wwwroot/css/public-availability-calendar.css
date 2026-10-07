@@ -23,4 +23,91 @@
 .public-v2-slot-bar.state-partial.is-selected{background:#8264c7;border-color:#8264c7}.public-v2-slot-bar.state-partial.is-selected>span:not(.public-v2-selected-schedule),.public-v2-slot-bar.state-partial.is-selected>small{opacity:0}
 @media(max-width:760px){.public-v2-slot-bar.is-selected .public-v2-selected-schedule{padding-left:16px;gap:0;flex-direction:column;font-size:7px;line-height:1.05}.public-v2-slot-bar.state-available.is-selected::after,.public-v2-slot-bar.state-partial.is-selected::after{left:5px;font-size:9px}}
 
+/* ---------- 2026-10 redesign: light board, multi-room columns, branch checklist ----------
+   Selection rules live in public-availability-calendar.js and are unchanged; this block is visual only. */
+.public-cms-availability-calendar [data-availability-calendar-host]{gap:16px}
+.public-v2-branches{margin:0;padding:16px 20px 20px;border:0;border-radius:22px;background:#f7f3ec;display:block;min-width:0}
+.public-v2-branches[hidden]{display:none}
+.public-v2-branches legend{float:left;width:auto;margin:0;padding:10px 0 0;color:#12292b;font-size:14px;font-weight:800}
+.public-v2-branch-actions{float:right;display:flex;flex-wrap:wrap;gap:4px}
+.public-v2-branch-actions button{min-height:40px;padding:0 12px;border:0;background:transparent;color:#12292b;font:inherit;font-size:14px;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.public-v2-branch-actions button+button{color:#5c6b6c;font-weight:500}
+.public-v2-branch-list{clear:both;padding-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:10px}
+.public-v2-branch-list label{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 14px;border:1.5px solid #e3dccf;border-radius:14px;background:#fff;cursor:pointer;transition:border-color .15s ease}
+.public-v2-branch-list label.is-checked{border-color:#12292b}
+.public-v2-branch-list input{width:20px;height:20px;margin:0;flex:none;accent-color:#12292b}
+.public-v2-branch-list span{flex:1;min-width:0;color:#12292b;font-size:14px;font-weight:700;letter-spacing:.01em;text-transform:uppercase;line-height:1.3}
+.public-v2-branch-list small{padding:3px 9px;border-radius:999px;background:#f1ece2;color:#3e5254;font-size:12px;font-weight:700}
+
+.public-v2-roombar{border:1.5px solid #12292b;border-radius:20px;background:#fff}
+.public-v2-roombar[hidden]{display:none}
+.public-v2-roombar::after{background:linear-gradient(90deg,rgba(255,255,255,.93),rgba(255,255,255,.8),rgba(255,255,255,.93))}
+.public-v2-roombar strong{color:#12292b;font-weight:900;text-transform:uppercase;letter-spacing:-.02em}
+.public-v2-roombar button{border-color:#12292b;border-radius:999px;color:#12292b;background:#fff}
+.public-v2-roombar button:disabled{opacity:.35;cursor:default}
+
+.public-v2-legend{align-items:center;color:#5c6b6c}
+.public-v2-legend i{width:18px;height:18px;border-radius:5px}
+.public-v2-legend .available{background:#fff;box-shadow:inset 0 0 0 1.5px #12292b}
+.public-v2-legend .selected{background:#f2b35a;box-shadow:inset 0 0 0 1.5px #12292b}
+.public-v2-legend .partial{background:#fff3dd;box-shadow:inset 0 0 0 1.5px #c99655}
+.public-v2-legend .occupied{background:#ece6da repeating-linear-gradient(135deg,transparent 0 5px,rgba(18,41,43,.09) 5px 7px)}
+.public-v2-legend-hint{margin-left:auto;color:#a35f15;font-weight:600}
+.public-v2-legend-hint[hidden]{display:none}
+.public-v2-status{background:#f7f3ec;color:#3e5254}
+
+.public-v2-viewport{border:1.5px solid #12292b;border-radius:20px;box-shadow:none}
+.public-v2-viewport.is-multi{overflow-x:auto}
+.public-v2-grid-head{background:#fff;border-bottom:1.5px solid #12292b;backdrop-filter:none}
+.public-v2-grid-head>div{border-left-color:#ece6da}
+.public-v2-grid-head strong{color:#12292b}
+.public-v2-grid-head .public-v2-date-column{background:#f7f3ec;color:#5c6b6c;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.public-v2-grid-head.is-multi>div{min-height:46px}
+.public-v2-grid-head>.public-v2-head-branch{place-content:center start;padding:8px 14px;background:#12292b;border-left:2px solid #fff}
+.public-v2-grid-head>.public-v2-head-branch strong{position:sticky;left:118px;color:#fff;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.public-v2-grid-head>.public-v2-head-room{display:flex;align-items:center;justify-content:flex-start;gap:10px;padding:8px 12px;background:#f7f3ec;border-left:2px solid #12292b;border-bottom:1px solid #e3dccf;text-align:left}
+.public-v2-head-room img{width:30px;height:30px;flex:none;border-radius:9px;object-fit:cover}
+.public-v2-head-room span{display:grid;min-width:0}
+.public-v2-head-room span strong{font-size:14px;font-weight:800;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.public-v2-head-room span small{display:block;margin:0;color:#5c6b6c;font-size:11px}
+.public-v2-grid-head>.is-room-start{border-left:2px solid #12292b}
+.public-v2-slot-cell{display:grid;align-items:center;min-width:0;height:100%;border-left:1px solid #f3eee5}
+.public-v2-slot-cell.is-room-start{border-left:2px solid #12292b}
+.public-v2-grid-row{border-bottom-color:#efe9de}
+.public-v2-grid-row.is-weekend,.public-v2-grid-row.is-weekend>.public-v2-date-column{background:#fdf8ef}
+.public-v2-grid-row.is-today,.public-v2-grid-row.is-today>.public-v2-date-column{background:#fff4e0}
+.public-v2-grid-row>.public-v2-date-column{background:#fff;border-right:1.5px solid #12292b;box-shadow:none}
+.public-v2-grid-row>.public-v2-date-column strong{color:#12292b;font-weight:800}
+.public-v2-grid-row>.public-v2-date-column small{color:#a35f15}
+
+.public-v2-slot-bar{height:38px;border-radius:10px;font-family:inherit}
+.public-v2-slot-bar.state-available{background:#fff;box-shadow:inset 0 0 0 1.5px #12292b}
+.public-v2-slot-bar.state-available:hover{background:#fff7e6;box-shadow:inset 0 0 0 1.5px #12292b,0 4px 10px rgba(18,41,43,.12)}
+.public-v2-slot-bar.state-occupied{background:#ece6da repeating-linear-gradient(135deg,transparent 0 7px,rgba(18,41,43,.07) 7px 9px);color:#6e7979}
+.public-v2-slot-bar.state-partial{background:#fff3dd;box-shadow:inset 0 0 0 1.5px #c99655}
+.public-v2-slot-bar.state-available.is-selected,.public-v2-slot-bar.state-partial.is-selected{background:#f2b35a!important;border:0;box-shadow:inset 0 0 0 1.5px #12292b,2px 2px 0 #12292b!important;transform:none}
+.public-v2-slot-bar.state-available.is-selected::after,.public-v2-slot-bar.state-partial.is-selected::after{color:#12292b}
+.public-v2-slot-bar.is-selected .public-v2-selected-schedule{color:#12292b}
+.public-v2-slot-bar.state-available.is-ineligible{opacity:.3}
+.public-v2-slot-bar.is-next{background:#fff7e6;box-shadow:inset 0 0 0 1.5px #a35f15}
+.public-v2-slot-bar.is-next::before{content:'+';position:absolute;inset:0;display:grid;place-items:center;color:#a35f15;font-size:18px;font-weight:900}
+.public-v2-slot-empty{align-self:center;height:38px;margin:0 clamp(3px,.65vw,7px);border-radius:10px;background:#f7f3ec}
+@media(min-width:761px){
+    .public-v2-viewport.is-multi .public-v2-slot-bar.state-available:not(.is-selected):not(.is-next) small{position:static;width:auto;height:auto;margin:0;clip:auto;overflow:visible;display:grid;place-items:center;height:100%;color:#12292b;font-size:11px;font-weight:700}
+}
+
+.public-v2-selection{border:0;border-radius:20px;background:#12292b;box-shadow:0 16px 40px rgba(18,41,43,.3);color:#fff}
+.public-v2-selection small{color:#c9d6d5}
+.public-v2-selection strong{color:#f2b35a;font-weight:900}
+.public-v2-selection .clear{border:1px solid #3b5f62;background:transparent;color:#fff;border-radius:999px}
+.public-v2-selection .book{background:#f2b35a;color:#12292b;border-radius:999px}
+.public-v2-selection.is-adjusted{background:#12292b;border:1.5px solid #f2b35a}
+.public-v2-selection.is-adjusted small{color:#f2b35a}
+@media(max-width:760px){
+    .public-v2-branches{padding:14px}
+    .public-v2-branch-actions{float:none;justify-content:flex-start;margin-top:4px}
+    .public-v2-branches legend{float:none;padding-top:0}
+    .public-v2-legend-hint{margin-left:0}
+    .public-v2-slot-bar,.public-v2-slot-empty{height:30px}
+}
 .public-v2-slot-bar.state-locked{background:#e4e8e7;border-color:#d2d9d7;cursor:not-allowed;opacity:.75}

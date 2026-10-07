@@ -47,6 +47,19 @@ public sealed record HomeSectionDto(
     bool IsVisible);
 
 public sealed record SiteAdminDto(SiteSettingsDto Settings, IReadOnlyList<HomeSectionDto> Sections);
+
+/// <summary>Public contact card for one active property, rendered in the shared public footer.</summary>
+public sealed record PublicPropertyContactDto(
+    Guid PropertyId,
+    string Name,
+    string SiteSlug,
+    string Tagline,
+    string Address,
+    string Phone,
+    string ZaloUrl,
+    string FacebookUrl,
+    string GoogleMapsUrl,
+    string LogoUrl);
 public sealed record GlobalSiteAdminDto(IReadOnlyList<HomeSectionDto> Sections);
 
 public sealed class SaveSiteSettingsRequest
@@ -209,6 +222,65 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
             token: ct);
     }
 
+    /// <summary>
+    /// Contact details (logo, address, hotline, Zalo, Facebook, Google Maps) for every active property,
+    /// in the same order as the public catalog. Cached under the shared public-content tag so a settings
+    /// save invalidates it automatically.
+    /// </summary>
+    public async Task<IReadOnlyList<PublicPropertyContactDto>> GetPublicContactsAsync(CancellationToken ct = default)
+    {
+        async Task<IReadOnlyList<PublicPropertyContactDto>> LoadAsync(CancellationToken token)
+        {
+            var properties = await db.Properties.AsNoTracking()
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Name)
+                .Select(x => new { x.Id, x.Name, x.Code, x.SiteSlug })
+                .ToListAsync(token);
+            if (properties.Count == 0) return [];
+
+            var ids = properties.Select(x => x.Id).ToList();
+            var settings = await db.Set<PropertySiteSettings>().AsNoTracking()
+                .Where(x => ids.Contains(x.PropertyId))
+                .Select(x => new { x.PropertyId, x.SiteName, x.Tagline, x.Address, x.Phone, x.ZaloUrl, x.FacebookUrl, x.GoogleMapsUrl, x.LogoUrl })
+                .ToListAsync(token);
+            var byProperty = settings.GroupBy(x => x.PropertyId).ToDictionary(x => x.Key, x => x.First());
+
+            return properties.Select(property =>
+            {
+                byProperty.TryGetValue(property.Id, out var site);
+                return new PublicPropertyContactDto(
+                    property.Id,
+                    string.IsNullOrWhiteSpace(site?.SiteName) ? property.Name : site.SiteName!,
+                    PublicPropertyResolver.EffectiveSiteSlug(property.SiteSlug, property.Code),
+                    site?.Tagline ?? string.Empty,
+                    site?.Address ?? string.Empty,
+                    site?.Phone ?? string.Empty,
+                    site?.ZaloUrl ?? string.Empty,
+                    site?.FacebookUrl ?? string.Empty,
+                    site?.GoogleMapsUrl ?? string.Empty,
+                    site?.LogoUrl ?? string.Empty);
+            }).ToList();
+        }
+
+        if (cache is null) return await LoadAsync(ct);
+        return await cache.GetOrSetAsync<IReadOnlyList<PublicPropertyContactDto>>(
+            PublicCacheKeys.PropertyContacts,
+            async (_, token) => await LoadAsync(token),
+            tags: [PublicCacheKeys.Tag],
+            token: ct);
+    }
+
+    /// <summary>Public theme mode (standard/custom); cached under the public-content tag, which HomeSection writes invalidate.</summary>
+    public async Task<PublicThemeDto> GetPublicThemeAsync(CancellationToken ct = default)
+    {
+        if (cache is null) return await PublicThemeStore.ReadAsync(db, ct);
+        return await cache.GetOrSetAsync<PublicThemeDto>(
+            PublicCacheKeys.Theme,
+            async (_, token) => await PublicThemeStore.ReadAsync(db, token),
+            tags: [PublicCacheKeys.Tag],
+            token: ct);
+    }
+
     public async Task<(SiteSettingsDto? Settings, SiteContentError? Error)> SaveSettingsAsync(
         Guid propertyId,
         SaveSiteSettingsRequest request,
@@ -220,9 +292,19 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
 
         if (Length(request.SiteName) > 200 || Length(request.Tagline) > 300 || Length(request.MetaTitle) > 200 || Length(request.MetaDescription) > 500)
             return (null, new("validation", "Một hoặc nhiều trường nội dung vượt quá độ dài cho phép."));
-        if (!IsOptionalHttpUrl(request.CanonicalBaseUrl) || !IsOptionalHttpUrl(request.FacebookUrl) ||
-            !IsOptionalHttpUrl(request.ZaloUrl) || !IsOptionalHttpUrl(request.GoogleMapsUrl))
-            return (null, new("validation", "Các đường dẫn website/social phải là URL http hoặc https hợp lệ."));
+        // Accept what people usually paste: a Zalo phone number, "facebook.com/…" without https,
+        // or the whole Google Maps <iframe …> embed code. They are normalised to plain https links.
+        var facebookUrl = NormalizeSocialUrl(request.FacebookUrl);
+        var zaloUrl = NormalizeZaloUrl(request.ZaloUrl);
+        var googleMapsUrl = NormalizeMapsUrl(request.GoogleMapsUrl);
+        if (!IsOptionalHttpUrl(request.CanonicalBaseUrl))
+            return (null, new("validation", "Canonical base URL phải là URL http hoặc https hợp lệ."));
+        if (!IsOptionalHttpUrl(facebookUrl))
+            return (null, new("validation", "Facebook phải là đường dẫn trang, ví dụ https://facebook.com/delonghomestay."));
+        if (!IsOptionalHttpUrl(zaloUrl))
+            return (null, new("validation", "Zalo phải là số điện thoại hoặc đường dẫn, ví dụ 0909123456 hoặc https://zalo.me/0909123456."));
+        if (!IsOptionalHttpUrl(googleMapsUrl))
+            return (null, new("validation", "Google Maps phải là đường dẫn chia sẻ hoặc mã nhúng bản đồ từ Google Maps."));
         if (Length(request.CustomCss) > 50_000 || Length(request.CustomJs) > 100_000)
             return (null, new("validation", "Custom CSS/JS vượt quá giới hạn an toàn."));
 
@@ -238,9 +320,9 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         settings.Address = Clean(request.Address);
         settings.Phone = Clean(request.Phone);
         settings.Email = Clean(request.Email);
-        settings.FacebookUrl = Clean(request.FacebookUrl);
-        settings.ZaloUrl = Clean(request.ZaloUrl);
-        settings.GoogleMapsUrl = Clean(request.GoogleMapsUrl);
+        settings.FacebookUrl = facebookUrl;
+        settings.ZaloUrl = zaloUrl;
+        settings.GoogleMapsUrl = googleMapsUrl;
         settings.CoverImageUrl = Clean(request.CoverImageUrl);
         settings.LogoUrl = Clean(request.LogoUrl);
         settings.FaviconUrl = Clean(request.FaviconUrl);
@@ -457,6 +539,93 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         })
     ];
 
+    /// <summary>The approved redesign layout: hero, room calendar, rooms, branches, booking ways. Blog/gallery come from editorial content.</summary>
+    private static IReadOnlyList<HomeSection> StandardGlobalSections() =>
+    [
+        New(null, 0, "Hero", "Mở đầu", "standard", new
+        {
+            eyebrow = "DE LONG HOMESTAY",
+            title = "Một khoảng nghỉ riêng, vừa đủ.",
+            body = "Phòng theo chủ đề cho hai người. Đặt theo khung giờ, qua đêm hoặc theo ngày. Giá rõ ràng, nhân viên xác nhận từng đơn.",
+            primaryText = "Xem lịch phòng", primaryUrl = "/#lich-phong",
+            secondaryText = "Khám phá các phòng", secondaryUrl = "/rooms"
+        }),
+        New(null, 1, "AvailabilityCalendar", "Lịch phòng", "standard", new
+        {
+            eyebrow = "CHỌN KHUNG TRỐNG ĐỂ ĐẶT",
+            title = "Lịch phòng",
+            days = 7
+        }),
+        New(null, 2, "RoomGrid", "Các phòng", "standard", new
+        {
+            eyebrow = "PHÒNG",
+            title = "Mỗi phòng một tâm trạng",
+            mode = "all",
+            limit = 6,
+            propertyQuotas = new Dictionary<string, int>(),
+            roomIds = Array.Empty<Guid>()
+        }),
+        New(null, 3, "BranchGrid", "Các cơ sở", "standard", new
+        {
+            eyebrow = "CƠ SỞ",
+            title = "Các cơ sở",
+            propertyIds = Array.Empty<Guid>()
+        }),
+        New(null, 4, "FeatureGrid", "Cách đặt phòng", "standard", new
+        {
+            eyebrow = "CÁCH ĐẶT",
+            title = "Đặt thẳng với De Long",
+            body = "Chọn cách nghỉ phù hợp, xem giá ngay trên lịch và gửi yêu cầu. Nhân viên xác nhận từng đơn.",
+            items = new[]
+            {
+                "Theo khung giờ — Một khoảng nghỉ ngắn trong ngày, trả đúng phần thời gian bạn dùng.",
+                "Qua đêm — Nhận phòng buổi tối, trả phòng sáng hôm sau, không cần nhìn đồng hồ.",
+                "Theo ngày — Trọn một ngày dài để nghỉ ngơi, làm việc hay đón khách.",
+                "Giá rõ ràng — Không qua trung gian, không phí ẩn, nhân viên xác nhận từng đơn."
+            }
+        }),
+        New(null, 5, "Faq", "Câu hỏi thường gặp", "standard", new
+        {
+            eyebrow = "HỎI ĐÁP",
+            title = "Câu hỏi thường gặp",
+            items = new[]
+            {
+                new { question = "Đặt phòng xong bao lâu thì được xác nhận?", answer = "Sau khi bạn gửi yêu cầu, nhân viên sẽ kiểm tra và xác nhận qua điện thoại hoặc Zalo trong thời gian sớm nhất." },
+                new { question = "Tôi có thể đặt nhiều khung giờ liền nhau không?", answer = "Có. Trên lịch phòng, chọn khung đầu tiên rồi bấm tiếp các khung liền kề của cùng phòng đó, kể cả sang ngày hôm sau." },
+                new { question = "Cần mang theo giấy tờ gì khi nhận phòng?", answer = "Vui lòng mang theo CCCD hoặc giấy tờ tùy thân còn hiệu lực để làm thủ tục nhận phòng." },
+                new { question = "Muốn đổi hoặc hủy lịch thì làm thế nào?", answer = "Liên hệ hotline hoặc Zalo của cơ sở ở cuối trang càng sớm càng tốt để được hỗ trợ đổi lịch." }
+            }
+        })
+    ];
+
+    /// <summary>
+    /// "Khôi phục giao diện mặc định": switches to the standard theme and replaces the visible global homepage
+    /// blocks with the approved layout. Previous blocks are kept hidden (renamed "[Bản cũ] …") so nothing is lost
+    /// and any of them can be shown again from the admin list. Custom pages and property homepages are untouched.
+    /// </summary>
+    public async Task<int> ResetGlobalHomeToStandardAsync(CancellationToken ct = default)
+    {
+        var existing = await db.Set<HomeSection>()
+            .Where(x => x.PropertyId == null && AllowedSectionTypes.Contains(x.Type))
+            .ToListAsync(ct);
+        var defaults = StandardGlobalSections();
+        var archiveOrder = defaults.Count;
+        foreach (var section in existing.OrderBy(x => x.SortOrder).ThenBy(x => x.CreatedAtUtc))
+        {
+            section.IsVisible = false;
+            section.SortOrder = archiveOrder++;
+            if (!section.Name.StartsWith(ArchivedSectionPrefix, StringComparison.Ordinal))
+                section.Name = Truncate($"{ArchivedSectionPrefix}{section.Name}", 200);
+        }
+        db.Set<HomeSection>().AddRange(defaults);
+        await db.SaveChangesAsync(ct);
+        await PublicThemeStore.SaveAsync(db, new SavePublicThemeRequest { Mode = PublicThemeStore.StandardMode }, ct);
+        return existing.Count;
+    }
+
+    public const string ArchivedSectionPrefix = "[Bản cũ] ";
+    private static string Truncate(string value, int max) => value.Length <= max ? value : value[..max];
+
     private static IReadOnlyList<HomeSection> DefaultSections(Property property) =>
     [
         New(property.Id, 0, "Hero", "Mở đầu", "split", new
@@ -505,6 +674,39 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static int Length(string? value) => value?.Length ?? 0;
+    public static string? NormalizeSocialUrl(string? value)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrEmpty(text)) return null;
+        if (!text.Contains("://", StringComparison.Ordinal) && !text.Contains(' ') && text.Contains('.'))
+            text = $"https://{text.TrimStart('/')}";
+        return text;
+    }
+
+    public static string? NormalizeZaloUrl(string? value)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrEmpty(text)) return null;
+        var digits = new string(text.Where(char.IsDigit).ToArray());
+        var looksLikePhone = text.All(c => char.IsDigit(c) || c is ' ' or '.' or '-' or '+' or '(' or ')');
+        if (looksLikePhone && digits.Length is >= 8 and <= 15)
+            return $"https://zalo.me/{(digits.StartsWith("84", StringComparison.Ordinal) && digits.Length >= 11 ? "0" + digits[2..] : digits)}";
+        return NormalizeSocialUrl(text);
+    }
+
+    public static string? NormalizeMapsUrl(string? value)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrEmpty(text)) return null;
+        if (text.StartsWith("<", StringComparison.Ordinal))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(text, "src\\s*=\\s*[\"']([^\"']+)[\"']", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (!match.Success) return text;
+            text = System.Net.WebUtility.HtmlDecode(match.Groups[1].Value);
+        }
+        return NormalizeSocialUrl(text);
+    }
+
     private static bool IsOptionalHttpUrl(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return true;

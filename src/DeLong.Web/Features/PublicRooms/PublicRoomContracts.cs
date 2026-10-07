@@ -43,6 +43,7 @@ public sealed record PublicRoomCardDto(
     IReadOnlyList<string> Amenities,
     IReadOnlyList<PublicRoomRateDto> Rates,
     IReadOnlyList<string>? GalleryCardUrls = null,
+    IReadOnlyList<string>? GalleryLargeUrls = null,
     bool IsBookingLocked = false);
 
 public sealed record PublicRoomDetailDto(

@@ -11,11 +11,13 @@
         { value: 'AvailabilitySearch', label: 'Kiểm tra phòng nhanh' },
         { value: 'AvailabilityCalendar', label: 'Lịch phòng trống V2' },
         { value: 'FeatureGrid', label: 'Nội dung + điểm nổi bật' },
+        { value: 'Faq', label: 'Câu hỏi thường gặp (FAQ)' },
         { value: 'RichText', label: 'Nội dung tự do' },
         { value: 'Cta', label: 'Kêu gọi hành động' }
     ];
     function defaultContent(type) {
-        if (type === 'Hero') return { eyebrow: 'DE LONG HOMESTAY', title: '', body: '', primaryText: 'Xem tất cả phòng', primaryUrl: '/rooms', secondaryText: 'Khám phá các cơ sở', secondaryUrl: '/#co-so', imageUrl: '' };
+        if (type === 'Hero') return { eyebrow: 'DE LONG HOMESTAY', title: '', body: '', primaryText: 'Xem tất cả phòng', primaryUrl: '/rooms', secondaryText: 'Khám phá các cơ sở', secondaryUrl: '/#co-so', imageUrl: '', imageUrl2: '', imageUrl3: '' };
+        if (type === 'Faq') return { eyebrow: 'HỎI ĐÁP', title: 'Câu hỏi thường gặp', items: [{ question: '', answer: '' }] };
         if (type === 'BranchGrid') return { eyebrow: 'CƠ SỞ', title: 'Chọn nơi bạn muốn ghé', propertyIds: [] };
         if (type === 'RoomGrid') return { eyebrow: 'PHÒNG', title: 'Một vài lựa chọn đang mở', mode: 'all', limit: 6, propertyQuotas: {}, roomIds: [] };
         if (type === 'AvailabilitySearch') return { title: 'Chọn cơ sở và ngày bạn muốn ghé' };
@@ -37,7 +39,7 @@
         };
     }
     createApp({
-        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, brandingEffective: initial.branding || {}, branding: brandingForm(initial.branding), brandingSaving: false, brandingUploading: '', editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
+        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, brandingEffective: initial.branding || {}, branding: brandingForm(initial.branding), brandingSaving: false, brandingUploading: '', themeMode: initial.theme?.mode || 'standard', themeSaved: initial.theme?.mode || 'standard', themeSaving: false, resetConfirm: false, resetting: false, palette: ['#5f8a8b', '#7d8f69', '#b5654f', '#6f6a8a', '#b88746', '#8c6a5a'], roomColors: Object.assign({}, initial.theme?.roomColors || {}), roomColorsDirty: false, roomColorsSaving: false, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
         computed: {
             brandPreviewLogo() { return this.branding.logoUrl || this.brandingEffective.logoUrl || ''; },
             brandPreviewName() { return this.branding.siteName || this.brandingEffective.siteName || 'De Long Homestay'; },
@@ -53,14 +55,56 @@
                 if (type === 'AvailabilitySearch') return ['booking-bar', 'card', 'minimal'];
                 if (type === 'AvailabilityCalendar') return ['vertical'];
                 if (type === 'FeatureGrid') return ['split', 'stacked', 'icon-grid', 'dark-band', 'editorial'];
+                if (type === 'Faq') return ['accordion', 'two-column'];
                 if (type === 'RichText') return ['narrow', 'wide', 'editorial'];
                 if (type === 'Cta') return ['card', 'full-width', 'dark', 'offer'];
                 return ['card', 'minimal'];
             },
             includes(list, id) { return Array.isArray(list) && list.some(x => String(x) === String(id)); },
             toggleArray(key, id) { const list = Array.isArray(this.form.content[key]) ? [...this.form.content[key]] : []; const i = list.findIndex(x => String(x) === String(id)); if (i >= 0) list.splice(i, 1); else list.push(id); this.form.content[key] = list; },
-            normalizeContent(type, content) { const base = Object.assign(defaultContent(type), content || {}); if (type === 'BranchGrid' && !Array.isArray(base.propertyIds)) base.propertyIds = []; if (type === 'RoomGrid') { if (!Array.isArray(base.roomIds)) base.roomIds = []; if (!base.propertyQuotas || typeof base.propertyQuotas !== 'object' || Array.isArray(base.propertyQuotas)) base.propertyQuotas = {}; } return base; },
+            normalizeContent(type, content) { const base = Object.assign(defaultContent(type), content || {}); if (type === 'BranchGrid' && !Array.isArray(base.propertyIds)) base.propertyIds = []; if (type === 'RoomGrid') { if (!Array.isArray(base.roomIds)) base.roomIds = []; if (!base.propertyQuotas || typeof base.propertyQuotas !== 'object' || Array.isArray(base.propertyQuotas)) base.propertyQuotas = {}; } if (type === 'Faq') { base.items = (Array.isArray(base.items) ? base.items : []).map(item => ({ question: String(item?.question || ''), answer: String(item?.answer || '') })); if (!base.items.length) base.items.push({ question: '', answer: '' }); } return base; },
+            addFaqItem() { this.form.content.items.push({ question: '', answer: '' }); },
+            removeFaqItem(index) { this.form.content.items.splice(index, 1); if (!this.form.content.items.length) this.form.content.items.push({ question: '', answer: '' }); },
+            moveFaqItem(index, offset) { const items = this.form.content.items; const target = index + offset; if (target < 0 || target >= items.length) return; const [item] = items.splice(index, 1); items.splice(target, 0, item); },
             mountSortable() { if (!window.Sortable) return; if (this.sortable) this.sortable.destroy(); const el = document.getElementById('global-section-list'); if (!el) return; this.sortable = Sortable.create(el, { animation: 160, handle: '.home-drag-handle', ghostClass: 'dragging', onEnd: async e => { if (e.oldIndex === e.newIndex) return; const moved = this.sections.splice(e.oldIndex, 1)[0]; this.sections.splice(e.newIndex, 0, moved); try { await DeLongApi.put('/api/admin/site/global/sections/reorder', { ids: this.sections.map(x => x.id) }); this.notify('Đã cập nhật thứ tự.'); } catch (err) { this.notify(err.message || 'Không thể đổi thứ tự.', 'error'); } } }); },
+            async saveTheme() {
+                if (this.themeSaving) return;
+                this.themeSaving = true;
+                try {
+                    const saved = await DeLongApi.put('/api/admin/site/global/theme', { mode: this.themeMode });
+                    this.themeMode = this.themeSaved = saved?.mode || this.themeMode;
+                    this.notify(this.themeMode === 'standard' ? 'Đã bật Giao diện chuẩn.' : 'Đã chuyển sang Tùy chỉnh tự do.');
+                } catch (err) { this.notify(err.message || 'Không thể lưu chế độ giao diện.', 'error'); }
+                finally { this.themeSaving = false; }
+            },
+            roomColorValue(room, index) { return this.roomColors[room.id] || this.palette[index % this.palette.length]; },
+            setRoomColor(room, value) { this.roomColors = Object.assign({}, this.roomColors, { [room.id]: value }); this.roomColorsDirty = true; },
+            clearRoomColor(room) { const next = Object.assign({}, this.roomColors); delete next[room.id]; this.roomColors = next; this.roomColorsDirty = true; },
+            async saveRoomColors() {
+                if (this.roomColorsSaving) return;
+                this.roomColorsSaving = true;
+                try {
+                    const saved = await DeLongApi.put('/api/admin/site/global/theme', { roomColors: this.roomColors });
+                    this.roomColors = Object.assign({}, saved?.roomColors || {});
+                    this.roomColorsDirty = false;
+                    this.notify('Đã lưu màu thẻ phòng.');
+                } catch (err) { this.notify(err.message || 'Không thể lưu màu thẻ phòng.', 'error'); }
+                finally { this.roomColorsSaving = false; }
+            },
+            async resetToStandard() {
+                if (this.resetting) return;
+                this.resetting = true;
+                try {
+                    const result = await DeLongApi.post('/api/admin/site/global/reset-standard', {});
+                    const fresh = await DeLongApi.get('/api/admin/site/global');
+                    this.sections = fresh?.sections || [];
+                    this.themeMode = this.themeSaved = result?.theme?.mode || 'standard';
+                    this.resetConfirm = false;
+                    this.notify(`Đã khôi phục giao diện mặc định${result?.archived ? `; ${result.archived} khối cũ được ẩn` : ''}.`);
+                    this.$nextTick(() => this.mountSortable());
+                } catch (err) { this.notify(err.message || 'Không thể khôi phục giao diện mặc định.', 'error'); }
+                finally { this.resetting = false; }
+            },
             async saveBranding() {
                 if (this.brandingSaving || this.brandingUploading) return;
                 this.brandingSaving = true;
@@ -89,14 +133,14 @@
                 } catch (err) { this.notify(err.message || 'Không thể tải ảnh.', 'error'); }
                 finally { this.brandingUploading = ''; }
             },
-            async uploadSectionImage(event) {
+            async uploadSectionImage(event, field = 'imageUrl') {
                 const file = event.target.files?.[0]; event.target.value = '';
                 if (!file || this.uploading) return;
                 const form = new FormData(); form.append('file', file);
                 this.uploading = true;
                 try {
                     const asset = await DeLongApi.postForm('/api/admin/site/global/assets/section', form);
-                    this.form.content.imageUrl = asset.url;
+                    this.form.content[field] = asset.url;
                     this.notify('Đã tải ảnh. Lưu khối để áp dụng.');
                 } catch (err) { this.notify(err.message || 'Không thể tải ảnh.', 'error'); }
                 finally { this.uploading = false; }
@@ -125,7 +169,7 @@
             openEdit(section) { let content = {}; try { content = JSON.parse(section.contentJson || '{}'); } catch (_) {} this.form = { type: section.type, name: section.name, variant: section.variant, isVisible: section.isVisible, content: this.normalizeContent(section.type, content), itemsText: Array.isArray(content.items) ? content.items.join('\n') : '' }; this.editor = { open: true, mode: 'edit', id: section.id }; },
             closeEditor() { if (!this.saving) this.editor.open = false; },
             typeChanged() { const type = this.form.type; this.form.content = defaultContent(type); this.form.variant = this.variantsFor(type)[0]; this.form.itemsText = ''; },
-            payload() { const content = Object.assign({}, this.form.content); if (this.form.type === 'FeatureGrid') content.items = this.form.itemsText.split('\n').map(x => x.trim()).filter(Boolean); return { type: this.form.type, name: this.form.name, variant: this.form.variant, isVisible: this.form.isVisible, contentJson: JSON.stringify(content) }; },
+            payload() { const content = Object.assign({}, this.form.content); if (this.form.type === 'FeatureGrid') content.items = this.form.itemsText.split('\n').map(x => x.trim()).filter(Boolean); if (this.form.type === 'Faq') content.items = (content.items || []).map(item => ({ question: item.question.trim(), answer: item.answer.trim() })).filter(item => item.question && item.answer); return { type: this.form.type, name: this.form.name, variant: this.form.variant, isVisible: this.form.isVisible, contentJson: JSON.stringify(content) }; },
             async saveSection() { if (this.saving) return; this.saving = true; try { const payload = this.payload(); const saved = this.editor.mode === 'create' ? await DeLongApi.post('/api/admin/site/global/sections', payload) : await DeLongApi.put(`/api/admin/site/global/sections/${this.editor.id}`, payload); if (this.editor.mode === 'create') this.sections.push(saved); else { const i = this.sections.findIndex(x => x.id === saved.id); if (i >= 0) this.sections.splice(i, 1, saved); } this.editor.open = false; this.notify('Đã lưu khối.'); nextTick(() => this.mountSortable()); } catch (err) { this.notify(err.message || 'Không thể lưu khối.', 'error'); } finally { this.saving = false; } },
             async toggleSection(section) { try { const saved = await DeLongApi.put(`/api/admin/site/global/sections/${section.id}`, { type: section.type, name: section.name, variant: section.variant, contentJson: section.contentJson || '{}', isVisible: !section.isVisible }); Object.assign(section, saved); } catch (err) { this.notify(err.message || 'Không thể đổi trạng thái.', 'error'); } },
             async deleteSection() { if (!this.editor.id || !window.confirm('Xóa khối này khỏi trang chủ chung?')) return; this.saving = true; try { await DeLongApi.delete(`/api/admin/site/global/sections/${this.editor.id}`); this.sections = this.sections.filter(x => x.id !== this.editor.id); this.editor.open = false; this.notify('Đã xóa khối.'); nextTick(() => this.mountSortable()); } catch (err) { this.notify(err.message || 'Không thể xóa khối.', 'error'); } finally { this.saving = false; } },

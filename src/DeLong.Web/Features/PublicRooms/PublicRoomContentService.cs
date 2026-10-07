@@ -106,7 +106,7 @@ public sealed class PublicRoomContentService(AppDbContext db, IFusionCache? fusi
                 Cover = x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder)
                     .Select(i => new { i.CardPath, i.FocalX, i.FocalY }).FirstOrDefault(),
                 Gallery = x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder).ThenBy(i => i.Id)
-                    .Select(i => new { i.CardPath, i.FocalX, i.FocalY }).ToList(),
+                    .Select(i => new { i.CardPath, i.LargePath, i.FocalX, i.FocalY }).ToList(),
                 Rates = x.Rates.Where(r => r.IsActive && r.Price > 0).OrderBy(r => r.SortOrder)
                     .Select(r => new { r.Id, r.Name, r.StartTime, r.EndTime, r.Type, r.Price }).ToList()
             })
@@ -135,6 +135,11 @@ public sealed class PublicRoomContentService(AppDbContext db, IFusionCache? fusi
                 x.Amenities,
                 rates,
                 x.Gallery.Select(i => MediaUrlVersioner.WithCropVersion(i.CardPath, i.FocalX, i.FocalY)!)
+                    .Where(url => !string.IsNullOrWhiteSpace(url)).Distinct().ToList(),
+                // Full-size images for the room lightbox (falls back to the card crop when no large rendition exists).
+                x.Gallery.Select(i => string.IsNullOrWhiteSpace(i.LargePath)
+                        ? MediaUrlVersioner.WithCropVersion(i.CardPath, i.FocalX, i.FocalY)!
+                        : MediaUrlVersioner.WithCropVersion(i.LargePath, i.FocalX, i.FocalY)!)
                     .Where(url => !string.IsNullOrWhiteSpace(url)).Distinct().ToList(), x.IsBookingLocked);
         }).ToList();
 

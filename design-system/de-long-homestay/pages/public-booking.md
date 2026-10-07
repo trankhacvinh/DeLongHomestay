@@ -8,14 +8,16 @@ Extends `design-system/de-long-homestay/MASTER.md` for the guest-facing De Long 
 - Tone: calm, private, warm, trustworthy; never look like an admin dashboard or generic SaaS landing page.
 - Primary task: help a guest understand rooms quickly, see transparent rates, check a date, and send a low-friction request.
 
-## Visual system
+## Visual system (2026-10 redesign, `wwwroot/css/public-redesign.css`)
 
-- Keep De Long deep teal as the brand anchor: primary `#15585C`, deep `#0D2B2E`.
-- Use warm off-white page backgrounds (`#F7F6F1`) rather than the cooler admin canvas.
-- Use muted sand/amber only as a hospitality accent, not as the primary CTA.
-- Large editorial headings with tight tracking; body copy stays high-contrast and compact.
+- Ink `#12292B` for text and primary buttons; warm paper ground `#F7F3EC` / `#EFE9DE`; white surfaces.
+- Amber `#F2B35A` as the accent (selected slots, price sticker, marquee, CTA band); `#A35F15` for accent text on light grounds.
+- One typeface: Be Vietnam Pro (self-hosted, OFL). Scale: h1 34–54px, h2 28–40px, h3 19–22px, body 16px; headings 800, sentence case, line-height ≥ 1.15 (Vietnamese diacritics). Eyebrows: 12px, 700, uppercase, +0.14em tracking, amber ink.
+- Theme mode "Giao diện chuẩn" (default) keeps this system authoritative over visual-editor styling; see `docs/PUBLIC-REDESIGN-UAT.md`.
+- Room cards are colour-blocked and numbered (01, 02…) with arch-shaped photos; pills (999px) for buttons; cards 20–28px radius; shadows only where something floats (selection bar, sticker).
+- Calendar board: light, ink outlines; free = white outlined, selected = amber with offset shadow, booked = hatched sand, next valid slot = dashed amber `+`.
+- Footer is light and shows one contact card per property (logo, address, hotline, Zalo, Facebook, Google Maps).
 - Room imagery area may use stylized branded placeholders until real photos are supplied. Do not pretend placeholders are real photos.
-- Rounded corners are restrained (12–24px), with soft low-opacity shadows.
 
 ## Structure
 

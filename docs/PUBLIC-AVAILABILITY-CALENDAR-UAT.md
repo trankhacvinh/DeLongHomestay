@@ -3,7 +3,7 @@
 Khối CMS `AvailabilityCalendar` dùng chung API interval `/api/public/room-availability`; không tạo lịch hoặc nguồn booking thứ hai và không thay đổi schema dữ liệu.
 
 1. Trong CMS hoặc Visual Editor, thêm khối **Lịch phòng trống V2**, đặt số ngày từ `1–14`, lưu và tải lại trang public.
-2. Chuyển phòng bằng nút trước/sau; tên phòng, cơ sở, mã phòng và lịch phải đổi đồng bộ.
+2. Desktop (> 760px): các phòng của những cơ sở đang tick hiển thị cạnh nhau, mỗi phòng một nhóm cột khung giờ; khi có nhiều cơ sở, danh sách tick cơ sở nằm phía trên lịch. Mobile (≤ 760px) hoặc chỉ có một phòng: chuyển phòng bằng nút trước/sau; tên phòng, cơ sở, mã phòng và lịch phải đổi đồng bộ. Mỗi lần đặt chỉ chọn các khung liền nhau của một phòng.
 3. Đổi ngày bắt đầu, dùng Hôm nay hoặc tiến/lùi 7 ngày; các ngày và khung giờ phải tải lại đúng.
 4. Khung `available` cho phép bấm; `partial` và `occupied` chỉ hiển thị trạng thái, không mở form đặt nguyên khung.
 5. Bấm khung trống mở modal chứa đúng form booking hiện tại với ngày, phòng và rate đã chọn.

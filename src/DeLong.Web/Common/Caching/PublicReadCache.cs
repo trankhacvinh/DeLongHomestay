@@ -8,6 +8,8 @@ public static class PublicCacheKeys
 {
     public const string Tag = "public-content";
     public const string ActiveProperties = "public:properties:active";
+    public const string PropertyContacts = "public:properties:contacts";
+    public const string Theme = "public:site:theme";
     public const string GlobalSections = "public:site:global-sections";
     public const string GlobalRooms = "public:rooms:global";
     public const string GlobalGallery = "public:editorial:gallery:global";

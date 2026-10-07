@@ -16,6 +16,8 @@ public sealed class CustomPageModel(
 {
     public CustomPageDto PageContent { get; private set; } = null!;
     public bool IsGlobal { get; private set; }
+    /// <summary>Standard theme: visual-editor style classes and layout variants are not rendered.</summary>
+    public bool ThemeStandard { get; private set; }
     public string? SiteSlug { get; private set; }
     public string ScopePrefix => PublicPropertyResolver.ScopePrefix(SiteSlug);
     public SiteSettingsDto? SiteSettings { get; private set; }
@@ -26,6 +28,7 @@ public sealed class CustomPageModel(
     public async Task<IActionResult> OnGetAsync(string slug, string? siteSlug, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(slug)) return NotFound();
+        ThemeStandard = (await siteContentService.GetPublicThemeAsync(ct)).IsStandard;
         IsGlobal = string.IsNullOrWhiteSpace(siteSlug);
         if (IsGlobal)
         {

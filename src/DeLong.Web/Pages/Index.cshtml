@@ -3,6 +3,7 @@
 @using System.Text.Json
 @using System.Text.Json.Nodes
 @using DeLong.Web.Features.Site
+@using DeLong.Web.Features.PublicRooms
 @model DeLong.Web.Pages.IndexModel
 @{
     var siteName = Model.IsGlobalHome
@@ -17,8 +18,65 @@
     var fromPrice = (Model.IsGlobalHome ? Model.GlobalCatalog.Rooms.Select(x => x.Room) : Model.Catalog.Rooms)
         .Where(x => x.QuickFromPrice > 0).Select(x => x.QuickFromPrice).DefaultIfEmpty(0).Min();
     var bookingCalendarAnchorRendered = false;
+    var heroPriceShort = fromPrice <= 0 ? string.Empty : fromPrice >= 1000 ? $"{fromPrice / 1000:0.#}K" : $"{fromPrice:N0}đ";
+    var roomMarqueeText = string.Join(" ✦ ", (Model.IsGlobalHome ? Model.GlobalCatalog.Rooms.Select(x => x.Room.Name) : Model.Catalog.Rooms.Select(x => x.Name)).Distinct().Take(12));
     string Text(JsonObject content, string key, string fallback = "") => content[key]?.GetValue<string>() ?? fallback;
-    string V(JsonObject content, string path, bool image = false) => CustomPageModel.VisualClass(content, path, image);
+    string V(JsonObject content, string path, bool image = false) => Model.ThemeStandard ? string.Empty : CustomPageModel.VisualClass(content, path, image);
+    // Standard theme renders every block in its default layout so the built-in design stays consistent.
+    string Variant(string variant) => Model.ThemeStandard ? "standard" : variant;
+    // Room card colour (Admin › Trang chủ chung › Màu thẻ phòng); null leaves the default palette from CSS.
+    string? RoomTone(Guid roomId) => Model.ThemeStandard && Model.Theme.RoomColor(roomId) is { } tone ? $"--dl-tone:{tone}" : null;
+    string RoomPhotos(PublicRoomCardDto room) => JsonSerializer.Serialize((room.GalleryLargeUrls?.Count > 0 ? room.GalleryLargeUrls : room.GalleryCardUrls) ?? []);
+    // Standard theme hero: a three-photo collage like the approved mockup (big arch, top arch, small card).
+    // The three photos are chosen in the Hero block (imageUrl, imageUrl2, imageUrl3); an empty slot becomes a soft colour tile.
+    string HeroCollage(JsonObject content, string fallbackMainImage, string caption, string title)
+    {
+        var enc = System.Text.Encodings.Web.HtmlEncoder.Default;
+        var mainImage = Text(content, "imageUrl");
+        if (string.IsNullOrWhiteSpace(mainImage)) mainImage = fallbackMainImage;
+        var photos = new[] { mainImage, Text(content, "imageUrl2"), Text(content, "imageUrl3") };
+        string Tile(int index, string css)
+        {
+            if (!string.IsNullOrWhiteSpace(photos[index]))
+                return $"<div class=\"public-hero-tile {css}\"><img src=\"{enc.Encode(photos[index])}\" alt=\"{enc.Encode(index == 0 ? title : "Không gian tại De Long")}\" {(index == 0 ? "fetchpriority=\"high\"" : "loading=\"lazy\"")} decoding=\"async\" /></div>";
+            return $"<div class=\"public-hero-tile {css} is-empty\" aria-hidden=\"true\"></div>";
+        }
+        var html = new System.Text.StringBuilder("<div class=\"public-hero-collage\">");
+        html.Append(Tile(0, "is-main"));
+        html.Append(Tile(1, "is-top"));
+        html.Append(Tile(2, "is-bottom"));
+        if (!string.IsNullOrEmpty(heroPriceShort))
+            html.Append("<span class=\"public-hero-price-sticker\" aria-hidden=\"true\"><small>đặt nhanh từ</small><strong>").Append(enc.Encode(heroPriceShort)).Append("</strong><small>mỗi khung giờ</small></span>");
+        if (!string.IsNullOrWhiteSpace(caption))
+            html.Append("<span class=\"public-hero-collage-label\"><small>").Append(enc.Encode(caption)).Append("</small><strong>").Append(enc.Encode(title)).Append("</strong></span>");
+        html.Append("</div>");
+        return html.ToString();
+    }
+    // Standard theme renders FeatureGrid as the "ways to book" card band from the approved design.
+    // Items written as "Title — description" become a card title and its text.
+    string HowBand(JsonObject content, string fallbackEyebrow)
+    {
+        var enc = System.Text.Encodings.Web.HtmlEncoder.Default;
+        var html = new System.Text.StringBuilder();
+        html.Append("<section class=\"public-section public-how-band\"><div class=\"public-container\"><div class=\"public-section-head\"><div>");
+        html.Append("<span class=\"public-eyebrow\">").Append(enc.Encode(Text(content, "eyebrow", fallbackEyebrow))).Append("</span>");
+        html.Append("<h2>").Append(enc.Encode(Text(content, "title"))).Append("</h2></div>");
+        var body = Text(content, "body");
+        if (!string.IsNullOrWhiteSpace(body)) html.Append("<p class=\"public-how-lead\">").Append(enc.Encode(body)).Append("</p>");
+        html.Append("</div><div class=\"public-how-grid\">");
+        var index = 0;
+        foreach (var item in (content["items"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString()).Where(x => !string.IsNullOrWhiteSpace(x)).Take(8))
+        {
+            var parts = item!.Split(new[] { " — ", " – ", " - ", ": " }, 2, StringSplitOptions.TrimEntries);
+            index++;
+            html.Append("<article class=\"public-how-card\"><span class=\"public-how-index\">").Append(index.ToString("00")).Append("</span>");
+            html.Append("<h3>").Append(enc.Encode(parts[0])).Append("</h3>");
+            if (parts.Length > 1) html.Append("<p>").Append(enc.Encode(parts[1])).Append("</p>");
+            html.Append("</article>");
+        }
+        html.Append("</div></div></section>");
+        return html.ToString();
+    }
     string ScopedUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url)) return url;
@@ -63,7 +121,7 @@
                 var accentImage = Model.GlobalCatalog.Rooms.Select(x => x.Room.CoverCardUrl)
                     .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x) && !string.Equals(x, imageUrl, StringComparison.OrdinalIgnoreCase));
                 var heroProperty = Model.GlobalCatalog.Properties.FirstOrDefault();
-                <section class="public-hero public-cms-hero public-hotel-hero variant-@(block.Variant)">
+                <section class="public-hero public-cms-hero public-hotel-hero variant-@(Variant(block.Variant))">
                     <div class="public-container public-hero-grid public-hotel-hero-grid">
                         <div class="public-hero-copy public-hotel-hero-copy">
                             <span class="public-eyebrow @(V(block.Content, "eyebrow"))">@eyebrow</span>
@@ -76,7 +134,11 @@
                                 <span><strong>@(fromPrice > 0 ? $"{fromPrice:N0}đ" : "—")</strong><small>giá từ</small></span>
                             </div>
                         </div>
-                        @if (!string.IsNullOrWhiteSpace(imageUrl))
+                        @if (Model.ThemeStandard)
+                        {
+                            @Html.Raw(HeroCollage(block.Content, propertyCover ?? string.Empty, heroProperty?.Tagline ?? "Không gian nghỉ riêng tư", heroProperty?.SiteName ?? "De Long Homestay"))
+                        }
+                        else if (!string.IsNullOrWhiteSpace(imageUrl))
                         {
                             <div class="public-cms-hero-image public-hotel-hero-media @(V(block.Content, "imageUrl", true))">
                                 <img class="public-hotel-hero-main-image" src="@imageUrl" alt="@title" fetchpriority="high" decoding="async" />
@@ -85,6 +147,10 @@
                                     <span class="public-hotel-hero-inset"><img src="@accentImage" alt="Một góc không gian nghỉ" loading="lazy" /></span>
                                 }
                                 <span class="public-hotel-hero-label"><small>@(heroProperty?.Tagline ?? "Không gian nghỉ riêng tư")</small><strong>@(heroProperty?.SiteName ?? "De Long Homestay")</strong></span>
+                                @if (!string.IsNullOrEmpty(heroPriceShort))
+                                {
+                                    <span class="public-hero-price-sticker" aria-hidden="true"><small>đặt nhanh từ</small><strong>@heroPriceShort</strong><small>mỗi khung giờ</small></span>
+                                }
                             </div>
                         }
                         else
@@ -100,7 +166,7 @@
                 var properties = Model.SelectGlobalProperties(block.Content);
                 var eyebrow = Text(block.Content, "eyebrow", "CƠ SỞ");
                 var title = Text(block.Content, "title", "Chọn nơi bạn muốn ghé");
-                <section id="co-so" class="public-section public-branch-section variant-@(block.Variant)"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@eyebrow</span><h2 class="@(V(block.Content, "title"))">@title</h2></div></div><div class="public-branch-grid">
+                <section id="co-so" class="public-section public-branch-section variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@eyebrow</span><h2 class="@(V(block.Content, "title"))">@title</h2></div></div><div class="public-branch-grid">
                     @foreach (var property in properties)
                     {
                         <article class="public-branch-card">
@@ -116,11 +182,11 @@
                 var rooms = Model.SelectGlobalRooms(block.Content);
                 var eyebrow = Text(block.Content, "eyebrow", "PHÒNG");
                 var title = Text(block.Content, "title", "Một vài lựa chọn đang mở");
-                <section class="public-section public-home-rooms public-cms-room-grid variant-@(block.Variant)"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@eyebrow</span><h2 class="@(V(block.Content, "title"))">@title</h2></div><a class="public-text-link" href="@PublicUrlBuilder.BookingHome()">Xem lịch phòng →</a></div><div class="public-room-grid">
+                <section class="public-section public-home-rooms public-cms-room-grid variant-@(Variant(block.Variant))">@if (!string.IsNullOrWhiteSpace(roomMarqueeText)) { <div class="public-room-marquee" aria-hidden="true"><div class="public-room-marquee-track"><span>@roomMarqueeText ✦ </span><span>@roomMarqueeText ✦ </span></div></div> }<div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@eyebrow</span><h2 class="@(V(block.Content, "title"))">@title</h2></div><a class="public-text-link" href="@PublicUrlBuilder.BookingHome()">Xem lịch phòng →</a></div><div class="public-room-grid">
                     @foreach (var item in rooms)
                     {
                         var room = item.Room;
-                        <article class="public-room-card public-room-card-content"><a class="public-room-art" data-room-gallery="@JsonSerializer.Serialize(room.GalleryCardUrls)" href="@PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug)" aria-label="Xem @room.Name">@if (!string.IsNullOrWhiteSpace(room.CoverCardUrl)) { <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" width="900" height="675" loading="lazy" /><span class="public-room-image-scrim"></span> } else { <span class="public-room-poster"><small>@item.PropertyName · @room.Code</small><strong>@room.Name</strong></span> }<span class="public-room-image-title"><small>@item.PropertyName</small><strong>@room.Name</strong></span></a><div class="public-room-body"><div><h3><a href="@PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug)">@room.Name</a></h3><p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người · {item.PropertyName}" : room.ShortDescription)</p></div><div class="public-room-conversion"><div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div>@if (room.IsBookingLocked) { <span class="public-room-book-now" aria-disabled="true">Tạm ngừng nhận đặt phòng</span> } else { <a class="public-room-book-now" href="@PublicUrlBuilder.BookingHome(item.PropertySiteSlug)">Đặt ngay →</a> }</div></div></article>
+                        <article class="public-room-card public-room-card-content" style="@RoomTone(room.Id)" data-room-lightbox="@RoomPhotos(room)" data-room-lightbox-title="@room.Name"><a class="public-room-art" data-room-gallery="@JsonSerializer.Serialize(room.GalleryCardUrls)" href="@PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug)" aria-label="Xem @room.Name">@if (!string.IsNullOrWhiteSpace(room.CoverCardUrl)) { <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" width="900" height="675" loading="lazy" /><span class="public-room-image-scrim"></span> } else { <span class="public-room-poster"><small>@item.PropertyName · @room.Code</small><strong>@room.Name</strong></span> }<span class="public-room-image-title"><small>@item.PropertyName</small><strong>@room.Name</strong></span></a><div class="public-room-body"><div><h3><a href="@PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug)">@room.Name</a></h3><p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người · {item.PropertyName}" : room.ShortDescription)</p></div><div class="public-room-conversion"><div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div>@if (room.IsBookingLocked) { <span class="public-room-book-now" aria-disabled="true">Tạm ngừng nhận đặt phòng</span> } else { <a class="public-room-book-now" href="@PublicUrlBuilder.BookingHome(item.PropertySiteSlug)">Đặt ngay →</a> }</div></div></article>
                     }
                 </div></div></section>
                 break;
@@ -128,7 +194,7 @@
             case "AvailabilitySearch":
             {
                 var title = Text(block.Content, "title", "Chọn cơ sở và ngày bạn muốn ghé");
-                <section class="public-check-section public-cms-availability variant-@(block.Variant)"><div class="public-container"><form class="public-check-card public-global-check-card" method="get" action="/booking"><div><span class="public-eyebrow">Đặt phòng nhanh</span><h2 class="@(V(block.Content, "title"))">@title</h2></div>@if (Model.GlobalCatalog.Properties.Count > 1) { <label class="public-date-field"><span>Cơ sở</span><select name="site" required><option value="">Chọn cơ sở</option>@foreach (var property in Model.GlobalCatalog.Properties) { <option value="@property.SiteSlug">@property.SiteName</option> }</select></label> } else if (Model.GlobalCatalog.Properties.Count == 1) { <input type="hidden" name="site" value="@Model.GlobalCatalog.Properties[0].SiteSlug" /> }<label class="public-date-field"><span>Ngày sử dụng</span><input type="date" name="date" value="@Model.DefaultDate" required /></label><button class="public-btn public-btn-primary" type="submit" @(Model.GlobalCatalog.Properties.Count == 0 ? "disabled" : null)>Tìm phòng</button></form></div></section>
+                <section class="public-check-section public-cms-availability variant-@(Variant(block.Variant))"><div class="public-container"><form class="public-check-card public-global-check-card" method="get" action="/booking"><div><span class="public-eyebrow">Đặt phòng nhanh</span><h2 class="@(V(block.Content, "title"))">@title</h2></div>@if (Model.GlobalCatalog.Properties.Count > 1) { <label class="public-date-field"><span>Cơ sở</span><select name="site" required><option value="">Chọn cơ sở</option>@foreach (var property in Model.GlobalCatalog.Properties) { <option value="@property.SiteSlug">@property.SiteName</option> }</select></label> } else if (Model.GlobalCatalog.Properties.Count == 1) { <input type="hidden" name="site" value="@Model.GlobalCatalog.Properties[0].SiteSlug" /> }<label class="public-date-field"><span>Ngày sử dụng</span><input type="date" name="date" value="@Model.DefaultDate" required /></label><button class="public-btn public-btn-primary" type="submit" @(Model.GlobalCatalog.Properties.Count == 0 ? "disabled" : null)>Tìm phòng</button></form></div></section>
                 break;
             }
             case "AvailabilityCalendar":
@@ -144,30 +210,39 @@
                     name = item.Room.Name,
                     propertyName = item.PropertyName,
                     siteSlug = item.PropertySiteSlug,
+                    propertyId = item.PropertyId,
+                    fromPrice = item.Room.QuickFromPrice,
                     coverImageUrl = item.Room.CoverCardUrl,
                     bookingUrl = PublicUrlBuilder.Booking(item.PropertySiteSlug, room: item.Room.Code)
                 }));
-                <section id="@calendarAnchorId" class="public-section public-cms-availability-calendar variant-@(block.Variant)" data-public-availability-calendar data-days="@days">
+                <section id="@calendarAnchorId" class="public-section public-cms-availability-calendar variant-@(Variant(block.Variant))" data-public-availability-calendar data-days="@days">
                     <div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">@Text(block.Content, "eyebrow", "LỊCH PHÒNG")</span><h2>@Text(block.Content, "title", "Xem phòng và khung giờ còn trống")</h2></div></div><script type="application/json" data-availability-rooms>@Html.Raw(roomsJson)</script><div data-availability-calendar-host></div></div>
                 </section>
                 break;
             }
             case "FeatureGrid":
             {
+                if (Model.ThemeStandard) { <text>@Html.Raw(HowBand(block.Content, "DE LONG HOMESTAY"))</text> break; }
                 var items = block.Content["items"] as JsonArray;
                 var featureImage = Text(block.Content, "imageUrl");
                 if (string.IsNullOrWhiteSpace(featureImage)) featureImage = Model.GlobalCatalog.Properties.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? string.Empty;
-                <section class="public-section public-section-soft public-cms-feature variant-@(block.Variant)"><div class="public-container public-story-shell @(!string.IsNullOrWhiteSpace(featureImage) ? "has-media" : string.Empty)">@if (!string.IsNullOrWhiteSpace(featureImage)) { <figure class="public-story-media @(V(block.Content, "imageUrl", true))"><img src="@featureImage" alt="Không gian tại De Long Homestay" loading="lazy" /></figure> }<div class="public-story-grid"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "DE LONG HOMESTAY")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title")</h2></div><div class="public-story-copy"><p class="@(V(block.Content, "body"))">@Text(block.Content, "body")</p>@if (items is not null) { <div class="public-benefits">@foreach (var pair in items.Select((item, index) => new { Item = item, Index = index })) { if (!string.IsNullOrWhiteSpace(pair.Item?.ToString())) { <span class="@(V(block.Content, $"items.{pair.Index}"))">@pair.Item</span> } }</div> }</div></div></div></section>
+                <section class="public-section public-section-soft public-cms-feature variant-@(Variant(block.Variant))"><div class="public-container public-story-shell @(!string.IsNullOrWhiteSpace(featureImage) ? "has-media" : string.Empty)">@if (!string.IsNullOrWhiteSpace(featureImage)) { <figure class="public-story-media @(V(block.Content, "imageUrl", true))"><img src="@featureImage" alt="Không gian tại De Long Homestay" loading="lazy" /></figure> }<div class="public-story-grid"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "DE LONG HOMESTAY")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title")</h2></div><div class="public-story-copy"><p class="@(V(block.Content, "body"))">@Text(block.Content, "body")</p>@if (items is not null) { <div class="public-benefits">@foreach (var pair in items.Select((item, index) => new { Item = item, Index = index })) { if (!string.IsNullOrWhiteSpace(pair.Item?.ToString())) { <span class="@(V(block.Content, $"items.{pair.Index}"))">@pair.Item</span> } }</div> }</div></div></div></section>
+                break;
+            }
+            case "Faq":
+            {
+                var faqItems = block.Content["items"] as JsonArray;
+                <section class="public-section public-story-faq variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "HỎI ĐÁP")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", "Câu hỏi thường gặp")</h2></div></div>@if (faqItems is not null) { <div class="public-faq-list">@foreach (var pair in faqItems.OfType<JsonObject>().Select((item, index) => new { Item = item, Index = index })) { var question = Text(pair.Item, "question"); var answer = Text(pair.Item, "answer"); if (!string.IsNullOrWhiteSpace(question) && !string.IsNullOrWhiteSpace(answer)) { <details><summary class="@(V(block.Content, $"items.{pair.Index}.question"))">@question<span>+</span></summary><p class="@(V(block.Content, $"items.{pair.Index}.answer"))">@answer</p></details> } }</div> }</div></section>
                 break;
             }
             case "RichText":
             {
-                <section class="public-section public-cms-rich variant-@(block.Variant)"><div class="public-container"><div class="public-cms-rich-inner @(V(block.Content, "html"))">@Html.Raw(Text(block.Content, "html"))</div></div></section>
+                <section class="public-section public-cms-rich variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-cms-rich-inner @(V(block.Content, "html"))">@Html.Raw(Text(block.Content, "html"))</div></div></section>
                 break;
             }
             case "Cta":
             {
-                <section class="public-section public-cms-cta variant-@(block.Variant)"><div class="public-container"><div class="public-cms-cta-card"><div><span class="public-eyebrow">DE LONG HOMESTAY</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title")</h2><p class="@(V(block.Content, "body"))">@Text(block.Content, "body")</p></div><a class="public-btn public-btn-primary @(V(block.Content, "buttonText"))" href="@ScopedUrl(Text(block.Content, "buttonUrl", "/booking"))">@Text(block.Content, "buttonText", "Đặt phòng")</a></div></div></section>
+                <section class="public-section public-cms-cta variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-cms-cta-card"><div><span class="public-eyebrow">DE LONG HOMESTAY</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title")</h2><p class="@(V(block.Content, "body"))">@Text(block.Content, "body")</p></div><a class="public-btn public-btn-primary @(V(block.Content, "buttonText"))" href="@ScopedUrl(Text(block.Content, "buttonUrl", "/booking"))">@Text(block.Content, "buttonText", "Đặt phòng")</a></div></div></section>
                 break;
             }
         }
@@ -209,10 +284,10 @@ else
                     var imageUrl = Text(block.Content, "imageUrl");
                     if (string.IsNullOrWhiteSpace(imageUrl)) imageUrl = Model.SiteSettings?.CoverImageUrl ?? Model.Catalog.Rooms.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? string.Empty;
                     var accentImage = Model.Catalog.Rooms.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x) && !string.Equals(x, imageUrl, StringComparison.OrdinalIgnoreCase));
-                    <section class="public-hero public-cms-hero public-hotel-hero variant-@(block.Variant)"><div class="public-container public-hero-grid public-hotel-hero-grid"><div class="public-hero-copy public-hotel-hero-copy"><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", siteName)</span><h1 class="@(V(block.Content, "title"))">@title</h1><p class="@(V(block.Content, "body"))">@Text(block.Content, "body", $"{roomCount} không gian nghỉ tại {siteName}.")</p><div class="public-hero-actions"><a class="public-btn public-btn-primary @(V(block.Content, "primaryText"))" href="@ScopedUrl(Text(block.Content, "primaryUrl", "/booking"))">@Text(block.Content, "primaryText", "Đặt phòng")</a><a class="public-btn public-btn-ghost @(V(block.Content, "secondaryText"))" href="@ScopedUrl(Text(block.Content, "secondaryUrl", "/rooms"))">@Text(block.Content, "secondaryText", "Xem phòng")</a></div><div class="public-hotel-hero-metrics"><span><strong>@roomCount</strong><small>phòng đang mở</small></span><span><strong>@(fromPrice > 0 ? $"{fromPrice:N0}đ" : "—")</strong><small>giá từ</small></span><span><strong>Online</strong><small>đặt phòng trực tiếp</small></span></div></div>@if (!string.IsNullOrWhiteSpace(imageUrl)) { <div class="public-cms-hero-image public-hotel-hero-media @(V(block.Content, "imageUrl", true))"><img class="public-hotel-hero-main-image" src="@imageUrl" alt="@title" fetchpriority="high" decoding="async" />@if (!string.IsNullOrWhiteSpace(accentImage)) { <span class="public-hotel-hero-inset"><img src="@accentImage" alt="Một góc phòng tại @siteName" loading="lazy" /></span> }<span class="public-hotel-hero-label"><small>@(Model.SiteSettings?.Tagline ?? "Không gian nghỉ riêng tư")</small><strong>@siteName</strong></span></div> } else { <div class="public-hero-art"><div class="hero-art-card hero-art-main"><span>@siteName</span><strong>STAY SLOW</strong><small>@roomCount phòng</small></div></div> }</div></section>
+                    <section class="public-hero public-cms-hero public-hotel-hero variant-@(Variant(block.Variant))"><div class="public-container public-hero-grid public-hotel-hero-grid"><div class="public-hero-copy public-hotel-hero-copy"><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", siteName)</span><h1 class="@(V(block.Content, "title"))">@title</h1><p class="@(V(block.Content, "body"))">@Text(block.Content, "body", $"{roomCount} không gian nghỉ tại {siteName}.")</p><div class="public-hero-actions"><a class="public-btn public-btn-primary @(V(block.Content, "primaryText"))" href="@ScopedUrl(Text(block.Content, "primaryUrl", "/booking"))">@Text(block.Content, "primaryText", "Đặt phòng")</a><a class="public-btn public-btn-ghost @(V(block.Content, "secondaryText"))" href="@ScopedUrl(Text(block.Content, "secondaryUrl", "/rooms"))">@Text(block.Content, "secondaryText", "Xem phòng")</a></div><div class="public-hotel-hero-metrics"><span><strong>@roomCount</strong><small>phòng đang mở</small></span><span><strong>@(fromPrice > 0 ? $"{fromPrice:N0}đ" : "—")</strong><small>giá từ</small></span><span><strong>Online</strong><small>đặt phòng trực tiếp</small></span></div></div>@if (Model.ThemeStandard) { @Html.Raw(HeroCollage(block.Content, Model.SiteSettings?.CoverImageUrl ?? string.Empty, Model.SiteSettings?.Tagline ?? "Không gian nghỉ riêng tư", siteName)) } else if (!string.IsNullOrWhiteSpace(imageUrl)) { <div class="public-cms-hero-image public-hotel-hero-media @(V(block.Content, "imageUrl", true))"><img class="public-hotel-hero-main-image" src="@imageUrl" alt="@title" fetchpriority="high" decoding="async" />@if (!string.IsNullOrWhiteSpace(accentImage)) { <span class="public-hotel-hero-inset"><img src="@accentImage" alt="Một góc phòng tại @siteName" loading="lazy" /></span> }<span class="public-hotel-hero-label"><small>@(Model.SiteSettings?.Tagline ?? "Không gian nghỉ riêng tư")</small><strong>@siteName</strong></span>@if (!string.IsNullOrEmpty(heroPriceShort)) { <span class="public-hero-price-sticker" aria-hidden="true"><small>đặt nhanh từ</small><strong>@heroPriceShort</strong><small>mỗi khung giờ</small></span> }</div> } else { <div class="public-hero-art"><div class="hero-art-card hero-art-main"><span>@siteName</span><strong>STAY SLOW</strong><small>@roomCount phòng</small></div></div> }</div></section>
                     break;
                 }
-                case "AvailabilitySearch": <section class="public-check-section public-cms-availability variant-@(block.Variant)"><div class="public-container"><form class="public-check-card" method="get" action="@PublicUrlBuilder.Booking(Model.SiteSlug!)"><div><span class="public-eyebrow">Đặt phòng nhanh</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", "Chọn ngày bạn muốn ghé")</h2></div><label class="public-date-field"><span>Ngày sử dụng</span><input type="date" name="date" value="@Model.DefaultDate" required /></label><button class="public-btn public-btn-primary" type="submit">Tìm phòng</button></form></div></section>; break;
+                case "AvailabilitySearch": <section class="public-check-section public-cms-availability variant-@(Variant(block.Variant))"><div class="public-container"><form class="public-check-card" method="get" action="@PublicUrlBuilder.Booking(Model.SiteSlug!)"><div><span class="public-eyebrow">Đặt phòng nhanh</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", "Chọn ngày bạn muốn ghé")</h2></div><label class="public-date-field"><span>Ngày sử dụng</span><input type="date" name="date" value="@Model.DefaultDate" required /></label><button class="public-btn public-btn-primary" type="submit">Tìm phòng</button></form></div></section>; break;
                 case "AvailabilityCalendar":
                 {
                     var days = Math.Clamp(block.Content["days"]?.GetValue<int>() ?? 7, 1, 14);
@@ -226,30 +301,32 @@ else
                         name = room.Name,
                         propertyName = siteName,
                         siteSlug = Model.SiteSlug,
+                        fromPrice = room.QuickFromPrice,
                         coverImageUrl = room.CoverCardUrl,
                         bookingUrl = PublicUrlBuilder.Booking(Model.SiteSlug!, room: room.Code)
                     }));
-                    <section id="@calendarAnchorId" class="public-section public-cms-availability-calendar variant-@(block.Variant)" data-public-availability-calendar data-days="@days"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">@Text(block.Content, "eyebrow", "LỊCH PHÒNG")</span><h2>@Text(block.Content, "title", "Xem phòng và khung giờ còn trống")</h2></div></div><script type="application/json" data-availability-rooms>@Html.Raw(roomsJson)</script><div data-availability-calendar-host></div></div></section>
+                    <section id="@calendarAnchorId" class="public-section public-cms-availability-calendar variant-@(Variant(block.Variant))" data-public-availability-calendar data-days="@days"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">@Text(block.Content, "eyebrow", "LỊCH PHÒNG")</span><h2>@Text(block.Content, "title", "Xem phòng và khung giờ còn trống")</h2></div></div><script type="application/json" data-availability-rooms>@Html.Raw(roomsJson)</script><div data-availability-calendar-host></div></div></section>
                     break;
                 }
                 case "RoomGrid":
                 {
                     var limit = block.Content["limit"]?.GetValue<int>() ?? 6;
-                    <section class="public-section public-home-rooms public-cms-room-grid variant-@(block.Variant)"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "KHÔNG GIAN")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", "Chọn căn phòng hợp với nhịp của bạn")</h2></div><a class="public-text-link" href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">Xem lịch phòng →</a></div><div class="public-room-grid">@foreach (var room in Model.Catalog.Rooms.Take(Math.Clamp(limit, 1, 12))) { <article class="public-room-card public-room-card-content"><a class="public-room-art" data-room-gallery="@JsonSerializer.Serialize(room.GalleryCardUrls)" href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">@if (!string.IsNullOrWhiteSpace(room.CoverCardUrl)) { <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" loading="lazy" /><span class="public-room-image-scrim"></span> } else { <span class="public-room-poster"><small>@siteName · @room.Code</small><strong>@room.Name</strong></span> }<span class="public-room-image-title"><small>@siteName</small><strong>@room.Name</strong></span></a><div class="public-room-body"><div><h3><a href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">@room.Name</a></h3><p>@room.ShortDescription</p></div><div class="public-room-conversion"><div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div>@if (room.IsBookingLocked) { <span class="public-room-book-now" aria-disabled="true">Tạm ngừng nhận đặt phòng</span> } else { <a class="public-room-book-now" href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">Đặt ngay →</a> }</div></div></article> }</div></div></section>
+                    <section class="public-section public-home-rooms public-cms-room-grid variant-@(Variant(block.Variant))">@if (!string.IsNullOrWhiteSpace(roomMarqueeText)) { <div class="public-room-marquee" aria-hidden="true"><div class="public-room-marquee-track"><span>@roomMarqueeText ✦ </span><span>@roomMarqueeText ✦ </span></div></div> }<div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "KHÔNG GIAN")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", "Chọn căn phòng hợp với nhịp của bạn")</h2></div><a class="public-text-link" href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">Xem lịch phòng →</a></div><div class="public-room-grid">@foreach (var room in Model.Catalog.Rooms.Take(Math.Clamp(limit, 1, 12))) { <article class="public-room-card public-room-card-content" style="@RoomTone(room.Id)" data-room-lightbox="@RoomPhotos(room)" data-room-lightbox-title="@room.Name"><a class="public-room-art" data-room-gallery="@JsonSerializer.Serialize(room.GalleryCardUrls)" href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">@if (!string.IsNullOrWhiteSpace(room.CoverCardUrl)) { <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" loading="lazy" /><span class="public-room-image-scrim"></span> } else { <span class="public-room-poster"><small>@siteName · @room.Code</small><strong>@room.Name</strong></span> }<span class="public-room-image-title"><small>@siteName</small><strong>@room.Name</strong></span></a><div class="public-room-body"><div><h3><a href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">@room.Name</a></h3><p>@room.ShortDescription</p></div><div class="public-room-conversion"><div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div>@if (room.IsBookingLocked) { <span class="public-room-book-now" aria-disabled="true">Tạm ngừng nhận đặt phòng</span> } else { <a class="public-room-book-now" href="@PublicUrlBuilder.BookingHome(Model.SiteSlug)">Đặt ngay →</a> }</div></div></article> }</div></div></section>
                     break;
                 }
                 case "FeatureGrid":
                 {
+                    if (Model.ThemeStandard) { <text>@Html.Raw(HowBand(block.Content, siteName))</text> break; }
                     var items = block.Content["items"] as JsonArray;
                     var featureImage = Text(block.Content, "imageUrl");
                     if (string.IsNullOrWhiteSpace(featureImage)) featureImage = Model.SiteSettings?.CoverImageUrl ?? Model.Catalog.Rooms.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? string.Empty;
-                    <section class="public-section public-section-soft public-cms-feature variant-@(block.Variant)"><div class="public-container public-story-shell @(!string.IsNullOrWhiteSpace(featureImage) ? "has-media" : string.Empty)">@if (!string.IsNullOrWhiteSpace(featureImage)) { <figure class="public-story-media @(V(block.Content, "imageUrl", true))"><img src="@featureImage" alt="Không gian tại @siteName" loading="lazy" /></figure> }<div class="public-story-grid"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", siteName)</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title")</h2></div><div class="public-story-copy"><p class="@(V(block.Content, "body"))">@Text(block.Content, "body")</p>@if (items is not null) { <div class="public-benefits">@foreach (var pair in items.Select((item, index) => new { Item = item, Index = index })) { if (!string.IsNullOrWhiteSpace(pair.Item?.ToString())) { <span class="@(V(block.Content, $"items.{pair.Index}"))">@pair.Item</span> } }</div> }</div></div></div></section>
+                    <section class="public-section public-section-soft public-cms-feature variant-@(Variant(block.Variant))"><div class="public-container public-story-shell @(!string.IsNullOrWhiteSpace(featureImage) ? "has-media" : string.Empty)">@if (!string.IsNullOrWhiteSpace(featureImage)) { <figure class="public-story-media @(V(block.Content, "imageUrl", true))"><img src="@featureImage" alt="Không gian tại @siteName" loading="lazy" /></figure> }<div class="public-story-grid"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", siteName)</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title")</h2></div><div class="public-story-copy"><p class="@(V(block.Content, "body"))">@Text(block.Content, "body")</p>@if (items is not null) { <div class="public-benefits">@foreach (var pair in items.Select((item, index) => new { Item = item, Index = index })) { if (!string.IsNullOrWhiteSpace(pair.Item?.ToString())) { <span class="@(V(block.Content, $"items.{pair.Index}"))">@pair.Item</span> } }</div> }</div></div></div></section>
                     break;
                 }
                 case "Faq":
                 {
                     var faqItems = block.Content["items"] as JsonArray;
-                    <section class="public-section public-story-faq variant-@(block.Variant)"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "THÔNG TIN")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", "Câu hỏi thường gặp")</h2></div></div>@if (faqItems is not null) { <div class="public-faq-list">@foreach (var pair in faqItems.OfType<JsonObject>().Select((item, index) => new { Item = item, Index = index })) { var question = Text(pair.Item, "question"); var answer = Text(pair.Item, "answer"); if (!string.IsNullOrWhiteSpace(question) && !string.IsNullOrWhiteSpace(answer)) { <details><summary class="@(V(block.Content, $"items.{pair.Index}.question"))">@question<span>+</span></summary><p class="@(V(block.Content, $"items.{pair.Index}.answer"))">@answer</p></details> } }</div> }</div></section>
+                    <section class="public-section public-story-faq variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "THÔNG TIN")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", "Câu hỏi thường gặp")</h2></div></div>@if (faqItems is not null) { <div class="public-faq-list">@foreach (var pair in faqItems.OfType<JsonObject>().Select((item, index) => new { Item = item, Index = index })) { var question = Text(pair.Item, "question"); var answer = Text(pair.Item, "answer"); if (!string.IsNullOrWhiteSpace(question) && !string.IsNullOrWhiteSpace(answer)) { <details><summary class="@(V(block.Content, $"items.{pair.Index}.question"))">@question<span>+</span></summary><p class="@(V(block.Content, $"items.{pair.Index}.answer"))">@answer</p></details> } }</div> }</div></section>
                     break;
                 }
                 case "Location":
@@ -258,24 +335,24 @@ else
                     var address = Text(block.Content, "address", Model.SiteSettings?.Address ?? string.Empty);
                     var mapUrl = Text(block.Content, "mapUrl", Model.SiteSettings?.GoogleMapsUrl ?? string.Empty);
                     var embedUrl = Text(block.Content, "embedUrl");
-                    <section class="public-section public-story-location variant-@(block.Variant)"><div class="public-container"><div class="public-location-shell"><div class="public-location-copy"><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "VỊ TRÍ")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", $"Tìm đường đến {siteName}")</h2>@if (!string.IsNullOrWhiteSpace(Text(block.Content, "body"))) { <p class="@(V(block.Content, "body"))">@Text(block.Content, "body")</p> }@if (!string.IsNullOrWhiteSpace(address)) { <address class="@(V(block.Content, "address"))">@address</address> }@if (nearby is not null) { <div class="public-location-nearby">@foreach (var pair in nearby.Select((item, index) => new { Item = item, Index = index })) { if (!string.IsNullOrWhiteSpace(pair.Item?.ToString())) { <span class="@(V(block.Content, $"nearby.{pair.Index}"))">@pair.Item</span> } }</div> }@if (!string.IsNullOrWhiteSpace(mapUrl)) { <a class="public-btn public-btn-primary" href="@mapUrl" target="_blank" rel="noopener">Mở Google Maps ↗</a> }</div><div class="public-location-map">@if (!string.IsNullOrWhiteSpace(embedUrl)) { <iframe src="@embedUrl" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Bản đồ @siteName"></iframe> } else { <div class="public-location-map-fallback"><span>VỊ TRÍ</span><strong>@siteName</strong><small>@(string.IsNullOrWhiteSpace(address) ? "Thêm địa chỉ hoặc bản đồ trong CMS" : address)</small></div> }</div></div></div></section>
+                    <section class="public-section public-story-location variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-location-shell"><div class="public-location-copy"><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "VỊ TRÍ")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", $"Tìm đường đến {siteName}")</h2>@if (!string.IsNullOrWhiteSpace(Text(block.Content, "body"))) { <p class="@(V(block.Content, "body"))">@Text(block.Content, "body")</p> }@if (!string.IsNullOrWhiteSpace(address)) { <address class="@(V(block.Content, "address"))">@address</address> }@if (nearby is not null) { <div class="public-location-nearby">@foreach (var pair in nearby.Select((item, index) => new { Item = item, Index = index })) { if (!string.IsNullOrWhiteSpace(pair.Item?.ToString())) { <span class="@(V(block.Content, $"nearby.{pair.Index}"))">@pair.Item</span> } }</div> }@if (!string.IsNullOrWhiteSpace(mapUrl)) { <a class="public-btn public-btn-primary" href="@mapUrl" target="_blank" rel="noopener">Mở Google Maps ↗</a> }</div><div class="public-location-map">@if (!string.IsNullOrWhiteSpace(embedUrl)) { <iframe src="@embedUrl" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Bản đồ @siteName"></iframe> } else { <div class="public-location-map-fallback"><span>VỊ TRÍ</span><strong>@siteName</strong><small>@(string.IsNullOrWhiteSpace(address) ? "Thêm địa chỉ hoặc bản đồ trong CMS" : address)</small></div> }</div></div></div></section>
                     break;
                 }
                 case "PolicyGrid":
                 {
                     var policies = block.Content["items"] as JsonArray;
                     var policyIndex = 0;
-                    <section class="public-section public-story-policies variant-@(block.Variant)"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "LƯU TRÚ")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", "Quy định lưu trú")</h2></div></div>@if (policies is not null) { <div class="public-policy-grid">@foreach (var pair in policies.OfType<JsonObject>().Select((item, index) => new { Item = item, Index = index })) { var policyTitle = Text(pair.Item, "title"); var policyBody = Text(pair.Item, "body"); if (!string.IsNullOrWhiteSpace(policyTitle) || !string.IsNullOrWhiteSpace(policyBody)) { policyIndex++; <article><span>@policyIndex.ToString("00")</span><h3 class="@(V(block.Content, $"items.{pair.Index}.title"))">@policyTitle</h3><p class="@(V(block.Content, $"items.{pair.Index}.body"))">@policyBody</p></article> } }</div> }</div></section>
+                    <section class="public-section public-story-policies variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "LƯU TRÚ")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", "Quy định lưu trú")</h2></div></div>@if (policies is not null) { <div class="public-policy-grid">@foreach (var pair in policies.OfType<JsonObject>().Select((item, index) => new { Item = item, Index = index })) { var policyTitle = Text(pair.Item, "title"); var policyBody = Text(pair.Item, "body"); if (!string.IsNullOrWhiteSpace(policyTitle) || !string.IsNullOrWhiteSpace(policyBody)) { policyIndex++; <article><span>@policyIndex.ToString("00")</span><h3 class="@(V(block.Content, $"items.{pair.Index}.title"))">@policyTitle</h3><p class="@(V(block.Content, $"items.{pair.Index}.body"))">@policyBody</p></article> } }</div> }</div></section>
                     break;
                 }
                 case "RichText":
                 {
-                    <section class="public-section public-cms-rich variant-@(block.Variant)"><div class="public-container"><div class="public-cms-rich-inner @(V(block.Content, "html"))">@Html.Raw(Text(block.Content, "html"))</div></div></section>
+                    <section class="public-section public-cms-rich variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-cms-rich-inner @(V(block.Content, "html"))">@Html.Raw(Text(block.Content, "html"))</div></div></section>
                     break;
                 }
                 case "Cta":
                 {
-                    <section class="public-section public-cms-cta variant-@(block.Variant)"><div class="public-container"><div class="public-cms-cta-card"><div><span class="public-eyebrow">@siteName</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title")</h2><p class="@(V(block.Content, "body"))">@Text(block.Content, "body")</p></div><a class="public-btn public-btn-primary @(V(block.Content, "buttonText"))" href="@ScopedUrl(Text(block.Content, "buttonUrl", "/booking"))">@Text(block.Content, "buttonText", "Đặt phòng")</a></div></div></section>
+                    <section class="public-section public-cms-cta variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-cms-cta-card"><div><span class="public-eyebrow">@siteName</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title")</h2><p class="@(V(block.Content, "body"))">@Text(block.Content, "body")</p></div><a class="public-btn public-btn-primary @(V(block.Content, "buttonText"))" href="@ScopedUrl(Text(block.Content, "buttonUrl", "/booking"))">@Text(block.Content, "buttonText", "Đặt phòng")</a></div></div></section>
                     break;
                 }
             }

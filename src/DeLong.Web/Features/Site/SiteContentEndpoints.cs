@@ -141,6 +141,7 @@ public static class SiteContentEndpoints
             return Results.Ok(new
             {
                 sections = result.Sections.Where(x =>
+                    x.Type != PublicThemeStore.MetadataSectionType &&
                     x.Type != GlobalSiteBrandingStore.MetadataSectionType &&
                     x.Type != EditorialPlacementStore.MetadataSectionType &&
                     x.Type != PublicShellSettingsStore.MetadataSectionType &&
@@ -173,6 +174,25 @@ public static class SiteContentEndpoints
 
             var properties = await resolver.GetActiveAsync(ct);
             return Results.Ok(await GlobalSiteBrandingStore.ResolveAsync(db, siteContentService: service, properties, ct));
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        global.MapGet("/theme", async (AppDbContext db, CancellationToken ct) =>
+            Results.Ok(await PublicThemeStore.ReadAsync(db, ct)));
+
+        global.MapPut("/theme", async (
+            SavePublicThemeRequest request,
+            AppDbContext db,
+            CancellationToken ct) =>
+        {
+            if (request.Mode is not (null or PublicThemeStore.StandardMode or PublicThemeStore.CustomMode))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["mode"] = ["Chế độ giao diện không hợp lệ."] });
+            return Results.Ok(await PublicThemeStore.SaveAsync(db, request, ct));
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
+        global.MapPost("/reset-standard", async (SiteContentService service, AppDbContext db, CancellationToken ct) =>
+        {
+            var archived = await service.ResetGlobalHomeToStandardAsync(ct);
+            return Results.Ok(new { archived, theme = await PublicThemeStore.ReadAsync(db, ct) });
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
         global.MapGet("/shell", async (
