@@ -18,7 +18,7 @@
     ];
 
     function defaultContent(type) {
-        if (type === 'Hero') return { eyebrow: '', title: '', body: '', primaryText: 'Đặt phòng', primaryUrl: '/booking', secondaryText: 'Xem phòng', secondaryUrl: '/rooms', imageUrl: '' };
+        if (type === 'Hero') return { eyebrow: '', title: '', body: '', primaryText: 'Đặt phòng', primaryUrl: '/booking', secondaryText: 'Xem phòng', secondaryUrl: '/rooms', imageUrl: '', imageUrl2: '', imageUrl3: '' };
         if (type === 'AvailabilitySearch') return { title: 'Chọn ngày bạn muốn ghé' };
         if (type === 'AvailabilityCalendar') return { eyebrow: 'LỊCH PHÒNG', title: 'Xem phòng và khung giờ còn trống', days: 7 };
         if (type === 'RoomGrid') return { eyebrow: 'KHÔNG GIAN', title: 'Chọn căn phòng hợp với nhịp của bạn', limit: 6 };
@@ -122,13 +122,13 @@
                     await this.saveSettings();
                 } catch (error) { this.notify(error.message || 'Không thể tải ảnh.', 'error'); }
             },
-            async uploadSectionImage(event) {
+            async uploadSectionImage(event, field = 'imageUrl') {
                 const file = event.target.files?.[0]; event.target.value = '';
                 if (!file) return;
                 const form = new FormData(); form.append('file', file);
                 try {
                     const asset = await DeLongApi.postForm(`/api/admin/properties/${this.propertyId}/site/assets/section`, form);
-                    this.sectionForm.content.imageUrl = asset.url;
+                    this.sectionForm.content[field] = asset.url;
                     this.notify('Đã tải ảnh. Lưu khối để áp dụng.');
                 } catch (error) { this.notify(error.message || 'Không thể tải ảnh.', 'error'); }
             },

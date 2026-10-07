@@ -61,7 +61,7 @@ Phạm vi: chỉ đổi giao diện trang khách (header, trang chủ, lịch ph
 
 Nút **Khôi phục mặc định…** trong Quản trị › Trang chủ chung (có bước xác nhận ngay trên trang):
 
-11. Bấm và xác nhận: trang chủ chung có đúng bố cục chuẩn theo bản thiết kế đã duyệt — Hero, Lịch phòng, Các phòng (kèm dải chữ chạy), Các cơ sở (tự ẩn khi chỉ có 1 cơ sở), Cách đặt phòng (4 thẻ); Blog và footer liên hệ hiển thị như cũ. Chế độ giao diện chuyển về Giao diện chuẩn.
+11. Bấm và xác nhận: trang chủ chung có đúng bố cục chuẩn theo bản thiết kế đã duyệt — Hero, Lịch phòng, Các phòng (kèm dải chữ chạy), Các cơ sở (tự ẩn khi chỉ có 1 cơ sở), Cách đặt phòng (4 thẻ), Câu hỏi thường gặp (4 câu mẫu); Blog và footer liên hệ hiển thị như cũ. Chế độ giao diện chuyển về Giao diện chuẩn.
 12. Các khối cũ vẫn còn trong danh sách, ở trạng thái ẩn, tên bắt đầu bằng `[Bản cũ]`; bật lại hoặc xóa tùy ý.
 13. Trang tự tạo (custom pages), trang riêng từng cơ sở, menu, thông tin liên hệ và dữ liệu đặt phòng không thay đổi.
 14. Trong Giao diện chuẩn, khối "Nội dung + điểm nổi bật" hiển thị thành dải thẻ: mỗi dòng điểm nổi bật viết dạng `Tiêu đề — mô tả` thành một thẻ.
@@ -75,7 +75,9 @@ Nút **Khôi phục mặc định…** trong Quản trị › Trang chủ chung 
 19. **Nhập liên hệ dễ hơn**: Zalo nhận số điện thoại (tự đổi thành `https://zalo.me/…`), Facebook/Maps nhận link không có `https://`, Google Maps nhận cả mã nhúng `<iframe …>`. Trước đây các giá trị này làm cả form lưu thất bại.
 20. **Lịch nhiều cơ sở**: tick 2+ cơ sở, lịch tải trong vài giây, cuộn mượt; đổi lựa chọn cơ sở liên tục không bị treo; tải lại trang hoạt động bình thường.
 21. Đã bỏ dải thông báo "Đang dùng Giao diện chuẩn" ở đầu trang.
-22. **Hero**: cụm 3 ảnh như bản thiết kế (ảnh vòm lớn, ảnh vòm trên, ảnh nhỏ dưới) + nhãn giá tròn + nhãn cơ sở. Ảnh lấy theo thứ tự: ảnh Hero trong CMS → ảnh bìa các phòng → ảnh trong thư viện phòng; thiếu ảnh thì ô đó là mảng màu nhẹ. Muốn đổi ảnh lớn: sửa "Ảnh" của khối Hero; hai ảnh nhỏ đổi theo ảnh bìa phòng.
+22. **Hero**: cụm 3 ảnh như bản thiết kế (ảnh vòm lớn, ảnh vòm trên, ảnh nhỏ dưới) + nhãn giá tròn + nhãn cơ sở. Cả 3 ảnh do quản trị viên tự chọn trong khối Hero (Quản trị › Trang chủ chung hoặc Website cơ sở): **Ảnh lớn**, **Ảnh 2**, **Ảnh 3** — dán link hoặc bấm tải ảnh lên. Không lấy ảnh phòng. Ảnh lớn để trống thì dùng ảnh bìa của cơ sở; Ảnh 2/Ảnh 3 để trống thì ô đó là mảng màu nhẹ.
+23. **FAQ**: Quản trị › Trang chủ chung › Thêm khối › **Câu hỏi thường gặp (FAQ)**. Soạn từng cặp câu hỏi/trả lời, thêm/xóa, đổi thứ tự bằng nút ↑ ↓; cặp nào thiếu câu hỏi hoặc câu trả lời thì không được lưu và không hiện. Trang khách hiển thị dạng accordion (bấm để mở), câu trả lời giữ xuống dòng. Website từng cơ sở dùng khối FAQ có sẵn trước đây, cùng kiểu hiển thị.
+24. **Khôi phục mặc định** giờ thêm khối FAQ với 4 câu hỏi mẫu ở cuối trang; sửa hoặc ẩn tùy ý.
 
 ## Ghi chú vận hành
 

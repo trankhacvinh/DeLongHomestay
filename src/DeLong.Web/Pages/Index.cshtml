@@ -28,22 +28,16 @@
     string? RoomTone(Guid roomId) => Model.ThemeStandard && Model.Theme.RoomColor(roomId) is { } tone ? $"--dl-tone:{tone}" : null;
     string RoomPhotos(PublicRoomCardDto room) => JsonSerializer.Serialize((room.GalleryLargeUrls?.Count > 0 ? room.GalleryLargeUrls : room.GalleryCardUrls) ?? []);
     // Standard theme hero: a three-photo collage like the approved mockup (big arch, top arch, small card).
-    // Photos come from the hero image, then room covers, then room galleries; missing slots become soft colour tiles.
-    string HeroCollage(string mainImage, IEnumerable<PublicRoomCardDto> rooms, string caption, string title)
+    // The three photos are chosen in the Hero block (imageUrl, imageUrl2, imageUrl3); an empty slot becomes a soft colour tile.
+    string HeroCollage(JsonObject content, string fallbackMainImage, string caption, string title)
     {
         var enc = System.Text.Encodings.Web.HtmlEncoder.Default;
-        var roomList = rooms.ToList();
-        var photos = new[] { mainImage }
-            .Concat(roomList.Select(r => r.CoverCardUrl))
-            .Concat(roomList.SelectMany(r => (IEnumerable<string>?)r.GalleryCardUrls ?? Array.Empty<string>()))
-            .Where(url => !string.IsNullOrWhiteSpace(url))
-            .Select(url => url!)
-            .DistinctBy(url => url.Split('?')[0])
-            .Take(3)
-            .ToList();
+        var mainImage = Text(content, "imageUrl");
+        if (string.IsNullOrWhiteSpace(mainImage)) mainImage = fallbackMainImage;
+        var photos = new[] { mainImage, Text(content, "imageUrl2"), Text(content, "imageUrl3") };
         string Tile(int index, string css)
         {
-            if (index < photos.Count)
+            if (!string.IsNullOrWhiteSpace(photos[index]))
                 return $"<div class=\"public-hero-tile {css}\"><img src=\"{enc.Encode(photos[index])}\" alt=\"{enc.Encode(index == 0 ? title : "Không gian tại De Long")}\" {(index == 0 ? "fetchpriority=\"high\"" : "loading=\"lazy\"")} decoding=\"async\" /></div>";
             return $"<div class=\"public-hero-tile {css} is-empty\" aria-hidden=\"true\"></div>";
         }
@@ -142,7 +136,7 @@
                         </div>
                         @if (Model.ThemeStandard)
                         {
-                            @Html.Raw(HeroCollage(imageUrl, Model.GlobalCatalog.Rooms.Select(x => x.Room), heroProperty?.Tagline ?? "Không gian nghỉ riêng tư", heroProperty?.SiteName ?? "De Long Homestay"))
+                            @Html.Raw(HeroCollage(block.Content, propertyCover ?? string.Empty, heroProperty?.Tagline ?? "Không gian nghỉ riêng tư", heroProperty?.SiteName ?? "De Long Homestay"))
                         }
                         else if (!string.IsNullOrWhiteSpace(imageUrl))
                         {
@@ -234,6 +228,12 @@
                 <section class="public-section public-section-soft public-cms-feature variant-@(Variant(block.Variant))"><div class="public-container public-story-shell @(!string.IsNullOrWhiteSpace(featureImage) ? "has-media" : string.Empty)">@if (!string.IsNullOrWhiteSpace(featureImage)) { <figure class="public-story-media @(V(block.Content, "imageUrl", true))"><img src="@featureImage" alt="Không gian tại De Long Homestay" loading="lazy" /></figure> }<div class="public-story-grid"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "DE LONG HOMESTAY")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title")</h2></div><div class="public-story-copy"><p class="@(V(block.Content, "body"))">@Text(block.Content, "body")</p>@if (items is not null) { <div class="public-benefits">@foreach (var pair in items.Select((item, index) => new { Item = item, Index = index })) { if (!string.IsNullOrWhiteSpace(pair.Item?.ToString())) { <span class="@(V(block.Content, $"items.{pair.Index}"))">@pair.Item</span> } }</div> }</div></div></div></section>
                 break;
             }
+            case "Faq":
+            {
+                var faqItems = block.Content["items"] as JsonArray;
+                <section class="public-section public-story-faq variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", "HỎI ĐÁP")</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", "Câu hỏi thường gặp")</h2></div></div>@if (faqItems is not null) { <div class="public-faq-list">@foreach (var pair in faqItems.OfType<JsonObject>().Select((item, index) => new { Item = item, Index = index })) { var question = Text(pair.Item, "question"); var answer = Text(pair.Item, "answer"); if (!string.IsNullOrWhiteSpace(question) && !string.IsNullOrWhiteSpace(answer)) { <details><summary class="@(V(block.Content, $"items.{pair.Index}.question"))">@question<span>+</span></summary><p class="@(V(block.Content, $"items.{pair.Index}.answer"))">@answer</p></details> } }</div> }</div></section>
+                break;
+            }
             case "RichText":
             {
                 <section class="public-section public-cms-rich variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-cms-rich-inner @(V(block.Content, "html"))">@Html.Raw(Text(block.Content, "html"))</div></div></section>
@@ -283,7 +283,7 @@ else
                     var imageUrl = Text(block.Content, "imageUrl");
                     if (string.IsNullOrWhiteSpace(imageUrl)) imageUrl = Model.SiteSettings?.CoverImageUrl ?? Model.Catalog.Rooms.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? string.Empty;
                     var accentImage = Model.Catalog.Rooms.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x) && !string.Equals(x, imageUrl, StringComparison.OrdinalIgnoreCase));
-                    <section class="public-hero public-cms-hero public-hotel-hero variant-@(Variant(block.Variant))"><div class="public-container public-hero-grid public-hotel-hero-grid"><div class="public-hero-copy public-hotel-hero-copy"><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", siteName)</span><h1 class="@(V(block.Content, "title"))">@title</h1><p class="@(V(block.Content, "body"))">@Text(block.Content, "body", $"{roomCount} không gian nghỉ tại {siteName}.")</p><div class="public-hero-actions"><a class="public-btn public-btn-primary @(V(block.Content, "primaryText"))" href="@ScopedUrl(Text(block.Content, "primaryUrl", "/booking"))">@Text(block.Content, "primaryText", "Đặt phòng")</a><a class="public-btn public-btn-ghost @(V(block.Content, "secondaryText"))" href="@ScopedUrl(Text(block.Content, "secondaryUrl", "/rooms"))">@Text(block.Content, "secondaryText", "Xem phòng")</a></div><div class="public-hotel-hero-metrics"><span><strong>@roomCount</strong><small>phòng đang mở</small></span><span><strong>@(fromPrice > 0 ? $"{fromPrice:N0}đ" : "—")</strong><small>giá từ</small></span><span><strong>Online</strong><small>đặt phòng trực tiếp</small></span></div></div>@if (Model.ThemeStandard) { @Html.Raw(HeroCollage(imageUrl, Model.Catalog.Rooms, Model.SiteSettings?.Tagline ?? "Không gian nghỉ riêng tư", siteName)) } else if (!string.IsNullOrWhiteSpace(imageUrl)) { <div class="public-cms-hero-image public-hotel-hero-media @(V(block.Content, "imageUrl", true))"><img class="public-hotel-hero-main-image" src="@imageUrl" alt="@title" fetchpriority="high" decoding="async" />@if (!string.IsNullOrWhiteSpace(accentImage)) { <span class="public-hotel-hero-inset"><img src="@accentImage" alt="Một góc phòng tại @siteName" loading="lazy" /></span> }<span class="public-hotel-hero-label"><small>@(Model.SiteSettings?.Tagline ?? "Không gian nghỉ riêng tư")</small><strong>@siteName</strong></span>@if (!string.IsNullOrEmpty(heroPriceShort)) { <span class="public-hero-price-sticker" aria-hidden="true"><small>đặt nhanh từ</small><strong>@heroPriceShort</strong><small>mỗi khung giờ</small></span> }</div> } else { <div class="public-hero-art"><div class="hero-art-card hero-art-main"><span>@siteName</span><strong>STAY SLOW</strong><small>@roomCount phòng</small></div></div> }</div></section>
+                    <section class="public-hero public-cms-hero public-hotel-hero variant-@(Variant(block.Variant))"><div class="public-container public-hero-grid public-hotel-hero-grid"><div class="public-hero-copy public-hotel-hero-copy"><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", siteName)</span><h1 class="@(V(block.Content, "title"))">@title</h1><p class="@(V(block.Content, "body"))">@Text(block.Content, "body", $"{roomCount} không gian nghỉ tại {siteName}.")</p><div class="public-hero-actions"><a class="public-btn public-btn-primary @(V(block.Content, "primaryText"))" href="@ScopedUrl(Text(block.Content, "primaryUrl", "/booking"))">@Text(block.Content, "primaryText", "Đặt phòng")</a><a class="public-btn public-btn-ghost @(V(block.Content, "secondaryText"))" href="@ScopedUrl(Text(block.Content, "secondaryUrl", "/rooms"))">@Text(block.Content, "secondaryText", "Xem phòng")</a></div><div class="public-hotel-hero-metrics"><span><strong>@roomCount</strong><small>phòng đang mở</small></span><span><strong>@(fromPrice > 0 ? $"{fromPrice:N0}đ" : "—")</strong><small>giá từ</small></span><span><strong>Online</strong><small>đặt phòng trực tiếp</small></span></div></div>@if (Model.ThemeStandard) { @Html.Raw(HeroCollage(block.Content, Model.SiteSettings?.CoverImageUrl ?? string.Empty, Model.SiteSettings?.Tagline ?? "Không gian nghỉ riêng tư", siteName)) } else if (!string.IsNullOrWhiteSpace(imageUrl)) { <div class="public-cms-hero-image public-hotel-hero-media @(V(block.Content, "imageUrl", true))"><img class="public-hotel-hero-main-image" src="@imageUrl" alt="@title" fetchpriority="high" decoding="async" />@if (!string.IsNullOrWhiteSpace(accentImage)) { <span class="public-hotel-hero-inset"><img src="@accentImage" alt="Một góc phòng tại @siteName" loading="lazy" /></span> }<span class="public-hotel-hero-label"><small>@(Model.SiteSettings?.Tagline ?? "Không gian nghỉ riêng tư")</small><strong>@siteName</strong></span>@if (!string.IsNullOrEmpty(heroPriceShort)) { <span class="public-hero-price-sticker" aria-hidden="true"><small>đặt nhanh từ</small><strong>@heroPriceShort</strong><small>mỗi khung giờ</small></span> }</div> } else { <div class="public-hero-art"><div class="hero-art-card hero-art-main"><span>@siteName</span><strong>STAY SLOW</strong><small>@roomCount phòng</small></div></div> }</div></section>
                     break;
                 }
                 case "AvailabilitySearch": <section class="public-check-section public-cms-availability variant-@(Variant(block.Variant))"><div class="public-container"><form class="public-check-card" method="get" action="@PublicUrlBuilder.Booking(Model.SiteSlug!)"><div><span class="public-eyebrow">Đặt phòng nhanh</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", "Chọn ngày bạn muốn ghé")</h2></div><label class="public-date-field"><span>Ngày sử dụng</span><input type="date" name="date" value="@Model.DefaultDate" required /></label><button class="public-btn public-btn-primary" type="submit">Tìm phòng</button></form></div></section>; break;

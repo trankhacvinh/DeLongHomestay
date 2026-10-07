@@ -292,7 +292,20 @@ body.public-body .public-blog-copy p{margin:0;color:var(--dl-text);font-size:15p
 body.public-body .public-blog-copy .public-text-link{justify-self:start;font-size:14px;min-height:40px}
 
 /* ---------- FAQ / location / policy (property sites) ---------- */
-body.public-body .public-faq-list details{border-radius:16px;border:1px solid var(--dl-line);background:var(--dl-surface)}
+body.public-body .public-story-faq .public-faq-list{display:grid;gap:12px;max-width:920px;margin-inline:auto;border-top:0}
+body.public-body .public-story-faq .public-section-head{text-align:center;justify-content:center}
+body.public-body .public-faq-list details{border-radius:18px;border:1px solid var(--dl-line);background:var(--dl-surface);transition:border-color .2s ease,box-shadow .2s ease}
+body.public-body .public-faq-list details[open]{border-color:var(--dl-accent);box-shadow:0 10px 26px rgba(18,41,43,.07)}
+body.public-body .public-faq-list summary{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:18px 22px;font-size:clamp(1rem,1.4vw,1.12rem);font-weight:700;line-height:1.4;color:var(--dl-ink);cursor:pointer;list-style:none;min-height:44px}
+body.public-body .public-faq-list summary::-webkit-details-marker{display:none}
+body.public-body .public-faq-list summary:focus-visible{outline:2px solid var(--dl-ink);outline-offset:3px;border-radius:14px}
+body.public-body .public-faq-list summary span{flex:0 0 34px;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--dl-ground-2);font-size:1.3rem;font-weight:400;line-height:1;transition:transform .2s ease,background .2s ease}
+body.public-body .public-faq-list details[open] summary span{transform:rotate(45deg);background:var(--dl-accent)}
+body.public-body .public-faq-list details p{margin:0;padding:0 22px 20px;max-width:none;color:var(--dl-text);font-size:15px;line-height:1.7;white-space:pre-line}
+body.public-body .public-story-faq.variant-two-column .public-faq-list{grid-template-columns:1fr 1fr;align-items:start;max-width:none}
+body.public-body .public-story-faq.variant-two-column .public-faq-list details{border-top:1px solid var(--dl-line)}
+@media (max-width:760px){body.public-body .public-story-faq.variant-two-column .public-faq-list{grid-template-columns:1fr}body.public-body .public-faq-list summary{padding:16px 18px}body.public-body .public-faq-list details p{padding:0 18px 18px}}
+@media (prefers-reduced-motion:reduce){body.public-body .public-faq-list summary span,body.public-body .public-faq-list details{transition:none}}
 body.public-body .public-location-map,
 body.public-body .public-location-map iframe{border-radius:22px}
 body.public-body .public-policy-grid article{border-radius:20px;background:var(--dl-surface);border:1px solid var(--dl-line)}

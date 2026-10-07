@@ -583,6 +583,18 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
                 "Theo ngày — Trọn một ngày dài để nghỉ ngơi, làm việc hay đón khách.",
                 "Giá rõ ràng — Không qua trung gian, không phí ẩn, nhân viên xác nhận từng đơn."
             }
+        }),
+        New(null, 5, "Faq", "Câu hỏi thường gặp", "standard", new
+        {
+            eyebrow = "HỎI ĐÁP",
+            title = "Câu hỏi thường gặp",
+            items = new[]
+            {
+                new { question = "Đặt phòng xong bao lâu thì được xác nhận?", answer = "Sau khi bạn gửi yêu cầu, nhân viên sẽ kiểm tra và xác nhận qua điện thoại hoặc Zalo trong thời gian sớm nhất." },
+                new { question = "Tôi có thể đặt nhiều khung giờ liền nhau không?", answer = "Có. Trên lịch phòng, chọn khung đầu tiên rồi bấm tiếp các khung liền kề của cùng phòng đó, kể cả sang ngày hôm sau." },
+                new { question = "Cần mang theo giấy tờ gì khi nhận phòng?", answer = "Vui lòng mang theo CCCD hoặc giấy tờ tùy thân còn hiệu lực để làm thủ tục nhận phòng." },
+                new { question = "Muốn đổi hoặc hủy lịch thì làm thế nào?", answer = "Liên hệ hotline hoặc Zalo của cơ sở ở cuối trang càng sớm càng tốt để được hỗ trợ đổi lịch." }
+            }
         })
     ];
 
