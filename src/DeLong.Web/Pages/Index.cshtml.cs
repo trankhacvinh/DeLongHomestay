@@ -18,6 +18,7 @@ public sealed class IndexModel(
     public bool IsGlobalHome { get; private set; }
     /// <summary>Standard theme: visual-editor style classes and layout variants are not rendered.</summary>
     public bool ThemeStandard { get; private set; }
+    public PublicThemeDto Theme { get; private set; } = new(PublicThemeStore.StandardMode);
     public PublicGlobalRoomCatalogDto GlobalCatalog { get; private set; } = new([], []);
     public PublicRoomCatalogDto Catalog { get; private set; } = new([]);
     public string DefaultDate { get; private set; } = string.Empty;
@@ -32,7 +33,8 @@ public sealed class IndexModel(
 
     public async Task<IActionResult> OnGetAsync(string? siteSlug, CancellationToken cancellationToken)
     {
-        ThemeStandard = (await siteContentService.GetPublicThemeAsync(cancellationToken)).IsStandard;
+        Theme = await siteContentService.GetPublicThemeAsync(cancellationToken);
+        ThemeStandard = Theme.IsStandard;
         if (!string.IsNullOrWhiteSpace(siteSlug))
             return RedirectPermanent(PublicUrlBuilder.Home());
 

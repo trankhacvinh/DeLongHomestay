@@ -292,9 +292,19 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
 
         if (Length(request.SiteName) > 200 || Length(request.Tagline) > 300 || Length(request.MetaTitle) > 200 || Length(request.MetaDescription) > 500)
             return (null, new("validation", "Một hoặc nhiều trường nội dung vượt quá độ dài cho phép."));
-        if (!IsOptionalHttpUrl(request.CanonicalBaseUrl) || !IsOptionalHttpUrl(request.FacebookUrl) ||
-            !IsOptionalHttpUrl(request.ZaloUrl) || !IsOptionalHttpUrl(request.GoogleMapsUrl))
-            return (null, new("validation", "Các đường dẫn website/social phải là URL http hoặc https hợp lệ."));
+        // Accept what people usually paste: a Zalo phone number, "facebook.com/…" without https,
+        // or the whole Google Maps <iframe …> embed code. They are normalised to plain https links.
+        var facebookUrl = NormalizeSocialUrl(request.FacebookUrl);
+        var zaloUrl = NormalizeZaloUrl(request.ZaloUrl);
+        var googleMapsUrl = NormalizeMapsUrl(request.GoogleMapsUrl);
+        if (!IsOptionalHttpUrl(request.CanonicalBaseUrl))
+            return (null, new("validation", "Canonical base URL phải là URL http hoặc https hợp lệ."));
+        if (!IsOptionalHttpUrl(facebookUrl))
+            return (null, new("validation", "Facebook phải là đường dẫn trang, ví dụ https://facebook.com/delonghomestay."));
+        if (!IsOptionalHttpUrl(zaloUrl))
+            return (null, new("validation", "Zalo phải là số điện thoại hoặc đường dẫn, ví dụ 0909123456 hoặc https://zalo.me/0909123456."));
+        if (!IsOptionalHttpUrl(googleMapsUrl))
+            return (null, new("validation", "Google Maps phải là đường dẫn chia sẻ hoặc mã nhúng bản đồ từ Google Maps."));
         if (Length(request.CustomCss) > 50_000 || Length(request.CustomJs) > 100_000)
             return (null, new("validation", "Custom CSS/JS vượt quá giới hạn an toàn."));
 
@@ -310,9 +320,9 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         settings.Address = Clean(request.Address);
         settings.Phone = Clean(request.Phone);
         settings.Email = Clean(request.Email);
-        settings.FacebookUrl = Clean(request.FacebookUrl);
-        settings.ZaloUrl = Clean(request.ZaloUrl);
-        settings.GoogleMapsUrl = Clean(request.GoogleMapsUrl);
+        settings.FacebookUrl = facebookUrl;
+        settings.ZaloUrl = zaloUrl;
+        settings.GoogleMapsUrl = googleMapsUrl;
         settings.CoverImageUrl = Clean(request.CoverImageUrl);
         settings.LogoUrl = Clean(request.LogoUrl);
         settings.FaviconUrl = Clean(request.FaviconUrl);
@@ -652,6 +662,39 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static int Length(string? value) => value?.Length ?? 0;
+    public static string? NormalizeSocialUrl(string? value)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrEmpty(text)) return null;
+        if (!text.Contains("://", StringComparison.Ordinal) && !text.Contains(' ') && text.Contains('.'))
+            text = $"https://{text.TrimStart('/')}";
+        return text;
+    }
+
+    public static string? NormalizeZaloUrl(string? value)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrEmpty(text)) return null;
+        var digits = new string(text.Where(char.IsDigit).ToArray());
+        var looksLikePhone = text.All(c => char.IsDigit(c) || c is ' ' or '.' or '-' or '+' or '(' or ')');
+        if (looksLikePhone && digits.Length is >= 8 and <= 15)
+            return $"https://zalo.me/{(digits.StartsWith("84", StringComparison.Ordinal) && digits.Length >= 11 ? "0" + digits[2..] : digits)}";
+        return NormalizeSocialUrl(text);
+    }
+
+    public static string? NormalizeMapsUrl(string? value)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrEmpty(text)) return null;
+        if (text.StartsWith("<", StringComparison.Ordinal))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(text, "src\\s*=\\s*[\"']([^\"']+)[\"']", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (!match.Success) return text;
+            text = System.Net.WebUtility.HtmlDecode(match.Groups[1].Value);
+        }
+        return NormalizeSocialUrl(text);
+    }
+
     private static bool IsOptionalHttpUrl(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return true;

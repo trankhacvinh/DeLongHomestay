@@ -207,11 +207,48 @@ public sealed class AvailabilityIntervalService(
         int days,
         CancellationToken cancellationToken = default)
     {
-        days = Math.Clamp(days, 1, 14);
         var property = await propertyResolver.ResolveAsync(siteSlug, cancellationToken);
         if (property is null) return null;
 
         await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, property.Id, cancellationToken);
+        return await BuildPublicRoomAsync(property, roomId, from, Math.Clamp(days, 1, 14), cancellationToken);
+    }
+
+    /// <summary>
+    /// Availability for several rooms of one property in a single call (multi-room public calendar).
+    /// Expired holds are released once per call instead of once per room, and rooms are built
+    /// sequentially on one DbContext, so a page showing many rooms costs one request per property.
+    /// </summary>
+    public async Task<IReadOnlyList<PublicRoomAvailabilityDto>?> GetPublicManyAsync(
+        string? siteSlug,
+        IReadOnlyList<Guid> roomIds,
+        DateOnly from,
+        int days,
+        CancellationToken cancellationToken = default)
+    {
+        var property = await propertyResolver.ResolveAsync(siteSlug, cancellationToken);
+        if (property is null) return null;
+
+        await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, property.Id, cancellationToken);
+        days = Math.Clamp(days, 1, 14);
+        var result = new List<PublicRoomAvailabilityDto>();
+        foreach (var roomId in roomIds.Distinct().Take(MaxRoomsPerPublicBatch))
+        {
+            var room = await BuildPublicRoomAsync(property, roomId, from, days, cancellationToken);
+            if (room is not null) result.Add(room);
+        }
+        return result;
+    }
+
+    public const int MaxRoomsPerPublicBatch = 24;
+
+    private async Task<PublicRoomAvailabilityDto?> BuildPublicRoomAsync(
+        PublicPropertyContext property,
+        Guid roomId,
+        DateOnly from,
+        int days,
+        CancellationToken cancellationToken)
+    {
         var room = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == property.Id && x.Id == roomId && x.IsActive && x.IsPublished)
             .Select(x => new { x.Id, x.Code, x.Name, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice })

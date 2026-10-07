@@ -42,7 +42,8 @@ public sealed record PublicRoomCardDto(
     IReadOnlyList<string> Tags,
     IReadOnlyList<string> Amenities,
     IReadOnlyList<PublicRoomRateDto> Rates,
-    IReadOnlyList<string>? GalleryCardUrls = null);
+    IReadOnlyList<string>? GalleryCardUrls = null,
+    IReadOnlyList<string>? GalleryLargeUrls = null);
 
 public sealed record PublicRoomDetailDto(
     Guid Id,

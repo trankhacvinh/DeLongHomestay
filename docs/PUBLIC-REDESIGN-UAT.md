@@ -66,7 +66,18 @@ Nút **Khôi phục mặc định…** trong Quản trị › Trang chủ chung 
 13. Trang tự tạo (custom pages), trang riêng từng cơ sở, menu, thông tin liên hệ và dữ liệu đặt phòng không thay đổi.
 14. Trong Giao diện chuẩn, khối "Nội dung + điểm nổi bật" hiển thị thành dải thẻ: mỗi dòng điểm nổi bật viết dạng `Tiêu đề — mô tả` thành một thẻ.
 
+## Bổ sung 2026-10-07
+
+15. **Màu nền beige**: nền trang `#f8f1e6`, nền phụ `#f1e6d4`, thẻ `#fffcf6`.
+16. **Màu thẻ phòng**: mặc định lấy bảng màu 6 tông theo thứ tự thẻ (`PublicThemeStore.DefaultRoomPalette`). Quản trị › Trang chủ chung › **Màu thẻ phòng**: chọn màu riêng cho từng phòng, bấm "Mặc định" để bỏ. Lưu trong `__PublicTheme` (chỉ nhận mã `#rrggbb`).
+17. **Ảnh phòng**: thẻ phòng có ảnh lớn hơn; bấm vào ảnh mở lightbox xem toàn bộ ảnh phòng (bản lớn `LargePath`), chuyển ảnh bằng nút, phím ← → hoặc vuốt; vuốt ngang trên thẻ vẫn đổi ảnh như cũ.
+18. **Footer liên hệ**: có địa chỉ thì hiện bản đồ Google nhúng thật kèm nút "Chỉ đường". Cơ sở chưa nhập gì: khách thấy liên kết tới phòng của cơ sở, quản trị viên thấy liên kết "Nhập thông tin liên hệ".
+19. **Nhập liên hệ dễ hơn**: Zalo nhận số điện thoại (tự đổi thành `https://zalo.me/…`), Facebook/Maps nhận link không có `https://`, Google Maps nhận cả mã nhúng `<iframe …>`. Trước đây các giá trị này làm cả form lưu thất bại.
+20. **Lịch nhiều cơ sở**: tick 2+ cơ sở, lịch tải trong vài giây, cuộn mượt; đổi lựa chọn cơ sở liên tục không bị treo; tải lại trang hoạt động bình thường.
+21. Đã bỏ dải thông báo "Đang dùng Giao diện chuẩn" ở đầu trang.
+
 ## Ghi chú vận hành
 
-- Lịch nhiều phòng gọi `/api/public/room-availability` cho từng phòng đang hiển thị, tối đa 4 request song song mỗi lượt tải.
-- Nếu số phòng tăng lớn (vài chục phòng), nên cân nhắc một endpoint gộp nhiều phòng. Mặc định chỉ tick tất cả cơ sở khi tổng số phòng ≤ 12; nếu nhiều hơn, chỉ tick cơ sở đầu tiên.
+- Lịch nhiều phòng gọi `/api/public/rooms-availability?siteSlug=…&roomIds=…` **một lần cho mỗi cơ sở** mỗi lượt tải (tối đa 24 phòng/lần); việc giải phóng giữ chỗ hết hạn chạy một lần cho mỗi cơ sở thay vì mỗi phòng. Xem một phòng (mobile) vẫn dùng `/api/public/room-availability`.
+- Mọi request lịch bị hủy khi đổi phòng/cơ sở và tự hết hạn sau 20 giây; hàng ngày đã dựng được giữ lại khi cuộn; formatter giờ/tiền tạo một lần.
+- Mặc định tick tất cả cơ sở khi tổng số phòng ≤ 12; nếu nhiều hơn, chỉ tick cơ sở đầu tiên.

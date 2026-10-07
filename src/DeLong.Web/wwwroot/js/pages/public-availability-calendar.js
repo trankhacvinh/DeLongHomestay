@@ -27,7 +27,10 @@
         return `${weekday} - ${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
     };
     const isWeekend = value => [0, 6].includes(parseDate(value).getUTCDay());
-    const money = value => `${Number(value || 0).toLocaleString('vi-VN')}đ`;
+    // Formatters are created once: building an Intl formatter per slot made large calendars freeze.
+    const moneyFormat = new Intl.NumberFormat('vi-VN');
+    const money = value => `${moneyFormat.format(Number(value || 0))}đ`;
+    const timeFormats = new Map();
     const element = (tag, className, text) => {
         const node = document.createElement(tag);
         if (className) node.className = className;
@@ -83,6 +86,8 @@
         const rowHeight = 52;
         const overscan = 5;
         const scrollGestureGapMs = 240;
+        const requestTimeoutMs = 20000;
+        const maxRoomsPerRequest = 24;
         const multiColumnWidth = 92;
         const dateColumnWidth = 104;
         const branchStorageKey = 'delong.publicCalendar.branches';
@@ -103,6 +108,11 @@
             lastScrollInputAt: 0,
             selected: [],
             selectedRoomId: null,
+            renderVersion: 0,
+            rowCache: new Map(),
+            rowCacheVersion: -1,
+            renderedRange: '',
+            abort: null,
             policies: new Map(),
             policy: defaultPolicy
         };
@@ -136,7 +146,14 @@
         const selectionLabel = host.querySelector('[data-selection-label]');
         const selectionTotal = host.querySelector('[data-selection-total]');
 
-        const timeLabel = value => new Intl.DateTimeFormat('vi-VN', { timeZone: state.timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value));
+        const timeLabel = value => {
+            let format = timeFormats.get(state.timeZone);
+            if (!format) {
+                format = new Intl.DateTimeFormat('vi-VN', { timeZone: state.timeZone, hour: '2-digit', minute: '2-digit', hour12: false });
+                timeFormats.set(state.timeZone, format);
+            }
+            return format.format(new Date(value));
+        };
         const groupRooms = () => groups.length > 1 ? rooms.filter(room => state.activeGroups.has(room.groupKey)) : rooms;
         // Single-room mode (phones, or only one room) shows one room at a time with the prev/next bar.
         const visibleRooms = () => {
@@ -281,7 +298,7 @@
                 }
                 status.className = 'public-v2-status';
                 updateSelectionBar();
-                queueRender();
+                refreshRows();
                 return;
             }
             const existing = state.selected.findIndex(x => slotKey(x.date, x.slot) === slotKey(day.date, slot));
@@ -312,7 +329,7 @@
             trigger?.setAttribute('aria-pressed', String(selected));
             status.className = 'public-v2-status';
             updateSelectionBar();
-            queueRender();
+            refreshRows();
         }
 
         // Header: [branch row] / [room row] / slot row. One CSS grid; the date cell spans every header row.
@@ -427,14 +444,21 @@
             const first = Math.max(0, Math.floor(viewport.scrollTop / rowHeight) - overscan);
             const visibleCount = Math.ceil(viewport.clientHeight / rowHeight) + (overscan * 2);
             const last = Math.min(state.dates.length, first + visibleCount);
+            // Scrolling inside the same window of rows does not rebuild hundreds of buttons.
+            const rangeKey = `${first}:${last}:${state.dates.length}:${state.renderVersion}`;
+            if (rangeKey === state.renderedRange) return;
+            state.renderedRange = rangeKey;
             const list = visibleRooms().filter(room => slotCountOf(room) > 0);
             const slotCount = columnCount();
             const next = nextCandidate();
             topSpacer.style.height = `${first * rowHeight}px`;
             bottomSpacer.style.height = `${Math.max(0, state.dates.length - last) * rowHeight}px`;
-            rows.replaceChildren();
-
+            // Rows are cached per date until data/selection changes, so scrolling only builds the rows that come into view.
+            if (state.rowCacheVersion !== state.renderVersion) { state.rowCache = new Map(); state.rowCacheVersion = state.renderVersion; }
+            const fragment = document.createDocumentFragment();
             state.dates.slice(first, last).forEach(date => {
+                const cached = state.rowCache.get(date);
+                if (cached) { fragment.appendChild(cached); return; }
                 const row = document.createElement('div');
                 row.className = `public-v2-grid-row${date === today ? ' is-today' : ''}${isWeekend(date) ? ' is-weekend' : ''}`;
                 row.style.gridTemplateColumns = gridTemplate(slotCount);
@@ -458,9 +482,15 @@
                         row.appendChild(wrapper);
                     }
                 });
-                rows.appendChild(row);
+                state.rowCache.set(date, row);
+                fragment.appendChild(row);
             });
+            rows.replaceChildren(fragment);
+        }
 
+        function refreshRows() {
+            state.renderVersion += 1;
+            queueRender();
         }
 
         function queueRender() {
@@ -500,19 +530,61 @@
             void loadNextBatch();
         }
 
-        async function fetchRoomBatch(room, from) {
-            const query = new URLSearchParams({ roomId: room.id, from, days: String(batchSize) });
-            if (room.siteSlug) query.set('siteSlug', room.siteSlug);
-            const response = await fetch(`/api/public/room-availability?${query}`, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return response.json();
+        // Every request is aborted when the room/branch selection changes and times out after 20s,
+        // so a slow server can never leave the calendar (or the page) stuck.
+        async function getJson(url, signal) {
+            const timeout = new AbortController();
+            const timer = window.setTimeout(() => timeout.abort(), requestTimeoutMs);
+            const abortOnReset = () => timeout.abort();
+            signal?.addEventListener('abort', abortOnReset, { once: true });
+            try {
+                const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: timeout.signal });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } finally {
+                window.clearTimeout(timer);
+                signal?.removeEventListener('abort', abortOnReset);
+            }
         }
 
-        // Loads the next batch of days for every visible room (a few requests at a time), then extends the rows.
+        async function fetchRoomBatch(room, from, signal) {
+            const query = new URLSearchParams({ roomId: room.id, from, days: String(batchSize) });
+            if (room.siteSlug) query.set('siteSlug', room.siteSlug);
+            return getJson(`/api/public/room-availability?${query}`, signal);
+        }
+
+        // Several rooms: one request per property (rooms-availability), properties loaded one after another.
+        async function fetchManyRooms(list, from, signal) {
+            const bySite = new Map();
+            list.forEach(room => {
+                const key = room.siteSlug || '';
+                if (!bySite.has(key)) bySite.set(key, []);
+                bySite.get(key).push(room);
+            });
+            const results = [];
+            for (const [siteSlug, siteRooms] of bySite) {
+                for (let index = 0; index < siteRooms.length; index += maxRoomsPerRequest) {
+                    const chunk = siteRooms.slice(index, index + maxRoomsPerRequest);
+                    const query = new URLSearchParams({ roomIds: chunk.map(room => room.id).join(','), from, days: String(batchSize) });
+                    if (siteSlug) query.set('siteSlug', siteSlug);
+                    let rows = [];
+                    try { rows = (await getJson(`/api/public/rooms-availability?${query}`, signal))?.rooms || []; }
+                    catch (error) { if (signal?.aborted) throw error; rows = null; }
+                    chunk.forEach(room => {
+                        const data = rows ? rows.find(row => String(row.roomId) === String(room.id)) || { calendar: [] } : null;
+                        results.push({ room, data });
+                    });
+                }
+            }
+            return results;
+        }
+
+        // Loads the next batch of days for every visible room, then extends the rows.
         async function loadNextBatch() {
             const list = visibleRooms();
             if (!list.length || state.loading) return;
             const version = state.requestVersion;
+            const signal = state.abort?.signal;
             const loadingStartedAt = window.performance.now();
             const from = state.nextFrom;
             state.loading = true;
@@ -520,14 +592,10 @@
             sentinel.classList.remove('ready');
             sentinel.classList.add('show');
             try {
-                const results = [];
-                for (let index = 0; index < list.length; index += 4) {
-                    const chunk = list.slice(index, index + 4);
-                    results.push(...await Promise.all(chunk.map(room => fetchRoomBatch(room, from)
-                        .then(data => ({ room, data }))
-                        .catch(() => ({ room, data: null })))));
-                    if (version !== state.requestVersion) return;
-                }
+                const results = list.length > 1
+                    ? await fetchManyRooms(list, from, signal)
+                    : [await fetchRoomBatch(list[0], from, signal).then(data => ({ room: list[0], data })).catch(error => { if (signal?.aborted) throw error; return { room: list[0], data: null }; })];
+                if (version !== state.requestVersion) return;
                 let lastDate = null;
                 let failed = 0;
                 results.forEach(({ room, data }) => {
@@ -562,7 +630,7 @@
                 status.className = failed ? 'public-v2-status show error' : 'public-v2-status';
                 if (failed) status.textContent = 'Một vài phòng chưa tải được lịch. Kéo lại để thử lần nữa.';
                 if (firstLoad) renderHeader();
-                queueRender();
+                refreshRows();
             } catch {
                 if (version !== state.requestVersion) return;
                 status.textContent = 'Chưa thể tải thêm lịch phòng. Kéo lại để thử lần nữa.';
@@ -602,6 +670,10 @@
         function resetRoom() {
             state.multi = wideQuery.matches && groupRooms().length > 1;
             state.requestVersion += 1;
+            state.abort?.abort();
+            state.abort = new AbortController();
+            state.renderedRange = '';
+            state.renderVersion += 1;
             state.roomData = new Map();
             state.dates = [];
             state.nextFrom = today;
@@ -692,7 +764,7 @@
             if (['ArrowDown', 'PageDown', 'End', ' '].includes(event.key)) beginScrollGesture(true);
         });
         viewport.addEventListener('scroll', handleViewportScroll, { passive: true });
-        host.querySelector('[data-selection-clear]').addEventListener('click', () => { state.selected = []; status.className = 'public-v2-status'; updateSelectionBar(); queueRender(); });
+        host.querySelector('[data-selection-clear]').addEventListener('click', () => { state.selected = []; status.className = 'public-v2-status'; updateSelectionBar(); refreshRows(); });
         host.querySelector('[data-selection-book]').addEventListener('click', () => {
             if (!state.selected.length) return;
             const room = currentRoom();

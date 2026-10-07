@@ -37,7 +37,7 @@
         };
     }
     createApp({
-        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, brandingEffective: initial.branding || {}, branding: brandingForm(initial.branding), brandingSaving: false, brandingUploading: '', themeMode: initial.theme?.mode || 'standard', themeSaved: initial.theme?.mode || 'standard', themeSaving: false, resetConfirm: false, resetting: false, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
+        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, brandingEffective: initial.branding || {}, branding: brandingForm(initial.branding), brandingSaving: false, brandingUploading: '', themeMode: initial.theme?.mode || 'standard', themeSaved: initial.theme?.mode || 'standard', themeSaving: false, resetConfirm: false, resetting: false, palette: ['#5f8a8b', '#7d8f69', '#b5654f', '#6f6a8a', '#b88746', '#8c6a5a'], roomColors: Object.assign({}, initial.theme?.roomColors || {}), roomColorsDirty: false, roomColorsSaving: false, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
         computed: {
             brandPreviewLogo() { return this.branding.logoUrl || this.brandingEffective.logoUrl || ''; },
             brandPreviewName() { return this.branding.siteName || this.brandingEffective.siteName || 'De Long Homestay'; },
@@ -70,6 +70,20 @@
                     this.notify(this.themeMode === 'standard' ? 'Đã bật Giao diện chuẩn.' : 'Đã chuyển sang Tùy chỉnh tự do.');
                 } catch (err) { this.notify(err.message || 'Không thể lưu chế độ giao diện.', 'error'); }
                 finally { this.themeSaving = false; }
+            },
+            roomColorValue(room, index) { return this.roomColors[room.id] || this.palette[index % this.palette.length]; },
+            setRoomColor(room, value) { this.roomColors = Object.assign({}, this.roomColors, { [room.id]: value }); this.roomColorsDirty = true; },
+            clearRoomColor(room) { const next = Object.assign({}, this.roomColors); delete next[room.id]; this.roomColors = next; this.roomColorsDirty = true; },
+            async saveRoomColors() {
+                if (this.roomColorsSaving) return;
+                this.roomColorsSaving = true;
+                try {
+                    const saved = await DeLongApi.put('/api/admin/site/global/theme', { roomColors: this.roomColors });
+                    this.roomColors = Object.assign({}, saved?.roomColors || {});
+                    this.roomColorsDirty = false;
+                    this.notify('Đã lưu màu thẻ phòng.');
+                } catch (err) { this.notify(err.message || 'Không thể lưu màu thẻ phòng.', 'error'); }
+                finally { this.roomColorsSaving = false; }
             },
             async resetToStandard() {
                 if (this.resetting) return;

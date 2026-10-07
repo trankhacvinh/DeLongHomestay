@@ -13,15 +13,15 @@
 @font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:900;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-900.woff") format("woff")}
 
 body.public-body{
-    --dl-ground:#f7f3ec;
-    --dl-ground-2:#efe9de;
-    --dl-surface:#ffffff;
+    --dl-ground:#f8f1e6;
+    --dl-ground-2:#f1e6d4;
+    --dl-surface:#fffcf6;
     --dl-ink:#12292b;
     --dl-ink-2:#2f5357;
     --dl-text:#3e5254;
     --dl-muted:#5c6b6c;
-    --dl-line:#e3dccf;
-    --dl-line-2:#d9d1c2;
+    --dl-line:#eadfcc;
+    --dl-line-2:#ddcfb8;
     --dl-accent:#f2b35a;
     --dl-accent-ink:#a35f15;
     --dl-accent-soft:#fff3dd;
@@ -94,7 +94,7 @@ body.public-body .public-btn-ghost{background:transparent!important;border:1.5px
 body.public-body .public-btn-ghost:hover{background:var(--dl-surface)!important}
 
 /* ---------- Header ---------- */
-body.public-body .public-site-header{background:rgba(247,243,236,.94);border-bottom:1px solid var(--dl-line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+body.public-body .public-site-header{background:rgba(248,241,230,.94);border-bottom:1px solid var(--dl-line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 body.public-body .public-site-nav{min-height:76px;gap:18px 30px}
 body.public-body .public-site-brand{gap:12px;color:var(--dl-ink)}
 body.public-body .public-site-brand .brand-mark{
@@ -182,24 +182,24 @@ body.public-body .public-main .public-cms-room-grid{counter-reset:dl-room;backgr
 body.public-body .public-main .public-cms-room-grid .public-room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:20px}
 body.public-body .public-main .public-cms-room-grid.variant-horizontal-scroll .public-room-grid{display:flex}
 body.public-body .public-main .public-cms-room-grid .public-room-card{
-    --dl-tone:#3e6e86;
+    --dl-tone:#5f8a8b;
     counter-increment:dl-room;position:relative;isolation:isolate;
     display:flex;flex-direction:column;gap:16px;
     padding:16px 16px 20px;border:0!important;border-radius:26px!important;overflow:hidden;
     background:var(--dl-tone)!important;color:#fff;box-shadow:none!important;
 }
-body.public-body .public-main .public-cms-room-grid .public-room-card:nth-child(6n+2){--dl-tone:#56664f}
-body.public-body .public-main .public-cms-room-grid .public-room-card:nth-child(6n+3){--dl-tone:#8a3f3b}
-body.public-body .public-main .public-cms-room-grid .public-room-card:nth-child(6n+4){--dl-tone:#55526b}
-body.public-body .public-main .public-cms-room-grid .public-room-card:nth-child(6n+5){--dl-tone:#8c5e26}
-body.public-body .public-main .public-cms-room-grid .public-room-card:nth-child(6n+6){--dl-tone:#7e4e3b}
+body.public-body .public-main .public-cms-room-grid .public-room-card:not([style*="--dl-tone"]):nth-child(6n+2){--dl-tone:#7d8f69}
+body.public-body .public-main .public-cms-room-grid .public-room-card:not([style*="--dl-tone"]):nth-child(6n+3){--dl-tone:#b5654f}
+body.public-body .public-main .public-cms-room-grid .public-room-card:not([style*="--dl-tone"]):nth-child(6n+4){--dl-tone:#6f6a8a}
+body.public-body .public-main .public-cms-room-grid .public-room-card:not([style*="--dl-tone"]):nth-child(6n+5){--dl-tone:#b88746}
+body.public-body .public-main .public-cms-room-grid .public-room-card:not([style*="--dl-tone"]):nth-child(6n+6){--dl-tone:#8c6a5a}
 body.public-body .public-main .public-cms-room-grid .public-room-card::before{
     content:counter(dl-room,decimal-leading-zero);position:absolute;z-index:0;right:14px;top:-10px;
     font-family:var(--dl-sans);font-weight:900;font-size:96px;line-height:1;letter-spacing:-.05em;color:rgba(255,255,255,.13);pointer-events:none;
 }
 body.public-body .public-main .public-cms-room-grid .public-room-card:hover{transform:translateY(-3px)}
 body.public-body .public-main .public-cms-room-grid .public-room-art{
-    position:relative;z-index:1;min-height:0;height:250px;aspect-ratio:auto;padding:0;border-radius:170px 170px 14px 14px;overflow:hidden;
+    position:relative;z-index:1;min-height:0;height:auto;aspect-ratio:1/.92;padding:0;border-radius:200px 200px 16px 16px;cursor:zoom-in;overflow:hidden;
     background:rgba(255,255,255,.14)!important;
 }
 body.public-body .public-main .public-cms-room-grid .public-room-art::before{display:none}
@@ -224,6 +224,8 @@ body.public-body .public-main .public-cms-room-grid .public-room-book-now{
     font-weight:800;font-size:15px;text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;
 }
 body.public-body .public-main .public-cms-room-grid .public-room-book-now:hover{background:var(--dl-accent)}
+body.public-body .public-main .public-cms-room-grid .public-room-book-now::after,
+body.public-body .public-main .public-cms-room-grid .public-room-book-now::before{content:none!important;display:none!important}
 
 /* ---------- Branch cards ---------- */
 body.public-body .public-branch-section{background:var(--dl-ground-2)}
@@ -330,16 +332,23 @@ body.public-body .public-footer-contact-social a{
 body.public-body .public-footer-contact-social a.is-zalo{background:#1f63c9;border-color:#1f63c9;color:#fff}
 body.public-body .public-footer-contact-social a:hover{transform:translateY(-1px)}
 body.public-body .public-footer-contact-map{
-    flex:1 1 170px;min-height:180px;border-radius:18px;position:relative;overflow:hidden;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;
-    color:var(--dl-ink-2);text-decoration:none;background-color:var(--dl-sky);
-    background-image:linear-gradient(rgba(47,83,87,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(47,83,87,.08) 1px,transparent 1px),linear-gradient(135deg,transparent 46%,rgba(255,255,255,.75) 46% 54%,transparent 54%);
-    background-size:28px 28px,28px 28px,100% 100%;
+    flex:1 1 220px;min-height:200px;border-radius:18px;position:relative;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;background:var(--dl-sky);color:var(--dl-ink-2);
 }
-body.public-body .public-footer-contact-map svg{width:30px;height:30px}
-body.public-body .public-footer-contact-map span{font-weight:800}
-body.public-body .public-footer-contact-map small{font-size:12px;color:var(--dl-muted)}
-body.public-body .public-footer-contact-map:hover{background-color:#cfe0e3}
+body.public-body .public-footer-contact-map iframe{position:absolute;inset:0;width:100%;height:100%;border:0;filter:saturate(.85)}
+body.public-body .public-footer-contact-map.is-link-only{
+    background-image:linear-gradient(rgba(47,83,87,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(47,83,87,.08) 1px,transparent 1px);
+    background-size:28px 28px;
+}
+body.public-body .public-footer-contact-map.is-link-only svg{width:30px;height:30px;margin-bottom:44px}
+body.public-body .public-footer-contact-directions{
+    position:absolute;z-index:1;left:12px;bottom:12px;min-height:40px;padding:0 16px;border-radius:999px;
+    display:inline-flex;align-items:center;background:var(--dl-ink);color:#fff!important;font-size:14px;font-weight:700;text-decoration:none;
+    box-shadow:0 6px 16px rgba(18,41,43,.25);
+}
+body.public-body .public-footer-contact-directions:hover{background:var(--dl-ink-2)}
+body.public-body .public-footer-contact-empty{flex:1 1 100%;margin:0;display:grid;gap:6px;color:var(--dl-muted);font-size:14px}
+body.public-body .public-footer-contact-empty a{color:var(--dl-ink);font-weight:700}
 body.public-body .public-hospitality-footer-grid{padding-top:clamp(32px,4vw,48px);border-top:1px solid var(--dl-line-2)}
 body.public-body .public-footer-brand-link{color:var(--dl-ink)}
 body.public-body .public-footer-brand-link strong{color:var(--dl-ink);font-weight:800;letter-spacing:-.01em}
@@ -398,11 +407,6 @@ body.dl-theme-standard .public-cms-rich-inner{font-family:var(--dl-sans)!importa
 body.dl-theme-standard .dl-builder-row .dl-row-text *{font-family:inherit!important}
 body.dl-theme-standard .dl-builder-row .dl-row-button{border-radius:999px!important;font-family:var(--dl-sans)!important;font-weight:800!important;font-size:15px!important;min-height:48px;padding:13px 24px!important}
 body.dl-theme-standard .public-main [style*="font-family"]{font-family:var(--dl-sans)!important}
-body.dl-theme-standard.public-editor-enabled .public-main::before{
-    content:"Đang dùng Giao diện chuẩn: cỡ chữ, độ rộng, màu header/footer và CSS tùy chỉnh không được áp dụng. Nội dung vẫn sửa bình thường. Đổi ở Quản trị › Trang chủ chung › Chế độ giao diện.";
-    display:block;margin:12px auto 0;max-width:1320px;padding:10px 16px;border-radius:12px;
-    background:var(--dl-accent-soft);color:var(--dl-accent-ink);font-size:13px;font-weight:600;line-height:1.5;
-}
 
 /* ---------- Standard theme = the approved mockup (Claude design canvas, 2026-10-06) ----------
    Uppercase display headings like the mockup, at a measured size with line-height 1.1 so Vietnamese
@@ -426,6 +430,7 @@ body.dl-theme-standard .public-branch-copy h3{font-weight:900;text-transform:upp
 body.dl-theme-standard .public-main .public-cms-room-grid .public-room-card::before{font-size:120px;top:-16px}
 body.dl-theme-standard .public-room-marquee-track span{font-weight:900;font-size:clamp(20px,2vw,28px);letter-spacing:-.01em;text-transform:uppercase}
 body.dl-theme-standard .public-cms-availability-calendar{background:var(--dl-surface)!important}
+body.dl-theme-standard .public-how-card:first-child{background:var(--dl-surface)}
 body.dl-theme-standard .public-branch-section{background:var(--dl-ground-2)}
 
 /* "Ways to book" band (FeatureGrid in standard theme) */

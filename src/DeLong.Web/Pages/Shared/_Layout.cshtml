@@ -641,6 +641,14 @@ else
                         var contactHome = DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(contact.SiteSlug);
                         var contactInitials = string.Concat(contact.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(word => char.ToUpperInvariant(word[0])));
                         var contactTel = contact.Phone.Replace(" ", string.Empty);
+                        // Map: an embed link is used as is; otherwise the address is shown on an embedded Google map.
+                        var mapEmbed = contact.GoogleMapsUrl.Contains("/maps/embed", StringComparison.OrdinalIgnoreCase)
+                            ? contact.GoogleMapsUrl
+                            : !string.IsNullOrWhiteSpace(contact.Address) ? $"https://www.google.com/maps?q={Uri.EscapeDataString(contact.Address)}&output=embed" : string.Empty;
+                        var mapLink = !string.IsNullOrWhiteSpace(contact.GoogleMapsUrl) && !contact.GoogleMapsUrl.Contains("/maps/embed", StringComparison.OrdinalIgnoreCase)
+                            ? contact.GoogleMapsUrl
+                            : !string.IsNullOrWhiteSpace(contact.Address) ? $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(contact.Address)}" : contact.GoogleMapsUrl;
+                        var contactEmpty = string.IsNullOrWhiteSpace(contact.Address) && string.IsNullOrWhiteSpace(contact.Phone) && string.IsNullOrWhiteSpace(contact.ZaloUrl) && string.IsNullOrWhiteSpace(contact.FacebookUrl) && string.IsNullOrWhiteSpace(mapLink);
                         <article class="public-footer-contact-card">
                             <div class="public-footer-contact-info">
                                 <a class="public-footer-contact-brand" href="@contactHome">
@@ -676,9 +684,36 @@ else
                                     </div>
                                 }
                             </div>
-                            @if (!string.IsNullOrWhiteSpace(contact.GoogleMapsUrl))
+                            @if (!string.IsNullOrWhiteSpace(mapEmbed) || !string.IsNullOrWhiteSpace(mapLink))
                             {
-                                <a class="public-footer-contact-map" href="@contact.GoogleMapsUrl" target="_blank" rel="noopener" aria-label="Mở bản đồ @contact.Name trên Google Maps"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2ZM9 4v14M15 6v14"/></svg><span>Chỉ đường</span><small>Google Maps ↗</small></a>
+                                <div class="public-footer-contact-map@(string.IsNullOrWhiteSpace(mapEmbed) ? " is-link-only" : string.Empty)">
+                                    @if (!string.IsNullOrWhiteSpace(mapEmbed))
+                                    {
+                                        <iframe src="@mapEmbed" title="Bản đồ @contact.Name" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+                                    }
+                                    else
+                                    {
+                                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2ZM9 4v14M15 6v14"/></svg>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(mapLink))
+                                    {
+                                        <a class="public-footer-contact-directions" href="@mapLink" target="_blank" rel="noopener">Chỉ đường ↗</a>
+                                    }
+                                </div>
+                            }
+                            @if (contactEmpty)
+                            {
+                                <p class="public-footer-contact-empty">
+                                    @if (canManageSite)
+                                    {
+                                        <span>Chưa có địa chỉ, hotline, Zalo, Facebook hay bản đồ cho cơ sở này.</span>
+                                        <a href="/Admin/Site?propertyId=@contact.PropertyId">Nhập thông tin liên hệ →</a>
+                                    }
+                                    else
+                                    {
+                                        <a href="@DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(contact.SiteSlug)">Xem các phòng tại @contact.Name →</a>
+                                    }
+                                </p>
                             }
                         </article>
                     }

@@ -184,15 +184,15 @@ public static class SiteContentEndpoints
             AppDbContext db,
             CancellationToken ct) =>
         {
-            if (request.Mode is not (PublicThemeStore.StandardMode or PublicThemeStore.CustomMode))
+            if (request.Mode is not (null or PublicThemeStore.StandardMode or PublicThemeStore.CustomMode))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["mode"] = ["Chế độ giao diện không hợp lệ."] });
             return Results.Ok(await PublicThemeStore.SaveAsync(db, request, ct));
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
-        global.MapPost("/reset-standard", async (SiteContentService service, CancellationToken ct) =>
+        global.MapPost("/reset-standard", async (SiteContentService service, AppDbContext db, CancellationToken ct) =>
         {
             var archived = await service.ResetGlobalHomeToStandardAsync(ct);
-            return Results.Ok(new { archived, theme = new PublicThemeDto(PublicThemeStore.StandardMode) });
+            return Results.Ok(new { archived, theme = await PublicThemeStore.ReadAsync(db, ct) });
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
         global.MapGet("/shell", async (

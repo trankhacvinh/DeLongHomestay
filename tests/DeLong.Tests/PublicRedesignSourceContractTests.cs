@@ -59,7 +59,10 @@ public sealed class PublicRedesignSourceContractTests
         Assert.Contains("if (rejectOtherRoom(day)) return;", source, StringComparison.Ordinal);
         Assert.Contains("state.selectedRoomId", source, StringComparison.Ordinal);
         Assert.Contains("daysOf(currentRoom())", source, StringComparison.Ordinal);
-        Assert.Contains("index += 4", source, StringComparison.Ordinal);
+        Assert.Contains("/api/public/rooms-availability", source, StringComparison.Ordinal);
+        Assert.Contains("state.abort?.abort();", source, StringComparison.Ordinal);
+        Assert.Contains("requestTimeoutMs", source, StringComparison.Ordinal);
+        Assert.Contains("if (rangeKey === state.renderedRange) return;", source, StringComparison.Ordinal);
         Assert.Contains(".public-v2-viewport.is-multi{overflow-x:auto}", styles, StringComparison.Ordinal);
         Assert.Contains(".public-v2-slot-cell.is-room-start", styles, StringComparison.Ordinal);
         Assert.Contains("fromPrice = item.Room.QuickFromPrice", home, StringComparison.Ordinal);
@@ -79,7 +82,7 @@ public sealed class PublicRedesignSourceContractTests
         var styles = ReadRepositoryFile("src/DeLong.Web/wwwroot/css/public-redesign.css");
 
         Assert.Contains("MetadataSectionType = \"__PublicTheme\"", store, StringComparison.Ordinal);
-        Assert.Contains("return new PublicThemeDto(StandardMode);", store, StringComparison.Ordinal);
+        Assert.Contains("return new PublicThemeDto(Normalize(payload.Mode)", store, StringComparison.Ordinal);
         Assert.Contains("!isGlobalPublic && !publicThemeStandard", layout, StringComparison.Ordinal);
         Assert.Contains("dl-theme-standard", layout, StringComparison.Ordinal);
         Assert.Contains("Model.ThemeStandard ? string.Empty : CustomPageModel.VisualClass", home, StringComparison.Ordinal);
@@ -113,6 +116,48 @@ public sealed class PublicRedesignSourceContractTests
         Assert.Contains("/api/admin/site/global/reset-standard", script, StringComparison.Ordinal);
         Assert.DoesNotContain("window.confirm('Thay", script, StringComparison.Ordinal);
         Assert.Contains("HowBand(block.Content", home, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [Trait("Category", "Unit")]
+    [InlineData("0909 123 456", "https://zalo.me/0909123456")]
+    [InlineData("+84 909 123 456", "https://zalo.me/0909123456")]
+    [InlineData("https://zalo.me/0909123456", "https://zalo.me/0909123456")]
+    [InlineData("zalo.me/0909123456", "https://zalo.me/0909123456")]
+    public void Zalo_accepts_phone_numbers_and_links(string input, string expected) =>
+        Assert.Equal(expected, DeLong.Web.Features.Site.SiteContentService.NormalizeZaloUrl(input));
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Maps_accepts_iframe_embed_code_and_short_links()
+    {
+        var embed = "<iframe src=\"https://www.google.com/maps/embed?pb=!1m18&amp;x=1\" width=\"600\"></iframe>";
+        Assert.Equal("https://www.google.com/maps/embed?pb=!1m18&x=1", DeLong.Web.Features.Site.SiteContentService.NormalizeMapsUrl(embed));
+        Assert.Equal("https://maps.app.goo.gl/abc", DeLong.Web.Features.Site.SiteContentService.NormalizeMapsUrl("maps.app.goo.gl/abc"));
+        Assert.Equal("https://facebook.com/delong", DeLong.Web.Features.Site.SiteContentService.NormalizeSocialUrl("facebook.com/delong"));
+        Assert.Null(DeLong.Web.Features.Site.SiteContentService.NormalizeSocialUrl("  "));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Footer_map_room_lightbox_and_room_colours_are_wired()
+    {
+        var layout = ReadRepositoryFile("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var home = ReadRepositoryFile("src/DeLong.Web/Pages/Index.cshtml");
+        var gallery = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/public-room-gallery.js");
+        var store = ReadRepositoryFile("src/DeLong.Web/Features/Site/PublicThemeStore.cs");
+        var styles = ReadRepositoryFile("src/DeLong.Web/wwwroot/css/public-redesign.css");
+        var endpoints = ReadRepositoryFile("src/DeLong.Web/Features/Operations/OperationsEndpoints.cs");
+
+        Assert.Contains("output=embed", layout, StringComparison.Ordinal);
+        Assert.Contains("public-footer-contact-empty", layout, StringComparison.Ordinal);
+        Assert.Contains("data-room-lightbox=\"@RoomPhotos(room)\"", home, StringComparison.Ordinal);
+        Assert.Contains("style=\"@RoomTone(room.Id)\"", home, StringComparison.Ordinal);
+        Assert.Contains("public-room-lightbox", gallery, StringComparison.Ordinal);
+        Assert.Contains("HexColor.IsMatch(color)", store, StringComparison.Ordinal);
+        Assert.DoesNotContain("public-main::before", styles, StringComparison.Ordinal);
+        Assert.Contains("--dl-ground:#f8f1e6", styles, StringComparison.Ordinal);
+        Assert.Contains("app.MapGet(\"/api/public/rooms-availability\"", endpoints, StringComparison.Ordinal);
     }
 
     private static string ReadRepositoryFile(string relativePath) => File.ReadAllText(RepositoryPath(relativePath));

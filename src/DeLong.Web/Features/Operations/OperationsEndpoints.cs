@@ -114,6 +114,37 @@ public static class OperationsEndpoints
             return result is null ? Results.NotFound() : Results.Ok(result);
         }).AllowAnonymous().WithTags("Public Availability");
 
+        // Multi-room public calendar: one request per property per batch of days.
+        app.MapGet("/api/public/rooms-availability", async (
+            [FromQuery] string? roomIds,
+            [FromQuery] string from,
+            [FromQuery] int? days,
+            [FromQuery] string? siteSlug,
+            AppDbContext db,
+            PublicPropertyResolver resolver,
+            StoragePaths storagePaths,
+            PricingService pricingService,
+            CancellationToken cancellationToken) =>
+        {
+            if (!DateOnly.TryParse(from, out var startDate))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["from"] = ["Ngày bắt đầu không hợp lệ."] });
+            var ids = (roomIds ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(value => Guid.TryParse(value, out var id) ? id : Guid.Empty)
+                .Where(id => id != Guid.Empty)
+                .Distinct()
+                .ToList();
+            if (ids.Count == 0 || ids.Count > AvailabilityIntervalService.MaxRoomsPerPublicBatch)
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["roomIds"] = [$"Cần từ 1 đến {AvailabilityIntervalService.MaxRoomsPerPublicBatch} phòng."]
+                });
+
+            var service = new AvailabilityIntervalService(db, resolver, storagePaths, pricingService);
+            var result = await service.GetPublicManyAsync(siteSlug, ids, startDate, Math.Clamp(days ?? 10, 1, 14), cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(new { rooms = result });
+        }).AllowAnonymous().WithTags("Public Availability");
+
         app.MapGet("/api/public/room-availability/stream", async (
             HttpContext context,
             [FromQuery] Guid? roomId,
