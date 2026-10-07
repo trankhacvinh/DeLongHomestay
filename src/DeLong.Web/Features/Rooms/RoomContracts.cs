@@ -32,7 +32,14 @@ public sealed record RoomDto(
     DateTime? HousekeepingUpdatedAtUtc,
     string? CoverThumbnailUrl,
     int ImageCount,
-    IReadOnlyList<RoomRateDto> Rates);
+    IReadOnlyList<RoomRateDto> Rates,
+    bool IsBookingLocked = false,
+    string? BookingLockReason = null,
+    DateTime? BookingLockedAtUtc = null,
+    Guid? BookingLockedByUserId = null,
+    string? BookingLockedByName = null);
+
+public sealed record SetRoomBookingLockRequest(bool IsLocked, string? Reason);
 
 public sealed record CreateRoomRequest(
     string Code,

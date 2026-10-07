@@ -24,6 +24,23 @@ public sealed class SePayPaymentIntegrationTests
 
     [PostgresFact]
     [Trait("Category", "Integration")]
+    public async Task Existing_QR_can_be_paid_after_room_booking_is_locked()
+    {
+        await using var f = await Fixture.Create();
+        var (created, error) = await f.Lifecycle.CreateIntentAsync(f.Property.Id, f.Booking.Id, true);
+        Assert.Null(error);
+        var room = await f.Db.Rooms.SingleAsync(x => x.Id == f.Booking.RoomId);
+        room.IsBookingLocked = true;
+        room.BookingLockReason = "Bảo trì";
+        await f.Db.SaveChangesAsync();
+        Assert.Equal((200, "succeeded"), await f.Service.ReceiveAsync(f.Property.Id,
+            f.Request(created!.OrderId), "Apikey " + Key, default));
+        Assert.Equal(BookingStatus.Confirmed, f.Booking.Status);
+        Assert.Single(await f.Db.Payments.Where(x => x.BookingId == f.Booking.Id).ToListAsync());
+    }
+
+    [PostgresFact]
+    [Trait("Category", "Integration")]
     public async Task Creation_webhook_duplicate_and_additional_transfer_preserve_payment_and_voucher()
     {
         await using var f = await Fixture.Create();

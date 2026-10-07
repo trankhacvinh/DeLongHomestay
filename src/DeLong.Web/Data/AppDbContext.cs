@@ -233,6 +233,9 @@ public sealed class AppDbContext
             entity.HasIndex(x => new { x.PropertyId, x.Code }).IsUnique();
             entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.IsBookingLocked).HasDefaultValue(false).IsRequired();
+            entity.Property(x => x.BookingLockReason).HasMaxLength(500);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.BookingLockedByUserId).OnDelete(DeleteBehavior.SetNull);
             entity.Property(x => x.FullDayPrice).HasPrecision(18, 2);
             entity.Property(x => x.WeekendFullDayPrice).HasPrecision(18, 2);
             entity.Property(x => x.UseWeekdayFullDayPriceOnWeekend).HasDefaultValue(true).IsRequired();

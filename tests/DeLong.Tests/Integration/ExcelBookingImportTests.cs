@@ -57,6 +57,16 @@ public sealed class ExcelBookingImportTests
         Assert.Equal(0, preview.ErrorRows);
         Assert.Equal("0987654321", preview.Rows[0].CustomerPhone);
 
+        room.IsBookingLocked = true;
+        room.BookingLockReason = "Bảo trì";
+        await db.SaveChangesAsync();
+        var blockedImport = await service.ImportAsync(property.Id, CreateFile(bytes), null);
+        Assert.Equal("room_booking_locked", blockedImport.Error?.Code);
+        Assert.Empty(await db.Bookings.Where(x => x.PropertyId == property.Id).ToListAsync());
+        room.IsBookingLocked = false;
+        room.BookingLockReason = null;
+        await db.SaveChangesAsync();
+
         var (result, importError) = await service.ImportAsync(property.Id, CreateFile(bytes), null);
         Assert.Null(importError);
         Assert.NotNull(result);

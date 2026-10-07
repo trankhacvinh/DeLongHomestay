@@ -1,4 +1,5 @@
 using DeLong.Web.Common.Auditing;
+using DeLong.Web.Features.Rooms;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
@@ -39,6 +40,9 @@ public sealed class BookingMoveService(
         if (booking.Status is not (BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed))
             return (null, new("booking_move_not_allowed", "Chỉ lượt Yêu cầu, Giữ phòng hoặc Đã xác nhận mới được kéo trên lịch."));
 
+        await using var admission = request.RoomId != booking.RoomId
+            ? await RoomBookingGuard.AcquireAsync(db, propertyId, request.RoomId, cancellationToken) : null;
+        if (admission?.Room?.IsBookingLocked == true) return (null, new(RoomBookingGuard.ErrorCode, RoomBookingGuard.ErrorMessage));
         var targetRoom = await db.Rooms.AsNoTracking()
             .SingleOrDefaultAsync(
                 x => x.PropertyId == propertyId && x.Id == request.RoomId && (x.IsActive || x.Id == booking.RoomId),
@@ -159,6 +163,7 @@ public sealed class BookingMoveService(
             return (null, ConflictError());
         }
 
+        if (admission is not null) await admission.CommitAsync(cancellationToken);
         return (await bookingService.GetAsync(propertyId, bookingId, cancellationToken), null);
     }
 

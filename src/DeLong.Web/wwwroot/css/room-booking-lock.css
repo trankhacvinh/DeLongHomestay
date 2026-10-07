@@ -1,0 +1,7 @@
+.room-booking-lock-dialog .room-lock-body{padding:0 20px;overflow-wrap:anywhere}
+.room-booking-lock-dialog textarea{width:100%;min-height:100px;resize:vertical;font:inherit}
+.room-booking-lock-dialog .error-message{color:#a23f37}
+.room-booking-lock-dialog .modal-actions{flex-wrap:wrap}
+[data-v2-room-lock-details]{font-size:12px;line-height:1.5;white-space:normal;overflow-wrap:anywhere;max-width:100%}
+[data-v2-room-lock]{justify-self:center;min-height:40px}
+@media(max-width:480px){.room-booking-lock-dialog .modal-head h2{font-size:20px}.room-booking-lock-dialog .room-lock-body{padding:0 16px}}

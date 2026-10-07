@@ -120,5 +120,5 @@
                 this.toast = { show: true, message, type, timer: setTimeout(() => { this.toast.show = false; }, 3200) };
             }
         }
-    }).mount(root);
+    }).mixin(window.DeLongRoomBookingLock).mount(root);
 })();

@@ -253,9 +253,9 @@
         }
         function updateSelectionBar() {
             if (!state.selected.length) state.selectedRoomId = null;
-            selectionBar.hidden = state.selected.length === 0;
+            selectionBar.hidden = currentRoom()?.isBookingLocked || state.selected.length === 0;
             hint.hidden = !state.multi || state.selected.length > 0;
-            if (!state.selected.length) return;
+            if (currentRoom()?.isBookingLocked || !state.selected.length) return;
             const window = selectedTimeWindow();
             const room = currentRoom();
             selectionLabel.textContent = `${state.multi && room ? `${room.name} · ` : ''}${selectionSummary()}`;
@@ -275,6 +275,7 @@
             return true;
         }
         function selectSlot(day, slot, trigger) {
+            if (roomById(day.roomId)?.isBookingLocked) return;
             if (rejectOtherRoom(day)) return;
             if (Number(day.bookingMode) === 1) {
                 const daySlots = visibleSlots(day);
@@ -379,7 +380,8 @@
                     }
                     const label = element('span');
                     label.appendChild(element('strong', null, room.name));
-                    if (Number(room.fromPrice) > 0) label.appendChild(element('small', null, `từ ${money(room.fromPrice)}`));
+                    if (room.isBookingLocked) label.appendChild(element('small', null, 'Tạm ngừng nhận đặt phòng'));
+                    else if (Number(room.fromPrice) > 0) label.appendChild(element('small', null, `từ ${money(room.fromPrice)}`));
                     cell.appendChild(label);
                     head.appendChild(cell);
                     column += span;
@@ -403,13 +405,14 @@
         function renderSlotButton(day, slot, next) {
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = `public-v2-slot-bar state-${slot.state}`;
+            const room = roomById(day.roomId);
+            button.className = `public-v2-slot-bar state-${room?.isBookingLocked ? 'locked' : slot.state}`;
             const selected = isSelected(day.date, slot);
             const eligible = state.selected.length === 0 || selected || (next && slotKey(next.date, next.slot) === slotKey(day.date, slot));
             if (selected) button.classList.add('is-selected');
             if (slot.state === 'available' && !eligible) button.classList.add('is-ineligible');
             if (next && slotKey(next.date, next.slot) === slotKey(day.date, slot)) button.classList.add('is-next');
-            const canBook = !!slot.bookableStartUtc && !!slot.bookableEndUtc;
+            const canBook = !room?.isBookingLocked && !!slot.bookableStartUtc && !!slot.bookableEndUtc;
             const adjustedTime = canBook && (slot.bookableStartUtc !== slot.startUtc || slot.bookableEndUtc !== slot.endUtc)
                 ? `Nhận ${timeLabel(slot.bookableStartUtc)} · Trả ${timeLabel(slot.bookableEndUtc)}`
                 : '';
@@ -423,7 +426,7 @@
                 if (!selectedLabels.length) selectedLabels.push('Ở tiếp');
             }
             const selectedTime = selectedLabels.join(' · ');
-            const stateText = selectedTime || (slot.state === 'available' ? (Number(day.bookingMode) === 1 ? 'Chọn cả ngày' : 'Còn trống') : slot.state === 'partial' && canBook ? adjustedTime : 'Đã có khách');
+            const stateText = room?.isBookingLocked ? 'Tạm ngừng nhận đặt phòng' : selectedTime || (slot.state === 'available' ? (Number(day.bookingMode) === 1 ? 'Chọn cả ngày' : 'Còn trống') : slot.state === 'partial' && canBook ? adjustedTime : 'Đã có khách');
             const selectedSchedule = selected && canBook
                 ? `<span class="public-v2-selected-schedule">${selectedLabels.map(label => `<b>${label}</b>`).join('')}</span>`
                 : `<span>${stateText}</span><small>${money(slot.price)}</small>`;
@@ -554,7 +557,7 @@
         }
 
         // Several rooms: one request per property (rooms-availability), properties loaded one after another.
-        async function fetchManyRooms(list, from, signal) {
+        async function fetchManyRooms(list, from, signal, days = batchSize) {
             const bySite = new Map();
             list.forEach(room => {
                 const key = room.siteSlug || '';
@@ -565,7 +568,7 @@
             for (const [siteSlug, siteRooms] of bySite) {
                 for (let index = 0; index < siteRooms.length; index += maxRoomsPerRequest) {
                     const chunk = siteRooms.slice(index, index + maxRoomsPerRequest);
-                    const query = new URLSearchParams({ roomIds: chunk.map(room => room.id).join(','), from, days: String(batchSize) });
+                    const query = new URLSearchParams({ roomIds: chunk.map(room => room.id).join(','), from, days: String(days) });
                     if (siteSlug) query.set('siteSlug', siteSlug);
                     let rows = [];
                     try { rows = (await getJson(`/api/public/rooms-availability?${query}`, signal))?.rooms || []; }
@@ -601,6 +604,11 @@
                 results.forEach(({ room, data }) => {
                     const entry = state.roomData.get(String(room.id)) || { days: [], byDate: new Map(), failed: false };
                     if (!data) { entry.failed = true; failed += 1; state.roomData.set(String(room.id), entry); return; }
+                    room.isBookingLocked = data.isBookingLocked === true;
+                    if (room.isBookingLocked && String(state.selectedRoomId) === String(room.id)) {
+                        state.selected = [];
+                        updateSelectionBar();
+                    }
                     room.fullDayPricingEnabled = data.fullDayPricingEnabled === true;
                     room.fullDayPrice = data.fullDayPrice;
                     room.threeSlotDiscountEnabled = data.threeSlotDiscountEnabled === true;
@@ -617,6 +625,7 @@
                         if (!lastDate || end > lastDate) lastDate = end;
                     }
                 });
+                renderRoombar();
                 if (!lastDate) {
                     status.textContent = failed
                         ? 'Chưa thể tải thêm lịch phòng. Kéo lại để thử lần nữa.'
@@ -652,12 +661,46 @@
             }
         }
 
+        let admissionSource = null;
+        let admissionRefreshing = false;
+        async function refreshAdmission() {
+            const list = visibleRooms();
+            if (!list.length || document.hidden || admissionRefreshing) return;
+            admissionRefreshing = true;
+            const version = state.requestVersion;
+            try {
+                const results = await fetchManyRooms(list, today, state.abort?.signal, 1);
+                if (version !== state.requestVersion) return;
+                let changed = false;
+                results.forEach(({ room, data }) => {
+                    if (!data) return;
+                    const locked = data.isBookingLocked === true;
+                    if (room.isBookingLocked !== locked) { room.isBookingLocked = locked; changed = true; }
+                });
+                if (changed) resetRoom();
+            } catch { /* Booking creation still checks admission on the server. */ }
+            finally { admissionRefreshing = false; }
+        }
+        function startAdmissionStream(room) {
+            admissionSource?.close();
+            admissionSource = null;
+            if (!room || !('EventSource' in window)) return;
+            const query = new URLSearchParams({ roomId: room.id });
+            if (room.siteSlug) query.set('siteSlug', room.siteSlug);
+            admissionSource = new EventSource(`/api/public/room-availability/stream?${query}`);
+            admissionSource.addEventListener('availability', refreshAdmission);
+            admissionSource.addEventListener('open', refreshAdmission);
+        }
+        const admissionPoll = setInterval(refreshAdmission, 15000);
+        window.addEventListener('focus', refreshAdmission);
+        window.addEventListener('pagehide', () => { admissionSource?.close(); clearInterval(admissionPoll); });
+
         function renderRoombar() {
             const list = groupRooms();
             roombar.hidden = state.multi;
             const room = state.multi ? null : list[Math.min(state.roomIndex, list.length - 1)];
             name.textContent = room?.name || '—';
-            meta.textContent = room ? `${room.propertyName || ''} · ${room.code}` : '';
+            meta.textContent = room?.isBookingLocked ? 'Tạm ngừng nhận đặt phòng' : room ? `${room.propertyName || ''} · ${room.code}` : '';
             const coverUrl = room?.coverImageUrl?.trim();
             cover.hidden = !coverUrl;
             if (coverUrl) cover.src = coverUrl;
@@ -692,6 +735,7 @@
             topSpacer.style.height = '0';
             bottomSpacer.style.height = '0';
             renderRoombar();
+            startAdmissionStream(state.multi ? null : currentRoom());
             if (!visibleRooms().length) {
                 status.textContent = groups.length > 1 ? 'Hãy chọn ít nhất một cơ sở để xem lịch phòng.' : 'Chưa có phòng được xuất bản để hiển thị.';
                 status.className = 'public-v2-status show';
@@ -766,7 +810,7 @@
         viewport.addEventListener('scroll', handleViewportScroll, { passive: true });
         host.querySelector('[data-selection-clear]').addEventListener('click', () => { state.selected = []; status.className = 'public-v2-status'; updateSelectionBar(); refreshRows(); });
         host.querySelector('[data-selection-book]').addEventListener('click', () => {
-            if (!state.selected.length) return;
+            if (currentRoom()?.isBookingLocked || !state.selected.length) return;
             const room = currentRoom();
             bookingModal.open(bookingUrl(room), `${room?.name || ''} · ${selectionSummary()}`);
         });

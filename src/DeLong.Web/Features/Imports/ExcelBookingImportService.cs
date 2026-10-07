@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using ClosedXML.Excel;
 using DeLong.Web.Common.Auditing;
+using DeLong.Web.Features.Rooms;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
@@ -152,6 +153,12 @@ public sealed class ExcelBookingImportService(AppDbContext db, AuditService audi
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
+            foreach (var roomId in ready.Select(x => x.Room!.Id).Distinct().Order())
+            {
+                await using var admission = await RoomBookingGuard.AcquireAsync(db, propertyId, roomId, cancellationToken);
+                if (admission.Room?.IsBookingLocked == true)
+                    return (null, new(RoomBookingGuard.ErrorCode, RoomBookingGuard.ErrorMessage));
+            }
             var customerByPhone = await db.Customers
                 .Where(x => x.PropertyId == propertyId)
                 .ToDictionaryAsync(x => x.NormalizedPhone, StringComparer.Ordinal, cancellationToken);

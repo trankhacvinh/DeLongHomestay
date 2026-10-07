@@ -4,12 +4,13 @@
     ViewData["Title"] = "Lịch phòng";
 }
 @section Head {
+    <link rel="stylesheet" href="~/css/room-booking-lock.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="~/css/calendar-v2-polish.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/calendar-drag-drop.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-booking-guest-details.css" asp-append-version="true" />
 }
-<div id="calendar-page" v-cloak>
+<div id="calendar-page" data-can-lock-rooms="@((User.IsInRole("Admin") || User.IsInRole("Manager")) ? "true" : "false")" v-cloak>
     <script id="calendar-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 
     <div class="calendar-page-head">
@@ -68,6 +69,12 @@
                         <div class="room-row-title">
                             <div>
                                 <strong>{{ room.name }}</strong>
+                                <span v-if="room.isBookingLocked" class="pill danger">Đang khóa nhận đơn</span>
+                                <small v-if="room.isBookingLocked" style="display:block;white-space:normal;overflow-wrap:anywhere">{{ roomLockDetails(room) }}</small>
+                                @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                                {
+                                    <button class="btn btn-light btn-sm" type="button" v-on:click="openRoomBookingLock(room)">{{ room.isBookingLocked ? 'Mở khóa' : 'Khóa phòng' }}</button>
+                                }
                                 <div class="room-meta">{{ room.code }} · {{ room.capacity }} người</div>
                                 <span v-if="room.housekeepingStatus === 1" class="room-state dirty">Phòng bẩn</span>
                                 <span v-else-if="room.housekeepingStatus === 2" class="room-state cleaning">Đang dọn</span>
@@ -191,7 +198,7 @@
                             <label>Phòng *</label>
                             <select v-model="form.roomId" v-on:change="roomChanged">
                                 <option value="">Chọn phòng</option>
-                                <option v-for="room in activeRooms" v-bind:key="room.id" v-bind:value="room.id">{{ room.name }}</option>
+                                <option v-for="room in activeRooms" v-bind:key="room.id" v-bind:value="room.id" v-bind:disabled="room.isBookingLocked && (editor.mode === 'create' || room.id !== selectedBooking?.roomId)">{{ room.name }}{{ room.isBookingLocked ? ' · Đang khóa' : '' }}</option>
                             </select>
                         </div>
                         <div class="field">
@@ -310,10 +317,12 @@
         </section>
     </div>
 
+    <partial name="_RoomBookingLockDialog" />
     <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
 </div>
 
 @section Scripts {
+    <script src="~/js/pages/admin-room-booking-lock.js" asp-append-version="true"></script>
     <script>window.DeLongCalendarCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") ? "true" : "false");</script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script src="~/js/pages/admin-calendar-range.js" asp-append-version="true"></script>

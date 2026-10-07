@@ -97,7 +97,7 @@
     panel.innerHTML = [
         '<div class="calendar-v2-roombar">',
         '  <button class="calendar-v2-nav" type="button" data-v2-room-prev aria-label="Phòng trước">‹</button>',
-        '  <div class="calendar-v2-roomtitle"><small>PHÒNG</small><strong data-v2-room-name>—</strong><span data-v2-room-meta></span></div>',
+        '  <div class="calendar-v2-roomtitle"><small>PHÒNG</small><strong data-v2-room-name>—</strong><span data-v2-room-meta></span><span data-v2-room-lock-details></span><button class="btn btn-light btn-sm" type="button" data-v2-room-lock hidden>Khóa phòng</button></div>',
         '  <button class="calendar-v2-nav" type="button" data-v2-room-next aria-label="Phòng sau">›</button>',
         '</div>',
         '<div class="calendar-v2-datebar">',
@@ -323,6 +323,7 @@
         const app = vm();
         const room = currentRoom();
         if (!app || !room || typeof app.openCreate !== 'function' || !app.canManage) return;
+        if (room.isBookingLocked) { app.notify('Phòng đang tạm ngừng nhận đặt phòng.', 'error'); return; }
         app.openCreate(room, { key: day.date });
         app.$nextTick(() => {
             const fullSlot = slot.state === 'available' && Array.isArray(slot.free) && slot.free.length === 1;
@@ -369,6 +370,7 @@
             const segment = document.createElement('button');
             segment.type = 'button';
             segment.className = 'calendar-v2-segment free';
+            segment.disabled = currentRoom()?.isBookingLocked === true;
             segment.setAttribute('style', segmentStyle(range.startUtc, range.endUtc, slot.startUtc, slot.endUtc));
             segment.title = `Trống ${timeText(range.startUtc)}–${timeText(range.endUtc)} · bấm để tạo booking`;
             segment.addEventListener('click', event => {
@@ -445,6 +447,11 @@
         state.data = data;
         if (data?.timeZoneId) timeZone = data.timeZoneId;
         const room = currentRoom();
+        if (room && data) Object.assign(room, { isBookingLocked: data.isBookingLocked, bookingLockReason: data.bookingLockReason, bookingLockedAtUtc: data.bookingLockedAtUtc, bookingLockedByName: data.bookingLockedByName });
+        const lockButton = panel.querySelector('[data-v2-room-lock]');
+        lockButton.hidden = root.dataset.canLockRooms !== 'true';
+        lockButton.textContent = room?.isBookingLocked ? 'Mở khóa' : 'Khóa phòng';
+        panel.querySelector('[data-v2-room-lock-details]').textContent = room?.isBookingLocked ? `Đang khóa nhận đơn · ${vm()?.roomLockDetails(room) || ''}` : '';
         roomName.textContent = data?.roomName || room?.name || '—';
         roomMeta.textContent = `${data?.roomCode || room?.code || ''}${room ? ` · tối đa ${room.capacity} khách` : ''}`;
         rangeLabel.textContent = `${dateText(state.from)} → ${dateText(addDays(state.from, state.days - 1))}`;
@@ -562,6 +569,8 @@
         refresh(reason);
     }
 
+    panel.querySelector('[data-v2-room-lock]').addEventListener('click', () => vm()?.openRoomBookingLock(currentRoom()));
+    document.addEventListener('delong:room-lock-updated', () => refresh('room-lock'));
     panel.querySelector('[data-v2-room-prev]').addEventListener('click', () => moveRoom(-1));
     panel.querySelector('[data-v2-room-next]').addEventListener('click', () => moveRoom(1));
     panel.querySelector('[data-v2-date-prev]').addEventListener('click', () => setRange(addDays(state.from, -7), state.days, 'date'));

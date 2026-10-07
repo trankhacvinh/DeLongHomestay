@@ -333,6 +333,7 @@
                 return this.timeSlotRates(room).filter(x => x.available).length;
             },
             roomSelectable(room) {
+                if (room?.isBookingLocked) return false;
                 return this.bookingType === 0 ? this.availableCount(room) > 0 : room?.available === true;
             },
             async switchMode(type) {
