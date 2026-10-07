@@ -116,6 +116,8 @@ public sealed class PublicRedesignSourceContractTests
         Assert.Contains("/api/admin/site/global/reset-standard", script, StringComparison.Ordinal);
         Assert.DoesNotContain("window.confirm('Thay", script, StringComparison.Ordinal);
         Assert.Contains("HowBand(block.Content", home, StringComparison.Ordinal);
+        Assert.Contains("@Html.Raw(HeroCollage(imageUrl, Model.GlobalCatalog.Rooms.Select(x => x.Room)", home, StringComparison.Ordinal);
+        Assert.Contains("@Html.Raw(HeroCollage(imageUrl, Model.Catalog.Rooms", home, StringComparison.Ordinal);
     }
 
     [Theory]

@@ -463,3 +463,30 @@ body.dl-theme-standard .public-editorial-blog .public-blog-copy .public-text-lin
     body.dl-theme-standard{--dl-h1:clamp(32px,9.6vw,44px);--dl-h2:clamp(28px,8.4vw,38px)}
     .public-how-card{padding:22px}
 }
+
+/* ---------- Hero collage (standard theme): three photos like the approved mockup ---------- */
+.public-hero-collage{position:relative;min-height:clamp(440px,42vw,580px);width:100%}
+.public-hero-tile{position:absolute;overflow:hidden;background:var(--dl-ground-2,#f1e6d4)}
+.public-hero-tile img{width:100%;height:100%;object-fit:cover;display:block}
+.public-hero-tile.is-main{left:0;top:6%;width:54%;height:86%;border-radius:999px 999px 24px 24px;box-shadow:0 24px 50px rgba(60,40,20,.16)}
+.public-hero-tile.is-top{right:0;top:0;width:43%;height:52%;border-radius:24px 24px 999px 999px}
+.public-hero-tile.is-bottom{right:5%;bottom:0;width:37%;height:38%;border-radius:24px;box-shadow:0 18px 40px rgba(60,40,20,.14)}
+.public-hero-tile.is-empty.is-top{background:#c99a5b;background-image:radial-gradient(circle at 30% 30%,rgba(255,255,255,.22),transparent 55%)}
+.public-hero-tile.is-empty.is-bottom{background:#b5654f;background-image:radial-gradient(circle at 70% 30%,rgba(255,255,255,.2),transparent 55%)}
+.public-hero-tile.is-empty.is-main{background:#5f8a8b;background-image:radial-gradient(circle at 50% 25%,rgba(255,255,255,.22),transparent 55%)}
+body.public-body .public-hero-collage .public-hero-price-sticker{left:43%;right:auto;top:54%;bottom:auto}
+.public-hero-collage-label{
+    position:absolute;z-index:4;left:4%;bottom:16%;max-width:46%;padding:10px 16px;border-radius:14px;
+    background:rgba(255,252,246,.94);box-shadow:0 8px 20px rgba(60,40,20,.12);display:grid;gap:1px;
+}
+.public-hero-collage-label small{font-size:12px;color:var(--dl-muted,#5c6b6c)}
+.public-hero-collage-label strong{font-size:15px;font-weight:800;color:var(--dl-ink,#12292b)}
+@media(max-width:1080px){.public-hero-collage{min-height:clamp(380px,78vw,560px)}}
+@media(max-width:560px){
+    .public-hero-collage{min-height:clamp(320px,96vw,420px)}
+    .public-hero-tile.is-main{width:58%}
+    .public-hero-tile.is-top{width:40%}
+    .public-hero-tile.is-bottom{width:40%;right:0}
+    body.public-body .public-hero-collage .public-hero-price-sticker{left:38%;top:56%}
+    .public-hero-collage-label{display:none}
+}

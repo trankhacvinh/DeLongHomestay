@@ -75,6 +75,7 @@ Nút **Khôi phục mặc định…** trong Quản trị › Trang chủ chung 
 19. **Nhập liên hệ dễ hơn**: Zalo nhận số điện thoại (tự đổi thành `https://zalo.me/…`), Facebook/Maps nhận link không có `https://`, Google Maps nhận cả mã nhúng `<iframe …>`. Trước đây các giá trị này làm cả form lưu thất bại.
 20. **Lịch nhiều cơ sở**: tick 2+ cơ sở, lịch tải trong vài giây, cuộn mượt; đổi lựa chọn cơ sở liên tục không bị treo; tải lại trang hoạt động bình thường.
 21. Đã bỏ dải thông báo "Đang dùng Giao diện chuẩn" ở đầu trang.
+22. **Hero**: cụm 3 ảnh như bản thiết kế (ảnh vòm lớn, ảnh vòm trên, ảnh nhỏ dưới) + nhãn giá tròn + nhãn cơ sở. Ảnh lấy theo thứ tự: ảnh Hero trong CMS → ảnh bìa các phòng → ảnh trong thư viện phòng; thiếu ảnh thì ô đó là mảng màu nhẹ. Muốn đổi ảnh lớn: sửa "Ảnh" của khối Hero; hai ảnh nhỏ đổi theo ảnh bìa phòng.
 
 ## Ghi chú vận hành
 

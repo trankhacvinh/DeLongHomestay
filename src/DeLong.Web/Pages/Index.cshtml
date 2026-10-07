@@ -27,6 +27,37 @@
     // Room card colour (Admin › Trang chủ chung › Màu thẻ phòng); null leaves the default palette from CSS.
     string? RoomTone(Guid roomId) => Model.ThemeStandard && Model.Theme.RoomColor(roomId) is { } tone ? $"--dl-tone:{tone}" : null;
     string RoomPhotos(PublicRoomCardDto room) => JsonSerializer.Serialize((room.GalleryLargeUrls?.Count > 0 ? room.GalleryLargeUrls : room.GalleryCardUrls) ?? []);
+    // Standard theme hero: a three-photo collage like the approved mockup (big arch, top arch, small card).
+    // Photos come from the hero image, then room covers, then room galleries; missing slots become soft colour tiles.
+    string HeroCollage(string mainImage, IEnumerable<PublicRoomCardDto> rooms, string caption, string title)
+    {
+        var enc = System.Text.Encodings.Web.HtmlEncoder.Default;
+        var roomList = rooms.ToList();
+        var photos = new[] { mainImage }
+            .Concat(roomList.Select(r => r.CoverCardUrl))
+            .Concat(roomList.SelectMany(r => (IEnumerable<string>?)r.GalleryCardUrls ?? Array.Empty<string>()))
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Select(url => url!)
+            .DistinctBy(url => url.Split('?')[0])
+            .Take(3)
+            .ToList();
+        string Tile(int index, string css)
+        {
+            if (index < photos.Count)
+                return $"<div class=\"public-hero-tile {css}\"><img src=\"{enc.Encode(photos[index])}\" alt=\"{enc.Encode(index == 0 ? title : "Không gian tại De Long")}\" {(index == 0 ? "fetchpriority=\"high\"" : "loading=\"lazy\"")} decoding=\"async\" /></div>";
+            return $"<div class=\"public-hero-tile {css} is-empty\" aria-hidden=\"true\"></div>";
+        }
+        var html = new System.Text.StringBuilder("<div class=\"public-hero-collage\">");
+        html.Append(Tile(0, "is-main"));
+        html.Append(Tile(1, "is-top"));
+        html.Append(Tile(2, "is-bottom"));
+        if (!string.IsNullOrEmpty(heroPriceShort))
+            html.Append("<span class=\"public-hero-price-sticker\" aria-hidden=\"true\"><small>đặt nhanh từ</small><strong>").Append(enc.Encode(heroPriceShort)).Append("</strong><small>mỗi khung giờ</small></span>");
+        if (!string.IsNullOrWhiteSpace(caption))
+            html.Append("<span class=\"public-hero-collage-label\"><small>").Append(enc.Encode(caption)).Append("</small><strong>").Append(enc.Encode(title)).Append("</strong></span>");
+        html.Append("</div>");
+        return html.ToString();
+    }
     // Standard theme renders FeatureGrid as the "ways to book" card band from the approved design.
     // Items written as "Title — description" become a card title and its text.
     string HowBand(JsonObject content, string fallbackEyebrow)
@@ -109,7 +140,11 @@
                                 <span><strong>@(fromPrice > 0 ? $"{fromPrice:N0}đ" : "—")</strong><small>giá từ</small></span>
                             </div>
                         </div>
-                        @if (!string.IsNullOrWhiteSpace(imageUrl))
+                        @if (Model.ThemeStandard)
+                        {
+                            @Html.Raw(HeroCollage(imageUrl, Model.GlobalCatalog.Rooms.Select(x => x.Room), heroProperty?.Tagline ?? "Không gian nghỉ riêng tư", heroProperty?.SiteName ?? "De Long Homestay"))
+                        }
+                        else if (!string.IsNullOrWhiteSpace(imageUrl))
                         {
                             <div class="public-cms-hero-image public-hotel-hero-media @(V(block.Content, "imageUrl", true))">
                                 <img class="public-hotel-hero-main-image" src="@imageUrl" alt="@title" fetchpriority="high" decoding="async" />
@@ -248,7 +283,7 @@ else
                     var imageUrl = Text(block.Content, "imageUrl");
                     if (string.IsNullOrWhiteSpace(imageUrl)) imageUrl = Model.SiteSettings?.CoverImageUrl ?? Model.Catalog.Rooms.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? string.Empty;
                     var accentImage = Model.Catalog.Rooms.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x) && !string.Equals(x, imageUrl, StringComparison.OrdinalIgnoreCase));
-                    <section class="public-hero public-cms-hero public-hotel-hero variant-@(Variant(block.Variant))"><div class="public-container public-hero-grid public-hotel-hero-grid"><div class="public-hero-copy public-hotel-hero-copy"><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", siteName)</span><h1 class="@(V(block.Content, "title"))">@title</h1><p class="@(V(block.Content, "body"))">@Text(block.Content, "body", $"{roomCount} không gian nghỉ tại {siteName}.")</p><div class="public-hero-actions"><a class="public-btn public-btn-primary @(V(block.Content, "primaryText"))" href="@ScopedUrl(Text(block.Content, "primaryUrl", "/booking"))">@Text(block.Content, "primaryText", "Đặt phòng")</a><a class="public-btn public-btn-ghost @(V(block.Content, "secondaryText"))" href="@ScopedUrl(Text(block.Content, "secondaryUrl", "/rooms"))">@Text(block.Content, "secondaryText", "Xem phòng")</a></div><div class="public-hotel-hero-metrics"><span><strong>@roomCount</strong><small>phòng đang mở</small></span><span><strong>@(fromPrice > 0 ? $"{fromPrice:N0}đ" : "—")</strong><small>giá từ</small></span><span><strong>Online</strong><small>đặt phòng trực tiếp</small></span></div></div>@if (!string.IsNullOrWhiteSpace(imageUrl)) { <div class="public-cms-hero-image public-hotel-hero-media @(V(block.Content, "imageUrl", true))"><img class="public-hotel-hero-main-image" src="@imageUrl" alt="@title" fetchpriority="high" decoding="async" />@if (!string.IsNullOrWhiteSpace(accentImage)) { <span class="public-hotel-hero-inset"><img src="@accentImage" alt="Một góc phòng tại @siteName" loading="lazy" /></span> }<span class="public-hotel-hero-label"><small>@(Model.SiteSettings?.Tagline ?? "Không gian nghỉ riêng tư")</small><strong>@siteName</strong></span>@if (!string.IsNullOrEmpty(heroPriceShort)) { <span class="public-hero-price-sticker" aria-hidden="true"><small>đặt nhanh từ</small><strong>@heroPriceShort</strong><small>mỗi khung giờ</small></span> }</div> } else { <div class="public-hero-art"><div class="hero-art-card hero-art-main"><span>@siteName</span><strong>STAY SLOW</strong><small>@roomCount phòng</small></div></div> }</div></section>
+                    <section class="public-hero public-cms-hero public-hotel-hero variant-@(Variant(block.Variant))"><div class="public-container public-hero-grid public-hotel-hero-grid"><div class="public-hero-copy public-hotel-hero-copy"><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@Text(block.Content, "eyebrow", siteName)</span><h1 class="@(V(block.Content, "title"))">@title</h1><p class="@(V(block.Content, "body"))">@Text(block.Content, "body", $"{roomCount} không gian nghỉ tại {siteName}.")</p><div class="public-hero-actions"><a class="public-btn public-btn-primary @(V(block.Content, "primaryText"))" href="@ScopedUrl(Text(block.Content, "primaryUrl", "/booking"))">@Text(block.Content, "primaryText", "Đặt phòng")</a><a class="public-btn public-btn-ghost @(V(block.Content, "secondaryText"))" href="@ScopedUrl(Text(block.Content, "secondaryUrl", "/rooms"))">@Text(block.Content, "secondaryText", "Xem phòng")</a></div><div class="public-hotel-hero-metrics"><span><strong>@roomCount</strong><small>phòng đang mở</small></span><span><strong>@(fromPrice > 0 ? $"{fromPrice:N0}đ" : "—")</strong><small>giá từ</small></span><span><strong>Online</strong><small>đặt phòng trực tiếp</small></span></div></div>@if (Model.ThemeStandard) { @Html.Raw(HeroCollage(imageUrl, Model.Catalog.Rooms, Model.SiteSettings?.Tagline ?? "Không gian nghỉ riêng tư", siteName)) } else if (!string.IsNullOrWhiteSpace(imageUrl)) { <div class="public-cms-hero-image public-hotel-hero-media @(V(block.Content, "imageUrl", true))"><img class="public-hotel-hero-main-image" src="@imageUrl" alt="@title" fetchpriority="high" decoding="async" />@if (!string.IsNullOrWhiteSpace(accentImage)) { <span class="public-hotel-hero-inset"><img src="@accentImage" alt="Một góc phòng tại @siteName" loading="lazy" /></span> }<span class="public-hotel-hero-label"><small>@(Model.SiteSettings?.Tagline ?? "Không gian nghỉ riêng tư")</small><strong>@siteName</strong></span>@if (!string.IsNullOrEmpty(heroPriceShort)) { <span class="public-hero-price-sticker" aria-hidden="true"><small>đặt nhanh từ</small><strong>@heroPriceShort</strong><small>mỗi khung giờ</small></span> }</div> } else { <div class="public-hero-art"><div class="hero-art-card hero-art-main"><span>@siteName</span><strong>STAY SLOW</strong><small>@roomCount phòng</small></div></div> }</div></section>
                     break;
                 }
                 case "AvailabilitySearch": <section class="public-check-section public-cms-availability variant-@(Variant(block.Variant))"><div class="public-container"><form class="public-check-card" method="get" action="@PublicUrlBuilder.Booking(Model.SiteSlug!)"><div><span class="public-eyebrow">Đặt phòng nhanh</span><h2 class="@(V(block.Content, "title"))">@Text(block.Content, "title", "Chọn ngày bạn muốn ghé")</h2></div><label class="public-date-field"><span>Ngày sử dụng</span><input type="date" name="date" value="@Model.DefaultDate" required /></label><button class="public-btn public-btn-primary" type="submit">Tìm phòng</button></form></div></section>; break;
