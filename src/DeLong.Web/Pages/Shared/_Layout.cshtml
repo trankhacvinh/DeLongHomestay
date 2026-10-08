@@ -19,6 +19,12 @@
     var showPublicBranches = publicProperties.Count > 1;
     var publicSite = !isAdmin && !isGlobalPublic ? await SiteContentService.GetPublicAsync(publicSiteSlug, Context.RequestAborted) : null;
     var publicSettings = publicSite?.Settings;
+    IReadOnlyList<DeLong.Web.Features.Site.HomeSectionDto> publicFaqSections = [];
+    if (!isAdmin)
+    {
+        var sections = publicSite?.Sections ?? await SiteContentService.GetGlobalPublicSectionsAsync(Context.RequestAborted);
+        publicFaqSections = sections.Where(x => x.IsVisible && x.Type == "Faq").ToList();
+    }
     var publicSiteName = string.IsNullOrWhiteSpace(publicSettings?.SiteName) ? "De Long Homestay" : publicSettings.SiteName;
     var publicTagline = string.IsNullOrWhiteSpace(publicSettings?.Tagline) ? "Long Thành · Đồng Nai" : publicSettings.Tagline;
     // Footer contact cards: every active property on the global site, only the current property on a property site.
@@ -228,6 +234,10 @@
         <link rel="preload" href="~/fonts/brand/be-vietnam-pro-400.woff" as="font" type="font/woff" crossorigin/>
         <link rel="preload" href="~/fonts/brand/be-vietnam-pro-900.woff" as="font" type="font/woff" crossorigin/>
         <link rel="stylesheet" href="~/css/public-redesign.css" asp-append-version="true"/>
+        @if (publicFaqSections.Count > 0)
+        {
+            <link rel="stylesheet" href="~/css/public-faq-modal.css" asp-append-version="true"/>
+        }
     }
     @if (!isAdmin && !isGlobalPublic && !publicThemeStandard)
     {
@@ -591,6 +601,10 @@ else
                 }
                 <span><strong>@publicSiteName</strong><small>@publicTagline</small></span>
             </a>
+            @if (publicFaqSections.Count > 0)
+            {
+                <button type="button" class="public-faq-mobile" data-public-faq-open aria-haspopup="dialog" aria-controls="public-faq-dialog">FAQ</button>
+            }
             <nav class="public-site-links" aria-label="Điều hướng trang khách">
                 <a href="/">Trang chủ</a>
                 @if (showPublicBranches)
@@ -599,6 +613,10 @@ else
                 }
                 <a href="@bookingUrl">Lịch phòng</a>
                 <a href="/chinh-sach-dat-phong">Chính sách</a>
+                @if (publicFaqSections.Count > 0)
+                {
+                    <button type="button" class="public-faq-menu" data-public-faq-open aria-haspopup="dialog" aria-controls="public-faq-dialog">FAQ</button>
+                }
                 <a href="@lookupUrl">Tra cứu</a>
             </nav>
             <div class="public-site-actions">
@@ -811,6 +829,11 @@ else if (isAdmin && canUseStaffAi && currentProperty is not null)
         <div class="public-ai-messages" data-public-ai-messages><div class="public-ai-message assistant">Xin chào! Tôi có thể giúp bạn tìm hiểu phòng, tiện nghi, giá và chính sách của cơ sở.</div></div>
         <form data-public-ai-form><textarea rows="2" maxlength="1000" data-public-ai-input placeholder="Ví dụ: Phòng nào phù hợp cho 3 người?"></textarea><button type="submit">Gửi</button></form>
     </aside>
+}
+@if (!isAdmin && publicFaqSections.Count > 0)
+{
+    <partial name="_PublicFaqModal" model="publicFaqSections" />
+    <script src="~/js/core/public-faq-modal.js" asp-append-version="true"></script>
 }
 <div id="global-toast-root" class="toast-root" aria-live="polite"></div>
 @if (needsVue)

@@ -1,0 +1,23 @@
+@using System.Text.Json.Nodes
+@model IReadOnlyList<DeLong.Web.Features.Site.HomeSectionDto>
+<dialog id="public-faq-dialog" class="public-faq-dialog" aria-labelledby="public-faq-title">
+    <div class="public-faq-dialog-header">
+        <div><span class="public-eyebrow">HỎI ĐÁP</span><h2 id="public-faq-title">Câu hỏi thường gặp</h2></div>
+        <button type="button" data-public-faq-close aria-label="Đóng câu hỏi thường gặp" autofocus>×</button>
+    </div>
+    <div class="public-faq-dialog-content public-faq-list">
+        @foreach (var section in Model)
+        {
+            var content = JsonNode.Parse(section.ContentJson) as JsonObject;
+            var items = content?["items"] as JsonArray;
+            if (items is null) { continue; }
+            foreach (var item in items.OfType<JsonObject>())
+            {
+                var question = item["question"]?.GetValue<string>();
+                var answer = item["answer"]?.GetValue<string>();
+                if (string.IsNullOrWhiteSpace(question) || string.IsNullOrWhiteSpace(answer)) { continue; }
+                <details><summary>@question<span aria-hidden="true">+</span></summary><p>@answer</p></details>
+            }
+        }
+    </div>
+</dialog>
