@@ -36,7 +36,7 @@ public sealed class PublicCacheInvalidationInterceptor(IFusionCache cache) : Sav
     {
         "Property", "PropertySiteSettings", "HomeSection", "GlobalEditorialShowcase",
         "PropertyGalleryItem", "BlogPost", "Room", "RoomRate", "RoomImage", "RoomHighlight",
-        "RoomAmenity", "Amenity", "RoomTag", "RoomTagAssignment"
+        "RoomAmenity", "Amenity", "RoomTag", "RoomTagAssignment", "RoomBookingBlock"
     };
     private bool invalidateAfterSave;
 

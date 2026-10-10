@@ -46,6 +46,8 @@ public sealed class BookingService(
         if (segmentError is not null) return (null, segmentError);
 
         var checkInUtc = request.CheckIn.UtcDateTime; var checkOutUtc = request.CheckOut.UtcDateTime;
+        if (await RoomBookingGuard.HasScheduledLockAsync(db, propertyId, request.RoomId, checkInUtc, checkOutUtc, cancellationToken))
+            return (null, new(RoomBookingGuard.ErrorCode, "Phòng tạm khóa trong thời gian đã chọn. Vui lòng chọn thời gian hoặc phòng khác."));
         if (BookingRules.LocksRoom(request.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken)) return (null, ConflictError());
         var customer = await customerService.FindOrCreateEntityAsync(propertyId, request.CustomerId, request.CustomerName, request.CustomerPhone, cancellationToken);
         if (customer is null) return (null, new("customer_invalid", "Không tìm thấy khách hàng hoặc thông tin khách chưa hợp lệ."));
@@ -106,9 +108,8 @@ public sealed class BookingService(
         if (booking.Type == BookingType.MultiDay && request.Type != BookingType.MultiDay)
             return (null, new("multiday_edit_requires_v2", "Lượt lưu trú nhiều ngày phải được sửa bằng trình chỉnh sửa nhiều ngày."));
 
-        await using var admission = request.RoomId != booking.RoomId
-            ? await RoomBookingGuard.AcquireAsync(db, propertyId, request.RoomId, cancellationToken) : null;
-        if (admission?.Room?.IsBookingLocked == true) return (null, new(RoomBookingGuard.ErrorCode, RoomBookingGuard.ErrorMessage));
+        await using var admission = await RoomBookingGuard.AcquireAsync(db, propertyId, request.RoomId, cancellationToken);
+        if (request.RoomId != booking.RoomId && admission.Room?.IsBookingLocked == true) return (null, new(RoomBookingGuard.ErrorCode, RoomBookingGuard.ErrorMessage));
         if (!await db.Rooms.AnyAsync(x => x.PropertyId == propertyId && x.Id == request.RoomId && (x.IsActive || x.Id == booking.RoomId), cancellationToken)) return (null, new("room_not_found", "Phòng không tồn tại hoặc đã ngừng hoạt động."));
         var rateError = await ValidateRateReferenceAsync(request.Type, request.RoomId, request.RoomRateId, cancellationToken);
         if (rateError is not null) return (null, rateError);
@@ -120,6 +121,9 @@ public sealed class BookingService(
         if (await db.Customers.AnyAsync(x => x.PropertyId == propertyId && x.NormalizedPhone == normalizedPhone && x.Id != customer.Id, cancellationToken)) return (null, new("customer_invalid", "Số điện thoại đang thuộc một khách hàng khác."));
 
         var checkInUtc = request.CheckIn.UtcDateTime; var checkOutUtc = request.CheckOut.UtcDateTime;
+        var extendsStay = request.RoomId != booking.RoomId || checkInUtc < booking.CheckInUtc || checkOutUtc > booking.CheckOutUtc;
+        if (extendsStay && await RoomBookingGuard.HasScheduledLockAsync(db, propertyId, request.RoomId, checkInUtc, checkOutUtc, cancellationToken))
+            return (null, new(RoomBookingGuard.ErrorCode, "Khoảng thời gian mới giao với lịch khóa phòng."));
         if (BookingRules.LocksRoom(booking.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, booking.Id, cancellationToken)) return (null, ConflictError());
         var paymentTermsChanged = booking.RoomId != request.RoomId ||
                                   booking.CheckInUtc != checkInUtc ||

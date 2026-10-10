@@ -20,7 +20,9 @@ public sealed record AdminAvailabilityOccupancyDto(
     decimal BalanceAmount,
     bool HasSpecialRequest,
     bool IsFlexibleTime,
-    bool IsMixedSlot);
+    bool IsMixedSlot,
+    bool IsRoomBlock = false,
+    string? BlockReason = null);
 
 public sealed record AdminAvailabilitySlotDto(
     Guid RateId,
@@ -95,7 +97,8 @@ public sealed record PublicRoomAvailabilityDto(
     DateOnly From,
     int Days,
     IReadOnlyList<PublicAvailabilityDayDto> Calendar,
-    bool IsBookingLocked = false);
+    bool IsBookingLocked = false,
+    DateTime? BookingScheduleUpdatedAtUtc = null);
 
 public sealed record AvailabilityOccupancyInput(
     Guid BookingId,
@@ -107,7 +110,9 @@ public sealed record AvailabilityOccupancyInput(
     decimal BalanceAmount = 0,
     bool HasSpecialRequest = false,
     bool IsFlexibleTime = false,
-    bool IsMixedSlot = false);
+    bool IsMixedSlot = false,
+    bool IsRoomBlock = false,
+    string? BlockReason = null);
 
 public sealed record AvailabilityProjection(
     string State,
@@ -188,7 +193,7 @@ public sealed class AvailabilityIntervalService(
         var room = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == propertyId && x.Id == roomId && x.IsActive)
             .Select(x => new { x.Id, x.Code, x.Name, x.IsBookingLocked, x.BookingLockReason, x.BookingLockedAtUtc,
-                BookingLockedByName = db.Users.Where(u => u.Id == x.BookingLockedByUserId).Select(u => u.DisplayName != "" ? u.DisplayName : u.UserName).FirstOrDefault(), x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice })
+                BookingLockedByName = db.Users.Where(u => u.Id == x.BookingLockedByUserId).Select(u => u.DisplayName != "" ? u.DisplayName : u.UserName).FirstOrDefault(), x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice, BookingScheduleUpdatedAtUtc = db.RoomBookingBlocks.Where(b => b.PropertyId == property.Id && b.RoomId == x.Id).Max(b => (DateTime?)b.UpdatedAtUtc) })
             .SingleOrDefaultAsync(cancellationToken);
         if (room is null) return null;
 
@@ -202,7 +207,7 @@ public sealed class AvailabilityIntervalService(
                     slot.StartUtc, slot.EndUtc, slot.Projection.State, slot.Projection.OccupiedRatio,
                     slot.Projection.Occupied.Select(x => new AdminAvailabilityOccupancyDto(
                         x.BookingId, x.Status, x.StartUtc, x.EndUtc, x.CustomerName, x.CustomerPhone,
-                        x.BalanceAmount, x.HasSpecialRequest, x.IsFlexibleTime, x.IsMixedSlot)).ToList(),
+                        x.BalanceAmount, x.HasSpecialRequest, x.IsFlexibleTime, x.IsMixedSlot, x.IsRoomBlock, x.BlockReason)).ToList(),
                     slot.Projection.Free)).ToList())).ToList(), room.IsBookingLocked, room.BookingLockReason, room.BookingLockedAtUtc, room.BookingLockedByName);
     }
 
@@ -257,7 +262,7 @@ public sealed class AvailabilityIntervalService(
     {
         var room = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == property.Id && x.Id == roomId && x.IsActive && x.IsPublished)
-            .Select(x => new { x.Id, x.Code, x.Name, x.IsBookingLocked, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice })
+            .Select(x => new { x.Id, x.Code, x.Name, x.IsBookingLocked, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice, BookingScheduleUpdatedAtUtc = db.RoomBookingBlocks.Where(b => b.PropertyId == property.Id && b.RoomId == x.Id).Max(b => (DateTime?)b.UpdatedAtUtc) })
             .SingleOrDefaultAsync(cancellationToken);
         if (room is null) return null;
 
@@ -279,13 +284,13 @@ public sealed class AvailabilityIntervalService(
                         slot.RateId, slot.RateName, slot.RateType, slot.Price,
                         slot.StartUtc, slot.EndUtc, slot.Projection.State, slot.Projection.OccupiedRatio,
                         slot.Projection.Occupied.Select(x => new PublicAvailabilityOccupancyDto(
-                            x.Status == BookingStatus.Held ? "held" : "booked",
+                            x.IsRoomBlock ? "locked" : x.Status == BookingStatus.Held ? "held" : "booked",
                             x.StartUtc,
                             x.EndUtc)).ToList(),
                         slot.Projection.Free,
                         bookable?.StartUtc,
                         bookable?.EndUtc,
-                        adjusted ? "Thời gian được điều chỉnh để dành 30 phút dọn phòng giữa hai lượt khách." : null);
+                        adjusted ? "Thời gian được điều chỉnh theo lịch khóa phòng hoặc để dành 30 phút dọn phòng giữa hai lượt khách." : null);
                 }).ToList(),
                 day.Policy.DayProfile,
                 day.Policy.SpecialDayName,
@@ -296,7 +301,7 @@ public sealed class AvailabilityIntervalService(
                     ? day.Policy.DayProfile == PricingDayProfile.Weekend && !room.UseWeekdayFullDayPriceOnWeekend
                         ? room.WeekendFullDayPrice
                         : room.FullDayPrice
-                    : null)).ToList(), room.IsBookingLocked);
+                    : null)).ToList(), room.IsBookingLocked, room.BookingScheduleUpdatedAtUtc);
     }
 
     private async Task<IReadOnlyList<AvailabilityDay>> BuildAsync(
@@ -343,6 +348,12 @@ public sealed class AvailabilityIntervalService(
             .ToListAsync(cancellationToken);
 
         var result = new List<AvailabilityDay>(days);
+        var blocks = await db.RoomBookingBlocks.AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.RoomId == roomId && x.CancelledAtUtc == null &&
+                x.StartUtc < windowEndUtc && windowStartUtc < x.EndUtc)
+            .Select(x => new AvailabilityOccupancyInput(x.Id, BookingStatus.Confirmed, x.StartUtc, x.EndUtc,
+                "Tạm khóa", "", 0, false, false, false, true, x.Reason)).ToListAsync(cancellationToken);
+        bookings.AddRange(blocks);
         for (var offset = 0; offset < days; offset++)
         {
             var date = from.AddDays(offset);

@@ -335,12 +335,16 @@
                         <span>Tổng quan</span></a>
                     @if (canViewOperations)
                     {
-                        <a class="@NavClass("/Admin/Calendar")" asp-page="/Admin/Calendar"
+                        <a class="@NavClass("/Admin/CalendarV2")" asp-page="/Admin/CalendarV2"
                            asp-route-propertyId="@propertyId">
                             <svg>
                                 <use href="#i-calendar"/>
                             </svg>
                             <span>Lịch phòng</span></a>
+                        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                        {
+                            <a class="@NavClass("/Admin/RoomBlocks")" asp-page="/Admin/RoomBlocks" asp-route-propertyId="@propertyId"><svg><use href="#i-calendar" /></svg><span>Lịch khóa phòng</span></a>
+                        }
                         <a class="@NavClass("/Admin/Bookings")" asp-page="/Admin/Bookings/Index"
                            asp-route-propertyId="@propertyId">
                             <svg>

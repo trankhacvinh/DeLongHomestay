@@ -167,3 +167,13 @@
 - Trạng thái khóa nhận đơn riêng, lý do và audit; quyền Admin/Manager theo chi nhánh.
 - Chặn đơn mới/chuyển phòng/import; giữ nguyên đơn, QR và lịch sử có trước khi khóa.
 - Row lock PostgreSQL bảo vệ thứ tự khóa/tạo đơn; migration `AddRoomBookingLock` và nghiệm thu tại `docs/ROOM-BOOKING-LOCK.md`.
+
+## Lịch khóa phòng theo thời gian (2026-10-09)
+
+- Menu quản lý riêng; nhiều phòng, khoảng liên tục hoặc khung giờ lặp theo ngày, qua đêm và kết thúc sớm.
+- Chặn overlap khi tạo/chuyển/import, row lock chung với nhận đơn; báo các đơn cũ bị ảnh hưởng và giữ nguyên thanh toán.
+- Lịch khách không lộ lý do; lịch admin thể hiện vùng khóa; migration `AddRoomBookingSchedules`.
+- Nghiệm thu triển khai Ubuntu và điện thoại thật sau khi áp dụng migration mới.
+
+- [x] AI quản trị đề xuất khóa/mở khóa và tạo/sửa/kết thúc lịch khóa phòng; preview server, xác nhận đơn trùng, giữ đơn cũ và transaction/audit.
+- [ ] Nghiệm thu các câu lệnh khóa phòng với provider AI thật sau deploy.

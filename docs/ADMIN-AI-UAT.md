@@ -29,3 +29,20 @@
 4. Thu thập `X-Request-ID`, thời gian, provider/model và `ErrorCode` trong `AiUsageRecord`; không xuất API key hoặc nội dung CCCD.
 5. Không rollback migration bằng cách xóa bảng khi production đã có usage. Code cũ không đọc các bảng AI mới có thể được redeploy trong khi vẫn giữ nguyên dữ liệu.
 6. Khi nguyên nhân đã xử lý, bật lại global switch trước cho một cơ sở thử nghiệm, đặt budget nhỏ, chạy các bước 3–11 rồi mới rollout các cơ sở còn lại.
+
+## AI khóa phòng
+
+- Yêu cầu “Khóa phòng Blue từ 14:00 ngày 10/01/2031 đến 17:00 ngày 10/01/2031, lý do bảo trì”: preview hiển thị đúng phòng/giờ chi nhánh, không khóa trước khi duyệt.
+- Thử nhiều phòng, khung lặp qua đêm, sửa đợt và kết thúc sớm; lịch cũ và audit vẫn còn.
+- Có đơn trùng: kiểm tra danh sách mã đơn, checkbox bắt buộc, đơn/payment không thay đổi.
+- Tạo đơn hoặc sửa lịch sau preview: đề xuất phải bị từ chối, yêu cầu preview mới.
+- Khóa/mở khóa vô thời hạn: các lịch theo giờ độc lập, không bị xóa khi mở khóa vô thời hạn.
+- Sai ID chi nhánh, thiếu lý do/múi giờ hoặc model tự gửi prepared payload phải bị từ chối.
+- Kiểm tra bằng provider thật sau deploy; test tự động dùng provider giả, không gửi dữ liệu hoặc tiêu ngân sách AI thật.
+
+### Kết quả source ngày 09/10/2026
+
+- Build application thành công, không lỗi. 60 kiểm thử .NET (AI flow/protocol/source contract, lịch khóa và quyền API) đạt trên PostgreSQL thử nghiệm, không bỏ qua; còn cảnh báo xUnit2031 có sẵn trong test project.
+- 4 kiểm thử JavaScript cho preview giờ chi nhánh, khung qua đêm và checkbox áp dụng đạt. Kiểm tra cú pháp script và `git diff --check` đạt.
+- Preview Chrome dùng script/CSS thật, API giả ở 320px/390px/1280px: hiện đơn trùng, checkbox bắt buộc, gửi xác nhận đúng, không tràn ngang.
+- Chưa gọi provider AI thật, chưa publish/deploy, chưa kiểm tra production hoặc điện thoại thật.

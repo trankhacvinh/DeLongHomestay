@@ -48,3 +48,13 @@ Hệ thống có ba nhóm sử dụng AI với ranh giới dữ liệu và quy�
 ## Điều kiện thay đổi ADR
 
 Phải cập nhật ADR trước khi cho AI tự động apply không cần duyệt, đọc dữ liệu nhạy cảm, dùng RAG/vector store, thêm provider mới hoặc thay PostgreSQL persistent cache bằng kho khác.
+
+## Mở rộng AI quản trị: khóa phòng (2026-10-09)
+
+- Giữ quyền `UseAdminAi` hiện tại (Admin), quyền chi nhánh và antiforgery của endpoint AI. Không cấp thêm quyền cho trợ lý khách/Staff hoặc Manager qua thay đổi này.
+- Thêm `SetRoomBookingLock`, `CreateRoomBookingSchedule`, `UpdateRoomBookingSchedule`, `EndRoomBookingSchedule`. Trạng thái khóa/lịch đang hiệu lực được đọc trực tiếp từ dữ liệu chi nhánh mỗi lượt chat. Lịch lặp được tóm tắt để không gửi hàng nghìn dòng vào context.
+- Server giải quyết tên/mã/ID phòng trong chi nhánh, chuẩn bị thời gian và danh sách đơn trùng; không nhận `preparedRoomLock` từ model. Thời gian liên tục bắt buộc có offset; thời gian lặp chuyển theo múi giờ chi nhánh.
+- Không thao tác qua lời nói xác nhận: người dùng phải bấm áp dụng. Có đơn trùng phải tích checkbox đã sắp xếp với khách; `POST .../proposals/{id}/apply` nhận `{ "acknowledgeExistingBookings": true }`. Đơn và thanh toán giữ nguyên.
+- Trước khi áp dụng, khóa dòng phòng theo thứ tự trong transaction AI; kiểm tra lại trạng thái/lịch/đơn trùng. Nếu dữ liệu đã đổi, đề xuất thất bại và phải tạo preview mới. Batch rollback toàn bộ khi bất kỳ thao tác nào lỗi. Cache/realtime khóa phòng được phát sau commit.
+- Mở khóa vô thời hạn không xóa lịch khóa theo thời gian; kết thúc đợt khóa không mở khóa vô thời hạn. Sửa đợt thay thế toàn bộ lịch, giữ các dòng cũ đã kết thúc và audit.
+- Không đổi schema cho phần AI này: enum proposal lưu dạng chuỗi trong cột hiện có. Vẫn cần migration `20261009142839_AddRoomBookingSchedules` của chức năng lịch khóa phòng trước khi deploy.

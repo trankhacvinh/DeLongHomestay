@@ -15,6 +15,7 @@ public sealed class AppDbContext
 
     public DbSet<Property> Properties => Set<Property>();
     public DbSet<Room> Rooms => Set<Room>();
+    public DbSet<RoomBookingBlock> RoomBookingBlocks => Set<RoomBookingBlock>();
     public DbSet<RoomRate> RoomRates => Set<RoomRate>();
     public DbSet<RoomImage> RoomImages => Set<RoomImage>();
     public DbSet<Amenity> Amenities => Set<Amenity>();

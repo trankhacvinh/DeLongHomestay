@@ -6,9 +6,11 @@ window.DeLongRoomBookingLock = {
             const when = room.bookingLockedAtUtc ? new Date(room.bookingLockedAtUtc + (room.bookingLockedAtUtc.endsWith('Z') ? '' : 'Z')).toLocaleString('vi-VN', { timeZone: this.timeZoneId || 'Asia/Ho_Chi_Minh' }) : '';
             return [room.bookingLockReason, room.bookingLockedByName, when].filter(Boolean).join(' · ');
         },
-        openRoomBookingLock(room) {
+        async openRoomBookingLock(room) {
             if (!this.canLockRooms || !room) return;
-            this.roomLock = { open: true, room, reason: '', saving: false, error: '' };
+            if (this.roomLock.saving) return;
+            this.roomLock = { open: !room.isBookingLocked, room, reason: '', saving: false, error: '' };
+            if (room.isBookingLocked) await this.saveRoomBookingLock();
         },
         async saveRoomBookingLock() {
             const state = this.roomLock;
@@ -25,7 +27,10 @@ window.DeLongRoomBookingLock = {
                 state.open = false;
                 document.dispatchEvent(new CustomEvent('delong:room-lock-updated', { detail: { propertyId: this.propertyId, roomId: updated.id } }));
                 this.notify(isLocked ? 'Đã khóa nhận đặt phòng. Các đơn cũ được giữ nguyên.' : 'Đã mở khóa nhận đặt phòng.', 'success');
-            } catch (error) { state.error = error.message || 'Không thể cập nhật khóa phòng.'; }
+            } catch (error) {
+                state.error = error.message || 'Không thể cập nhật khóa phòng.';
+                if (!state.open) this.notify(state.error, 'error');
+            }
             finally { state.saving = false; }
         },
         async refreshRoomBookingLocks() {

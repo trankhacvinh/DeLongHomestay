@@ -152,3 +152,7 @@ SePay VietQR/webhook dùng chung vòng đời intent với Pay2s, phân biệt b
 ### Room booking admission lock (2026-10-06)
 
 Temporary booking locks are independent from room activation, publication and housekeeping. `RoomBookingGuard` serializes lock/unlock, new booking admission and transfers into a room using PostgreSQL row locks, reusing an existing transaction where present. Existing bookings and payment callbacks do not depend on this flag. See `docs/ROOM-BOOKING-LOCK.md` for migration and operational contracts.
+
+### Scheduled room closures (2026-10-09)
+
+`RoomBookingBlock` stores UTC occupancy exclusions in independent, audited batches; these are not bookings and never carry customer/payment state. Daily windows expand in the property's time zone. The existing indefinite room flag remains separate and unchanged. Schedule writes and booking admission share ordered room row locks. Availability unions closure ranges with booking occupancy and hides internal reasons in public DTOs. See [ROOM-BOOKING-LOCK.md](ROOM-BOOKING-LOCK.md).

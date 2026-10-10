@@ -14,6 +14,11 @@ public sealed class RoomBookingGuard(Room? room, IDbContextTransaction? transact
     public Room? Room { get; } = room;
     private bool disposed;
 
+    public static Task<bool> HasScheduledLockAsync(AppDbContext db, Guid propertyId, Guid roomId,
+        DateTime startUtc, DateTime endUtc, CancellationToken cancellationToken) =>
+        db.RoomBookingBlocks.AsNoTracking().AnyAsync(x => x.PropertyId == propertyId && x.RoomId == roomId &&
+            x.CancelledAtUtc == null && x.StartUtc < endUtc && startUtc < x.EndUtc, cancellationToken);
+
     public static async Task<RoomBookingGuard> AcquireAsync(
         AppDbContext db, Guid propertyId, Guid roomId, CancellationToken cancellationToken)
     {

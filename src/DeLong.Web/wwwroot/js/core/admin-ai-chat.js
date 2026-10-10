@@ -112,7 +112,9 @@
         UpdateSiteSettings: 'Cập nhật thông tin website và SEO',
         UpdateRoomRate: 'Cập nhật giá phòng', CreateVoucher: 'Tạo voucher',
         CreateRoomWithRates: 'Tạo phòng và bảng giá', CreateSpecialPricingDay: 'Tạo ngày đặc biệt',
-        UpdatePricingSettings: 'Cập nhật quy tắc giá'
+        UpdatePricingSettings: 'Cập nhật quy tắc giá',
+        SetRoomBookingLock: 'Khóa/mở khóa vô thời hạn', CreateRoomBookingSchedule: 'Tạo lịch khóa phòng',
+        UpdateRoomBookingSchedule: 'Sửa lịch khóa phòng', EndRoomBookingSchedule: 'Kết thúc lịch khóa phòng'
     };
     function displayValue(key, value) {
         if (value === null || value === undefined) return key.toLowerCase().includes('limit') ? 'Không giới hạn' : '—';
@@ -160,7 +162,54 @@
         canonicalBaseUrl:'Địa chỉ website chuẩn', ogTitle:'Tiêu đề chia sẻ', ogDescription:'Mô tả chia sẻ', robotsIndex:'Cho máy tìm kiếm lập chỉ mục'
         ,slug:'Đường dẫn phòng', shortDescription:'Mô tả ngắn', descriptionHtml:'Nội dung phòng', guestGuideHtml:'Hướng dẫn check-in', isPublished:'Đang công khai'
     });
+    function roomLockChanges(payload) {
+        if (payload?.preparedRoomLock) return [payload.preparedRoomLock];
+        return (payload?.operations || []).flatMap(operation => roomLockChanges(operation.payload));
+    }
+    function roomLockTime(value, timeZone) {
+        return new Date(value).toLocaleString('vi-VN', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+    function createRoomLockPreview(change) {
+        const container = document.createElement('div');
+        const rooms = (change.beforeRooms || []).filter(room => change.roomIds.includes(room.id));
+        const values = { 'Phòng': rooms.map(room => `${room.name} (${room.code})`).join(', ') };
+        if (change.roomLock) {
+            values['Thao tác'] = change.roomLock.isLocked ? 'Khóa vô thời hạn' : 'Mở khóa vô thời hạn';
+            if (change.roomLock.isLocked) values['Lý do'] = change.roomLock.reason;
+            else values['Lưu ý'] = 'Các lịch khóa theo thời gian vẫn giữ nguyên.';
+        } else if (change.schedule) {
+            const schedule = change.schedule;
+            values['Lý do'] = schedule.reason;
+            if (schedule.repeatDaily) {
+                values['Khoảng ngày'] = `${schedule.fromDate.split('-').reverse().join('/')} → ${schedule.toDate.split('-').reverse().join('/')}`;
+                values['Khung mỗi ngày'] = (schedule.windows || []).map(window => {
+                    const start = window.start.slice(0, 5), end = window.end.slice(0, 5);
+                    return `${start} → ${end}${end <= start ? ' (sang ngày hôm sau)' : ''}`;
+                }).join('; ');
+            } else values['Khoảng khóa'] = `${roomLockTime(schedule.start, change.timeZoneId)} → ${roomLockTime(schedule.end, change.timeZoneId)}`;
+            values['Múi giờ'] = change.timeZoneId;
+        } else values['Thao tác'] = 'Kết thúc toàn bộ đợt khóa đã chọn';
+        if (change.beforeBlocks?.length) {
+            const intervals = change.beforeBlocks;
+            const previousRoomNames = [...new Set(intervals.map(interval => change.beforeRooms.find(room => room.id === interval.roomId)?.name || 'Phòng'))];
+            values['Đợt hiện tại'] = `${previousRoomNames.join(', ')}; lý do: ${[...new Set(intervals.map(interval => interval.reason))].join('; ')}; ${intervals.length} khoảng; từ ${roomLockTime(intervals.reduce((a, b) => a.startUtc < b.startUtc ? a : b).startUtc, change.timeZoneId)} đến ${roomLockTime(intervals.reduce((a, b) => a.endUtc > b.endUtc ? a : b).endUtc, change.timeZoneId)}`;
+        }
+        values['Đơn hiện có'] = 'Giữ nguyên đơn và thanh toán; không gửi thông báo khóa phòng cho khách.';
+        container.append(createPayloadTable(values));
+        if (change.conflicts?.length) {
+            const title = document.createElement('strong'); title.textContent = 'Đơn trùng khoảng khóa — vẫn giữ nguyên';
+            const list = document.createElement('ul');
+            change.conflicts.forEach(booking => {
+                const item = document.createElement('li');
+                item.textContent = `${booking.code} · ${booking.roomName} · ${roomLockTime(booking.checkInUtc, change.timeZoneId)} → ${roomLockTime(booking.checkOutUtc, change.timeZoneId)}`;
+                list.append(item);
+            });
+            container.append(title, list);
+        }
+        return container;
+    }
     function createPreview(payload) {
+        if (payload?.preparedRoomLock) return createRoomLockPreview(payload.preparedRoomLock);
         if (!Array.isArray(payload?.preparedChanges)) return createPayloadTable(payload);
         const container = document.createElement('div');
         payload.preparedChanges.forEach(change => {
@@ -200,14 +249,25 @@
             section.append(heading, createPreview(operation.payload)); card.append(section);
         });
         else card.append(createPreview(proposal.payload));
+        const needsAcknowledgement = roomLockChanges(proposal.payload).some(change => change.conflicts?.length > 0);
+        const acknowledgement = document.createElement('input'); acknowledgement.type = 'checkbox';
+        if (needsAcknowledgement) {
+            const label = document.createElement('label'); label.className = 'ai-proposal-ack';
+            const text = document.createElement('span'); text.textContent = 'Tôi đã sắp xếp với khách và đồng ý giữ nguyên các đơn trùng phía trên.';
+            label.append(acknowledgement, text); card.append(label);
+            apply.disabled = true;
+            acknowledgement.addEventListener('change', () => { apply.disabled = !acknowledgement.checked; });
+        }
         const isPending = proposal.status === 'Pending' || proposal.status === 0;
         if (isPending) actions.append(reject, apply);
         else actions.textContent = ({ Applied:'Đã áp dụng.', Rejected:'Đã từ chối.', Expired:'Đã hết hạn.', Failed:'Áp dụng thất bại.' }[proposal.status]
             || ({ 1:'Đã áp dụng.', 2:'Đã từ chối.', 3:'Đã hết hạn.', 4:'Áp dụng thất bại.' }[proposal.status]) || 'Đã xử lý.');
         card.append(actions); messages.append(card); messages.scrollTop = messages.scrollHeight;
         const handle = async (action, button) => {
+            if (action === 'apply' && needsAcknowledgement && !acknowledgement.checked) return;
+            acknowledgement.disabled = true;
             apply.disabled = reject.disabled = true; button.textContent = action === 'apply' ? 'Đang áp dụng...' : 'Đang xử lý...';
-            try { await DeLongApi.post(`/api/admin/properties/${propertyId}/ai/proposals/${proposal.id}/${action}`, {}); card.classList.add(action === 'apply' ? 'applied' : 'rejected'); actions.textContent = action === 'apply' ? 'Đã áp dụng thành công.' : 'Đã từ chối.'; }
+            try { await DeLongApi.post(`/api/admin/properties/${propertyId}/ai/proposals/${proposal.id}/${action}`, action === 'apply' ? { acknowledgeExistingBookings: acknowledgement.checked } : {}); card.classList.add(action === 'apply' ? 'applied' : 'rejected'); actions.textContent = action === 'apply' ? 'Đã áp dụng thành công.' : 'Đã từ chối.'; }
             catch (error) { addMessage('assistant', error.message); actions.textContent = 'Chưa áp dụng được. Hãy yêu cầu tạo preview mới để kiểm tra dữ liệu hiện tại.'; }
         };
         if (isPending) {
@@ -217,7 +277,7 @@
     }
     function reportPeriod(value) {
         if (!/(báo cáo|tóm tắt|tình hình|booking|đặt phòng|doanh thu|thực thu|công suất|dòng tiền|chi phí)/i.test(value)) return null;
-        if (/(cấu hình|thay đổi|sửa|đặt giá|tạo)/i.test(value)) return null;
+        if (/(cấu hình|thay đổi|sửa|đặt giá|tạo|khóa|khoá|mở khóa|mở khoá|kết thúc lịch)/i.test(value)) return null;
         if (/hôm nay|ngày hôm nay/i.test(value)) return 'day';
         if (/tuần/i.test(value)) return 'week';
         if (/quý/i.test(value)) return 'quarter';

@@ -426,7 +426,9 @@
                 if (!selectedLabels.length) selectedLabels.push('Ở tiếp');
             }
             const selectedTime = selectedLabels.join(' · ');
-            const stateText = room?.isBookingLocked ? 'Tạm ngừng nhận đặt phòng' : selectedTime || (slot.state === 'available' ? (Number(day.bookingMode) === 1 ? 'Chọn cả ngày' : 'Còn trống') : slot.state === 'partial' && canBook ? adjustedTime : 'Đã có khách');
+            const hasRoomBlock = (slot.occupied || []).some(x => x.kind === 'locked');
+            if (hasRoomBlock && !canBook) button.classList.add('state-locked');
+            const stateText = room?.isBookingLocked ? 'Tạm ngừng nhận đặt phòng' : selectedTime || (slot.state === 'available' ? (Number(day.bookingMode) === 1 ? 'Chọn cả ngày' : 'Còn trống') : slot.state === 'partial' && canBook ? adjustedTime : hasRoomBlock ? 'Tạm khóa' : 'Đã có khách');
             const selectedSchedule = selected && canBook
                 ? `<span class="public-v2-selected-schedule">${selectedLabels.map(label => `<b>${label}</b>`).join('')}</span>`
                 : `<span>${stateText}</span><small>${money(slot.price)}</small>`;
@@ -605,6 +607,7 @@
                     const entry = state.roomData.get(String(room.id)) || { days: [], byDate: new Map(), failed: false };
                     if (!data) { entry.failed = true; failed += 1; state.roomData.set(String(room.id), entry); return; }
                     room.isBookingLocked = data.isBookingLocked === true;
+                    room.bookingScheduleUpdatedAtUtc = data.bookingScheduleUpdatedAtUtc ?? null;
                     if (room.isBookingLocked && String(state.selectedRoomId) === String(room.id)) {
                         state.selected = [];
                         updateSelectionBar();
@@ -676,6 +679,11 @@
                     if (!data) return;
                     const locked = data.isBookingLocked === true;
                     if (room.isBookingLocked !== locked) { room.isBookingLocked = locked; changed = true; }
+                    const scheduleVersion = data.bookingScheduleUpdatedAtUtc ?? null;
+                    if ((room.bookingScheduleUpdatedAtUtc ?? null) !== scheduleVersion) {
+                        room.bookingScheduleUpdatedAtUtc = scheduleVersion;
+                        changed = true;
+                    }
                 });
                 if (changed) resetRoom();
             } catch { /* Booking creation still checks admission on the server. */ }

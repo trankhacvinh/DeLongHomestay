@@ -119,6 +119,7 @@ public sealed class AiDataInvalidationInterceptor(ILogger<AiDataInvalidationInte
     {
         Property or Room or Amenity or RoomAmenity or PropertySiteSettings => ["knowledge", "room-search"],
         RoomRate or PropertyPricingSettings or SpecialPricingDay => ["knowledge", "pricing", "availability"],
+        RoomBookingBlock => ["knowledge", "availability", "operations"],
         Booking => ["availability", "operations", "reports"],
         Payment or Expense => ["reports", "finance"],
         _ => []

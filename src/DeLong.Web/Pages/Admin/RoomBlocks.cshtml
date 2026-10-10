@@ -1,0 +1,40 @@
+@page
+@model DeLong.Web.Pages.Admin.RoomBlocksModel
+@{ ViewData["Title"] = "Lịch khóa phòng"; }
+@section Head { <link rel="stylesheet" href="~/css/room-blocks.css" asp-append-version="true" /> }
+<div id="room-blocks-page" v-cloak>
+    <script id="room-blocks-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+    <div class="page-title-row"><div><h1>Lịch khóa phòng</h1><p>Khóa để bảo trì, sửa chữa. Ngoài thời gian khóa, phòng vẫn nhận đặt bình thường.</p></div><button class="btn btn-primary" type="button" v-on:click="open()">+ Tạo lịch khóa</button></div>
+    <p class="alert alert-danger" v-if="error">{{ error }}</p>
+    <div class="room-block-filters"><button type="button" class="btn btn-light" v-for="item in filters" v-bind:key="item.key" v-bind:aria-pressed="filter === item.key" v-on:click="filter = item.key">{{ item.label }}</button></div>
+    <div class="room-block-list">
+        <article class="room-block-card" v-for="item in visible" v-bind:key="item.batchId">
+            <div><strong>{{ item.roomNames }}</strong><span class="badge">{{ statusLabel(item) }}</span></div>
+            <p>{{ item.summary }}</p><p><strong>Lý do:</strong> {{ item.reason }}</p><small>{{ item.actor }} · {{ dateText(item.createdAtUtc) }}</small>
+            <div class="room-block-actions" v-if="item.state !== 'ended'"><button class="btn btn-light" type="button" v-if="!item.unlimited" v-on:click="open(item)">Sửa lịch</button><button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="end(item)">{{ item.unlimited ? 'Mở khóa' : 'Kết thúc khóa' }}</button></div>
+        </article>
+        <p class="muted" v-if="!visible.length">Chưa có lịch khóa trong mục này.</p>
+    </div>
+    <div class="modal-backdrop" v-if="editor" v-on:click.self="close()">
+        <section class="modal-card room-block-editor" role="dialog" aria-modal="true" aria-labelledby="room-block-title">
+            <div class="modal-head"><h2 id="room-block-title">{{ form.batchId ? 'Sửa lịch khóa phòng' : 'Tạo lịch khóa phòng' }}</h2><button class="icon-btn" type="button" aria-label="Đóng" v-on:click="close()">×</button></div>
+            <div class="room-block-form">
+                <fieldset><legend>Chọn phòng</legend><div class="room-block-room-options"><label v-for="room in activeRooms" v-bind:key="room.id"><input type="checkbox" v-model="form.roomIds" v-bind:value="room.id" /> {{ room.name }} <small v-if="room.isBookingLocked">(đang khóa không thời hạn)</small></label></div></fieldset>
+                <div class="field"><label>Kiểu khóa</label><select v-model="form.mode" v-on:change="resetConflicts()"><option value="continuous">Theo khoảng thời gian</option><option value="daily">Theo khung giờ mỗi ngày</option><option value="unlimited" v-if="!form.batchId">Không thời hạn</option></select></div>
+                <div class="form-grid" v-if="form.mode === 'continuous'"><div class="field"><label>Bắt đầu</label><input type="datetime-local" v-model="form.start" /></div><div class="field"><label>Kết thúc</label><input type="datetime-local" v-model="form.end" /></div></div>
+                <template v-if="form.mode === 'daily'">
+                    <div class="form-grid"><div class="field"><label>Từ ngày</label><input type="date" v-model="form.fromDate" /></div><div class="field"><label>Đến ngày (bao gồm ngày này)</label><input type="date" v-model="form.toDate" /></div></div>
+                    <div class="room-block-presets"><button type="button" class="btn btn-light btn-sm" v-for="rate in presets" v-bind:key="rate.id" v-on:click="addWindow(rate)">{{ rate.name }} · {{ rate.startTime }}–{{ rate.endTime }}</button><button type="button" class="btn btn-light btn-sm" v-on:click="addWindow()">+ Giờ tùy chỉnh</button></div>
+                    <div class="room-block-window" v-for="(window, index) in form.windows" v-bind:key="index"><input aria-label="Giờ bắt đầu" type="time" v-model="window.start" /><span>→</span><input aria-label="Giờ kết thúc" type="time" v-model="window.end" /><button class="icon-btn" type="button" aria-label="Bỏ khung giờ" v-on:click="form.windows.splice(index, 1)">×</button></div>
+                    <p class="muted small">Giờ kết thúc nhỏ hơn hoặc bằng giờ bắt đầu là sang ngày hôm sau. 00:00 → 00:00 là cả ngày. Các khung áp dụng giống nhau cho mọi phòng đã chọn.</p>
+                </template>
+                <div class="field"><label>Lý do *</label><textarea rows="3" maxlength="500" v-model.trim="form.reason" placeholder="Ví dụ: sửa điều hòa"></textarea></div>
+                <p class="muted">Đơn đã tạo vẫn được giữ nguyên; khóa phòng không hủy đơn và không thay đổi thanh toán.</p>
+                <div class="alert alert-danger" v-if="formError">{{ formError }}</div>
+                <div v-if="conflicts.length" class="room-block-conflicts"><strong>Đơn bị ảnh hưởng</strong><p v-for="booking in conflicts" v-bind:key="booking.id">{{ booking.code }} · {{ booking.roomName }} · {{ dateText(booking.checkInUtc) }} → {{ dateText(booking.checkOutUtc) }}</p><label><input type="checkbox" v-model="acknowledged" /> Tôi đã sắp xếp với khách và đồng ý giữ nguyên các đơn trên.</label></div>
+            </div>
+            <div class="modal-actions"><button type="button" class="btn btn-light" v-bind:disabled="saving" v-on:click="close()">Đóng</button><button type="button" class="btn btn-primary" v-bind:disabled="saving || (conflicts.length && !acknowledged)" v-on:click="save()">{{ saving ? 'Đang lưu…' : 'Lưu lịch khóa' }}</button></div>
+        </section>
+    </div>
+</div>
+@section Scripts { <script src="~/js/pages/admin-room-blocks.js" asp-append-version="true"></script> }

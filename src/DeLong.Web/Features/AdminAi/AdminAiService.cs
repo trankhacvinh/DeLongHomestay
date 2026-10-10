@@ -25,7 +25,8 @@ public sealed partial class AdminAiService(
     VoucherService voucherService,
     AuditService auditService,
     AiAccessGateway accessGateway,
-    ILogger<AdminAiService>? logger = null)
+    ILogger<AdminAiService>? logger = null,
+    RoomBookingBlockService? roomBookingBlockService = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -150,7 +151,7 @@ public sealed partial class AdminAiService(
             await UsageAsync(propertyId, ct), retryable), null);
     }
 
-    public async Task<(AiProposalDto? Value, string? Error)> ApplyAsync(Guid propertyId, Guid userId, Guid proposalId, CancellationToken ct)
+    public async Task<(AiProposalDto? Value, string? Error)> ApplyAsync(Guid propertyId, Guid userId, Guid proposalId, CancellationToken ct, bool acknowledgeExistingBookings = false)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         var proposal = await db.AiChangeProposals
@@ -166,7 +167,13 @@ public sealed partial class AdminAiService(
         string? error;
         try
         {
-            error = await ExecuteProposalAsync(proposal, userId, ct);
+            foreach (var roomId in RoomLockChanges(proposal.Type, JsonSerializer.Deserialize<JsonElement>(proposal.PayloadJson))
+                .SelectMany(x => x.BeforeRooms.Select(r => r.Id)).Distinct().Order())
+            {
+                await using var guard = await RoomBookingGuard.AcquireAsync(db, propertyId, roomId, ct);
+                if (guard.Room is null) throw new InvalidOperationException("Không tìm thấy phòng trong chi nhánh.");
+            }
+            error = await ExecuteProposalAsync(proposal, userId, ct, acknowledgeExistingBookings);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -185,8 +192,9 @@ public sealed partial class AdminAiService(
         proposal.Status = AiProposalStatus.Applied; proposal.AppliedAtUtc = DateTime.UtcNow; proposal.AppliedByUserId = userId; proposal.UpdatedAtUtc = DateTime.UtcNow;
         auditService.Add(propertyId, "AiChangeProposal", proposal.Id, $"Applied:{proposal.Type}", userId,
             before: new { proposal.UserId, Status = AiProposalStatus.Pending },
-            after: new { proposal.AppliedByUserId, proposal.Type, proposal.Summary, proposal.PayloadJson, Status = AiProposalStatus.Applied });
+            after: new { proposal.AppliedByUserId, proposal.Type, proposal.Summary, proposal.PayloadJson, AcknowledgedExistingBookings = acknowledgeExistingBookings, Status = AiProposalStatus.Applied });
         await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
+        if (ContainsRoomLockOperation(proposal)) roomService.NotifyBookingLockChanged(propertyId);
         return (ToDto(proposal), null);
     }
 
@@ -296,7 +304,7 @@ public sealed partial class AdminAiService(
         var localMonth = new DateTime(localNow.Year, localNow.Month, 1);
         var monthStartUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localMonth, DateTimeKind.Unspecified), timeZone);
         var nextMonthStartUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localMonth.AddMonths(1), DateTimeKind.Unspecified), timeZone);
-        var rooms = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId && x.IsActive).OrderBy(x => x.SortOrder).Select(x => new { x.Id, x.Code, x.Name, x.Capacity, x.Slug, x.ShortDescription, HasGuestGuide = x.GuestGuideHtml != null, x.IsPublished, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice, x.HousekeepingStatus, Rates = x.Rates.Where(r => r.IsActive).OrderBy(r => r.SortOrder).Select(r => new { r.Id, r.Name, Start = r.StartTime, End = r.EndTime, r.Type, r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice }) }).ToListAsync(ct);
+        var rooms = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId && x.IsActive).OrderBy(x => x.SortOrder).Select(x => new { x.Id, x.Code, x.Name, x.Capacity, x.Slug, x.ShortDescription, HasGuestGuide = x.GuestGuideHtml != null, x.IsPublished, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice, x.HousekeepingStatus, x.IsBookingLocked, x.BookingLockReason, x.BookingLockedAtUtc, Rates = x.Rates.Where(r => r.IsActive).OrderBy(r => r.SortOrder).Select(r => new { r.Id, r.Name, Start = r.StartTime, End = r.EndTime, r.Type, r.Price, r.UseWeekdayPriceOnWeekend, r.WeekendPrice }) }).ToListAsync(ct);
         var todayBookings = await db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CheckOutUtc > todayStartUtc && x.CheckInUtc < tomorrowStartUtc && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
             .Select(x => new { x.Code, Room = x.Room.Name, Customer = x.Customer.Name, Phone = x.Customer.Phone, x.CheckInUtc, x.CheckOutUtc, x.Status, Total = x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount }).ToListAsync(ct);
         var monthSummary = await db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CheckInUtc >= monthStartUtc && x.CheckInUtc < nextMonthStartUtc && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
@@ -315,7 +323,22 @@ public sealed partial class AdminAiService(
             site.FacebookUrl, site.ZaloUrl, site.GoogleMapsUrl, site.CoverImageUrl, site.LogoUrl, site.FaviconUrl,
             site.OgImageUrl, site.MetaTitle, site.MetaDescription, site.CanonicalBaseUrl, site.OgTitle,
             site.OgDescription, site.RobotsIndex };
-        return new { property, rooms, todayBookings, monthSummary = monthSummary ?? new { Count = 0, Revenue = 0m },
+        var scheduleRows = await db.RoomBookingBlocks.AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.CancelledAtUtc == null && x.EndUtc > now)
+            .OrderBy(x => x.StartUtc).Select(x => new { x.BatchId, x.RoomId, x.StartUtc, x.EndUtc, x.RepeatDaily, x.Reason }).ToListAsync(ct);
+        var roomBookingSchedules = scheduleRows.GroupBy(x => x.BatchId).Select(group => new {
+            BatchId = group.Key, RoomIds = group.Select(x => x.RoomId).Distinct(),
+            StartUtc = group.Min(x => x.StartUtc), EndUtc = group.Max(x => x.EndUtc),
+            group.First().RepeatDaily, group.First().Reason,
+            IntervalsPerRoom = group.GroupBy(x => x.RoomId).Select(room => new {
+                RoomId = room.Key, Count = room.Count(),
+                // Daily schedules repeat the same windows; show one local day to keep context bounded.
+                Windows = room.Where(x => !x.RepeatDaily || DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(x.StartUtc, timeZone)) ==
+                    DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(room.First().StartUtc, timeZone)))
+                    .Select(x => new { x.StartUtc, x.EndUtc })
+            })
+        });
+        return new { property, rooms, roomBookingSchedules, todayBookings, monthSummary = monthSummary ?? new { Count = 0, Revenue = 0m },
             finance = new {
                 today = new { Receipts = todayPayments?.Receipts ?? 0m, Refunds = todayPayments?.Refunds ?? 0m, Expenses = todayExpenses },
                 month = new { Receipts = monthPayments?.Receipts ?? 0m, Refunds = monthPayments?.Refunds ?? 0m, Expenses = monthExpenses }
@@ -325,8 +348,9 @@ public sealed partial class AdminAiService(
             siteSettings };
     }
 
-    private async Task<string?> ExecuteProposalAsync(AiChangeProposal proposal, Guid userId, CancellationToken ct)
+    private async Task<string?> ExecuteProposalAsync(AiChangeProposal proposal, Guid userId, CancellationToken ct, bool acknowledgeExistingBookings = false)
     {
+        if (IsRoomLockOperation(proposal.Type)) return await ExecuteRoomLockAsync(proposal, userId, acknowledgeExistingBookings, ct);
         if (proposal.Type is AiProposalType.ConfigureRoomRates or AiProposalType.UpdateRoom or AiProposalType.CreateRoomRate or AiProposalType.UpdateRoomContent
             or AiProposalType.UpdateVoucher or AiProposalType.UpdateSpecialPricingDay or AiProposalType.UpdatePricingSettings or AiProposalType.UpdateSiteSettings)
         {
@@ -349,7 +373,7 @@ public sealed partial class AdminAiService(
                         Summary = proposal.Summary,
                         PayloadJson = operation.Payload.GetRawText()
                     };
-                    var operationError = await ExecuteProposalAsync(operationProposal, userId, ct);
+                    var operationError = await ExecuteProposalAsync(operationProposal, userId, ct, acknowledgeExistingBookings);
                     if (operationError is not null) return operationError;
                 }
                 return null;

@@ -40,9 +40,8 @@ public sealed class BookingMoveService(
         if (booking.Status is not (BookingStatus.Requested or BookingStatus.Held or BookingStatus.Confirmed))
             return (null, new("booking_move_not_allowed", "Chỉ lượt Yêu cầu, Giữ phòng hoặc Đã xác nhận mới được kéo trên lịch."));
 
-        await using var admission = request.RoomId != booking.RoomId
-            ? await RoomBookingGuard.AcquireAsync(db, propertyId, request.RoomId, cancellationToken) : null;
-        if (admission?.Room?.IsBookingLocked == true) return (null, new(RoomBookingGuard.ErrorCode, RoomBookingGuard.ErrorMessage));
+        await using var admission = await RoomBookingGuard.AcquireAsync(db, propertyId, request.RoomId, cancellationToken);
+        if (request.RoomId != booking.RoomId && admission.Room?.IsBookingLocked == true) return (null, new(RoomBookingGuard.ErrorCode, RoomBookingGuard.ErrorMessage));
         var targetRoom = await db.Rooms.AsNoTracking()
             .SingleOrDefaultAsync(
                 x => x.PropertyId == propertyId && x.Id == request.RoomId && (x.IsActive || x.Id == booking.RoomId),
@@ -140,6 +139,9 @@ public sealed class BookingMoveService(
 
         if (newCheckOutUtc <= newCheckInUtc)
             return (null, new("validation", "Giờ trả phòng phải sau giờ nhận phòng."));
+
+        if (await RoomBookingGuard.HasScheduledLockAsync(db, propertyId, request.RoomId, newCheckInUtc, newCheckOutUtc, cancellationToken))
+            return (null, new(RoomBookingGuard.ErrorCode, "Thời gian đích giao với lịch khóa phòng."));
 
         if (BookingRules.LocksRoom(booking.Status) && await HasConflictAsync(
                 propertyId, request.RoomId, newCheckInUtc, newCheckOutUtc, booking.Id, cancellationToken))

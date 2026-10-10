@@ -41,8 +41,9 @@ test('lock and unlock reconcile the room and signal calendar without reloading',
     assert.equal(calls[0].body.reason, 'Bảo trì');
     assert.equal(app.roomLock.open, false);
     assert.equal(events[0].detail.roomId, 'room');
-    app.openRoomBookingLock(app.rooms[0]);
-    await app.saveRoomBookingLock();
+    await app.openRoomBookingLock(app.rooms[0]);
+    assert.equal(app.roomLock.open, false);
+    assert.equal(calls.length, 2);
     assert.equal(app.rooms[0].isBookingLocked, false);
     assert.equal(calls[1].body.isLocked, false);
 });

@@ -51,9 +51,9 @@ public static class AdminAiEndpoints
             return error is null ? Results.Ok(value) : Problem(error);
         }).RequireRateLimiting("admin-ai").AddEndpointFilter<ApiAntiforgeryFilter>()
             .WithMetadata(new RequestSizeLimitAttribute(32L * 1024 * 1024));
-        group.MapPost("/proposals/{proposalId:guid}/apply", async (Guid propertyId, Guid proposalId, ClaimsPrincipal user, AdminAiService service, CancellationToken ct) =>
+        group.MapPost("/proposals/{proposalId:guid}/apply", async (Guid propertyId, Guid proposalId, ApplyAiProposalRequest request, ClaimsPrincipal user, AdminAiService service, CancellationToken ct) =>
         {
-            var (value, error) = await service.ApplyAsync(propertyId, UserId(user), proposalId, ct);
+            var (value, error) = await service.ApplyAsync(propertyId, UserId(user), proposalId, ct, request.AcknowledgeExistingBookings);
             return error is null ? Results.Ok(value) : Problem(error, value);
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
         group.MapPost("/proposals/{proposalId:guid}/reject", async (Guid propertyId, Guid proposalId, ClaimsPrincipal user, AdminAiService service, CancellationToken ct) =>

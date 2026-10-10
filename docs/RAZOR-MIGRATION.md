@@ -82,3 +82,7 @@ Staff/Manager/Housekeeping/Viewer dùng drawer `staff-ai-chat.js` và endpoint r
 ## SePay
 
 Áp dụng `20260915091623_AddSePayProvider` trước khi dùng bản có SePay. Razor `/payment/sepay` hiển thị QR; server webhook/API đối soát mới ghi Payment. Giữ callback Pay2s và Data Protection key ring. Không rollback schema khi đã có tiền SePay. Xem [SEPAY-PAYMENTS.md](SEPAY-PAYMENTS.md).
+
+## Scheduled room closures (2026-10-09)
+
+`20261009142839_AddRoomBookingSchedules` adds `room_booking_blocks` with property/room scoping, UTC boundaries, actor references, soft cancellation and an active-range index. Existing indefinite room locks and bookings/payments are unchanged. Rebuild the Linux migration bundle and apply before serving the new calendar/management page; see [ROOM-BOOKING-LOCK.md](ROOM-BOOKING-LOCK.md).

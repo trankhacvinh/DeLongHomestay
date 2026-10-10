@@ -21,8 +21,8 @@ public sealed partial class AdminAiService
     {
         try
         {
-            if (operation.Payload.TryGetProperty("preparedChanges", out _))
-                return (null, "preparedChanges chỉ được tạo bởi server; hãy gửi selector và changes.");
+            if (operation.Payload.TryGetProperty("preparedChanges", out _) || operation.Payload.TryGetProperty("preparedRoomLock", out _))
+                return (null, "Bản xem trước chỉ được tạo bởi server; hãy gửi thông tin thao tác cần thực hiện.");
             if (operation.Summary.Length > 1000) return (null, "Tóm tắt preview tối đa 1.000 ký tự.");
             if (operation.Type == AiProposalType.UpdateRoomRate)
             {
@@ -59,6 +59,7 @@ public sealed partial class AdminAiService
                 }
                 return (operation with { Payload = JsonSerializer.SerializeToElement(new BatchProposal(prepared), Json) }, null);
             }
+            if (IsRoomLockOperation(operation.Type)) return await PrepareRoomLockAsync(propertyId, operation, ct);
             if (operation.Type is not (AiProposalType.ConfigureRoomRates or AiProposalType.UpdateRoom or
                 AiProposalType.CreateRoomRate or AiProposalType.UpdateVoucher or AiProposalType.UpdateSpecialPricingDay or
                 AiProposalType.UpdatePricingSettings or AiProposalType.UpdateRoomContent or AiProposalType.UpdateSiteSettings))

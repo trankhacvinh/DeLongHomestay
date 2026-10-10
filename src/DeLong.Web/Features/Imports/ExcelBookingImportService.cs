@@ -166,6 +166,9 @@ public sealed class ExcelBookingImportService(AppDbContext db, AuditService audi
 
             foreach (var row in ready)
             {
+                if (await RoomBookingGuard.HasScheduledLockAsync(db, propertyId, row.Room!.Id,
+                    row.CheckIn!.Value.UtcDateTime, row.CheckOut!.Value.UtcDateTime, cancellationToken))
+                    return (null, new(RoomBookingGuard.ErrorCode, "Một lượt nhập giao với lịch khóa phòng."));
                 var phone = NormalizeLegacyPhone(row.Parsed.CustomerPhone);
                 if (!customerByPhone.TryGetValue(phone, out var customer))
                 {

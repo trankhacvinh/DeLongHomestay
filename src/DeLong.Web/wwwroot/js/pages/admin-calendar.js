@@ -102,7 +102,7 @@
             emptyForm() {
                 return {
                     roomId: '', rateId: '', customerId: null, customerName: '', customerPhone: '',
-                    checkInLocal: '', checkOutLocal: '', status: 1,
+                    checkInLocal: '', checkOutLocal: '', status: 2,
                     roomAmount: 0, extraAmount: 0, discountAmount: 0,
                     initialPaymentAmount: 0, initialPaymentMethod: 1,
                     source: '', note: '', customerEmail: '', guestCount: 1
@@ -140,7 +140,7 @@
                 return `${nights || '?'} đêm · ${this.shortDateText(booking.checkInUtc)} → ${this.shortDateText(booking.checkOutUtc)}`;
             },
             statusText(status) {
-                return ({ 0: 'Yêu cầu', 1: 'Giữ phòng', 2: 'Đã xác nhận', 3: 'Đang ở', 4: 'Hoàn tất', 5: 'Đã hủy', 6: 'Không đến' })[status] || `#${status}`;
+                return ({ 0: 'Yêu cầu', 1: 'Giữ phòng', 2: 'Đã xác nhận', 3: 'Đã xác nhận', 4: 'Hoàn tất', 5: 'Đã hủy', 6: 'Không đến' })[status] || `#${status}`;
             },
             bookingVisual(booking) {
                 const colors = this.calendarColors;
@@ -152,7 +152,6 @@
                 if (Number(booking?.rateSegmentCount || 0) > 1) return { color: colors.mixedSlotColor || '#287D9B', label: 'Booking nhiều khung' };
                 if (Number(booking?.status) === 0) return { color: colors.requestedColor || '#64748B', label: 'Yêu cầu' };
                 if (Number(booking?.status) === 1) return { color: colors.heldColor || '#D39B3C', label: 'Giữ phòng' };
-                if (Number(booking?.status) === 3) return { color: colors.checkedInColor || '#176B63', label: 'Đã nhận phòng' };
                 return { color: colors.confirmedColor || '#397967', label: 'Đã xác nhận' };
             },
             bookingStyle(booking, dayKey, roomId) {
@@ -536,21 +535,15 @@
             nextActions(booking) {
                 if (!booking) return [];
                 if (booking.status === 0) return [
-                    { status: 1, label: 'Giữ phòng', className: 'btn-light' },
-                    { status: 2, label: 'Xác nhận', className: 'btn-primary' },
+                    { status: 2, label: 'Nhận đặt phòng', className: 'btn-primary' },
                     { status: 5, label: 'Hủy', className: 'btn-danger' }
                 ];
                 if (booking.status === 1) return [
-                    { status: 2, label: 'Xác nhận', className: 'btn-primary' },
                     { status: 5, label: 'Hủy', className: 'btn-danger' }
                 ];
                 if (booking.status === 2) return [
-                    { status: 3, label: 'Nhận phòng', className: 'btn-primary' },
                     { status: 6, label: 'Không đến', className: 'btn-light' },
                     { status: 5, label: 'Hủy', className: 'btn-danger' }
-                ];
-                if (booking.status === 3) return [
-                    { status: 4, label: 'Trả phòng / Hoàn tất', className: 'btn-primary' }
                 ];
                 if (booking.status === 5) return [
                     { status: 0, label: 'Khôi phục yêu cầu', className: 'btn-light' }

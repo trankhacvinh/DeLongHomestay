@@ -23,3 +23,5 @@ public sealed record AiAttachmentDto(Guid Id, string FileName, string ContentTyp
 public sealed record AiProviderResult(string Text, int InputTokens, int OutputTokens, string? ResponseId, string? FinishReason = null, int CachedInputTokens = 0);
 public sealed record AiProviderAttachment(string FileName, string ContentType, byte[] Content, string? ExtractedText);
 public sealed record AiKnowledgeSnapshotDto(long Version, string ContentHash, DateTime BuiltAtUtc, bool IsDirty, object Content);
+
+public sealed record ApplyAiProposalRequest(bool AcknowledgeExistingBookings = false);

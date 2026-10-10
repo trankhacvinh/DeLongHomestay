@@ -164,6 +164,10 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
                             x.CheckInUtc < windowEndUtc && windowStartUtc < x.CheckOutUtc)
                 .Select(x => new BookingConflictWindow(x.RoomId, x.CheckInUtc, x.CheckOutUtc))
                 .ToListAsync(cancellationToken);
+            lockedBookings.AddRange(await db.RoomBookingBlocks.AsNoTracking()
+                .Where(x => x.PropertyId == property.Id && roomIds.Contains(x.RoomId) && x.CancelledAtUtc == null &&
+                    x.StartUtc < windowEndUtc && windowStartUtc < x.EndUtc)
+                .Select(x => new BookingConflictWindow(x.RoomId, x.StartUtc, x.EndUtc)).ToListAsync(cancellationToken));
         }
 
         var results = new List<PublicStayRoomDto>();
@@ -329,9 +333,16 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
             .Select(x => new AvailabilityOccupancyInput(
                 x.Id, x.Status, x.CheckInUtc.AddMinutes(-TurnoverMinutes), x.CheckOutUtc.AddMinutes(TurnoverMinutes)))
             .ToListAsync(cancellationToken);
+        var blocks = await db.RoomBookingBlocks.AsNoTracking().Where(x => x.PropertyId == propertyId && x.RoomId == roomId &&
+            x.CancelledAtUtc == null && x.StartUtc < nominalEndUtc && nominalStartUtc < x.EndUtc)
+            .Select(x => new AvailabilityOccupancyInput(x.Id, BookingStatus.Confirmed, x.StartUtc, x.EndUtc))
+            .ToListAsync(cancellationToken);
+        bookings.AddRange(blocks);
         var projection = AvailabilityIntervalProjector.Project(nominalStartUtc, nominalEndUtc, bookings);
         if (projection.Free.Count != 1)
-            return (null, new PublicBookingError("booking_conflict", "Khung giờ này không còn một khoảng sử dụng liên tục sau khi dành thời gian dọn phòng. Vui lòng chọn khung khác."));
+            return blocks.Count > 0
+                ? (null, new PublicBookingError(RoomBookingGuard.ErrorCode, "Khung giờ giao với lịch khóa phòng và không còn một khoảng sử dụng liên tục. Vui lòng chọn khung khác."))
+                : (null, new PublicBookingError("booking_conflict", "Khung giờ này không còn một khoảng sử dụng liên tục sau khi dành thời gian dọn phòng. Vui lòng chọn khung khác."));
         var window = projection.Free[0];
         if (window.EndUtc <= window.StartUtc)
             return (null, new PublicBookingError("booking_conflict", "Khung giờ này không còn đủ thời gian sử dụng."));
@@ -342,7 +353,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
     {
         var checkIn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(window.StartUtc, DateTimeKind.Utc), timeZone);
         var checkOut = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(window.EndUtc, DateTimeKind.Utc), timeZone);
-        return $"Điều chỉnh thời gian do cần {TurnoverMinutes} phút dọn phòng: nhận {checkIn:dd/MM/yyyy HH:mm}, trả {checkOut:dd/MM/yyyy HH:mm}.";
+        return $"Điều chỉnh theo lịch khóa phòng hoặc thời gian dọn phòng {TurnoverMinutes} phút: nhận {checkIn:dd/MM/yyyy HH:mm}, trả {checkOut:dd/MM/yyyy HH:mm}.";
     }
 
     private async Task<(PublicBookingResult?, PublicBookingError?)> CreateMultiDayRequestAsync(string? siteSlug, PublicBookingRequest request, string? idempotencyKey, CancellationToken ct)
@@ -431,12 +442,16 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var windowStartUtc = TimeZoneInfo.ConvertTimeToUtc(windowStartLocal, timeZone).AddMinutes(-TurnoverMinutes); var windowEndUtc = TimeZoneInfo.ConvertTimeToUtc(windowEndLocal, timeZone).AddMinutes(TurnoverMinutes);
         var locked = await db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && LockingStatuses.Contains(x.Status) && x.CheckInUtc < windowEndUtc && windowStartUtc < x.CheckOutUtc).Select(x => new { x.RoomId, x.CheckInUtc, x.CheckOutUtc }).ToListAsync(ct);
         var rates = await db.RoomRates.AsNoTracking().Where(x => x.Room.PropertyId == propertyId && x.Room.IsActive && x.Room.IsPublished && x.IsActive && x.Type != RoomRateType.Nightly).Select(x => new { x.Id, x.RoomId, x.StartTime, x.EndTime, x.Type }).ToListAsync(ct);
+        var blocks = await db.RoomBookingBlocks.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CancelledAtUtc == null &&
+            x.StartUtc < windowEndUtc && windowStartUtc < x.EndUtc).ToListAsync(ct);
         HashSet<(Guid RoomId, Guid RateId)> unavailable = [];
         foreach (var rate in rates)
         {
             var range = ToUtcTimeSlotRange(date, rate.StartTime, rate.EndTime, rate.Type == RoomRateType.Overnight, timeZone);
             var occupancy = locked.Where(x => x.RoomId == rate.RoomId).Select(x => new AvailabilityOccupancyInput(
-                Guid.Empty, BookingStatus.Confirmed, x.CheckInUtc.AddMinutes(-TurnoverMinutes), x.CheckOutUtc.AddMinutes(TurnoverMinutes)));
+                Guid.Empty, BookingStatus.Confirmed, x.CheckInUtc.AddMinutes(-TurnoverMinutes), x.CheckOutUtc.AddMinutes(TurnoverMinutes)))
+                .Concat(blocks.Where(x => x.RoomId == rate.RoomId).Select(x => new AvailabilityOccupancyInput(
+                    x.Id, BookingStatus.Confirmed, x.StartUtc, x.EndUtc)));
             if (AvailabilityIntervalProjector.Project(range.CheckInUtc, range.CheckOutUtc, occupancy).Free.Count != 1)
                 unavailable.Add((rate.RoomId, rate.Id));
         }

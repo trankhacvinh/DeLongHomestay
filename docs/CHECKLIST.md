@@ -81,3 +81,11 @@
 - [ ] Chụp/quay trực tiếp và chọn nhiều ảnh/video trên iPhone/Android; xác nhận ảnh xoay đúng, WebP tải nhanh và video phát được.
 - [ ] Xác nhận báo cáo cần ít nhất 1 file, không giới hạn số file nghiệp vụ, video tối đa 250 MB/file và không mất nội dung khi server trả lỗi validation.
 - [ ] Xác nhận tag mẫu tự điền nội dung, điểm 1–5 sao và trạng thái Mới báo/Đang xử lý/Đã hoàn thành hiển thị đúng trong bảng.
+
+## Lịch khóa phòng theo thời gian
+
+- [ ] Production áp dụng migration `20261009142839_AddRoomBookingSchedules` bằng bundle mới.
+- [ ] UAT: nhiều phòng, qua đêm, nhiều khung/ngày, sửa/kết thúc sớm và khóa không thời hạn cũ.
+- [ ] UAT: vùng khóa trên mobile, khách đặt ngoài vùng khóa, QR/đơn cũ vẫn hoạt động.
+
+- [ ] AI khóa phòng: deploy cùng migration lịch khóa, thử provider thật, preview/checkbox đơn trùng và giờ chi nhánh trên mobile; xác nhận đơn/payment cũ giữ nguyên.

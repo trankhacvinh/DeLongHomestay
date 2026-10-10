@@ -114,7 +114,7 @@ public sealed class RoomService(AppDbContext db, IFusionCache? fusionCache = nul
 
     public async Task<(RoomDto? Room, string? Error)> SetBookingLockAsync(
         Guid propertyId, Guid roomId, SetRoomBookingLockRequest request, Guid actorUserId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, bool notify = true)
     {
         var reason = request.Reason?.Trim();
         if (request.IsLocked && (string.IsNullOrWhiteSpace(reason) || reason.Length > 500))
@@ -136,11 +136,15 @@ public sealed class RoomService(AppDbContext db, IFusionCache? fusionCache = nul
             await db.SaveChangesAsync(cancellationToken);
         }
         await guard.CommitAsync(cancellationToken);
-        // SavedChanges may invalidate before transaction commit; invalidate again after commit.
+        if (notify) NotifyBookingLockChanged(propertyId, roomId);
+        return (await GetAsync(propertyId, roomId, cancellationToken), null);
+    }
+
+    public void NotifyBookingLockChanged(Guid propertyId, Guid? roomId = null)
+    {
         fusionCache?.RemoveByTag(PublicCacheKeys.Tag);
         OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
             propertyId, OperationsEventTypes.RoomBookingLockChanged, roomId: roomId));
-        return (await GetAsync(propertyId, roomId, cancellationToken), null);
     }
 
     private async Task<string> CreateUniqueSlugAsync(

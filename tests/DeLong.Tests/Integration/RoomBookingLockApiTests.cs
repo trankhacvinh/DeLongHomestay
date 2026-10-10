@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using DeLong.Web.Common.Security;
+using DeLong.Web.Common.Auditing;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Features.Rooms;
@@ -40,6 +41,8 @@ public sealed class RoomBookingLockApiTests
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Services.AddDbContext<AppDbContext>(x => x.UseNpgsql(connection));
         builder.Services.AddScoped<RoomService>();
+        builder.Services.AddScoped<AuditService>();
+        builder.Services.AddScoped<RoomBookingBlockService>();
         builder.Services.AddScoped<PropertyAccessService>();
         builder.Services.AddAntiforgery(x => x.HeaderName = "X-CSRF-TOKEN");
         builder.Services.AddAuthentication("FixtureCookie").AddCookie("FixtureCookie", x =>
@@ -66,6 +69,7 @@ public sealed class RoomBookingLockApiTests
         app.MapGet("/csrf", (HttpContext context, IAntiforgery antiforgery) =>
             Results.Ok(antiforgery.GetAndStoreTokens(context).RequestToken));
         app.MapRoomEndpoints();
+        app.MapRoomBookingBlockEndpoints();
         await app.StartAsync();
         using var client = new HttpClient(new HttpClientHandler { CookieContainer = new CookieContainer(), AllowAutoRedirect = false })
         { BaseAddress = new Uri(app.Urls.Single()) };
@@ -89,6 +93,24 @@ public sealed class RoomBookingLockApiTests
         Assert.Equal(HttpStatusCode.BadRequest, await Lock("Manager", property.Id, room.Id, false));
         foreach (var role in new[] { "Manager", "Admin" })
             Assert.Equal(HttpStatusCode.OK, await Lock(role, property.Id, room.Id));
+        async Task<HttpStatusCode> Schedule(string role, Guid propertyId, Guid roomId, bool csrf = true)
+        {
+            client.DefaultRequestHeaders.Remove("X-Fixture-Role");
+            if (role != "") client.DefaultRequestHeaders.Add("X-Fixture-Role", role);
+            client.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");
+            if (csrf) client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", await client.GetFromJsonAsync<string>("/csrf"));
+            var start = DateTimeOffset.UtcNow.AddDays(5);
+            using var response = await client.PostAsJsonAsync($"/api/admin/properties/{propertyId}/room-blocks/",
+                new SaveRoomBlockRequest([roomId], "Maintenance", start, start.AddHours(2), false, null, null, null));
+            return response.StatusCode;
+        }
+        Assert.Equal(HttpStatusCode.Unauthorized, await Schedule("", property.Id, room.Id, false));
+        foreach (var role in new[] { "Staff", "Media", "Viewer" })
+            Assert.Equal(HttpStatusCode.Forbidden, await Schedule(role, property.Id, room.Id));
+        Assert.Equal(HttpStatusCode.Forbidden, await Schedule("Manager", other.Id, otherRoom.Id));
+        Assert.Equal(HttpStatusCode.BadRequest, await Schedule("Manager", property.Id, room.Id, false));
+        foreach (var role in new[] { "Manager", "Admin" })
+            Assert.Equal(HttpStatusCode.OK, await Schedule(role, property.Id, room.Id));
         db.ChangeTracker.Clear();
         Assert.True((await db.Rooms.SingleAsync(x => x.Id == room.Id)).IsBookingLocked);
         Assert.False((await db.Rooms.SingleAsync(x => x.Id == otherRoom.Id)).IsBookingLocked);

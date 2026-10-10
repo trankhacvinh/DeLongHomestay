@@ -6,6 +6,8 @@ using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.AdminAi;
+using DeLong.Web.Features.Bookings;
+using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Rooms;
 using DeLong.Web.Features.Pricing;
 using DeLong.Web.Features.Site;
@@ -313,6 +315,163 @@ public sealed class AdminAiFlowTests
         var changeAudit = await f.Db.AuditLogs.AsNoTracking().SingleAsync(x => x.EntityType == "AiConfigurationChange" && x.EntityId == f.Property.Id);
         Assert.Contains("metaTitle", changeAudit.BeforeJson);
         Assert.Contains("De Long Homestay - Đặt phòng", changeAudit.AfterJson);
+    }
+
+    private static object Closure(string[]? rooms = null) => new { roomReferences = rooms ?? ["A"], reason = "Bảo trì", start = "2031-01-10T14:00:00+07:00", end = "2031-01-10T17:00:00+07:00" };
+    private static async Task<BookingDto> ExistingOrder(Fixture f)
+    {
+        var service = new BookingService(f.Db, new CustomerService(f.Db), new AuditService(f.Db));
+        var result = await service.CreateAsync(f.Property.Id, new CreateBookingRequest {
+            RoomId = f.Rates[0].RoomId, CustomerName = "Guest", CustomerPhone = "0935527193",
+            CheckIn = new DateTimeOffset(2031,1,10,7,0,0,TimeSpan.Zero), CheckOut = new DateTimeOffset(2031,1,10,10,0,0,TimeSpan.Zero),
+            RoomAmount = 250000, Status = BookingStatus.Confirmed });
+        Assert.Null(result.Error); return result.Booking!;
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Ai_schedule_preview_is_read_only_scoped_and_applied_once_with_audit()
+    {
+        await using var f = await Fixture.Create(Proposal("CreateRoomBookingSchedule", Closure(["A", "B"])));
+        var chat = (await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Khóa A và B để bảo trì"),default)).Value!;
+        Assert.NotNull(chat.Proposal);
+        Assert.Empty(await f.Db.RoomBookingBlocks.Where(x=>x.PropertyId==f.Property.Id).ToListAsync());
+        var change = JsonSerializer.SerializeToElement(chat.Proposal.Payload).GetProperty("preparedRoomLock");
+        Assert.Equal(2,change.GetProperty("roomIds").GetArrayLength());
+        Assert.Contains("14:00",chat.Proposal.Summary);
+        Assert.Null((await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal.Id,default)).Error);
+        Assert.Equal(2,await f.Db.RoomBookingBlocks.CountAsync(x=>x.PropertyId==f.Property.Id));
+        Assert.False(await f.Db.RoomBookingBlocks.AnyAsync(x=>x.RoomId==f.OtherRate.RoomId));
+        Assert.NotNull((await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal.Id,default)).Error);
+        Assert.True(await f.Db.AuditLogs.AnyAsync(x=>x.EntityId==chat.Proposal.Id));
+        f.Handler.Responses.Enqueue(JsonSerializer.Serialize(new {message="Lịch khóa hiện có",proposal=(object?)null}));
+        await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(chat.ConversationId,"Phòng nào đang khóa?"),default);
+        Assert.Contains("roomBookingSchedules",f.Handler.Inputs.Last());
+        using var snapshot = JsonDocument.Parse(f.Handler.Inputs.Last());
+        Assert.Equal("Bảo trì",snapshot.RootElement.GetProperty("systemData").GetProperty("roomBookingSchedules")[0].GetProperty("reason").GetString());
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Ai_indefinite_unlock_keeps_scheduled_closures()
+    {
+        await using var f=await Fixture.Create(Proposal("SetRoomBookingLock",new {roomReferences=new[]{"A"},isLocked=true,reason="Sửa chữa"}));
+        var chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Khóa phòng A vô thời hạn"),default)).Value!;
+        Assert.False((await f.Db.Rooms.AsNoTracking().SingleAsync(x=>x.Id==f.Rates[0].RoomId)).IsBookingLocked);
+        Assert.Null((await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal!.Id,default)).Error);
+        Assert.True((await f.Db.Rooms.AsNoTracking().SingleAsync(x=>x.Id==f.Rates[0].RoomId)).IsBookingLocked);
+        f.Handler.Responses.Enqueue(Proposal("CreateRoomBookingSchedule",Closure()));
+        var schedule=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Khóa A theo giờ"),default)).Value!;
+        Assert.Null((await f.Service.ApplyAsync(f.Property.Id,f.User.Id,schedule.Proposal!.Id,default)).Error);
+        f.Handler.Responses.Enqueue(Proposal("SetRoomBookingLock",new {roomReferences=new[]{"A"},isLocked=false}));
+        var unlock=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Mở khóa vô thời hạn A"),default)).Value!;
+        Assert.Null((await f.Service.ApplyAsync(f.Property.Id,f.User.Id,unlock.Proposal!.Id,default)).Error);
+        Assert.False((await f.Db.Rooms.AsNoTracking().SingleAsync(x=>x.Id==f.Rates[0].RoomId)).IsBookingLocked);
+        Assert.True(await f.Db.RoomBookingBlocks.AnyAsync(x=>x.PropertyId==f.Property.Id&&x.CancelledAtUtc==null));
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Ai_closure_conflicts_require_human_checkbox_and_keep_old_order()
+    {
+        await using var f=await Fixture.Create(Proposal("CreateRoomBookingSchedule",Closure()),Proposal("CreateRoomBookingSchedule",Closure()));
+        var old=await ExistingOrder(f);
+        var chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Khóa A"),default)).Value!;
+        var change=JsonSerializer.SerializeToElement(chat.Proposal!.Payload).GetProperty("preparedRoomLock");
+        Assert.Equal(old.Id,change.GetProperty("conflicts")[0].GetProperty("id").GetGuid());
+        Assert.Contains("xác nhận",(await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal.Id,default)).Error);
+        Assert.False(await f.Db.RoomBookingBlocks.AnyAsync(x=>x.PropertyId==f.Property.Id));
+        chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Khóa A"),default)).Value!;
+        Assert.Null((await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal!.Id,default,true)).Error);
+        Assert.Equal(BookingStatus.Confirmed,(await f.Db.Bookings.AsNoTracking().SingleAsync(x=>x.Id==old.Id)).Status);
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task New_booking_after_ai_preview_requires_new_preview_even_when_acknowledged()
+    {
+        await using var f=await Fixture.Create(Proposal("CreateRoomBookingSchedule",Closure()));
+        var chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Khóa A"),default)).Value!;
+        await ExistingOrder(f);
+        Assert.Contains("Danh sách đơn trùng",(await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal!.Id,default,true)).Error);
+        Assert.False(await f.Db.RoomBookingBlocks.AnyAsync(x=>x.PropertyId==f.Property.Id));
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Ai_daily_schedule_can_be_updated_and_ended_without_deleting_history()
+    {
+        var daily=new {roomReferences=new[]{"A"},reason="Bảo trì",repeatDaily=true,fromDate="2031-01-10",toDate="2031-01-11",windows=new[]{new {start="21:00:00",end="09:30:00"}}};
+        await using var f=await Fixture.Create(Proposal("CreateRoomBookingSchedule",daily));
+        var chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Khóa A qua đêm 2 ngày"),default)).Value!;
+        Assert.Null((await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal!.Id,default)).Error);
+        var rows=await f.Db.RoomBookingBlocks.AsNoTracking().Where(x=>x.PropertyId==f.Property.Id).ToListAsync();
+        Assert.Equal(2,rows.Count);Assert.All(rows,x=>Assert.Equal(TimeSpan.FromHours(12.5),x.EndUtc-x.StartUtc));
+        f.Handler.Responses.Enqueue(Proposal("UpdateRoomBookingSchedule",new {batchId=rows[0].BatchId,roomReferences=new[]{"B"},reason="Đổi lịch",start="2031-01-12T14:00:00+07:00",end="2031-01-12T17:00:00+07:00"}));
+        chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Sửa đợt sang B ngày 12"),default)).Value!;
+        Assert.Null((await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal!.Id,default)).Error);
+        Assert.Equal(2,await f.Db.RoomBookingBlocks.CountAsync(x=>x.PropertyId==f.Property.Id&&x.CancelledAtUtc!=null));
+        f.Handler.Responses.Enqueue(Proposal("EndRoomBookingSchedule",new {batchId=rows[0].BatchId}));
+        chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Kết thúc đợt khóa"),default)).Value!;
+        Assert.Null((await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal!.Id,default)).Error);
+        Assert.Equal(3,await f.Db.RoomBookingBlocks.CountAsync(x=>x.PropertyId==f.Property.Id));
+        Assert.False(await f.Db.RoomBookingBlocks.AnyAsync(x=>x.PropertyId==f.Property.Id&&x.CancelledAtUtc==null));
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Ai_cannot_apply_a_stale_schedule_or_inject_server_prepared_payload()
+    {
+        await using var f=await Fixture.Create(Proposal("CreateRoomBookingSchedule",Closure()));
+        var chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Khóa A"),default)).Value!;
+        Assert.Null((await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal!.Id,default)).Error);
+        var batch=await f.Db.RoomBookingBlocks.Where(x=>x.PropertyId==f.Property.Id).Select(x=>x.BatchId).FirstAsync();
+        f.Handler.Responses.Enqueue(Proposal("EndRoomBookingSchedule",new {batchId=batch}));
+        chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Mở khóa đợt"),default)).Value!;
+        Assert.Null(await new RoomBookingBlockService(f.Db,new AuditService(f.Db)).CancelAsync(f.Property.Id,batch,f.User.Id,default));
+        Assert.Contains("Lịch khóa đã thay đổi",(await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal!.Id,default)).Error);
+        var forged=Proposal("CreateRoomBookingSchedule",new {preparedRoomLock=new {roomIds=new[]{f.OtherRate.RoomId}}});
+        f.Handler.Responses.Enqueue(forged);f.Handler.Responses.Enqueue(forged);
+        chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Giả payload"),default)).Value!;
+        Assert.Null(chat.Proposal);
+        var foreign=Proposal("CreateRoomBookingSchedule",Closure([f.OtherRate.RoomId.ToString()]));
+        f.Handler.Responses.Enqueue(foreign);f.Handler.Responses.Enqueue(foreign);
+        Assert.Null((await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Khóa chi nhánh khác"),default)).Value!.Proposal);
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Ai_indefinite_lock_also_requires_acknowledgement_for_existing_orders()
+    {
+        await using var f=await Fixture.Create(Proposal("SetRoomBookingLock",new {roomReferences=new[]{"A"},isLocked=true,reason="Sửa chữa"}));
+        var order=await ExistingOrder(f);
+        var chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Khóa vô thời hạn A"),default)).Value!;
+        Assert.Single(JsonSerializer.SerializeToElement(chat.Proposal!.Payload).GetProperty("preparedRoomLock").GetProperty("conflicts").EnumerateArray());
+        Assert.Null((await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal.Id,default,true)).Error);
+        Assert.Equal(BookingStatus.Confirmed,(await f.Db.Bookings.AsNoTracking().SingleAsync(x=>x.Id==order.Id)).Status);
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Ai_rejects_missing_timezone_missing_reason_and_foreign_schedule_ids()
+    {
+        foreach (var (type,payload) in new (string,object)[] {
+            ("CreateRoomBookingSchedule",new {roomReferences=new[]{"A"},reason="Sửa chữa",start="2031-01-10T14:00:00",end="2031-01-10T17:00:00"}),
+            ("SetRoomBookingLock",new {roomReferences=new[]{"A"},isLocked=true}),
+            ("CreateRoomBookingSchedule",new {roomReferences=new[]{"A"},reason="Sửa chữa",repeatDaily=true,fromDate="2031-01-10",toDate="2031-01-11",windows=new object?[]{null}}),
+            ("EndRoomBookingSchedule",new {batchId=Guid.NewGuid()}) })
+        {
+            var reply=Proposal(type,payload);
+            await using var f=await Fixture.Create(reply,reply);
+            var chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Yêu cầu khóa phòng"),default)).Value!;
+            Assert.Null(chat.Proposal);
+            Assert.False(await f.Db.RoomBookingBlocks.AnyAsync(x=>x.PropertyId==f.Property.Id));
+            Assert.False(await f.Db.Rooms.AnyAsync(x=>x.PropertyId==f.Property.Id&&x.IsBookingLocked));
+        }
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Ai_batch_rolls_back_closure_when_later_configuration_is_stale()
+    {
+        await using var f=await Fixture.Create(Proposal("Batch",new {operations=new object[]{
+            new {type="CreateRoomBookingSchedule",payload=Closure()},new {type="ConfigureRoomRates",payload=Weekend}}}));
+        var chat=(await f.Service.ChatAsync(f.Property.Id,f.User.Id,new(null,"Khóa A và đổi giá"),default)).Value!;
+        Assert.NotNull(chat.Proposal);
+        f.Rates[0].Price=260000;await f.Db.SaveChangesAsync();
+        Assert.NotNull((await f.Service.ApplyAsync(f.Property.Id,f.User.Id,chat.Proposal!.Id,default)).Error);
+        Assert.False(await f.Db.RoomBookingBlocks.AnyAsync(x=>x.PropertyId==f.Property.Id));
     }
 
     private sealed class QueueHandler(params string[] responses) : HttpMessageHandler

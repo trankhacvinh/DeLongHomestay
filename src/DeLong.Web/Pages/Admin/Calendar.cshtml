@@ -229,11 +229,7 @@
                         </div>
                         <div class="field">
                             <label>Trạng thái</label>
-                            <select v-if="editor.mode === 'create'" v-model.number="form.status">
-                                <option v-bind:value="1">Giữ phòng</option>
-                                <option v-bind:value="2">Đã xác nhận</option>
-                                <option v-bind:value="0">Yêu cầu</option>
-                            </select>
+                            <input v-if="editor.mode === 'create'" value="Nhận đặt phòng ngay khi lưu" disabled />
                             <input v-else v-bind:value="statusText(selectedBooking?.status)" disabled />
                         </div>
                     </div>
@@ -293,7 +289,7 @@
                     <div v-if="selectedBooking.rateName"><span>Mức giá</span><strong>{{ selectedBooking.rateName }}</strong></div>
                     <div><span>Thời gian</span><strong>{{ dateTimeText(selectedBooking.checkInUtc) }} → {{ dateTimeText(selectedBooking.checkOutUtc) }}</strong></div>
                     <div><span>Tổng lượt đặt</span><strong>{{ money(selectedBooking.totalAmount) }}</strong></div>
-                    <div><span>Đã thanh toán</span><strong class="text-success">{{ money(selectedBooking.paidAmount) }}</strong></div>
+                    <div v-if="Number(selectedBooking.paidAmount) > 0"><span>Đã thanh toán</span><strong class="text-success">{{ money(selectedBooking.paidAmount) }}</strong></div>
                     <div><span>Còn lại</span><strong v-bind:class="selectedBooking.balanceAmount > 0 ? 'text-danger' : 'text-success'">{{ money(selectedBooking.balanceAmount) }}</strong></div>
                     <div v-if="selectedBooking.note"><span>Ghi chú</span><strong>{{ selectedBooking.note }}</strong></div>
                 </div>

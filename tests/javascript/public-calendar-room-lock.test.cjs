@@ -48,3 +48,21 @@ test('admission refresh checks every visible room and rebuilds when another room
     assert.equal(rooms[1].isBookingLocked, true);
     assert.equal(resets, 1);
 });
+
+test('scheduled closure refresh invalidates future calendar even when indefinite lock stays off', async () => {
+    const room = { id: 'a', isBookingLocked: false, bookingScheduleUpdatedAtUtc: null };
+    let resets = 0;
+    let revision = '2026-10-09T15:00:00Z';
+    const refresh = new Function('visibleRooms', 'document', 'state', 'fetchManyRooms', 'today', 'resetRoom', `let admissionRefreshing = false; ${refreshSource}; return refreshAdmission;`)(
+        () => [room], { hidden: false }, { requestVersion: 1 }, async () => [{ room, data: { isBookingLocked: false, bookingScheduleUpdatedAtUtc: revision } }],
+        '2026-10-09', () => resets++
+    );
+    await refresh();
+    assert.equal(resets, 1);
+    assert.equal(room.isBookingLocked, false);
+    await refresh();
+    assert.equal(resets, 1);
+    revision = '2026-10-09T16:00:00Z';
+    await refresh();
+    assert.equal(resets, 2);
+});

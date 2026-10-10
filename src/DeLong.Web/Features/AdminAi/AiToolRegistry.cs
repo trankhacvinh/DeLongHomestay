@@ -16,6 +16,7 @@ public sealed class AiToolRegistry
         new("operations_summary", "Tóm tắt booking, check-in/out và dọn phòng.", Set(AiAudience.Staff, AiAudience.Admin), RequiredPermission: "UseStaffAi"),
         new("payment_summary", "Tổng hợp tiền thực thu và hoàn tiền.", Set(AiAudience.Staff, AiAudience.Admin), RequiredPermission: "ViewFinance"),
         new("business_report", "Báo cáo quản trị theo kỳ và cơ sở.", Set(AiAudience.Admin), RequiredPermission: "UseAdminAi"),
+        new("room_lock_proposal", "Xem trạng thái khóa; đề xuất khóa/mở khóa và tạo/sửa/kết thúc lịch khóa để Admin duyệt.", Set(AiAudience.Admin), true, "ManageRooms"),
         new("configuration_proposal", "Tạo preview cấu hình để Admin duyệt.", Set(AiAudience.Admin), true, "UseAdminAi")
     ];
 

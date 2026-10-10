@@ -146,15 +146,15 @@
 
         (slot.occupied || []).forEach(rangeItem => {
             const segment = document.createElement('span');
-            segment.className = `public-room-availability-segment occupied ${rangeItem.kind === 'held' ? 'held' : 'booked'}`;
+            segment.className = `public-room-availability-segment occupied ${rangeItem.kind === 'locked' ? 'locked' : rangeItem.kind === 'held' ? 'held' : 'booked'}`;
             segment.setAttribute('style', segmentStyle(rangeItem.startUtc, rangeItem.endUtc, slot.startUtc, slot.endUtc));
-            segment.title = rangeItem.kind === 'held' ? 'Đang được khách khác giữ tạm' : 'Đã có khách đặt';
+            segment.title = rangeItem.kind === 'locked' ? 'Tạm khóa' : rangeItem.kind === 'held' ? 'Đang được khách khác giữ tạm' : 'Đã có khách đặt';
             track.appendChild(segment);
         });
 
         const caption = document.createElement('small');
         if (slot.state === 'available') caption.textContent = 'Còn trống';
-        else if (slot.state === 'occupied') caption.textContent = 'Đã đặt';
+        else if (slot.state === 'occupied') caption.textContent = (slot.occupied || []).some(x => x.kind === 'locked') ? 'Tạm khóa' : 'Đã đặt';
         else {
             const freeText = (slot.free || []).map(item => `${timeText(item.startUtc)}–${timeText(item.endUtc)}`).join(', ');
             caption.textContent = freeText ? `Còn ${freeText}` : 'Trống một phần';
