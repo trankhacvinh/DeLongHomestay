@@ -20,7 +20,7 @@ public sealed class BookingMoveService(
     BookingService bookingService)
 {
     private static readonly BookingStatus[] LockingStatuses =
-        [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
+        [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed];
 
     public async Task<(BookingDto? Booking, BookingOperationError? Error)> MoveAsync(
         Guid propertyId,

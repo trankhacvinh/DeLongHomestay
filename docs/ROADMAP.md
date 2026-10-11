@@ -177,3 +177,10 @@
 
 - [x] AI quản trị đề xuất khóa/mở khóa và tạo/sửa/kết thúc lịch khóa phòng; preview server, xác nhận đơn trùng, giữ đơn cũ và transaction/audit.
 - [ ] Nghiệm thu các câu lệnh khóa phòng với provider AI thật sau deploy.
+
+### Kiểm tra dữ liệu và AI tạo booking
+
+- [x] Source: danh sách đối soát, dedup, ghi chú/audit, cảnh báo nội bộ và quét định kỳ.
+- [x] Source: AI giải thích phát hiện; tạo booking qua preview/xác nhận và kiểm tra lại khóa/overlap.
+- [ ] Production: áp dụng AddDataQualityIssues bằng bundle mới; kiểm tra quyền chi nhánh và giao diện điện thoại.
+- Xem [DATA-QUALITY.md](DATA-QUALITY.md).

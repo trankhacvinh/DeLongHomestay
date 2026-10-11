@@ -21,7 +21,7 @@ public sealed class BookingService(
     BookingNotificationService? notificationService = null)
 {
     private const string BookingCodeUniqueConstraint = "i_x_bookings_property_id_code";
-    private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
+    private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed];
 
     public async Task<IReadOnlyList<BookingDto>> GetAllAsync(Guid propertyId, DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken cancellationToken = default)
     {

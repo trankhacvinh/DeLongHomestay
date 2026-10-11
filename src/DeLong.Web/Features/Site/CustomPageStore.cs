@@ -123,6 +123,17 @@ public sealed class CustomPageStore(AppDbContext db)
         return Read(row, await ResolveSiteSlugAsync(propertyId, ct));
     }
 
+    public async Task<IReadOnlyList<CustomPageDto>> GetPublicKnowledgePagesAsync(Guid propertyId, CancellationToken ct = default)
+    {
+        var rows = await db.Set<HomeSection>().AsNoTracking()
+            .Where(x => (x.PropertyId == null || x.PropertyId == propertyId) && x.Type == MetadataSectionType)
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.Id)
+            .ToListAsync(ct);
+        var siteSlug = await ResolveSiteSlugAsync(propertyId, ct);
+        return rows.Select(row => Read(row, row.PropertyId.HasValue ? siteSlug : null))
+            .Where(page => page.IsPublished).ToList();
+    }
+
     public async Task<CustomPageDto?> GetBySlugAsync(Guid? propertyId, string slug, bool publishedOnly, CancellationToken ct = default)
     {
         var normalized = NormalizeSlug(slug);

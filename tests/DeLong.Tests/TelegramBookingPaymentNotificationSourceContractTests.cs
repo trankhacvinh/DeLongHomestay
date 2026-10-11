@@ -49,7 +49,7 @@ public sealed class TelegramBookingPaymentNotificationSourceContractTests
         Assert.Contains("BookingStatus.Cancelled", source, StringComparison.Ordinal);
         Assert.Contains("BookingStatus.Confirmed", source, StringComparison.Ordinal);
         Assert.Contains("✅ Booking đã được tự động xác nhận sau thanh toán.", source, StringComparison.Ordinal);
-        Assert.Contains("private static readonly string[] InAppTypes = [BookingRequestedType, Pay2SLatePaymentType]", source, StringComparison.Ordinal);
+        Assert.Contains("private static readonly string[] InAppTypes = [BookingRequestedType, Pay2SLatePaymentType, \"data-quality\"]", source, StringComparison.Ordinal);
         Assert.Contains("Truncate(message, 4096)", source, StringComparison.Ordinal);
     }
 

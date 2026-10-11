@@ -64,9 +64,13 @@ public sealed class HousekeepingScheduleIntegrationTests
         Assert.Equal("Tiện nghi", restored.Category);
     }
 
-    [Fact]
+    [Theory]
+    [InlineData(1, true, 0)]
+    [InlineData(2, true, 15)]
+    [InlineData(4, true, 15)]
+    [InlineData(5, false, 15)]
     [Trait("Category", "Integration")]
-    public async Task Schedule_uses_real_booking_times_and_excludes_cancelled_bookings()
+    public async Task Schedule_combines_nearby_arrival_and_excludes_cancelled_bookings(int gapHours, bool combined, int afterMinutes)
     {
         var connectionString = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
@@ -85,7 +89,7 @@ public sealed class HousekeepingScheduleIntegrationTests
             SiteSlug = $"hk-{suffix}",
             TimeZoneId = "Asia/Ho_Chi_Minh",
             HousekeepingBeforeCheckInMinutes = 30,
-            HousekeepingAfterCheckOutMinutes = 15,
+            HousekeepingAfterCheckOutMinutes = afterMinutes,
             IsActive = true
         };
         var room = new Room
@@ -110,8 +114,11 @@ public sealed class HousekeepingScheduleIntegrationTests
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
         var targetDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone)).AddDays(5);
         var completed = Booking(property, room, customer, $"OUT-{suffix}", targetDate, 8, 9, BookingStatus.Completed, timeZone);
-        var arriving = Booking(property, room, customer, $"IN-{suffix}", targetDate, 11, 13, BookingStatus.Confirmed, timeZone);
-        var cancelled = Booking(property, room, customer, $"CAN-{suffix}", targetDate, 15, 17, BookingStatus.Cancelled, timeZone);
+        var arriving = Booking(property, room, customer, $"IN-{suffix}", targetDate, 9 + gapHours, 10 + gapHours, BookingStatus.Confirmed, timeZone);
+        completed.CheckOutUtc = completed.CheckOutUtc.AddMinutes(30);
+        arriving.CheckInUtc = arriving.CheckInUtc.AddMinutes(30);
+        arriving.CheckOutUtc = arriving.CheckOutUtc.AddMinutes(30);
+        var cancelled = Booking(property, room, customer, $"CAN-{suffix}", targetDate, 18, 19, BookingStatus.Cancelled, timeZone);
 
         db.AddRange(property, room, customer, completed, arriving, cancelled);
         await db.SaveChangesAsync();
@@ -120,21 +127,39 @@ public sealed class HousekeepingScheduleIntegrationTests
 
         Assert.NotNull(schedule);
         Assert.Equal(30, schedule!.Settings.BeforeCheckInMinutes);
-        Assert.Equal(15, schedule.Settings.AfterCheckOutMinutes);
+        Assert.Equal(afterMinutes, schedule.Settings.AfterCheckOutMinutes);
         var day = Assert.Single(schedule.Calendar);
-        Assert.Equal(3, day.Tasks.Count);
+        Assert.Equal(combined ? 2 : 3, day.Tasks.Count);
         var turnover = Assert.Single(day.Tasks, task => task.Kind == "turnover" && task.BookingId == completed.Id);
-        Assert.Equal("Giữ mở đèn", turnover.Action);
-        Assert.Equal(ToUtc(targetDate, new TimeOnly(9, 15), timeZone), turnover.AtUtc);
-        Assert.Contains("giữ mở đèn", turnover.Text, StringComparison.Ordinal);
-        var prepare = Assert.Single(day.Tasks, task => task.Kind == "prepare");
-        Assert.Equal(arriving.Id, prepare.BookingId);
-        Assert.Equal("Mở đèn", prepare.Action);
-        Assert.Equal(ToUtc(targetDate, new TimeOnly(10, 30), timeZone), prepare.AtUtc);
+        Assert.Equal(combined ? "Mở đèn" : "Tắt đèn", turnover.Action);
+        Assert.Equal(ToUtc(targetDate, new TimeOnly(9, 30), timeZone).AddMinutes(afterMinutes), turnover.AtUtc);
+        if (combined)
+        {
+            Assert.Equal($"Dọn phòng {room.Name} + Mở đèn", turnover.Text);
+            Assert.DoesNotContain(day.Tasks, task => task.Kind == "prepare");
+        }
+        else
+        {
+            var prepare = Assert.Single(day.Tasks, task => task.Kind == "prepare");
+            Assert.Equal(arriving.Id, prepare.BookingId);
+            Assert.Equal("Mở đèn", prepare.Action);
+            Assert.Equal(ToUtc(targetDate, new TimeOnly(9 + gapHours, 0), timeZone), prepare.AtUtc);
+        }
         var arrivingTurnover = Assert.Single(day.Tasks, task => task.Kind == "turnover" && task.BookingId == arriving.Id);
         Assert.Equal("Tắt đèn", arrivingTurnover.Action);
-        Assert.Equal(ToUtc(targetDate, new TimeOnly(13, 15), timeZone), arrivingTurnover.AtUtc);
+        Assert.Equal(ToUtc(targetDate, new TimeOnly(10 + gapHours, 30), timeZone).AddMinutes(afterMinutes), arrivingTurnover.AtUtc);
         Assert.DoesNotContain(day.Tasks, task => task.BookingId == cancelled.Id);
+
+        // A next-day arrival must not reappear as a separate preparation task.
+        completed.CheckInUtc = ToUtc(targetDate, new TimeOnly(21, 0), timeZone);
+        completed.CheckOutUtc = ToUtc(targetDate, new TimeOnly(23, 30), timeZone);
+        arriving.CheckInUtc = completed.CheckOutUtc.AddHours(gapHours);
+        arriving.CheckOutUtc = arriving.CheckInUtc.AddHours(1);
+        await db.SaveChangesAsync();
+        var overnight = await new HousekeepingService(db).GetScheduleAsync(property.Id, targetDate, 2);
+        var nextDayOnly = await new HousekeepingService(db).GetScheduleAsync(property.Id, targetDate.AddDays(1), 1);
+        Assert.Equal(combined ? 0 : 1, overnight!.Calendar.SelectMany(x => x.Tasks).Count(x => x.Kind == "prepare"));
+        Assert.Equal(combined ? 0 : 1, nextDayOnly!.Calendar.Single().Tasks.Count(x => x.Kind == "prepare"));
     }
 
     private static Booking Booking(

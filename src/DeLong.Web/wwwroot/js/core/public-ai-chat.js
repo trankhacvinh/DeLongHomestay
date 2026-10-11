@@ -10,7 +10,7 @@
     const draftStorageKey = `delong.publicAiDraft.${scope}`;
     const historyStorageKey = `delong.publicAiHistory.${scope}`;
     const currentStorageKey = `delong.publicAiCurrent.${scope}`;
-    const welcome = 'Xin chào! Tôi có thể giúp bạn tìm hiểu phòng, tiện nghi, giá và chính sách của cơ sở.';
+    const welcome = 'Xin chào! Tôi có thể tư vấn phòng, giá, FAQ, nội quy và chính sách. Bạn cũng có thể tra cứu đơn bằng mã đặt phòng và số điện thoại, hoặc dùng email để nhận thông tin qua hộp thư.';
     const storageGet = key => { try { return localStorage.getItem(key); } catch { return null; } };
     const storageSet = (key, value) => { try { localStorage.setItem(key, value); } catch { /* Chat vẫn hoạt động khi bộ nhớ trình duyệt bị khóa/đầy. */ } };
     const storageRemove = key => { try { localStorage.removeItem(key); } catch { /* no-op */ } };

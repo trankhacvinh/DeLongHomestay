@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using DeLong.Web.Features.PublicBooking;
 
 namespace DeLong.Web.Features.PublicAi;
 
@@ -11,19 +12,28 @@ public enum PublicAiIntent
     Pricing,
     BookingDraft,
     BookingLookup,
-    ChangeOrCancel
+    ChangeOrCancel,
+    Policy
 }
 
-public sealed record PublicAiQuestionContext(PublicAiIntent Intent, DateOnly? Date, string? BookingCode = null, string? Phone = null);
+public sealed record PublicAiQuestionContext(PublicAiIntent Intent, DateOnly? Date, string? BookingCode = null, string? Phone = null,
+    string? Email = null, bool EmailLookupRequested = false);
 
 public static partial class PublicAiQuestionAnalyzer
 {
     public static PublicAiQuestionContext Analyze(string message, DateOnly today)
     {
         var normalized = Normalize(message);
-        var intent = ContainsAny(normalized, "huy booking", "huy phong", "huy dat", "doi booking", "doi phong", "doi ngay", "thay doi booking")
+        var bareEmail = PublicBookingEmailLookupService.IsValidEmail(message.Trim());
+        var email = bareEmail ? message.Trim() : EmailPattern().Match(message) is { Success: true } emailMatch ? emailMatch.Value : null;
+        var emailLookup = ContainsAny(normalized, "email", "e-mail", "hop thu") ||
+                          bareEmail;
+        var intent = ContainsAny(normalized, "chinh sach", "noi quy", "dieu khoan", "faq", "cau hoi thuong gap")
+            ? PublicAiIntent.Policy
+            : ContainsAny(normalized, "huy booking", "huy phong", "huy dat", "doi booking", "doi phong", "doi ngay", "thay doi booking")
             ? PublicAiIntent.ChangeOrCancel
-            : ContainsAny(normalized, "tra booking", "tra cuu", "kiem tra booking", "trang thai booking", "booking cua toi")
+            : ContainsAny(normalized, "tra booking", "tra cuu", "kiem tra booking", "trang thai booking", "booking cua toi") ||
+              bareEmail
                 ? PublicAiIntent.BookingLookup
             : ContainsAny(normalized, "dat phong", "muon dat", "book phong", "giu phong")
                 ? PublicAiIntent.BookingDraft
@@ -35,7 +45,8 @@ public static partial class PublicAiQuestionAnalyzer
 
         return new PublicAiQuestionContext(intent, ParseDate(message, normalized, today),
             BookingCodePattern().Match(message) is { Success: true } code ? code.Value.ToUpperInvariant() : null,
-            PhonePattern().Match(message) is { Success: true } phone ? phone.Value : null);
+            PhonePattern().Match(message) is { Success: true } phone ? phone.Value : null,
+            email, emailLookup);
     }
 
     private static DateOnly? ParseDate(string original, string normalized, DateOnly today)
@@ -78,4 +89,7 @@ public static partial class PublicAiQuestionAnalyzer
 
     [GeneratedRegex(@"(?<!\d)(?:\+?84|0)(?:[ .-]?\d){8,10}(?!\d)")]
     private static partial Regex PhonePattern();
+
+    [GeneratedRegex(@"(?<![\w@.+-])[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?\.[A-Za-z]{2,}(?![\w@-])")]
+    private static partial Regex EmailPattern();
 }

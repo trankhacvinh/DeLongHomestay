@@ -172,7 +172,7 @@ public sealed class AvailabilityIntervalService(
     PricingService pricingService)
 {
     private static readonly BookingStatus[] LockingStatuses =
-        [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
+        [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed];
 
     public async Task<AdminRoomAvailabilityDto?> GetAdminAsync(
         Guid propertyId,

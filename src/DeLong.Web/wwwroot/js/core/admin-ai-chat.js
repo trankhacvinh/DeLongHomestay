@@ -22,6 +22,11 @@
     toggle?.addEventListener('click', open); close?.addEventListener('click', hide); backdrop?.addEventListener('click', hide);
     drawer.querySelectorAll('[data-ai-prompt]').forEach(button => button.addEventListener('click', () => { input.value = button.dataset.aiPrompt; form.requestSubmit(); }));
 
+    window.addEventListener('delong:ai-prompt', event => {
+        if (event.detail?.propertyId !== propertyId || typeof event.detail.prompt !== 'string') return;
+        open(); input.value = event.detail.prompt; input.focus();
+    });
+
     function resetMessages() {
         messages.replaceChildren();
         const welcome = document.createElement('div'); welcome.className = 'ai-chat-welcome';
@@ -109,6 +114,7 @@
         ConfigureRoomRates: 'Cấu hình giá và giờ cho nhiều phòng', UpdateRoom: 'Sức chứa và giá combo cả ngày',
         CreateRoomRate: 'Thêm khung giá', UpdateVoucher: 'Cập nhật voucher', UpdateSpecialPricingDay: 'Cập nhật ngày đặc biệt',
         UpdateRoomContent: 'Cập nhật nội dung và hướng dẫn phòng',
+        CreateBooking: 'Tạo lượt đặt phòng',
         UpdateSiteSettings: 'Cập nhật thông tin website và SEO',
         UpdateRoomRate: 'Cập nhật giá phòng', CreateVoucher: 'Tạo voucher',
         CreateRoomWithRates: 'Tạo phòng và bảng giá', CreateSpecialPricingDay: 'Tạo ngày đặc biệt',
@@ -116,17 +122,18 @@
         SetRoomBookingLock: 'Khóa/mở khóa vô thời hạn', CreateRoomBookingSchedule: 'Tạo lịch khóa phòng',
         UpdateRoomBookingSchedule: 'Sửa lịch khóa phòng', EndRoomBookingSchedule: 'Kết thúc lịch khóa phòng'
     };
+    Object.assign(fieldLabels, { preparedBooking:'Booking xem trước', roomName:'Phòng', timeZoneId:'Múi giờ', customerName:'Tên khách', customerPhone:'Số điện thoại', checkIn:'Nhận phòng', checkOut:'Trả phòng', roomAmount:'Tiền phòng', specialSurchargeAmount:'Phụ thu', status:'Trạng thái', source:'Nguồn', note:'Ghi chú' });
     function displayValue(key, value) {
         if (value === null || value === undefined) return key.toLowerCase().includes('limit') ? 'Không giới hạn' : '—';
         if (typeof value === 'boolean') return value ? 'Có' : 'Không';
-        if (['price', 'weekendPrice', 'fullDayPrice', 'weekendFullDayPrice'].includes(key)) return `${Number(value).toLocaleString('vi-VN')} đ`;
+        if (['price', 'weekendPrice', 'fullDayPrice', 'weekendFullDayPrice', 'roomAmount', 'specialSurchargeAmount', 'extraAmount', 'discountAmount'].includes(key)) return `${Number(value).toLocaleString('vi-VN')} đ`;
         if (key === 'discountPercent' || key === 'surchargePercent') return `${value}%`;
         if (key === 'appliesTo') return Number(value) === 7 ? 'Tất cả loại đặt' : ({ 1: 'Theo khung giờ', 2: 'Qua đêm', 4: 'Cả ngày' }[Number(value)] || String(value));
         if ((key.endsWith('Utc') || key.toLowerCase().includes('date')) && typeof value === 'string') {
             const date = new Date(value); if (!Number.isNaN(date.getTime())) return date.toLocaleString('vi-VN');
         }
         if (typeof value === 'object') return JSON.stringify(value);
-        return ({Active:'Hoạt động', Paused:'Tạm dừng', Draft:'Nháp', FullDayOnly:'Chỉ combo cả ngày',
+        return ({Confirmed:'Đã xác nhận', Held:'Giữ phòng', Active:'Hoạt động', Paused:'Tạm dừng', Draft:'Nháp', FullDayOnly:'Chỉ combo cả ngày',
             Normal:'Cho phép ca lẻ', Automatic:'Tự động', Weekday:'Ngày thường', Weekend:'Cuối tuần',
             TimeSlot:'Theo khung giờ', Overnight:'Qua đêm', Nightly:'Theo đêm'})[value] || String(value);
     }
@@ -163,6 +170,15 @@
         ,slug:'Đường dẫn phòng', shortDescription:'Mô tả ngắn', descriptionHtml:'Nội dung phòng', guestGuideHtml:'Hướng dẫn check-in', isPublished:'Đang công khai'
     });
     function roomLockChanges(payload) {
+        if (payload?.preparedBooking) {
+            const b = payload.preparedBooking;
+            return createPayloadTable({ 'Phòng':payload.roomName, 'Tên khách':b.customerName, 'Số điện thoại':b.customerPhone,
+                'Nhận phòng':roomLockTime(b.checkIn, payload.timeZoneId), 'Trả phòng':roomLockTime(b.checkOut, payload.timeZoneId),
+                'Khung giá':b.rateName || 'Giá thỏa thuận', 'Tiền phòng':`${Number(b.roomAmount).toLocaleString('vi-VN')}đ`,
+                'Phụ thu':`${Number(b.specialSurchargeAmount).toLocaleString('vi-VN')}đ`,
+                'Tổng':`${Number(b.roomAmount + b.specialSurchargeAmount).toLocaleString('vi-VN')}đ`,
+                'Trạng thái':'Đã xác nhận · chưa ghi nhận thanh toán', 'Nguồn':b.source, 'Ghi chú':b.note });
+        }
         if (payload?.preparedRoomLock) return [payload.preparedRoomLock];
         return (payload?.operations || []).flatMap(operation => roomLockChanges(operation.payload));
     }
@@ -209,6 +225,15 @@
         return container;
     }
     function createPreview(payload) {
+        if (payload?.preparedBooking) {
+            const b = payload.preparedBooking;
+            return createPayloadTable({ 'Phòng':payload.roomName, 'Tên khách':b.customerName, 'Số điện thoại':b.customerPhone,
+                'Nhận phòng':roomLockTime(b.checkIn, payload.timeZoneId), 'Trả phòng':roomLockTime(b.checkOut, payload.timeZoneId),
+                'Khung giá':b.rateName || 'Giá thỏa thuận', 'Tiền phòng':`${Number(b.roomAmount).toLocaleString('vi-VN')}đ`,
+                'Phụ thu':`${Number(b.specialSurchargeAmount).toLocaleString('vi-VN')}đ`,
+                'Tổng':`${Number(b.roomAmount + b.specialSurchargeAmount).toLocaleString('vi-VN')}đ`,
+                'Trạng thái':'Đã xác nhận · chưa ghi nhận thanh toán', 'Nguồn':b.source, 'Ghi chú':b.note });
+        }
         if (payload?.preparedRoomLock) return createRoomLockPreview(payload.preparedRoomLock);
         if (!Array.isArray(payload?.preparedChanges)) return createPayloadTable(payload);
         const container = document.createElement('div');
@@ -240,7 +265,7 @@
         const summary = document.createElement('p'); summary.textContent = proposal.summary;
         const actions = document.createElement('div'); actions.className = 'ai-proposal-actions';
         const reject = document.createElement('button'); reject.type = 'button'; reject.className = 'btn btn-light'; reject.textContent = 'Từ chối';
-        const apply = document.createElement('button'); apply.type = 'button'; apply.className = 'btn btn-primary'; apply.textContent = 'Xác nhận áp dụng';
+        const apply = document.createElement('button'); apply.type = 'button'; apply.className = 'btn btn-primary'; apply.textContent = proposal.payload?.preparedBooking ? 'Xác nhận tạo đơn' : 'Xác nhận áp dụng';
         card.append(title, summary);
         const operations = proposal.payload?.operations;
         if (Array.isArray(operations)) operations.forEach((operation, index) => {
@@ -262,12 +287,19 @@
         if (isPending) actions.append(reject, apply);
         else actions.textContent = ({ Applied:'Đã áp dụng.', Rejected:'Đã từ chối.', Expired:'Đã hết hạn.', Failed:'Áp dụng thất bại.' }[proposal.status]
             || ({ 1:'Đã áp dụng.', 2:'Đã từ chối.', 3:'Đã hết hạn.', 4:'Áp dụng thất bại.' }[proposal.status]) || 'Đã xử lý.');
+        function bookingLink(payload) {
+            if (!payload?.createdBookingId) return;
+            const link = document.createElement('a'); link.className = 'btn btn-light';
+            link.href = `/Admin/Bookings/Index?propertyId=${encodeURIComponent(propertyId)}&bookingId=${encodeURIComponent(payload.createdBookingId)}`;
+            link.textContent = `Xem đơn ${payload.createdBookingCode || ''}`; actions.append(link);
+        }
+        if (!isPending) bookingLink(proposal.payload);
         card.append(actions); messages.append(card); messages.scrollTop = messages.scrollHeight;
         const handle = async (action, button) => {
             if (action === 'apply' && needsAcknowledgement && !acknowledgement.checked) return;
             acknowledgement.disabled = true;
             apply.disabled = reject.disabled = true; button.textContent = action === 'apply' ? 'Đang áp dụng...' : 'Đang xử lý...';
-            try { await DeLongApi.post(`/api/admin/properties/${propertyId}/ai/proposals/${proposal.id}/${action}`, action === 'apply' ? { acknowledgeExistingBookings: acknowledgement.checked } : {}); card.classList.add(action === 'apply' ? 'applied' : 'rejected'); actions.textContent = action === 'apply' ? 'Đã áp dụng thành công.' : 'Đã từ chối.'; }
+            try { const result = await DeLongApi.post(`/api/admin/properties/${propertyId}/ai/proposals/${proposal.id}/${action}`, action === 'apply' ? { acknowledgeExistingBookings: acknowledgement.checked } : {}); card.classList.add(action === 'apply' ? 'applied' : 'rejected'); actions.textContent = action === 'apply' ? 'Đã áp dụng thành công.' : 'Đã từ chối.'; if (action === 'apply') bookingLink(result?.payload); }
             catch (error) { addMessage('assistant', error.message); actions.textContent = 'Chưa áp dụng được. Hãy yêu cầu tạo preview mới để kiểm tra dữ liệu hiện tại.'; }
         };
         if (isPending) {

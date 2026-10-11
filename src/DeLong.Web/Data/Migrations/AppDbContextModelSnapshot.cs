@@ -1487,6 +1487,108 @@ namespace DeLong.Web.Data.Migrations
                     b.ToTable("customer_account_terms_acceptances");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.DataQualityIssue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("EvidenceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("evidence_hash");
+
+                    b.Property<string>("EvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("evidence_json");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("fingerprint");
+
+                    b.Property<bool>("IsDetected")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_detected");
+
+                    b.Property<DateTime>("LastCheckedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_checked_at_utc");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<Guid?>("RelatedBookingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("related_booking_id");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("review_note");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at_utc");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by_user_id");
+
+                    b.Property<string>("Rule")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("rule");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("severity");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("character varying(240)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_data_quality_issues");
+
+                    b.HasIndex("PropertyId", "Fingerprint")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_data_quality_issues_property_id_fingerprint");
+
+                    b.HasIndex("PropertyId", "IsDetected", "Status")
+                        .HasDatabaseName("i_x_data_quality_issues_property_id_is_detected_status");
+
+                    b.ToTable("data_quality_issues");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Expense", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5133,6 +5235,18 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Property");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.DataQualityIssue", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_data_quality_issues_properties_property_id");
+
+                    b.Navigation("Property");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Expense", b =>

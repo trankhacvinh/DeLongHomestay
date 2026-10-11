@@ -21,7 +21,7 @@ public sealed partial class AdminAiService
     {
         try
         {
-            if (operation.Payload.TryGetProperty("preparedChanges", out _) || operation.Payload.TryGetProperty("preparedRoomLock", out _))
+            if (operation.Payload.TryGetProperty("preparedChanges", out _) || operation.Payload.TryGetProperty("preparedRoomLock", out _) || operation.Payload.TryGetProperty("preparedBooking", out _))
                 return (null, "Bản xem trước chỉ được tạo bởi server; hãy gửi thông tin thao tác cần thực hiện.");
             if (operation.Summary.Length > 1000) return (null, "Tóm tắt preview tối đa 1.000 ký tự.");
             if (operation.Type == AiProposalType.UpdateRoomRate)
@@ -48,6 +48,7 @@ public sealed partial class AdminAiService
                 var targets = new HashSet<string>();
                 foreach (var item in batch.Operations)
                 {
+                    if (item.Type == AiProposalType.CreateBooking) return (null, "Tạo từng booking trong đề xuất riêng để kiểm tra và duyệt rõ ràng.");
                     if (item.Type == AiProposalType.Batch) return (null, "Không cho phép Batch lồng nhau.");
                     var result = await PrepareOperationAsync(propertyId, new(item.Type, operation.Summary, item.Payload), ct);
                     if (result.Error is not null) return result;
@@ -59,6 +60,7 @@ public sealed partial class AdminAiService
                 }
                 return (operation with { Payload = JsonSerializer.SerializeToElement(new BatchProposal(prepared), Json) }, null);
             }
+            if (operation.Type == AiProposalType.CreateBooking) return await PrepareBookingAsync(propertyId, operation, ct);
             if (IsRoomLockOperation(operation.Type)) return await PrepareRoomLockAsync(propertyId, operation, ct);
             if (operation.Type is not (AiProposalType.ConfigureRoomRates or AiProposalType.UpdateRoom or
                 AiProposalType.CreateRoomRate or AiProposalType.UpdateVoucher or AiProposalType.UpdateSpecialPricingDay or

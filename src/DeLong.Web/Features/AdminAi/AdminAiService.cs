@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
@@ -26,7 +27,8 @@ public sealed partial class AdminAiService(
     AuditService auditService,
     AiAccessGateway accessGateway,
     ILogger<AdminAiService>? logger = null,
-    RoomBookingBlockService? roomBookingBlockService = null)
+    RoomBookingBlockService? roomBookingBlockService = null,
+    DeLong.Web.Features.Bookings.BookingService? bookingService = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -58,7 +60,9 @@ public sealed partial class AdminAiService(
             .Select(x => new AiProviderAttachment(x.FileName, x.ContentType, x.Content, x.ExtractedText)).ToListAsync(ct);
         if (attachments.Count != attachmentIds.Length) return (null, "Có tệp đính kèm không hợp lệ hoặc không thuộc cuộc trò chuyện này.");
 
-        var snapshot = await BuildSafeSnapshotAsync(propertyId, ct);
+        var qualityMatch = Regex.Match(text, @"mục kiểm tra dữ liệu\s+([0-9a-f-]{36})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        Guid? requestedQualityIssue = qualityMatch.Success && Guid.TryParse(qualityMatch.Groups[1].Value, out var issueId) ? issueId : null;
+        var snapshot = await BuildSafeSnapshotAsync(propertyId, ct, requestedQualityIssue);
         var history = await db.AiMessages.AsNoTracking().Where(x => x.ConversationId == conversation.Id)
             .OrderByDescending(x => x.CreatedAtUtc).ThenByDescending(x => x.Id).Take(40).OrderBy(x => x.CreatedAtUtc).ThenBy(x => x.Id)
             .Select(x => new { x.Role, x.Content }).ToListAsync(ct);
@@ -292,7 +296,7 @@ public sealed partial class AdminAiService(
         return messages.Select(x => x.ProposalId is { } id && proposals.TryGetValue(id, out var proposal) ? x with { Proposal = ToDto(proposal) } : x).ToArray();
     }
 
-    private async Task<object> BuildSafeSnapshotAsync(Guid propertyId, CancellationToken ct)
+    private async Task<object> BuildSafeSnapshotAsync(Guid propertyId, CancellationToken ct, Guid? requestedQualityIssue = null)
     {
         var now = DateTime.UtcNow;
         var property = await db.Properties.AsNoTracking().Where(x => x.Id == propertyId).Select(x => new { x.Name, x.Code, x.TimeZoneId }).SingleAsync(ct);
@@ -338,7 +342,10 @@ public sealed partial class AdminAiService(
                     .Select(x => new { x.StartUtc, x.EndUtc })
             })
         });
-        return new { property, rooms, roomBookingSchedules, todayBookings, monthSummary = monthSummary ?? new { Count = 0, Revenue = 0m },
+        var qualityIssues = await db.DataQualityIssues.AsNoTracking().Where(x => x.PropertyId == propertyId && (x.IsDetected || x.Id == requestedQualityIssue))
+            .OrderByDescending(x => x.Id == requestedQualityIssue).ThenBy(x => x.Severity == "High" ? 0 : 1).ThenByDescending(x => x.UpdatedAtUtc).Take(50)
+            .Select(x => new { x.Id, x.Title, x.Rule, x.Status, x.IsDetected, x.EvidenceJson, x.ReviewNote, x.LastCheckedAtUtc }).ToListAsync(ct);
+        return new { property, rooms, roomBookingSchedules, qualityIssues, todayBookings, monthSummary = monthSummary ?? new { Count = 0, Revenue = 0m },
             finance = new {
                 today = new { Receipts = todayPayments?.Receipts ?? 0m, Refunds = todayPayments?.Refunds ?? 0m, Expenses = todayExpenses },
                 month = new { Receipts = monthPayments?.Receipts ?? 0m, Refunds = monthPayments?.Refunds ?? 0m, Expenses = monthExpenses }
@@ -350,6 +357,7 @@ public sealed partial class AdminAiService(
 
     private async Task<string?> ExecuteProposalAsync(AiChangeProposal proposal, Guid userId, CancellationToken ct, bool acknowledgeExistingBookings = false)
     {
+        if (proposal.Type == AiProposalType.CreateBooking) return await ExecuteBookingProposalAsync(proposal, userId, ct);
         if (IsRoomLockOperation(proposal.Type)) return await ExecuteRoomLockAsync(proposal, userId, acknowledgeExistingBookings, ct);
         if (proposal.Type is AiProposalType.ConfigureRoomRates or AiProposalType.UpdateRoom or AiProposalType.CreateRoomRate or AiProposalType.UpdateRoomContent
             or AiProposalType.UpdateVoucher or AiProposalType.UpdateSpecialPricingDay or AiProposalType.UpdatePricingSettings or AiProposalType.UpdateSiteSettings)

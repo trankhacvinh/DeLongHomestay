@@ -273,6 +273,7 @@
         const colors = state.colors;
         if (range?.isRoomBlock) return { key: 'locked', color: '#64748B', label: 'Tạm khóa' };
         if (Number(range?.balanceAmount || 0) > 0) return { key: 'unpaid', color: colors.unpaidColor || '#C94B4B', label: 'Chưa thanh toán hết' };
+        if (Number(range?.status) === 4) return { key: 'completed', color: '#7a8582', label: 'Hoàn tất' };
         if (range?.hasSpecialRequest === true) return { key: 'special', color: colors.specialRequestColor || '#7C5CC4', label: 'Có yêu cầu đặc biệt' };
         if (range?.isFlexibleTime === true) return { key: 'flexible', color: colors.flexibleTimeColor || '#D6A72C', label: 'Giờ linh động' };
         if (range?.isMixedSlot === true) return { key: 'mixed', color: colors.mixedSlotColor || '#287D9B', label: 'Booking nhiều khung' };
@@ -349,6 +350,7 @@
         const slotEnd = new Date(slot.endUtc).getTime();
         return app.bookings
             .filter(booking => booking.roomId === room.id && Number(booking.status) === 4 &&
+                !(slot.occupied || []).some(range => range.bookingId === booking.id) &&
                 new Date(booking.checkInUtc).getTime() < slotEnd && slotStart < new Date(booking.checkOutUtc).getTime())
             .map(booking => ({
                 bookingId: booking.id,

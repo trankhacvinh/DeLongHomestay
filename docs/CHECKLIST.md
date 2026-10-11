@@ -47,6 +47,11 @@
 - [x] Booking status/rules.
 - [x] Create booking qua API.
 - [x] C# conflict check.
+- [x] Đơn Completed giữ khoảng đã đặt trong lịch khách và guard tạo/sửa/chuyển/import; kiểm thử PostgreSQL gồm hoàn tất sớm, qua đêm và buffer dọn phòng.
+- [x] Ô lịch khách bỏ giá riêng, giữ tổng tiền khi chọn giờ.
+- [x] Lịch V1/V2 cho thu bổ sung khi sửa đơn và trong chi tiết đơn hoàn tất; append Payment, tải lại số dư và làm mới lịch.
+- [ ] UAT thu bổ sung trên di động sau deploy; đối soát đơn BKYZEWBEVV trước khi ghi nhận tiền thật.
+- [ ] UAT bản sửa Completed và lịch không hiện giá trên production sau deploy.
 - [x] PostgreSQL overlap guard cho Held/Confirmed/CheckedIn.
 - [x] Conflict API trả `409 ProblemDetails`.
 - [x] Calendar Razor + Vue đọc dữ liệu server.
@@ -89,3 +94,10 @@
 - [ ] UAT: vùng khóa trên mobile, khách đặt ngoài vùng khóa, QR/đơn cũ vẫn hoạt động.
 
 - [ ] AI khóa phòng: deploy cùng migration lịch khóa, thử provider thật, preview/checkbox đơn trùng và giờ chi nhánh trên mobile; xác nhận đơn/payment cũ giữ nguyên.
+
+### Kiểm tra dữ liệu / AI tạo booking (2026-10-11)
+
+- [x] Migration chỉ thêm bảng phát hiện, không sửa tiền/đơn cũ.
+- [x] Dedup quét, reopen khi đổi bằng chứng, audit và ghi nhận xử lý có lý do.
+- [x] Phân quyền Admin/Manager + chi nhánh và antiforgery; AI quản trị duyệt trước tạo booking.
+- [ ] Production migration/deploy + UAT browser/mobile, provider AI thật. Xem DATA-QUALITY.md.

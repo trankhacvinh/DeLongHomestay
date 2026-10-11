@@ -17,7 +17,7 @@ public sealed class BookingNotificationService(
     private const string BookingCheckedInType = "booking-checked-in";
     private const string BookingCompletedType = "booking-completed";
     private const string Pay2SLatePaymentType = "pay2s-paid-after-expiry";
-    private static readonly string[] InAppTypes = [BookingRequestedType, Pay2SLatePaymentType];
+    private static readonly string[] InAppTypes = [BookingRequestedType, Pay2SLatePaymentType, "data-quality"];
 
     public async Task NotifyLatePay2SPaymentAsync(Guid propertyId, Guid bookingId, decimal amount, CancellationToken cancellationToken = default, string provider = "Pay2S")
     {
@@ -256,11 +256,11 @@ public sealed class BookingNotificationService(
         }
     }
 
-    public async Task<NotificationFeedDto> GetFeedAsync(Guid propertyId, Guid userId, int take = 20, CancellationToken cancellationToken = default)
+    public async Task<NotificationFeedDto> GetFeedAsync(Guid propertyId, Guid userId, int take = 20, CancellationToken cancellationToken = default, bool includeDataQuality = false)
     {
         take = Math.Clamp(take, 1, 50);
         var items = await db.Set<PropertyNotification>().AsNoTracking()
-            .Where(x => x.PropertyId == propertyId && InAppTypes.Contains(x.Type))
+            .Where(x => x.PropertyId == propertyId && InAppTypes.Contains(x.Type) && (includeDataQuality || x.Type != "data-quality"))
             .OrderByDescending(x => x.CreatedAtUtc)
             .Take(take)
             .Select(x => new NotificationItemDto(
@@ -274,7 +274,7 @@ public sealed class BookingNotificationService(
                 x.Reads.Any(r => r.UserId == userId)))
             .ToListAsync(cancellationToken);
         var unreadCount = await db.Set<PropertyNotification>().AsNoTracking()
-            .CountAsync(x => x.PropertyId == propertyId && InAppTypes.Contains(x.Type) && !x.Reads.Any(r => r.UserId == userId), cancellationToken);
+            .CountAsync(x => x.PropertyId == propertyId && InAppTypes.Contains(x.Type) && (includeDataQuality || x.Type != "data-quality") && !x.Reads.Any(r => r.UserId == userId), cancellationToken);
         return new NotificationFeedDto(items, unreadCount);
     }
 

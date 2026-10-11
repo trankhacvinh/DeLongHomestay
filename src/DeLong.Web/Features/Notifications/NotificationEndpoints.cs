@@ -26,7 +26,7 @@ public static class NotificationEndpoints
             var userId = GetUserId(user);
             return userId is null
                 ? Results.Unauthorized()
-                : Results.Ok(await service.GetFeedAsync(propertyId, userId.Value, take ?? 20, cancellationToken));
+                : Results.Ok(await service.GetFeedAsync(propertyId, userId.Value, take ?? 20, cancellationToken, user.IsInRole("Admin") || user.IsInRole("Manager")));
         });
 
         group.MapPost("/{notificationId:guid}/read", async (

@@ -101,12 +101,12 @@ public sealed class CalendarV2SourceContractTests
         Assert.Contains("form.initialPaymentAmount", calendarV2, StringComparison.Ordinal);
         Assert.Contains("form.initialPaymentMethod", calendarV2, StringComparison.Ordinal);
         Assert.Contains("/bookings/${booking.id}/payments", script, StringComparison.Ordinal);
-        Assert.Contains("initialPayment > this.totalAmount", script, StringComparison.Ordinal);
+        Assert.Contains("initialPayment > this.paymentLimit", script, StringComparison.Ordinal);
     }
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void Completed_bookings_remain_visible_without_becoming_occupancy_locks()
+    public void Completed_bookings_remain_visible_and_preserve_occupancy()
     {
         var calendarModel = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/Calendar.cshtml.cs");
         var calendarV2Model = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/CalendarV2.cshtml.cs");
@@ -119,8 +119,7 @@ public sealed class CalendarV2SourceContractTests
         Assert.Contains("[0, 1, 2, 3, 4]", calendarScript, StringComparison.Ordinal);
         Assert.Contains("completedBookingsForSlot", calendarV2Script, StringComparison.Ordinal);
         Assert.Contains("Number(booking.status) === 4", calendarV2Script, StringComparison.Ordinal);
-        Assert.Contains("[BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn]", availability, StringComparison.Ordinal);
-        Assert.DoesNotContain("BookingStatus.Completed];", availability, StringComparison.Ordinal);
+        Assert.Contains("[BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed]", availability, StringComparison.Ordinal);
     }
 
     private static string ReadRepositoryFile(string relativePath)

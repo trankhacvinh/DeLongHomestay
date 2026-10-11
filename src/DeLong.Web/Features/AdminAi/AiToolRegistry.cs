@@ -17,6 +17,8 @@ public sealed class AiToolRegistry
         new("payment_summary", "Tổng hợp tiền thực thu và hoàn tiền.", Set(AiAudience.Staff, AiAudience.Admin), RequiredPermission: "ViewFinance"),
         new("business_report", "Báo cáo quản trị theo kỳ và cơ sở.", Set(AiAudience.Admin), RequiredPermission: "UseAdminAi"),
         new("room_lock_proposal", "Xem trạng thái khóa; đề xuất khóa/mở khóa và tạo/sửa/kết thúc lịch khóa để Admin duyệt.", Set(AiAudience.Admin), true, "ManageRooms"),
+        new("data_quality", "Giải thích phát hiện dữ liệu và hướng dẫn đối soát thủ công, không tự sửa tiền/đơn.", Set(AiAudience.Admin), RequiredPermission: "ManageDataQuality"),
+        new("booking_proposal", "Tạo booking từ nội dung thành bản xem trước; duyệt mới tạo, kiểm tra trùng lịch và khóa phòng.", Set(AiAudience.Admin), true, "ManageBookings"),
         new("configuration_proposal", "Tạo preview cấu hình để Admin duyệt.", Set(AiAudience.Admin), true, "UseAdminAi")
     ];
 

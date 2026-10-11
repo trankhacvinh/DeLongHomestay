@@ -105,7 +105,7 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
         var endUtc = ToUtc(from.AddDays(days).ToDateTime(TimeOnly.MinValue), timeZone);
         var beforeMinutes = propertySettings.HousekeepingBeforeCheckInMinutes;
         var afterMinutes = propertySettings.HousekeepingAfterCheckOutMinutes;
-        var queryStartUtc = startUtc.AddMinutes(-afterMinutes);
+        var queryStartUtc = startUtc.AddHours(-4).AddMinutes(-afterMinutes);
         var queryEndUtc = endUtc.AddMinutes(Math.Max(beforeMinutes, 240));
 
         var rows = await db.Bookings.AsNoTracking()
@@ -125,6 +125,22 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
                 x.Status))
             .ToListAsync(cancellationToken);
 
+        var combinedArrivals = new HashSet<Guid>();
+        var combinedTurnovers = new HashSet<Guid>();
+        foreach (var row in rows.OrderByDescending(x => x.CheckOutUtc))
+        {
+            var nextBooking = rows
+                .Where(x => x.RoomId == row.RoomId && x.Id != row.Id &&
+                            x.Status != BookingStatus.Completed && x.CheckInUtc >= row.CheckOutUtc)
+                .OrderBy(x => x.CheckInUtc)
+                .ThenBy(x => x.Id)
+                .FirstOrDefault();
+            if (nextBooking is not null && nextBooking.CheckInUtc <= row.CheckOutUtc.AddHours(4) &&
+                row.CheckOutUtc.AddMinutes(afterMinutes) <= nextBooking.CheckInUtc &&
+                combinedArrivals.Add(nextBooking.Id))
+                combinedTurnovers.Add(row.Id);
+        }
+
         var daysResult = new List<HousekeepingScheduleDayDto>(days);
         for (var offset = 0; offset < days; offset++)
         {
@@ -135,7 +151,8 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
             {
                 var prepareAtUtc = row.CheckInUtc.AddMinutes(-beforeMinutes);
                 var checkInLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(prepareAtUtc, DateTimeKind.Utc), timeZone);
-                if (row.Status != BookingStatus.Completed && DateOnly.FromDateTime(checkInLocal) == date)
+                if (row.Status != BookingStatus.Completed && !combinedArrivals.Contains(row.Id) &&
+                    DateOnly.FromDateTime(checkInLocal) == date)
                 {
                     tasks.Add(ToTask(row, prepareAtUtc, "prepare", "Mở đèn", $"dọn phòng {row.RoomName} mở đèn"));
                 }
@@ -144,18 +161,14 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
                 var checkOutLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(turnoverAtUtc, DateTimeKind.Utc), timeZone);
                 if (DateOnly.FromDateTime(checkOutLocal) != date) continue;
 
-                var nextBooking = rows
-                    .Where(x => x.RoomId == row.RoomId && x.Id != row.Id && x.Status != BookingStatus.Completed && x.CheckInUtc >= row.CheckOutUtc)
-                    .OrderBy(x => x.CheckInUtc)
-                    .FirstOrDefault();
-                var keepLightsOn = nextBooking is not null && nextBooking.CheckInUtc <= row.CheckOutUtc.AddHours(4);
+                var keepLightsOn = combinedTurnovers.Contains(row.Id);
                 tasks.Add(ToTask(
                     row,
                     turnoverAtUtc,
                     "turnover",
-                    keepLightsOn ? "Giữ mở đèn" : "Tắt đèn",
+                    keepLightsOn ? "Mở đèn" : "Tắt đèn",
                     keepLightsOn
-                        ? $"dọn phòng {row.RoomName} giữ mở đèn"
+                        ? $"Dọn phòng {row.RoomName} + Mở đèn"
                         : $"dọn phòng {row.RoomName} tắt đèn"));
             }
 

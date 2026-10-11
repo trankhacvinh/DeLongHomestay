@@ -13,6 +13,7 @@ public sealed class AppDbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
+    public DbSet<DataQualityIssue> DataQualityIssues => Set<DataQualityIssue>();
     public DbSet<Property> Properties => Set<Property>();
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<RoomBookingBlock> RoomBookingBlocks => Set<RoomBookingBlock>();
@@ -74,6 +75,20 @@ public sealed class AppDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<DataQualityIssue>(entity =>
+        {
+            entity.Property(x => x.Fingerprint).HasMaxLength(160);
+            entity.Property(x => x.Rule).HasMaxLength(50);
+            entity.Property(x => x.Severity).HasMaxLength(20);
+            entity.Property(x => x.Title).HasMaxLength(240);
+            entity.Property(x => x.Status).HasMaxLength(20);
+            entity.Property(x => x.ReviewNote).HasMaxLength(1000);
+            entity.Property(x => x.EvidenceHash).HasMaxLength(64);
+            entity.HasIndex(x => new { x.PropertyId, x.Fingerprint }).IsUnique();
+            entity.HasIndex(x => new { x.PropertyId, x.IsDetected, x.Status });
+            entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
+        });
 
         modelBuilder.Entity<PropertyAiProfile>(entity =>
         {

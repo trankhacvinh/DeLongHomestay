@@ -8,7 +8,7 @@ function fixture() {
     const rooms = [{ id: 'open', name: 'Open', isBookingLocked: false }, { id: 'locked', name: 'Locked', isBookingLocked: true }];
     const state = { multi: true, selected: [] };
     const render = new Function('document', 'state', 'roomById', 'isSelected', 'slotKey', 'timeLabel', 'money', 'dateLabel', 'selectSlot', `${renderSource}; return renderSlotButton;`)(
-        { createElement: () => ({ classList: { add() {} }, setAttribute() {}, listeners: [], addEventListener(type, callback) { this.listeners.push({ type, callback }); } }) },
+        { createElement: () => ({ classList: { add() {} }, attributes: {}, setAttribute(name, value) { this.attributes[name] = value; }, listeners: [], addEventListener(type, callback) { this.listeners.push({ type, callback }); } }) },
         state, id => rooms.find(r => r.id === id), () => false, (date, slot) => date + slot.rateId, x => x, x => x, x => x, () => {}
     );
     return { render, rooms };
@@ -65,4 +65,18 @@ test('scheduled closure refresh invalidates future calendar even when indefinite
     revision = '2026-10-09T16:00:00Z';
     await refresh();
     assert.equal(resets, 2);
+});
+
+
+test('calendar cells describe availability without prices in text, tooltip or accessible label', () => {
+    const { render } = fixture();
+    const button = render({ date: '2026-10-07', roomId: 'open' }, {
+        state: 'available', rateName: 'Morning', price: 250000,
+        startUtc: '10:30', endUtc: '13:30', bookableStartUtc: '10:30', bookableEndUtc: '13:30'
+    }, null);
+    assert.match(button.innerHTML, /Còn trống/);
+    assert.doesNotMatch(button.innerHTML, /small|250000/);
+    assert.doesNotMatch(button.title, /250000/);
+    assert.doesNotMatch(button.attributes['aria-label'], /250000/);
+    assert.equal(button.listeners.length, 1);
 });

@@ -33,11 +33,11 @@ public sealed class PublicAiQuestionAnalyzerTests
     }
 
     [Fact]
-    public void Analyze_keeps_policy_question_general()
+    public void Analyze_recognizes_policy_questions()
     {
         var result = PublicAiQuestionAnalyzer.Analyze("Chính sách nhận phòng là gì?", Today);
 
-        Assert.Equal(PublicAiIntent.General, result.Intent);
+        Assert.Equal(PublicAiIntent.Policy, result.Intent);
         Assert.Null(result.Date);
     }
 
@@ -58,5 +58,42 @@ public sealed class PublicAiQuestionAnalyzerTests
     public void Analyze_never_treats_change_or_cancel_as_a_mutation(string message)
     {
         Assert.Equal(PublicAiIntent.ChangeOrCancel, PublicAiQuestionAnalyzer.Analyze(message, Today).Intent);
+    }
+
+    [Theory]
+    [InlineData("Tra cứu bằng email Guest+booking@example.com", "Guest+booking@example.com")]
+    [InlineData("guest@example.com", "guest@example.com")]
+    public void Analyze_extracts_email_for_lookup(string message, string expectedEmail)
+    {
+        var result = PublicAiQuestionAnalyzer.Analyze(message, Today);
+        Assert.Equal(PublicAiIntent.BookingLookup, result.Intent);
+        Assert.Equal(expectedEmail, result.Email);
+        Assert.True(result.EmailLookupRequested);
+    }
+
+    [Theory]
+    [InlineData("Chính sách hủy phòng thế nào?")]
+    [InlineData("Nội quy ở đây là gì?")]
+    [InlineData("FAQ có gì?")]
+    public void Policy_questions_are_not_booking_changes(string message)
+    {
+        Assert.Equal(PublicAiIntent.Policy, PublicAiQuestionAnalyzer.Analyze(message, Today).Intent);
+    }
+
+    [Fact]
+    public void Email_lookup_without_address_requests_clarification()
+    {
+        var result = PublicAiQuestionAnalyzer.Analyze("Tra cứu bằng email", Today);
+        Assert.Equal(PublicAiIntent.BookingLookup, result.Intent);
+        Assert.True(result.EmailLookupRequested);
+        Assert.Null(result.Email);
+    }
+
+    [Fact]
+    public void Invalid_email_is_not_replaced_with_a_valid_suffix()
+    {
+        var result = PublicAiQuestionAnalyzer.Analyze("Tra cứu bằng email bad@@guest@example.com", Today);
+        Assert.Equal(PublicAiIntent.BookingLookup, result.Intent);
+        Assert.Null(result.Email);
     }
 }

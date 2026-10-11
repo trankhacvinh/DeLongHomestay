@@ -15,7 +15,7 @@ namespace DeLong.Web.Features.PublicBooking;
 public sealed class PublicBookingService(AppDbContext db, BookingService bookingService, PublicPropertyResolver? resolver = null, PricingService? pricingService = null)
 {
     private readonly PublicPropertyResolver publicPropertyResolver = resolver ?? new PublicPropertyResolver(db);
-    private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn];
+    private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed];
     private const int TurnoverMinutes = 30;
     private sealed record BookingConflictWindow(Guid RoomId, DateTime CheckInUtc, DateTime CheckOutUtc);
     private sealed class ResolvedPublicSlot(

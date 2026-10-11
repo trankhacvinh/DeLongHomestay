@@ -431,11 +431,11 @@
             const stateText = room?.isBookingLocked ? 'Tạm ngừng nhận đặt phòng' : selectedTime || (slot.state === 'available' ? (Number(day.bookingMode) === 1 ? 'Chọn cả ngày' : 'Còn trống') : slot.state === 'partial' && canBook ? adjustedTime : hasRoomBlock ? 'Tạm khóa' : 'Đã có khách');
             const selectedSchedule = selected && canBook
                 ? `<span class="public-v2-selected-schedule">${selectedLabels.map(label => `<b>${label}</b>`).join('')}</span>`
-                : `<span>${stateText}</span><small>${money(slot.price)}</small>`;
+                : `<span>${stateText}</span>`;
             button.innerHTML = selectedSchedule;
             const roomName = state.multi ? `${roomById(day.roomId)?.name || ''}, ` : '';
-            button.title = `${roomName}${stateText} · ${money(slot.price)}`;
-            button.setAttribute('aria-label', `${roomName}${dateLabel(day.date)}, ${slot.rateName}, ${stateText}, ${money(slot.price)}`);
+            button.title = `${roomName}${stateText}`;
+            button.setAttribute('aria-label', `${roomName}${dateLabel(day.date)}, ${slot.rateName}, ${stateText}`);
             button.setAttribute('aria-pressed', String(selected));
             if (canBook) {
                 button.addEventListener('click', () => selectSlot(day, slot, button));

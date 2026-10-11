@@ -110,14 +110,20 @@
                         <div class="field"><label>Phụ thu</label><input type="number" min="0" step="1000" v-model.number="form.extraAmount" /></div>
                         <div class="field"><label>Giảm giá</label><input type="number" min="0" step="1000" v-model.number="form.discountAmount" /></div>
                     </div>
-                    <div class="booking-money-grid booking-initial-payment" v-if="editor.mode === 'create'">
-                        <div class="field"><label>Khách đã thanh toán / tiền cọc</label><input type="number" min="0" v-bind:max="totalAmount" step="1000" v-model.number="form.initialPaymentAmount" /></div>
+                    <div class="booking-money-grid booking-initial-payment">
+                        <div class="field"><label>{{ editor.mode === 'edit' ? 'Khách thanh toán thêm' : 'Khách đã thanh toán / tiền cọc' }}</label><input type="number" min="0" v-bind:max="paymentLimit" step="1000" v-model.number="form.initialPaymentAmount" /></div>
                         <div class="field"><label>Phương thức thu</label><select v-model.number="form.initialPaymentMethod"><option v-bind:value="1">Chuyển khoản</option><option v-bind:value="0">Tiền mặt</option><option v-bind:value="2">Thẻ</option><option v-bind:value="3">Khác</option></select></div>
                     </div>
                     <div class="field mt-16"><label>Ghi chú</label><textarea v-model.trim="form.note" maxlength="2000" placeholder="Ví dụ: nhận phòng 22:30, thêm gối, khách cần hóa đơn..."></textarea></div>
                 </section>
 
-                <div class="summary-box"><div class="summary-line"><span>Tổng lượt đặt</span><strong>{{ money(totalAmount) }}</strong></div></div>
+                <div class="summary-box">
+                    <div class="summary-line"><span>Tổng lượt đặt</span><strong>{{ money(totalAmount) }}</strong></div>
+                    <template v-if="editor.mode === 'edit'">
+                        <div class="summary-line"><span>Đã thanh toán</span><strong>{{ money(selectedBooking?.paidAmount) }}</strong></div>
+                        <div class="summary-line"><span>Còn lại sau khoản thu thêm</span><strong>{{ money(Math.max(0, paymentLimit - Number(form.initialPaymentAmount || 0))) }}</strong></div>
+                    </template>
+                </div>
                 <div class="modal-actions">
                     <button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button>
                     <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveBooking">{{ saving ? 'Đang lưu...' : (editor.mode === 'edit' ? 'Lưu thay đổi' : 'Lưu lượt đặt') }}</button>
@@ -154,6 +160,14 @@
                     <div><span>Còn lại</span><strong v-bind:class="selectedBooking.balanceAmount > 0 ? 'text-danger' : 'text-success'">{{ money(selectedBooking.balanceAmount) }}</strong></div>
                     <div v-if="selectedBooking.note"><span>Ghi chú</span><strong>{{ selectedBooking.note }}</strong></div>
                 </div>
+                <section v-if="canManage && selectedBooking.balanceAmount > 0 && ![5, 6].includes(Number(selectedBooking.status))" class="admin-booking-detail-panel">
+                    <strong>Ghi nhận thanh toán bổ sung</strong>
+                    <div class="booking-money-grid">
+                        <div class="field"><label>Số tiền thu thêm</label><input type="number" min="0" v-bind:max="selectedBooking.balanceAmount" step="1000" v-model.number="additionalPayment.amount" /></div>
+                        <div class="field"><label>Phương thức thu</label><select v-model.number="additionalPayment.method"><option v-bind:value="1">Chuyển khoản</option><option v-bind:value="0">Tiền mặt</option><option v-bind:value="2">Thẻ</option><option v-bind:value="3">Khác</option></select></div>
+                    </div>
+                    <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveAdditionalPayment">{{ saving ? 'Đang ghi nhận...' : 'Ghi nhận khoản thu' }}</button>
+                </section>
                 <div class="notice" v-if="selectedBooking.type === 1 && canManage">Lưu trú theo đêm có thể sửa trực tiếp tại màn Đặt phòng; Calendar V2 dùng khoảng thời gian thật để hiển thị mức độ chiếm phòng.</div>
                 <div class="modal-actions">
                     <button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="closeEditor">Đóng</button>

@@ -1,0 +1,34 @@
+@page
+@model DeLong.Web.Pages.Admin.DataQualityModel
+@{ ViewData["Title"] = "Kiểm tra dữ liệu"; }
+@section Head { <link rel="stylesheet" href="~/css/data-quality.css" asp-append-version="true" /> }
+<div id="data-quality-page" v-cloak>
+    <script id="data-quality-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+    <div class="page-title-row"><div><h1>Kiểm tra dữ liệu</h1><p>Đối soát thủ công. Hệ thống không tự sửa đơn, thu tiền, hoàn tiền hay hủy lịch.</p></div><button type="button" class="btn btn-primary" v-bind:disabled="busy" v-on:click="scan">{{ busy ? 'Đang kiểm tra…' : 'Kiểm tra lại' }}</button></div>
+    <p class="muted">Tự kiểm tra mỗi 30 phút · {{ result.pending }} mục cần xử lý · {{ result.total }} mục đã ghi nhận · 100 mục mỗi trang.</p>
+    <p class="muted" v-if="result.checkedAtUtc">Kiểm tra gần nhất: {{ date(result.checkedAtUtc) }}</p>
+    <p class="alert alert-danger" v-if="error" role="alert">{{ error }}</p>
+    <div class="quality-filters"><label>Danh sách <select v-model="filter"><option value="pending">Cần xử lý</option><option value="InProgress">Đang xử lý</option><option value="Resolved">Đã xử lý</option><option value="Accepted">Đã kiểm tra hợp lệ</option><option value="cleared">Không còn phát hiện</option><option value="all">Tất cả</option></select></label><label>Tìm mã / phòng <input type="search" v-model.trim="search" /></label></div>
+    <p v-if="loading" class="muted" role="status">Đang tải danh sách…</p>
+    <article class="quality-card" v-for="issue in visible" v-bind:key="issue.id">
+        <div class="quality-heading"><strong>{{ issue.title }}</strong><span class="badge">{{ issue.severity === 'High' ? 'Ưu tiên cao' : 'Cần đối soát' }}</span></div>
+        <p>{{ status(issue.status) }} · {{ issue.isDetected ? 'Vẫn được phát hiện' : 'Không còn phát hiện' }}</p>
+        <template v-if="evidence(issue).booking"><p><strong>{{ evidence(issue).booking.code }} · {{ evidence(issue).booking.roomName }}</strong></p><p>{{ date(evidence(issue).booking.checkInUtc) }} → {{ date(evidence(issue).booking.checkOutUtc) }}</p><p>Tổng {{ money(evidence(issue).booking.total) }} · Thực thu {{ money(evidence(issue).booking.paid) }} · Còn lại {{ money(evidence(issue).balance) }}</p></template>
+        <p v-if="evidence(issue).relatedBooking">Đơn liên quan: <a v-bind:href="bookingUrl({ bookingId: issue.relatedBookingId })"><strong>{{ evidence(issue).relatedBooking.code }}</strong></a> · Tổng {{ money(evidence(issue).relatedBooking.total) }} · Thực thu {{ money(evidence(issue).relatedBooking.paid) }}</p>
+        <p v-if="issue.rule === 'late_payment'">{{ evidence(issue).code }} · QR {{ money(evidence(issue).amount) }} · Nhận lúc {{ date(evidence(issue).callbackReceivedAtUtc) }}</p>
+        <p v-if="issue.reviewNote">Ghi chú: {{ issue.reviewNote }} · {{ date(issue.reviewedAtUtc) }}</p>
+        <div class="quality-actions"><a class="btn btn-light" v-bind:href="bookingUrl(issue)">Xem đơn / thanh toán</a><button class="btn btn-light" type="button" v-on:click="open(issue)">Ghi nhận xử lý</button><button class="btn btn-light" type="button" v-if="canUseAi" v-on:click="askAi(issue)">Nhờ AI phân tích</button></div>
+    </article>
+    <p v-if="!visible.length" class="muted">Không có mục trong danh sách này. Bấm Kiểm tra lại để cập nhật.</p>
+    <div class="quality-actions" v-if="result.pages > 1"><button class="btn btn-light" type="button" v-bind:disabled="loading || result.page <= 1" v-on:click="load(result.page - 1)">‹ Trước</button><span>Trang {{ result.page }} / {{ result.pages }} · {{ result.count }} mục phù hợp</span><button class="btn btn-light" type="button" v-bind:disabled="loading || result.page >= result.pages" v-on:click="load(result.page + 1)">Tiếp ›</button></div>
+    <div v-if="selected" class="modal-backdrop" v-on:click.self="close">
+        <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="quality-review-title"><div class="modal-head"><h2 id="quality-review-title">Ghi nhận xử lý</h2><button class="icon-btn" type="button" aria-label="Đóng" v-on:click="close">×</button></div>
+            <p>{{ selected.title }}</p><p v-if="error" class="alert alert-danger" role="alert">{{ error }}</p><div class="field"><label>Trạng thái</label><select v-model="form.status"><option value="InProgress">Đang xử lý</option><option value="Resolved" v-bind:disabled="selected.isDetected">Đã xử lý</option><option value="Accepted">Đã kiểm tra hợp lệ</option></select></div>
+            <p class="muted">Muốn ghi nhận đã xử lý: sửa dữ liệu trong màn hình nghiệp vụ, sau đó kiểm tra lại. Phí hủy hợp lệ hoặc tiền thu ngoài hệ thống cần có ghi chú đối soát.</p>
+            <div class="field"><label>Ghi chú *</label><textarea rows="3" maxlength="1000" v-model.trim="form.note"></textarea></div>
+            <h3>Lịch sử</h3><p v-for="entry in history" v-bind:key="entry.id">{{ date(entry.createdAtUtc) }} · {{ entry.actorName || 'Hệ thống' }} · {{ action(entry.action) }}<br /><small>{{ historyNote(entry) }}</small></p>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="close">Đóng</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="save">{{ saving ? 'Đang lưu…' : 'Lưu ghi nhận' }}</button></div>
+        </section>
+    </div>
+</div>
+@section Scripts { <script src="~/js/pages/admin-data-quality.js" asp-append-version="true"></script> }

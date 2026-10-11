@@ -156,3 +156,7 @@ Temporary booking locks are independent from room activation, publication and ho
 ### Scheduled room closures (2026-10-09)
 
 `RoomBookingBlock` stores UTC occupancy exclusions in independent, audited batches; these are not bookings and never carry customer/payment state. Daily windows expand in the property's time zone. The existing indefinite room flag remains separate and unchanged. Schedule writes and booking admission share ordered room row locks. Availability unions closure ranges with booking occupancy and hides internal reasons in public DTOs. See [ROOM-BOOKING-LOCK.md](ROOM-BOOKING-LOCK.md).
+
+## Data quality (2026-10-11)
+
+`Features/DataQuality` chạy quy tắc xác định theo chi nhánh, lưu phát hiện riêng và audit; worker 30 phút, khóa advisory/retry chống quét trùng. Không sửa dữ liệu nghiệp vụ. AI quản trị có CreateBooking preview/apply qua BookingService và giải thích phát hiện. Chi tiết quyền, quy tắc và release: [DATA-QUALITY.md](DATA-QUALITY.md).

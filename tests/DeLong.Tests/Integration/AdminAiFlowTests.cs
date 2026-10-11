@@ -109,6 +109,79 @@ public sealed class AdminAiFlowTests
     {
         message = "Bản xem trước để duyệt.", proposal = new { type, summary = "Thay đổi theo yêu cầu", payloadJson = JsonSerializer.Serialize(payload) }
     });
+    [PricingPostgreSqlFact]
+    public async Task Booking_preview_preserves_partial_overnight_rate_creates_once_without_payment()
+    {
+        var input = new { roomReference = "A", customerName = "Guest", customerPhone = "0987654321",
+            checkIn = "2030-10-12T23:00:00+07:00", checkOut = "2030-10-13T09:00:00+07:00", rateReference = "Qua đêm" };
+        await using var f = await Fixture.Create(Proposal("CreateBooking", input));
+        var chat = await f.Service.ChatAsync(f.Property.Id, f.User.Id, new(null, "Tạo đơn qua đêm còn lại"), default);
+        Assert.NotNull(chat.Value!.Proposal);
+        Assert.False(await f.Db.Bookings.AnyAsync(x => x.PropertyId == f.Property.Id));
+        var preview = JsonSerializer.SerializeToElement(chat.Value.Proposal.Payload).GetProperty("preparedBooking");
+        Assert.Equal(250000, preview.GetProperty("roomAmount").GetDecimal());
+        Assert.Equal("2030-10-12T23:00:00+07:00", preview.GetProperty("checkIn").GetString());
+        var applied = await f.Service.ApplyAsync(f.Property.Id, f.User.Id, chat.Value.Proposal.Id, default);
+        Assert.Null(applied.Error); Assert.Equal(AiProposalStatus.Applied, applied.Value!.Status);
+        var booking = await f.Db.Bookings.SingleAsync(x => x.PropertyId == f.Property.Id);
+        Assert.Equal(BookingStatus.Confirmed, booking.Status); Assert.Equal(250000, booking.RoomAmount);
+        Assert.Equal(booking.Id, JsonSerializer.SerializeToElement(applied.Value.Payload).GetProperty("createdBookingId").GetGuid());
+        Assert.Equal(new DateTime(2030, 10, 12, 16, 0, 0, DateTimeKind.Utc), booking.CheckInUtc);
+        Assert.False(await f.Db.Payments.AnyAsync(x => x.BookingId == booking.Id));
+        Assert.NotNull((await f.Service.ApplyAsync(f.Property.Id, f.User.Id, chat.Value.Proposal.Id, default)).Error);
+        Assert.Single(await f.Db.Bookings.Where(x => x.PropertyId == f.Property.Id).ToListAsync());
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Booking_apply_rechecks_locks_and_rolls_back_stale_preview()
+    {
+        var input = new { roomReference = "A", customerName = "Guest", customerPhone = "0987654321",
+            checkIn = "2030-10-12T23:00:00+07:00", checkOut = "2030-10-13T09:00:00+07:00", rateReference = "Qua đêm" };
+        await using var f = await Fixture.Create(Proposal("CreateBooking", input));
+        var chat = (await f.Service.ChatAsync(f.Property.Id, f.User.Id, new(null, "Tạo đơn"), default)).Value!;
+        Assert.NotNull(chat.Proposal);
+        var room = await f.Db.Rooms.SingleAsync(x => x.Id == f.Rates[0].RoomId);
+        room.IsBookingLocked = true; room.BookingLockReason = "Maintenance"; await f.Db.SaveChangesAsync();
+        Assert.NotNull((await f.Service.ApplyAsync(f.Property.Id, f.User.Id, chat.Proposal.Id, default)).Error);
+        Assert.False(await f.Db.Bookings.AnyAsync(x => x.PropertyId == f.Property.Id));
+        Assert.False(await f.Db.Customers.AnyAsync(x => x.PropertyId == f.Property.Id));
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Booking_rejects_ambiguous_time_cross_property_and_forged_preview()
+    {
+        var input = new { roomReference = "C", customerName = "Guest", customerPhone = "0987654321",
+            checkIn = "2030-10-12T23:00:00+07:00", checkOut = "2030-10-13T09:00:00+07:00", roomAmount = 250000 };
+        await using var f = await Fixture.Create(Proposal("CreateBooking", input), Proposal("CreateBooking", input));
+        Assert.Null((await f.Service.ChatAsync(f.Property.Id, f.User.Id, new(null, "Tạo ở phòng C"), default)).Value!.Proposal);
+        var noZone = new { roomReference = "A", customerName = "Guest", customerPhone = "0987654321",
+            checkIn = "2030-10-12T23:00:00", checkOut = "2030-10-13T09:00:00", roomAmount = 250000 };
+        f.Handler.Responses.Enqueue(Proposal("CreateBooking", noZone)); f.Handler.Responses.Enqueue(Proposal("CreateBooking", noZone));
+        Assert.Null((await f.Service.ChatAsync(f.Property.Id, f.User.Id, new(null, "Tạo đơn thiếu múi giờ"), default)).Value!.Proposal);
+        var forged = new { preparedBooking = new { roomId = f.OtherRate.RoomId, status = "Completed", roomAmount = 0 } };
+        f.Handler.Responses.Enqueue(Proposal("CreateBooking", forged)); f.Handler.Responses.Enqueue(Proposal("CreateBooking", forged));
+        Assert.Null((await f.Service.ChatAsync(f.Property.Id, f.User.Id, new(null, "Tạo preview giả"), default)).Value!.Proposal);
+        Assert.False(await f.Db.Bookings.AnyAsync(x => x.PropertyId == f.Property.Id));
+    }
+
+    [PricingPostgreSqlFact]
+    public async Task Quality_explanation_includes_requested_cleared_issue_but_never_other_branch()
+    {
+        await using var f = await Fixture.Create("{\"message\":\"Đã đọc số liệu đối soát.\",\"proposal\":null}");
+        var target = new DataQualityIssue { PropertyId = f.Property.Id, Fingerprint = "ai-target", Rule = "completed_balance",
+            Severity = "Medium", Title = "Target audit issue", BookingId = Guid.NewGuid(), EvidenceJson = "{}", IsDetected = false,
+            LastCheckedAtUtc = DateTime.UtcNow };
+        var other = new DataQualityIssue { PropertyId = f.OtherRate.Room.PropertyId, Fingerprint = "ai-other", Rule = "overlap",
+            Severity = "High", Title = "Private other audit issue", BookingId = Guid.NewGuid(), EvidenceJson = "{}",
+            LastCheckedAtUtc = DateTime.UtcNow };
+        f.Db.AddRange(target, other); await f.Db.SaveChangesAsync();
+        var response = await f.Service.ChatAsync(f.Property.Id, f.User.Id, new(null, $"Phân tích mục kiểm tra dữ liệu {target.Id}"), default);
+        Assert.Null(response.Error); Assert.Null(response.Value!.Proposal);
+        Assert.Contains("Target audit issue", f.Handler.Inputs.Single());
+        Assert.DoesNotContain("Private other audit issue", f.Handler.Inputs.Single());
+        Assert.False(await f.Db.Bookings.AnyAsync(x => x.PropertyId == f.Property.Id));
+    }
+
     private static object Weekend => new { allRooms = true, allRates = true, changes = new { weekendPrice = 300000 } };
 
     [PricingPostgreSqlFact]
@@ -530,7 +603,7 @@ public sealed class AdminAiFlowTests
             var service = new AdminAiService(db, new AdminAiSettingsService(db, protector), new AiProviderClient(http),
                 new RoomService(db), new RoomRateService(db), new RoomContentService(db, null!), new SiteContentService(db), pricing,
                 new VoucherService(db, audit, new StoragePaths(Path.GetTempPath(), Path.GetTempPath(), new PathString("/test"), false, false, false), new ConfigurationBuilder().Build()), audit,
-                new AiAccessGateway(db));
+                new AiAccessGateway(db), bookingService: new BookingService(db, new CustomerService(db), audit));
             return new() { Db = db, Service = service, Property = property, User = user, Rates = rates, OtherRate = otherRate, Handler = handler, Http = http };
         }
         public async ValueTask DisposeAsync() { Http.Dispose(); await Db.DisposeAsync(); }

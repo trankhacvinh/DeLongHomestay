@@ -21,9 +21,13 @@ Booking multi-day lưu snapshot `RoomRateId`, `RateName`, `UnitPrice`, `NightCou
 
 ## Availability
 
-Multi-day khóa **một khoảng liên tục** từ check-in ngày đầu tới check-out ngày cuối. Chỉ cần một booking `Held`, `Confirmed` hoặc `CheckedIn` giao nhau là phòng không khả dụng.
+Multi-day khóa **một khoảng liên tục** từ check-in ngày đầu tới check-out ngày cuối. Chỉ cần một booking `Held`, `Confirmed`, `CheckedIn` hoặc `Completed` giao nhau là phòng không khả dụng.
 
-`Requested` vẫn không khóa phòng.
+`Completed` giữ khoảng nhận/trả đã lưu, kể cả hoàn tất sớm; chỉ chặn khoảng giao nhau và buffer dọn phòng của lịch khách. `Requested`, `Cancelled`, `NoShow` không giữ phòng. Không sửa giờ hoặc dữ liệu thanh toán lịch sử.
+
+Kiểm tra tạo/sửa/chuyển phòng và nhập Excel tính cả đơn hoàn tất. Khóa dòng phòng hiện có đồng bộ việc tạo/sửa/chuyển/import; constraint PostgreSQL cho trạng thái đang hoạt động giữ nguyên để không áp thêm constraint lên lịch sử có thể đã trùng. Không cần migration cho điều chỉnh này.
+
+Ô lịch khách hiển thị trạng thái và giờ nhận/trả; giá được giữ ở phần tổng khi chọn giờ.
 
 ## Pricing
 

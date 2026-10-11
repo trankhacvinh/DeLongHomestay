@@ -343,6 +343,7 @@
                             <span>Lịch phòng</span></a>
                         @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                         {
+                            <a class="@NavClass("/Admin/DataQuality")" asp-page="/Admin/DataQuality" asp-route-propertyId="@propertyId"><svg><use href="#i-grid" /></svg><span>Kiểm tra dữ liệu</span></a>
                             <a class="@NavClass("/Admin/RoomBlocks")" asp-page="/Admin/RoomBlocks" asp-route-propertyId="@propertyId"><svg><use href="#i-calendar" /></svg><span>Lịch khóa phòng</span></a>
                         }
                         <a class="@NavClass("/Admin/Bookings")" asp-page="/Admin/Bookings/Index"
@@ -830,7 +831,7 @@ else if (isAdmin && canUseStaffAi && currentProperty is not null)
     <aside class="public-ai-drawer" data-public-ai-drawer data-site-slug="@publicSiteSlug" hidden aria-label="Trợ lý đặt phòng">
         <header><div><strong>Trợ lý đặt phòng</strong><small>Hỏi về phòng, tiện nghi và giá</small></div><nav><button type="button" data-public-ai-history title="Lịch sử" aria-label="Xem lịch sử">☰</button><button type="button" data-public-ai-new title="Chat mới" aria-label="Tạo chat mới">＋</button><button type="button" data-public-ai-close aria-label="Đóng">×</button></nav></header>
         <section class="public-ai-history" data-public-ai-history-panel hidden><div><strong>Lịch sử trên thiết bị này</strong><button type="button" data-public-ai-history-close aria-label="Đóng lịch sử">×</button></div><div data-public-ai-history-list></div><small>Lịch sử được lưu trong trình duyệt này trong tối đa 30 ngày.</small></section>
-        <div class="public-ai-messages" data-public-ai-messages><div class="public-ai-message assistant">Xin chào! Tôi có thể giúp bạn tìm hiểu phòng, tiện nghi, giá và chính sách của cơ sở.</div></div>
+        <div class="public-ai-messages" data-public-ai-messages><div class="public-ai-message assistant">Xin chào! Tôi có thể tư vấn phòng, giá, FAQ, nội quy và chính sách. Bạn cũng có thể tra cứu đơn bằng mã đặt phòng và số điện thoại, hoặc dùng email để nhận thông tin qua hộp thư.</div></div>
         <form data-public-ai-form><textarea rows="2" maxlength="1000" data-public-ai-input placeholder="Ví dụ: Phòng nào phù hợp cho 3 người?"></textarea><button type="submit">Gửi</button></form>
     </aside>
 }
