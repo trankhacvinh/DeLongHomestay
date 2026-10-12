@@ -58,7 +58,9 @@
                 moveConfirm: { open: false, booking: null, room: null, day: null },
                 statusConfirm: { open: false, action: null, title: '', message: '', confirmLabel: '' },
                 saving: false,
+                paymentEdited: false,
                 editor: { open: false, mode: 'create' },
+                quickBlock: { open: false, roomId: '', start: '', end: '', reason: '', error: '', conflicts: [], acknowledged: false },
                 selectedBooking: null,
                 additionalPayment: { amount: 0, method: 1 },
                 guestDetails: { loading: false, error: '', customerEmail: '', guestCount: 1, documents: [] },
@@ -103,14 +105,24 @@
                 return Math.max(0, this.totalAmount - paid);
             }
         },
+        watch: {
+            totalAmount() { this.syncDefaultPayment(); }
+        },
         methods: {
+            syncDefaultPayment() {
+                if (this.editor.mode === 'create' && !this.paymentEdited) this.form.initialPaymentAmount = this.totalAmount;
+            },
+            setInitialPayment(value) {
+                this.paymentEdited = true;
+                this.form.initialPaymentAmount = value;
+            },
             emptyForm() {
                 return {
                     roomId: '', rateId: '', customerId: null, customerName: '', customerPhone: '',
                     checkInLocal: '', checkOutLocal: '', status: 2,
                     roomAmount: 0, extraAmount: 0, discountAmount: 0,
                     initialPaymentAmount: 0, initialPaymentMethod: 1,
-                    source: '', note: '', customerEmail: '', guestCount: 1
+                    source: '', note: '', displayColor: '', customerEmail: '', guestCount: 2
                 };
             },
             money(value) {
@@ -148,6 +160,10 @@
                 return ({ 0: 'Yêu cầu', 1: 'Giữ phòng', 2: 'Đã xác nhận', 3: 'Đã xác nhận', 4: 'Hoàn tất', 5: 'Đã hủy', 6: 'Không đến' })[status] || `#${status}`;
             },
             bookingVisual(booking) {
+                const visual = this.automaticBookingVisual(booking);
+                return booking?.displayColor ? { ...visual, color: booking.displayColor, manual: true } : visual;
+            },
+            automaticBookingVisual(booking) {
                 const colors = this.calendarColors;
                 if (Number(booking?.status) === 4) return { color: '#7A8582', label: 'Hoàn tất' };
                 if (Number(booking?.balanceAmount || 0) > 0) return { color: colors.unpaidColor || '#C94B4B', label: 'Chưa thanh toán hết' };
@@ -163,7 +179,8 @@
                 return {
                     '--booking-span': booking.type === 1 && booking.status !== 0 ? this.bookingSpan(booking, dayKey) : 1,
                     '--booking-lane': this.calendarBookingLane(roomId, booking),
-                    '--booking-display-color': this.bookingVisual(booking).color
+                    '--booking-display-color': this.bookingVisual(booking).color,
+                    ...(booking.displayColor ? { backgroundImage: 'none' } : {})
                 };
             },
             activeBookingRows(roomId) {
@@ -328,7 +345,9 @@
                 const selectedRoom = room || this.activeRooms.find(x => !x.isBookingLocked) || null;
                 if (!selectedRoom || selectedRoom.isBookingLocked) return this.notify('Phòng đang tạm ngừng nhận đặt phòng. Vui lòng chọn phòng khác.', 'error');
                 this.selectedDayKey = day?.key || this.today;
+                this.paymentEdited = false;
                 this.form = this.emptyForm();
+                this.form.guestCount = Math.min(2, Math.max(1, Number(selectedRoom?.capacity || 2)));
                 if (selectedRoom) this.form.roomId = selectedRoom.id;
                 this.editor = { open: true, mode: 'create' };
                 this.selectedBooking = null;
@@ -361,7 +380,7 @@
                     extraAmount: Number(booking.extraAmount || 0),
                     discountAmount: Number(booking.discountAmount || 0),
                     source: booking.source || '',
-                    note: booking.note || '', customerEmail: '', guestCount: 1,
+                    note: booking.note || '', displayColor: booking.displayColor || '', customerEmail: '', guestCount: 1,
                     initialPaymentAmount: 0, initialPaymentMethod: 1
                 };
                 this.editor = { open: true, mode: 'edit' };
@@ -414,29 +433,64 @@
                 if (initialPayment > this.paymentLimit) return 'Số tiền thu thêm không được lớn hơn số tiền còn lại.';
                 return null;
             },
+            openQuickBlock() {
+                if (root.dataset.canLockRooms !== 'true' || this.editor.mode !== 'create') return;
+                this.quickBlock = { open: true, roomId: this.form.roomId, start: this.form.checkInLocal,
+                    end: this.form.checkOutLocal, reason: '', error: '', conflicts: [], acknowledged: false };
+            },
+            closeQuickBlock() { if (!this.saving) this.quickBlock.open = false; },
+            resetQuickBlockConflicts() { this.quickBlock.conflicts = []; this.quickBlock.acknowledged = false; },
+            async saveQuickBlock() {
+                if (this.saving || root.dataset.canLockRooms !== 'true') return;
+                const block = this.quickBlock;
+                if (!block.roomId || !block.reason.trim() || block.reason.trim().length > 500)
+                    return block.error = 'Chọn phòng và nhập lý do khóa (tối đa 500 ký tự).';
+                const start = new Date(`${block.start}${utcOffset}`), end = new Date(`${block.end}${utcOffset}`);
+                if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start)
+                    return block.error = 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+                this.saving = true; block.error = '';
+                try {
+                    await DeLongApi.post(`/api/admin/properties/${this.propertyId}/room-blocks/`, {
+                        roomIds: [block.roomId], reason: block.reason.trim(), start: start.toISOString(), end: end.toISOString(),
+                        repeatDaily: false, acknowledgeExistingBookings: block.acknowledged,
+                        acknowledgedBookingIds: block.acknowledged ? block.conflicts.map(x => x.id) : []
+                    });
+                    block.open = false; this.editor.open = false;
+                    document.dispatchEvent(new CustomEvent('delong:operations-change', { detail: { propertyId: this.propertyId, roomId: block.roomId } }));
+                    this.notify('Đã khóa phòng trong khoảng thời gian đã chọn.', 'success');
+                } catch (error) {
+                    block.error = error.message || 'Không thể khóa phòng.';
+                    block.conflicts = error.problem?.conflicts || []; block.acknowledged = false;
+                } finally { this.saving = false; }
+            },
             async saveBooking() {
                 if (this.saving) return;
+                this.syncDefaultPayment();
                 const validation = this.validateForm();
                 if (validation) return this.notify(validation, 'error');
                 this.saving = true;
                 try {
                     const selectedRate = this.selectedRoomRates.find(x => x.id === this.form.rateId) || null;
+                    const isNightly = Number(selectedRate?.type) === 2;
+                    const nightCount = isNightly ? Math.round((parseDateKey(this.form.checkOutLocal.slice(0, 10)) - parseDateKey(this.form.checkInLocal.slice(0, 10))) / 86400000) : null;
+                    if (isNightly && nightCount < 1) throw new Error('Ngày trả phòng phải sau ngày nhận phòng.');
                     const common = {
                         roomId: this.form.roomId,
                         customerName: this.form.customerName,
                         customerPhone: this.form.customerPhone,
-                        type: 0,
+                        type: isNightly ? 1 : 0,
                         roomRateId: selectedRate?.id || null,
                         rateName: selectedRate?.name || null,
                         unitPrice: selectedRate ? Number(selectedRate.price || 0) : null,
-                        nightCount: null,
+                        nightCount,
                         checkIn: `${this.form.checkInLocal}${utcOffset}`,
                         checkOut: `${this.form.checkOutLocal}${utcOffset}`,
                         roomAmount: Number(this.form.roomAmount || 0),
                         extraAmount: Number(this.form.extraAmount || 0),
                         discountAmount: Number(this.form.discountAmount || 0),
                         source: this.form.source || null,
-                        note: this.form.note || null
+                        note: this.form.note || null,
+                        updateDisplayColor: true, displayColor: this.form.displayColor || null
                     };
 
                     let booking;
@@ -642,6 +696,6 @@
             dateRangePicker = null;
         }
     });
-    const calendarVm = calendarApp.mixin(window.DeLongRoomBookingLock).mount(root);
+    const calendarVm = calendarApp.mixin(window.DeLongRoomBookingLock).mixin(window.DeLongMoneyInput || {}).mount(root);
     root.__delongCalendarVm = calendarVm;
 })();

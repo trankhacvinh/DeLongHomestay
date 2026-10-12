@@ -120,7 +120,7 @@
     const scroll = panel.querySelector('[data-v2-scroll]');
     let dateRangePicker = null;
     let calendarScale = 1;
-    let fitCalendar = window.matchMedia?.('(max-width:640px)').matches === true;
+    let fitCalendar = false;
     function applyCalendarScale() {
         panel.style.setProperty('--calendar-scale', String(calendarScale));
         scroll.classList.toggle('calendar-v2-fit', fitCalendar);
@@ -270,6 +270,11 @@
     }
 
     function bookingVisual(range) {
+        const visual = automaticBookingVisual(range);
+        return !range?.isRoomBlock && range?.displayColor ? { ...visual, color: range.displayColor, manual: true } : visual;
+    }
+
+    function automaticBookingVisual(range) {
         const colors = state.colors;
         if (range?.isRoomBlock) return { key: 'locked', color: '#64748B', label: 'Tạm khóa' };
         if (Number(range?.balanceAmount || 0) > 0) return { key: 'unpaid', color: colors.unpaidColor || '#C94B4B', label: 'Chưa thanh toán hết' };
@@ -357,7 +362,8 @@
                 startUtc: new Date(Math.max(slotStart, new Date(booking.checkInUtc).getTime())).toISOString(),
                 endUtc: new Date(Math.min(slotEnd, new Date(booking.checkOutUtc).getTime())).toISOString(),
                 customerName: booking.customerName,
-                customerPhone: booking.customerPhone
+                customerPhone: booking.customerPhone,
+                status: booking.status, balanceAmount: booking.balanceAmount, displayColor: booking.displayColor
             }));
     }
 
@@ -396,6 +402,7 @@
             segment.dataset.bookingId = range.bookingId;
             segment.setAttribute('style', segmentStyle(range.startUtc, range.endUtc, slot.startUtc, slot.endUtc));
             segment.style.backgroundColor = visual.color;
+            if (visual.manual) segment.style.backgroundImage = 'none';
             const guestText = bookingGuestText(range);
             const stateText = visual.label;
             segment.title = range.isRoomBlock
@@ -421,9 +428,12 @@
         completedBookingsForSlot(slot).forEach(range => {
             const segment = document.createElement('button');
             segment.type = 'button';
-            segment.className = 'calendar-v2-segment occupied booking-completed';
+            const visual = bookingVisual(range);
+            segment.className = `calendar-v2-segment occupied booking-${visual.key}`;
             segment.dataset.bookingId = range.bookingId;
             segment.setAttribute('style', segmentStyle(range.startUtc, range.endUtc, slot.startUtc, slot.endUtc));
+            segment.style.backgroundColor = visual.color;
+            if (visual.manual) segment.style.backgroundImage = 'none';
             const guestText = bookingGuestText(range);
             segment.title = `Hoàn tất${guestText ? ` · ${guestText}` : ''} · ${timeText(range.startUtc)}–${timeText(range.endUtc)} · bấm để xem lịch sử`;
             segment.setAttribute('aria-label', segment.title);

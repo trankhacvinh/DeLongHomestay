@@ -1,5 +1,5 @@
 (function () {
-    if (!document.body.classList.contains('public-body') || !window.DeLongApi) return;
+    if (!document.body.classList.contains('public-body') || document.body.classList.contains('public-embedded-page') || !window.DeLongApi) return;
 
     const normalizedPath = (window.location.pathname.replace(/\/+$/, '') || '/');
     const scopedMatch = normalizedPath.match(/^\/h\/([^/]+)(?:\/|$)/i);
@@ -266,7 +266,7 @@
         mount() {
             if (!document.querySelector('link[data-public-visual-editor]')) {
                 const css = document.createElement('link');
-                css.rel = 'stylesheet'; css.href = '/css/public-visual-editor.css?v=20260817-4'; css.dataset.publicVisualEditor = 'true';
+                css.rel = 'stylesheet'; css.href = '/css/public-visual-editor.css?v=20261011-1'; css.dataset.publicVisualEditor = 'true';
                 document.head.appendChild(css);
             }
             this.toolbar();

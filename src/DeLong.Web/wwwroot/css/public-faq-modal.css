@@ -25,3 +25,8 @@
     body.public-body .public-faq-dialog summary{padding:16px 14px}
     body.public-body .public-faq-dialog details p{padding:0 14px 18px}
 }
+
+@media(max-width:680px){
+    body.public-body .public-site-brand>span{min-width:0}
+    body.public-body .public-site-brand strong,body.public-body .public-site-brand small{white-space:normal;overflow-wrap:anywhere}
+}

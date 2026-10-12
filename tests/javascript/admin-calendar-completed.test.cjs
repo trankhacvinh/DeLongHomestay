@@ -18,3 +18,12 @@ test('completed occupancy is not drawn a second time by the history overlay', ()
     assert.equal(history(slot).length, 0);
     assert.equal(history({ ...slot, occupied: [] }).length, 1);
 });
+
+test('manual colors override appearance while retaining real state and room block color', () => {
+    const debt = visual({ status: 2, balanceAmount: 100000, displayColor: '#397967' });
+    assert.equal(debt.key, 'unpaid');
+    assert.equal(debt.color, '#397967');
+    assert.equal(visual({ status: 2, balanceAmount: 100000, displayColor: null }).color, '#C94B4B');
+    assert.equal(visual({ isRoomBlock: true, displayColor: '#397967' }).color, '#64748B');
+    assert.equal(visual({ status: 4, displayColor: '#7C5CC4' }).color, '#7C5CC4');
+});

@@ -288,3 +288,7 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* The embedded form has no site/editor header to reserve space for. */
+body.public-embedded-page{padding-top:0!important;margin-top:0!important}
+.public-embedded-page #main-content{padding-top:0!important;min-height:0}

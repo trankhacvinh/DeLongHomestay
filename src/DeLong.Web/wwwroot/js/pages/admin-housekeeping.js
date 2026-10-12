@@ -86,10 +86,17 @@
             scheduleText() {
                 return this.scheduleDays
                     .filter(day => day.tasks.length)
-                    .map(day => [
-                        this.dateText(day.date),
-                        ...day.tasks.map(task => `${this.taskTime(task)} ${task.text}`)
-                    ].join('\n'))
+                    .map(day => {
+                        const times = new Map();
+                        for (const task of day.tasks) {
+                            const time = this.taskTime(task);
+                            if (!times.has(time)) times.set(time, []);
+                            times.get(time).push(`${time} ${task.text}`);
+                        }
+                        const groups = [...times].sort(([a], [b]) => a.localeCompare(b))
+                            .map(([, lines]) => lines.join('\n'));
+                        return [this.dateText(day.date), ...groups].join('\n\n');
+                    })
                     .join('\n\n');
             },
             conditionTagGroups() {
@@ -149,10 +156,21 @@
                     return;
                 }
                 this.scheduleLoading = true;
-                this.copied = false;
                 try {
-                    const query = new URLSearchParams({ date: this.selectedDate, days: '1' });
-                    this.schedule = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/housekeeping/schedule?${query}`);
+                    const requestedDate = this.selectedDate;
+                    const query = new URLSearchParams({ date: requestedDate, days: '1' });
+                    const next = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/housekeeping/schedule?${query}`);
+                    if (requestedDate !== this.selectedDate) { this.scheduleQueued = true; return; }
+                    if (JSON.stringify(next) !== JSON.stringify(this.schedule)) {
+                        this.copied = false;
+                        const area = this.$refs.scheduleTextArea;
+                        const scrollTop = area?.scrollTop || 0, scrollLeft = area?.scrollLeft || 0;
+                        this.schedule = next;
+                        await this.$nextTick();
+                        if (area && area === this.$refs.scheduleTextArea) {
+                            area.scrollTop = scrollTop; area.scrollLeft = scrollLeft;
+                        }
+                    }
                 } catch (error) {
                     this.notify(error.message || 'Không thể tải lịch công việc.', 'error');
                 } finally {

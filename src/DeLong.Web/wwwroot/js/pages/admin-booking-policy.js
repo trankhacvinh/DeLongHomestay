@@ -54,7 +54,14 @@
         panel._policyEditor = window.DeLongRichEditor?.enhance(
             panel.querySelector('[data-policy-field="policyText"]'),
             {
-                allowImages: false,
+                allowImages: true,
+                uploadImage: async file => {
+                    const form = new FormData();
+                    form.append('file', file);
+                    const asset = await DeLongApi.postForm(`/api/admin/properties/${propertyId}/site/assets/section`, form);
+                    if (!asset?.url) throw new Error('Không nhận được đường dẫn ảnh nội quy.');
+                    return asset.url;
+                },
                 placeholder: 'Nhập nội quy, quy định nhận/trả phòng và chính sách áp dụng cho khách đặt online…',
                 helpText: 'Soạn trực quan bằng Quill giống các nội dung khác trong hệ thống; có thể chuyển sang HTML khi cần.'
             });

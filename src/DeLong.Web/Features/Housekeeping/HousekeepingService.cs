@@ -122,8 +122,16 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
                 x.Room.SortOrder,
                 x.CheckInUtc,
                 x.CheckOutUtc,
-                x.Status))
+                x.Status,
+                x.RoomRateId))
             .ToListAsync(cancellationToken);
+
+        var rates = await db.RoomRates.AsNoTracking()
+            .Where(x => x.Room.PropertyId == propertyId && x.IsActive && x.Type != RoomRateType.Nightly)
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.StartTime).ThenBy(x => x.Name).ThenBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+        var shifts = rows.ToDictionary(x => x.Id, x => ResolveShift(x, rates, timeZone));
+        var combinedSuccessors = new Dictionary<Guid, Guid>();
 
         var combinedArrivals = new HashSet<Guid>();
         var combinedTurnovers = new HashSet<Guid>();
@@ -131,14 +139,17 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
         {
             var nextBooking = rows
                 .Where(x => x.RoomId == row.RoomId && x.Id != row.Id &&
-                            x.Status != BookingStatus.Completed && x.CheckInUtc >= row.CheckOutUtc)
+                            x.CheckInUtc >= row.CheckOutUtc)
                 .OrderBy(x => x.CheckInUtc)
                 .ThenBy(x => x.Id)
                 .FirstOrDefault();
             if (nextBooking is not null && nextBooking.CheckInUtc <= row.CheckOutUtc.AddHours(4) &&
                 row.CheckOutUtc.AddMinutes(afterMinutes) <= nextBooking.CheckInUtc &&
                 combinedArrivals.Add(nextBooking.Id))
+            {
                 combinedTurnovers.Add(row.Id);
+                combinedSuccessors[row.Id] = nextBooking.Id;
+            }
         }
 
         var daysResult = new List<HousekeepingScheduleDayDto>(days);
@@ -154,7 +165,7 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
                 if (row.Status != BookingStatus.Completed && !combinedArrivals.Contains(row.Id) &&
                     DateOnly.FromDateTime(checkInLocal) == date)
                 {
-                    tasks.Add(ToTask(row, prepareAtUtc, "prepare", "Mở đèn", $"dọn phòng {row.RoomName} mở đèn"));
+                    tasks.Add(ToTask(row, prepareAtUtc, "prepare", "Mở đèn", $"dọn phòng {row.RoomName} mở đèn", shifts[row.Id]));
                 }
 
                 var turnoverAtUtc = row.CheckOutUtc.AddMinutes(afterMinutes);
@@ -169,7 +180,8 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
                     keepLightsOn ? "Mở đèn" : "Tắt đèn",
                     keepLightsOn
                         ? $"Dọn phòng {row.RoomName} + Mở đèn"
-                        : $"dọn phòng {row.RoomName} tắt đèn"));
+                        : $"Dọn phòng {row.RoomName} + Tắt đèn",
+                    shifts[combinedSuccessors.GetValueOrDefault(row.Id, row.Id)]));
             }
 
             daysResult.Add(new HousekeepingScheduleDayDto(
@@ -497,8 +509,35 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
         DateTime atUtc,
         string kind,
         string action,
-        string text) =>
-        new(row.Id, row.Code, row.RoomId, row.RoomCode, row.RoomName, atUtc, kind, action, text);
+        string text,
+        int? shiftOrder) =>
+        new(row.Id, row.Code, row.RoomId, row.RoomCode, row.RoomName, atUtc, kind, action, text, shiftOrder);
+
+    private static int? ResolveShift(ScheduleBookingRow booking, IReadOnlyList<RoomRate> rates, TimeZoneInfo zone)
+    {
+        var start = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(booking.CheckInUtc, DateTimeKind.Utc), zone);
+        var end = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(booking.CheckOutUtc, DateTimeKind.Utc), zone);
+        var roomRates = rates.Where(x => x.RoomId == booking.RoomId).ToList();
+        var matches = new List<(Guid Id, int Order)>();
+        for (var index = 0; index < roomRates.Count; index++)
+        {
+            var rate = roomRates[index];
+            var overnight = rate.Type == RoomRateType.Overnight || rate.IsOvernight || rate.EndTime <= rate.StartTime;
+            for (var offset = -1; offset <= 0; offset++)
+            {
+                var date = DateOnly.FromDateTime(start).AddDays(offset);
+                var rateStart = date.ToDateTime(rate.StartTime);
+                var rateEnd = date.AddDays(overnight ? 1 : 0).ToDateTime(rate.EndTime);
+                if (start >= rateStart && end <= rateEnd && end > start)
+                {
+                    matches.Add((rate.Id, index));
+                    break;
+                }
+            }
+        }
+        var selected = matches.Where(x => x.Id == booking.RoomRateId).ToList();
+        return selected.Count == 1 ? selected[0].Order : matches.Count == 1 ? matches[0].Order : null;
+    }
 
     private static DateTime ToUtc(DateTime local, TimeZoneInfo timeZone) =>
         TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(local, DateTimeKind.Unspecified), timeZone);
@@ -512,5 +551,6 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
         int RoomSortOrder,
         DateTime CheckInUtc,
         DateTime CheckOutUtc,
-        BookingStatus Status);
+        BookingStatus Status,
+        Guid? RoomRateId);
 }

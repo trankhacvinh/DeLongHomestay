@@ -86,3 +86,7 @@ Staff/Manager/Housekeeping/Viewer dùng drawer `staff-ai-chat.js` và endpoint r
 ## Scheduled room closures (2026-10-09)
 
 `20261009142839_AddRoomBookingSchedules` adds `room_booking_blocks` with property/room scoping, UTC boundaries, actor references, soft cancellation and an active-range index. Existing indefinite room locks and bookings/payments are unchanged. Rebuild the Linux migration bundle and apply before serving the new calendar/management page; see [ROOM-BOOKING-LOCK.md](ROOM-BOOKING-LOCK.md).
+
+### Admin VND input formatting
+
+RobinHerbots Inputmask 5.0.9 is vendored under `wwwroot/vendor/inputmask` with its MIT license. `DeLongMoneyInput` registers a Vue `moneyInput` directive per booking/calendar app; do not combine it with `v-model` on the same input. Bind numeric value and setter so grouped text (`250.000`) never enters API money fields as a string. No jQuery dependency or public-page loading.

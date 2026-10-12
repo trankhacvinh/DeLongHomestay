@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const source = readFileSync('src/DeLong.Web/wwwroot/js/pages/admin-calendar.js', 'utf8');
-function fixture() {
+function fixture(nightly = false) {
     let options;
     const calls = [], events = [], notices = [];
     const old = { id: 'b', roomId: 'r', code: 'BK123', status: 2, type: 0, paidAmount: 100000, balanceAmount: 150000, specialSurchargeAmount: 0 };
@@ -13,12 +13,15 @@ function fixture() {
         async post(url, body) { calls.push({ type: 'post', url, body }); return url.endsWith('/payments') ? { id: 'p' } : old; },
         async get(url) { calls.push({ type: 'get', url }); return updated; }
     };
-    vm.runInNewContext(source, {
+    const vue = { createApp(config) { options = config; return { mixin() { return this; }, mount() { return {}; } }; } };
+    const context = {
         document: { getElementById: id => id === 'calendar-page' ? {} : { textContent: '{}' }, dispatchEvent: event => events.push(event) },
-        window: { DeLongCalendarCanManage: true, innerWidth: 1000 },
-        Vue: { createApp(config) { options = config; return { mixin() { return this; }, mount() { return {}; } }; } },
+        window: { DeLongCalendarCanManage: true, innerWidth: 1000, Vue: vue },
+        Vue: vue,
         DeLongApi: api, CustomEvent: class { constructor(type, data) { this.type = type; this.detail = data.detail; } }, Intl, URL
-    });
+    };
+    if (nightly) vm.runInNewContext(readFileSync('src/DeLong.Web/wwwroot/js/pages/admin-calendar-nightly.js', 'utf8'), context);
+    vm.runInNewContext(source, context);
     const app = { ...options.data(), ...options.methods, propertyId: 'prop', bookings: [old], selectedBooking: old, editor: { open: true, mode: 'edit' } };
     for (const [name, getter] of Object.entries(options.computed)) Object.defineProperty(app, name, { get: () => getter.call(app), configurable: true });
     app.form = { ...app.emptyForm(), roomId: 'r', customerName: 'Guest', customerPhone: '0900000000', checkInLocal: '2026-10-12T14:00', checkOutLocal: '2026-10-12T17:00', roomAmount: 250000, initialPaymentAmount: 150000 };
@@ -89,4 +92,31 @@ test('invalid amounts, cancelled bookings and double clicks do not send another 
     await app.saveAdditionalPayment();
     await app.saveBooking();
     assert.equal(calls.length, 0);
+});
+
+test('new manual booking defaults to two guests and full payment, including surcharges and discount', async () => {
+    const { app, calls } = fixture();
+    app.editor.mode = 'create'; app.form.initialPaymentAmount = 0;
+    app.form.extraAmount = 30000; app.form.discountAmount = 10000;
+    assert.equal(app.emptyForm().guestCount, 2);
+    app.syncDefaultPayment(); assert.equal(app.form.initialPaymentAmount, 270000);
+    await app.saveBooking();
+    assert.equal(calls.find(x => x.url.endsWith('/payments')).body.amount, 270000);
+});
+test('manually entered deposit including zero survives price changes', () => {
+    const { app } = fixture(); app.editor.mode = 'create';
+    app.setInitialPayment(100000); app.form.roomAmount = 300000; app.syncDefaultPayment();
+    assert.equal(app.form.initialPaymentAmount, 100000);
+    app.setInitialPayment(0); app.form.roomAmount = 360000; app.syncDefaultPayment();
+    assert.equal(app.form.initialPaymentAmount, 0);
+});
+test('nightly extension uses the common payment flow and preserves multi-night request', async () => {
+    const { app, calls } = fixture(true); app.editor.mode = 'create';
+    app.rooms[0].rates = [{ id: 'night', name: 'Theo đêm', type: 2, isActive: true, sortOrder: 0, startTime: '14:00', endTime: '12:00', price: 400000 }];
+    app.form.rateId = 'night'; app.form.checkOutLocal = '2026-10-14T12:00';
+    app.syncNightlyFromDates(); await app.saveBooking();
+    const booking = calls.find(x => x.type === 'post' && !x.url.endsWith('/payments'));
+    assert.equal(booking.body.type, 1); assert.equal(booking.body.nightCount, 2);
+    assert.equal(booking.body.roomAmount, 800000);
+    assert.equal(calls.find(x => x.url.endsWith('/payments')).body.amount, 800000);
 });

@@ -44,7 +44,8 @@ public sealed record HousekeepingScheduleTaskDto(
     DateTime AtUtc,
     string Kind,
     string Action,
-    string Text);
+    string Text,
+    int? ShiftOrder = null);
 
 public sealed record RoomConditionTagDto(Guid Id, string Name, string Category);
 

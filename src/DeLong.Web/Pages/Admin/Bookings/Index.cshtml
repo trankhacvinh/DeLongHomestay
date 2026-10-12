@@ -211,7 +211,7 @@
 
                     <section class="stay-editor-section">
                         <div class="stay-editor-section-head"><span>03</span><div><strong>Giá và ghi chú</strong><small>Có thể điều chỉnh giá/đêm khi có thỏa thuận riêng với khách.</small></div></div>
-                        <div class="field"><label>Giá mỗi đêm *</label><div class="money-input-wrap"><input type="number" min="1" step="1000" v-model.number="stayForm.unitPrice" /><span>đ / đêm</span></div></div>
+                        <div class="field"><label>Giá mỗi đêm *</label><div class="money-input-wrap"><input type="text" inputmode="numeric" v-money-input="{ value: stayForm.unitPrice, set: value => stayForm.unitPrice = value }" /><span>đ / đêm</span></div></div>
                         <div class="field"><label>Ghi chú</label><textarea v-model.trim="stayForm.note" maxlength="2000" placeholder="Giờ đến dự kiến, yêu cầu của khách, thỏa thuận riêng..."></textarea></div>
                     </section>
                 </div>
@@ -248,7 +248,7 @@
             <div class="form-grid">
                 <div class="field"><label>Loại giao dịch</label><select v-model.number="paymentForm.type"><option v-bind:value="0">Thu tiền / Cọc</option><option v-bind:value="1">Hoàn tiền</option></select></div>
                 <div class="field"><label>Phương thức</label><select v-model.number="paymentForm.method"><option v-bind:value="1">Chuyển khoản</option><option v-bind:value="0">Tiền mặt</option><option v-bind:value="2">Thẻ</option><option v-bind:value="3">Khác</option></select></div>
-                <div class="field"><label>Số tiền *</label><input type="number" min="1" step="1000" v-model.number="paymentForm.amount" /></div>
+                <div class="field"><label>Số tiền *</label><input type="text" inputmode="numeric" v-money-input="{ value: paymentForm.amount, set: value => paymentForm.amount = value }" /></div>
                 <div class="field"><label>Mã / tham chiếu</label><input v-model.trim="paymentForm.reference" maxlength="200" placeholder="Mã giao dịch ngân hàng..." /></div>
                 <div class="field full"><label>Ghi chú</label><textarea v-model.trim="paymentForm.note" maxlength="2000"></textarea></div>
             </div>
@@ -278,6 +278,8 @@
     <div class="toast booking-toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
 </div>
 @section Scripts {
+    <script src="~/vendor/inputmask/inputmask.min.js" asp-append-version="true"></script>
+    <script src="~/js/core/money-input.js" asp-append-version="true"></script>
     <script>window.DeLongBookingsCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") ? "true" : "false");</script>
     <script src="~/js/pages/admin-bookings.js" asp-append-version="true"></script>
     <script src="~/js/core/admin-booking-live-v2.js" asp-append-version="true" data-admin-booking-live-v2></script>

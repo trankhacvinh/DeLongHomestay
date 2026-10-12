@@ -117,9 +117,9 @@
         </div>
         <div class="housekeeping-offset-note">Đang áp dụng: dọn trước nhận phòng <strong>{{ schedule.settings?.beforeCheckInMinutes || 0 }} phút</strong> · dọn sau trả phòng <strong>{{ schedule.settings?.afterCheckOutMinutes || 0 }} phút</strong>. Thay đổi tại trang Cấu hình.</div>
 
-        <div class="housekeeping-schedule-loading" v-if="scheduleLoading">Đang cập nhật lịch công việc…</div>
+        <div class="housekeeping-schedule-loading" v-show="scheduleLoading" role="status">Đang cập nhật lịch công việc…</div>
 
-        <div class="housekeeping-schedule" v-if="mode === 'schedule' && !scheduleLoading">
+        <div class="housekeeping-schedule" v-if="mode === 'schedule'">
             <section class="housekeeping-day" v-for="day in scheduleDays" v-bind:key="day.date">
                 <div class="housekeeping-day-head"><div><span>{{ weekdayText(day.date) }}</span><strong>{{ dateText(day.date) }}</strong></div><span>{{ day.tasks.length }} việc</span></div>
                 <div class="housekeeping-task-list" v-if="day.tasks.length">
@@ -134,9 +134,9 @@
             </section>
         </div>
 
-        <div class="housekeeping-text-mode" v-if="mode === 'text' && !scheduleLoading">
+        <div class="housekeeping-text-mode" v-if="mode === 'text'">
             <div class="housekeeping-text-head"><div><strong>Nội dung gửi lao công</strong><span>Đã sắp theo ngày, giờ và phòng. Có thể sao chép để gửi Zalo.</span></div><button class="btn btn-primary btn-sm" type="button" v-bind:disabled="!scheduleText" v-on:click="copyScheduleText">{{ copied ? 'Đã sao chép' : 'Sao chép văn bản' }}</button></div>
-            <textarea readonly v-bind:value="scheduleText" aria-label="Lịch dọn phòng dạng văn bản"></textarea>
+            <textarea ref="scheduleTextArea" readonly v-bind:value="scheduleText" aria-label="Lịch dọn phòng dạng văn bản"></textarea>
             <div class="housekeeping-schedule-empty" v-if="!scheduleText">Không có công việc phù hợp để tạo văn bản.</div>
         </div>
     </section>

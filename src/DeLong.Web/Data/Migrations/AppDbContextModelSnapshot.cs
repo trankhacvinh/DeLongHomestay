@@ -940,6 +940,11 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("discount_amount");
 
+                    b.Property<string>("DisplayColor")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasColumnName("display_color");
+
                     b.Property<decimal>("ExtraAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")

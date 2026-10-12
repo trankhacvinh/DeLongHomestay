@@ -34,10 +34,12 @@ public sealed record BookingDto(
     string? Source,
     string? Note,
     int RateSegmentCount,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    string? DisplayColor = null);
 
 public sealed class CreateBookingRequest
 {
+    public string? DisplayColor { get; init; }
     public Guid RoomId { get; init; }
     public Guid? CustomerId { get; init; }
     public string CustomerName { get; init; } = string.Empty;
@@ -80,6 +82,8 @@ public sealed record CreateBookingRateSegmentRequest(
 
 public sealed class UpdateBookingRequest
 {
+    public bool UpdateDisplayColor { get; init; }
+    public string? DisplayColor { get; init; }
     public Guid RoomId { get; init; }
     public Guid CustomerId { get; init; }
     public string CustomerName { get; init; } = string.Empty;

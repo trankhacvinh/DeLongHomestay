@@ -184,3 +184,11 @@
 - [x] Source: AI giải thích phát hiện; tạo booking qua preview/xác nhận và kiểm tra lại khóa/overlap.
 - [ ] Production: áp dụng AddDataQualityIssues bằng bundle mới; kiểm tra quyền chi nhánh và giao diện điện thoại.
 - Xem [DATA-QUALITY.md](DATA-QUALITY.md).
+
+### 2026-10-11 — Calendar presentation / housekeeping
+- [x] Fix historical successor detection (includes completed stays); retain confirmed 4-hour merge rule.
+- [x] Persist optional manual booking color independently of payment/status; migration AddBookingDisplayColor.
+- [x] Readable scrolling mobile slot layout with optional fit overview.
+- [ ] Apply migration/deploy and perform authenticated device UAT. See BOOKING-COLOR-HOUSEKEEPING.md.
+
+- [x] Admin manual booking: default 2 guests (bounded by room capacity), full initial receipt for new bookings; preserve staff-entered deposit and zero additional receipt on edits. Local RobinHerbots Inputmask 5.0.9 for VND fields; nightly extension reuses the common receipt flow. Source verification completed separately from deployment.

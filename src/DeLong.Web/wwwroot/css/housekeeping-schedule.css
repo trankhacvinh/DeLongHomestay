@@ -54,3 +54,6 @@
 @media(max-width:800px){.room-condition-title{align-items:stretch;flex-direction:column}.room-condition-title .btn{width:100%;min-height:46px}.room-condition-filters{grid-template-columns:1fr 1fr}.room-condition-filters>.pill{grid-column:1/-1;justify-self:start;margin:0}.room-condition-table{min-width:900px}}
 @media(max-width:600px){.housekeeping-view-switch .housekeeping-report-link{grid-column:1/-1}.room-condition-filters{padding:12px;grid-template-columns:1fr}.room-condition-filters>.pill{grid-column:auto}.room-condition-panel>.table-responsive{margin:0}.room-condition-detail{padding:14px}.room-rating-field{align-items:flex-start;flex-direction:column}.room-rating-field button{font-size:30px}.room-report-photo-actions{grid-template-columns:1fr}.room-condition-title h1{font-size:30px}}
 .room-report-gallery>video{aspect-ratio:16/9;overflow:hidden;border-radius:9px;background:#101817}
+
+.housekeeping-schedule-shell{position:relative}
+.housekeeping-schedule-loading{position:absolute;right:16px;padding:4px 8px;z-index:1;border-radius:8px;background:var(--surface,#fff);font-size:10px;pointer-events:none}

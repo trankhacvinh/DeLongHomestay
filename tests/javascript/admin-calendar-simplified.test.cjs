@@ -27,6 +27,9 @@ for (const payment of [0, 50000]) {
         const save = new Function('DeLongApi', 'utcOffset', `return ({${source.slice(saveStart, saveEnd)}}).saveBooking;`)(api, '+07:00');
         const app = { selectedRoom: { id: 'room' }, selectedRoomRates: [], propertyId: 'branch', bookings: [], editor: { mode: 'create', open: true },
             validateForm: () => null, saveGuestDetails: async () => {}, notify() {}, money: String };
+        const receiptStart = source.indexOf('            async recordReceipt(');
+        const receiptEnd = source.indexOf('            async saveAdditionalPayment(', receiptStart);
+        app.recordReceipt = new Function('DeLongApi', 'document', 'CustomEvent', `return ({${source.slice(receiptStart, receiptEnd)}}).recordReceipt;`)(api, { dispatchEvent() {} }, class { constructor() {} });
         app.form = emptyForm.call(app);
         app.form.initialPaymentAmount = payment;
         app.form.checkInLocal = '2026-10-09T14:00';

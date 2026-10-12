@@ -177,59 +177,11 @@
             }
         };
 
+        const originalSaveBooking = methods.saveBooking;
         methods.saveBooking = async function () {
+            if (this.saving) return;
             this.syncNightlyFromDates();
-            const validation = this.validateForm();
-            if (validation) return this.notify(validation, 'error');
-
-            const selectedRate = this.selectedRoomRates.find(x => x.id === this.form.rateId) || null;
-            const isNightly = Number(selectedRate?.type) === 2;
-            const nights = isNightly ? dayDistance(this.form.checkInLocal, this.form.checkOutLocal) : null;
-            if (isNightly && (!nights || nights < 1)) return this.notify('Lưu trú theo đêm phải có ngày trả sau ngày nhận.', 'error');
-
-            this.saving = true;
-            try {
-                const roomAmount = isNightly ? Number(selectedRate.price || 0) * nights : Number(this.form.roomAmount || 0);
-                const common = {
-                    roomId: this.form.roomId,
-                    customerName: this.form.customerName,
-                    customerPhone: this.form.customerPhone,
-                    type: isNightly ? 1 : 0,
-                    roomRateId: selectedRate?.id || null,
-                    rateName: selectedRate?.name || null,
-                    unitPrice: selectedRate ? Number(selectedRate.price || 0) : null,
-                    nightCount: isNightly ? nights : null,
-                    checkIn: `${this.form.checkInLocal}${utcOffset}`,
-                    checkOut: `${this.form.checkOutLocal}${utcOffset}`,
-                    roomAmount,
-                    extraAmount: Number(this.form.extraAmount || 0),
-                    discountAmount: Number(this.form.discountAmount || 0),
-                    source: this.form.source || null,
-                    note: this.form.note || null
-                };
-
-                let booking;
-                if (this.editor.mode === 'edit') {
-                    booking = await DeLongApi.put(
-                        `/api/admin/properties/${this.propertyId}/bookings/${this.selectedBooking.id}`,
-                        { ...common, customerId: this.form.customerId });
-                    const index = this.bookings.findIndex(x => x.id === booking.id);
-                    if (index >= 0) this.bookings.splice(index, 1, booking);
-                    this.selectedBooking = booking;
-                    this.notify(`Đã cập nhật ${booking.code}.`, 'success');
-                } else {
-                    booking = await DeLongApi.post(
-                        `/api/admin/properties/${this.propertyId}/bookings`,
-                        { ...common, customerId: null, status: Number(this.form.status) });
-                    this.bookings.push(booking);
-                    this.notify(`Đã tạo ${booking.code}.`, 'success');
-                }
-                this.editor.open = false;
-            } catch (error) {
-                this.notify(error.message || 'Không thể lưu lượt đặt.', 'error');
-            } finally {
-                this.saving = false;
-            }
+            return originalSaveBooking.call(this);
         };
 
         // CalendarModel intentionally sends a lean room snapshot. Refresh from the room API so the

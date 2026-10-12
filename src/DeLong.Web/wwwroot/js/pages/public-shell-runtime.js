@@ -63,6 +63,7 @@
 
     function applyNav(container, shell) {
         if (!container) return;
+        const faqButton = container.querySelector('[data-public-faq-open]');
         const existingAnchors = [...container.children].filter(x => x.tagName === 'A');
         const branchesAvailable = existingAnchors.some(anchor => keyForAnchor(anchor) === 'branches') || !!document.querySelector('#co-so');
         existingAnchors.forEach(anchor => anchor.remove());
@@ -80,6 +81,7 @@
             }
             container.appendChild(anchor);
         });
+        if (faqButton) container.appendChild(faqButton);
     }
 
     function applyFooter(shell) {

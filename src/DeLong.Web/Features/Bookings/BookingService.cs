@@ -59,7 +59,7 @@ public sealed class BookingService(
             Type = request.Type, RoomRateId = request.RoomRateId, RateName = Clean(request.RateName), UnitPrice = request.UnitPrice, NightCount = request.NightCount,
             CheckInUtc = checkInUtc, CheckOutUtc = checkOutUtc, Status = request.Status,
             RoomAmount = request.RoomAmount, SpecialSurchargeAmount = request.SpecialSurchargeAmount, ExtraAmount = request.ExtraAmount, DiscountAmount = request.DiscountAmount,
-            Source = Clean(request.Source), PublicRequestKey = Clean(request.PublicRequestKey), Note = Clean(request.Note)
+            Source = Clean(request.Source), PublicRequestKey = Clean(request.PublicRequestKey), Note = Clean(request.Note), DisplayColor = BookingDisplayColors.Normalize(request.DisplayColor)
         };
         foreach (var segment in request.RateSegments.OrderBy(x => x.SortOrder))
         {
@@ -139,6 +139,7 @@ public sealed class BookingService(
         booking.CheckInUtc = checkInUtc; booking.CheckOutUtc = checkOutUtc; booking.RoomAmount = request.RoomAmount;
         if (request.SpecialSurchargeAmount.HasValue) booking.SpecialSurchargeAmount = request.SpecialSurchargeAmount.Value;
         booking.ExtraAmount = request.ExtraAmount; booking.DiscountAmount = request.DiscountAmount; booking.Source = Clean(request.Source); booking.Note = Clean(request.Note);
+        if (request.UpdateDisplayColor) booking.DisplayColor = BookingDisplayColors.Normalize(request.DisplayColor);
         if (paymentTermsChanged)
             await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, bookingId, cancellationToken);
         auditService.Add(propertyId, "Booking", booking.Id, "Updated", actorUserId, before, Snapshot(booking));
@@ -230,9 +231,9 @@ public sealed class BookingService(
         x.RoomAmount, x.SpecialSurchargeAmount, x.ExtraAmount, x.DiscountAmount, x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount,
         x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
         x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount - x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
-        x.Source, x.Note, x.RateSegments.Count(), x.CreatedAtUtc));
+        x.Source, x.Note, x.RateSegments.Count(), x.CreatedAtUtc, x.DisplayColor));
 
-    private static object Snapshot(Booking b) => new { b.Id, b.Code, Type = b.Type.ToString(), b.RoomId, b.CustomerId, b.RoomRateId, b.RateName, b.UnitPrice, b.NightCount, b.CheckInUtc, b.CheckOutUtc, Status = b.Status.ToString(), b.RoomAmount, b.SpecialSurchargeAmount, b.ExtraAmount, b.DiscountAmount, b.Source, b.Note };
+    private static object Snapshot(Booking b) => new { b.Id, b.Code, Type = b.Type.ToString(), b.RoomId, b.CustomerId, b.RoomRateId, b.RateName, b.UnitPrice, b.NightCount, b.CheckInUtc, b.CheckOutUtc, Status = b.Status.ToString(), b.RoomAmount, b.SpecialSurchargeAmount, b.ExtraAmount, b.DiscountAmount, b.Source, b.Note, b.DisplayColor };
 
     private async Task AwardLoyaltyPointsAsync(Booking booking, CancellationToken cancellationToken)
     {
@@ -259,6 +260,7 @@ public sealed class BookingService(
 
     private static BookingOperationError? ValidateCreate(CreateBookingRequest r)
     {
+        if (!BookingDisplayColors.IsValid(r.DisplayColor)) return new("display_color_invalid", "Màu hiển thị không hợp lệ.");
         if (r.RoomId == Guid.Empty) return new("validation", "Vui lòng chọn phòng.");
         if (r.CheckOut <= r.CheckIn) return new("validation", "Giờ trả phòng phải sau giờ nhận phòng.");
         if (r.RoomAmount < 0 || r.SpecialSurchargeAmount < 0 || r.ExtraAmount < 0 || r.DiscountAmount < 0 || r.RoomAmount + r.SpecialSurchargeAmount + r.ExtraAmount - r.DiscountAmount < 0) return new("validation", "Các khoản tiền không hợp lệ.");
@@ -269,6 +271,7 @@ public sealed class BookingService(
 
     private static BookingOperationError? ValidateUpdate(UpdateBookingRequest r)
     {
+        if (r.UpdateDisplayColor && !BookingDisplayColors.IsValid(r.DisplayColor)) return new("display_color_invalid", "Màu hiển thị không hợp lệ.");
         if (r.RoomId == Guid.Empty || r.CustomerId == Guid.Empty) return new("validation", "Phòng hoặc khách hàng không hợp lệ.");
         if (string.IsNullOrWhiteSpace(r.CustomerName) || CustomerService.NormalizePhone(r.CustomerPhone).Length < 8) return new("validation", "Thông tin khách hàng không hợp lệ.");
         if (r.CheckOut <= r.CheckIn) return new("validation", "Giờ trả phòng phải sau giờ nhận phòng.");

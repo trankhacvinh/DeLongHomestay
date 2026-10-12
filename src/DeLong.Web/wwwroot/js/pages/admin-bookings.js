@@ -594,5 +594,5 @@
                 this.toast = { show: true, message: String(message || ''), type, timer };
             }
         }
-    }).mount(root);
+    }).mixin(window.DeLongMoneyInput || {}).mount(root);
 })();

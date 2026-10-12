@@ -193,10 +193,10 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
     {
         var sanitizer = new HtmlSanitizer();
         sanitizer.AllowedTags.Clear();
-        foreach (var tag in new[] { "p", "br", "strong", "b", "em", "i", "u", "h2", "h3", "ul", "ol", "li", "a", "blockquote" })
+        foreach (var tag in new[] { "p", "br", "strong", "b", "em", "i", "u", "h2", "h3", "ul", "ol", "li", "a", "blockquote", "img" })
             sanitizer.AllowedTags.Add(tag);
         sanitizer.AllowedAttributes.Clear();
-        foreach (var attribute in new[] { "href", "target", "rel", "title" })
+        foreach (var attribute in new[] { "href", "target", "rel", "title", "src", "alt" })
             sanitizer.AllowedAttributes.Add(attribute);
         sanitizer.AllowedSchemes.Clear();
         foreach (var scheme in new[] { "http", "https", "mailto", "tel" }) sanitizer.AllowedSchemes.Add(scheme);

@@ -34,6 +34,7 @@ public sealed class Booking : EntityBase
     public string? Source { get; set; }
     public string? PublicRequestKey { get; set; }
     public string? Note { get; set; }
+    public string? DisplayColor { get; set; }
 
     public ICollection<Payment> Payments { get; set; } = [];
     public ICollection<BookingRateSegment> RateSegments { get; set; } = [];

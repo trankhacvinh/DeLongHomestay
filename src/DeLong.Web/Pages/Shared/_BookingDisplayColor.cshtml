@@ -1,0 +1,11 @@
+<div class="field mt-16">
+    <label for="booking-display-color">Màu hiển thị trên lịch</label>
+    <select id="booking-display-color" v-model="form.displayColor">
+        <option value="">Tự động</option>
+        @foreach (var color in DeLong.Web.Features.Bookings.BookingDisplayColors.Options)
+        {
+            <option value="@color.Value">@color.Name (thủ công)</option>
+        }
+    </select>
+    <small>Chỉ đổi màu hiển thị; không thay đổi thanh toán hoặc trạng thái đặt phòng.</small>
+</div>

@@ -16,9 +16,9 @@ function setup(mobile) {
     return { panel, scale: () => Number(styles.get('--calendar-scale')), fit: () => fit };
 }
 
-test('Mobile starts fitted to all slots and zoom changes the whole table', () => {
+test('Mobile starts with readable scrolling slots and fit remains optional', () => {
     const env = setup(true);
-    assert.equal(env.fit(), true);
+    assert.equal(env.fit(), false);
     env.panel.querySelector('[data-v2-zoom-in]').click();
     assert.equal(env.fit(), false);
     assert.equal(env.scale(), 1.1);

@@ -160,3 +160,7 @@ Temporary booking locks are independent from room activation, publication and ho
 ## Data quality (2026-10-11)
 
 `Features/DataQuality` chạy quy tắc xác định theo chi nhánh, lưu phát hiện riêng và audit; worker 30 phút, khóa advisory/retry chống quét trùng. Không sửa dữ liệu nghiệp vụ. AI quản trị có CreateBooking preview/apply qua BookingService và giải thích phát hiện. Chi tiết quyền, quy tắc và release: [DATA-QUALITY.md](DATA-QUALITY.md).
+
+## Admin money inputs (2026-10-11)
+
+Booking/calendar money fields use the locally vendored RobinHerbots Inputmask 5.0.9 (MIT) with a scoped Vue directive in `js/core/money-input.js`. Text inputs display dot-grouped VND integers; models and API payloads remain numeric. Only the relevant admin pages load the library. Existing server validation remains authoritative. To roll back formatting, restore numeric inputs and remove the scoped directive/library references; no schema rollback is required.

@@ -65,6 +65,7 @@ public sealed class HousekeepingScheduleIntegrationTests
     }
 
     [Theory]
+    [InlineData(0, true, 0)]
     [InlineData(1, true, 0)]
     [InlineData(2, true, 15)]
     [InlineData(4, true, 15)]
@@ -120,6 +121,12 @@ public sealed class HousekeepingScheduleIntegrationTests
         arriving.CheckOutUtc = arriving.CheckOutUtc.AddMinutes(30);
         var cancelled = Booking(property, room, customer, $"CAN-{suffix}", targetDate, 18, 19, BookingStatus.Cancelled, timeZone);
 
+        var checkoutRate = new RoomRate { RoomId = room.Id, Name = "Ca vừa trả", StartTime = new(8, 0), EndTime = new(9, 30), SortOrder = 0 };
+        var arrivalRate = new RoomRate { RoomId = room.Id, Name = "Ca sắp nhận", StartTime = new(9, 30), EndTime = new(18, 30), SortOrder = 1 };
+        var overnightRate = new RoomRate { RoomId = room.Id, Name = "Qua đêm", StartTime = new(21, 0), EndTime = new(9, 30), Type = RoomRateType.Overnight, SortOrder = 2 };
+        completed.RoomRateId = checkoutRate.Id;
+        arriving.RoomRateId = arrivalRate.Id;
+        db.AddRange(checkoutRate, arrivalRate, overnightRate);
         db.AddRange(property, room, customer, completed, arriving, cancelled);
         await db.SaveChangesAsync();
 
@@ -132,6 +139,7 @@ public sealed class HousekeepingScheduleIntegrationTests
         Assert.Equal(combined ? 2 : 3, day.Tasks.Count);
         var turnover = Assert.Single(day.Tasks, task => task.Kind == "turnover" && task.BookingId == completed.Id);
         Assert.Equal(combined ? "Mở đèn" : "Tắt đèn", turnover.Action);
+        Assert.Equal(combined ? 1 : 0, turnover.ShiftOrder);
         Assert.Equal(ToUtc(targetDate, new TimeOnly(9, 30), timeZone).AddMinutes(afterMinutes), turnover.AtUtc);
         if (combined)
         {
@@ -147,8 +155,39 @@ public sealed class HousekeepingScheduleIntegrationTests
         }
         var arrivingTurnover = Assert.Single(day.Tasks, task => task.Kind == "turnover" && task.BookingId == arriving.Id);
         Assert.Equal("Tắt đèn", arrivingTurnover.Action);
+        Assert.Equal(1, arrivingTurnover.ShiftOrder);
         Assert.Equal(ToUtc(targetDate, new TimeOnly(10 + gapHours, 30), timeZone).AddMinutes(afterMinutes), arrivingTurnover.AtUtc);
         Assert.DoesNotContain(day.Tasks, task => task.BookingId == cancelled.Id);
+
+        var otherRoom = new Room { PropertyId = property.Id, Code = $"OTHER-{suffix}", Name = "Other room", IsActive = true };
+        db.Rooms.Add(otherRoom);
+        arriving.RoomId = otherRoom.Id;
+        await db.SaveChangesAsync();
+        var independent = await new HousekeepingService(db).GetScheduleAsync(property.Id, targetDate, 1);
+        Assert.Equal("Tắt đèn", Assert.Single(independent!.Calendar.Single().Tasks, x => x.BookingId == completed.Id).Action);
+        arriving.RoomId = room.Id;
+        arriving.Status = BookingStatus.Completed;
+        await db.SaveChangesAsync();
+        var historical = await new HousekeepingService(db).GetScheduleAsync(property.Id, targetDate, 1);
+        var historicalTurnover = Assert.Single(historical!.Calendar.Single().Tasks, x => x.BookingId == completed.Id);
+        Assert.Equal(combined ? "Mở đèn" : "Tắt đèn", historicalTurnover.Action);
+        Assert.DoesNotContain(historical.Calendar.Single().Tasks, x => x.Kind == "prepare");
+        arriving.Status = BookingStatus.Confirmed;
+
+        // A partial overnight stay belongs to that room's overnight shift.
+        completed.CheckInUtc = ToUtc(targetDate.AddDays(-1), new TimeOnly(23, 0), timeZone);
+        completed.CheckOutUtc = ToUtc(targetDate, new TimeOnly(9, 30), timeZone);
+        arriving.CheckInUtc = ToUtc(targetDate, new TimeOnly(10, 30), timeZone);
+        arriving.CheckOutUtc = ToUtc(targetDate, new TimeOnly(13, 30), timeZone);
+        await db.SaveChangesAsync();
+        var morning = await new HousekeepingService(db).GetScheduleAsync(property.Id, targetDate, 1);
+        Assert.Equal(1, Assert.Single(morning!.Calendar.Single().Tasks, x => x.BookingId == completed.Id).ShiftOrder);
+        arriving.CheckInUtc = ToUtc(targetDate, new TimeOnly(18, 45), timeZone);
+        arriving.CheckOutUtc = ToUtc(targetDate, new TimeOnly(22, 0), timeZone);
+        await db.SaveChangesAsync();
+        var custom = await new HousekeepingService(db).GetScheduleAsync(property.Id, targetDate, 1);
+        Assert.Null(Assert.Single(custom!.Calendar.Single().Tasks, x => x.BookingId == arriving.Id && x.Kind == "prepare").ShiftOrder);
+        Assert.Equal(2, Assert.Single(custom.Calendar.Single().Tasks, x => x.BookingId == completed.Id).ShiftOrder);
 
         // A next-day arrival must not reappear as a separate preparation task.
         completed.CheckInUtc = ToUtc(targetDate, new TimeOnly(21, 0), timeZone);

@@ -7,6 +7,17 @@ namespace DeLong.Tests;
 public sealed class BookingPolicyHtmlTests
 {
     [Fact]
+    public void Policy_images_keep_safe_sources_and_drop_executable_attributes()
+    {
+        var normalize = typeof(BookingPolicyStore).GetMethod("NormalizePolicyHtml", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var html = Assert.IsType<string>(normalize.Invoke(null, ["<p>Nội quy</p><img src='/uploads/site/rules.webp' alt='Nội quy' onerror='alert(1)'><img src='javascript:alert(2)'>"]));
+        Assert.Contains("/uploads/site/rules.webp", html);
+        Assert.Contains("alt=\"Nội quy\"", html);
+        Assert.DoesNotContain("onerror", html);
+        Assert.DoesNotContain("javascript:", html);
+    }
+
+    [Fact]
     [Trait("Category", "Unit")]
     public void Policy_html_keeps_editor_formatting_and_removes_unsafe_markup()
     {

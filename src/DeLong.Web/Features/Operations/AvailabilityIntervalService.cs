@@ -22,7 +22,8 @@ public sealed record AdminAvailabilityOccupancyDto(
     bool IsFlexibleTime,
     bool IsMixedSlot,
     bool IsRoomBlock = false,
-    string? BlockReason = null);
+    string? BlockReason = null,
+    string? DisplayColor = null);
 
 public sealed record AdminAvailabilitySlotDto(
     Guid RateId,
@@ -112,7 +113,8 @@ public sealed record AvailabilityOccupancyInput(
     bool IsFlexibleTime = false,
     bool IsMixedSlot = false,
     bool IsRoomBlock = false,
-    string? BlockReason = null);
+    string? BlockReason = null,
+    string? DisplayColor = null);
 
 public sealed record AvailabilityProjection(
     string State,
@@ -207,7 +209,7 @@ public sealed class AvailabilityIntervalService(
                     slot.StartUtc, slot.EndUtc, slot.Projection.State, slot.Projection.OccupiedRatio,
                     slot.Projection.Occupied.Select(x => new AdminAvailabilityOccupancyDto(
                         x.BookingId, x.Status, x.StartUtc, x.EndUtc, x.CustomerName, x.CustomerPhone,
-                        x.BalanceAmount, x.HasSpecialRequest, x.IsFlexibleTime, x.IsMixedSlot, x.IsRoomBlock, x.BlockReason)).ToList(),
+                        x.BalanceAmount, x.HasSpecialRequest, x.IsFlexibleTime, x.IsMixedSlot, x.IsRoomBlock, x.BlockReason, x.DisplayColor)).ToList(),
                     slot.Projection.Free)).ToList())).ToList(), room.IsBookingLocked, room.BookingLockReason, room.BookingLockedAtUtc, room.BookingLockedByName);
     }
 
@@ -344,7 +346,7 @@ public sealed class AvailabilityIntervalService(
                         .Sum(payment => payment.Type == PaymentType.Receipt ? payment.Amount : -payment.Amount),
                 x.Note != null && x.Note != "",
                 x.Type == BookingType.TimeSlot && x.RoomRateId == null && !x.RateSegments.Any(),
-                x.RateSegments.Count() > 1))
+                x.RateSegments.Count() > 1, false, null, x.DisplayColor))
             .ToListAsync(cancellationToken);
 
         var result = new List<AvailabilityDay>(days);

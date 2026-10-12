@@ -106,14 +106,15 @@
                 <section class="booking-form-section">
                     <div class="booking-form-title">Chi phí & ghi chú</div>
                     <div class="booking-money-grid">
-                        <div class="field"><label>Giá phòng</label><input type="number" min="0" step="1000" v-model.number="form.roomAmount" /></div>
-                        <div class="field"><label>Phụ thu</label><input type="number" min="0" step="1000" v-model.number="form.extraAmount" /></div>
-                        <div class="field"><label>Giảm giá</label><input type="number" min="0" step="1000" v-model.number="form.discountAmount" /></div>
+                        <div class="field"><label>Giá phòng</label><input type="text" inputmode="numeric" v-money-input="{ value: form.roomAmount, set: value => form.roomAmount = value }" /></div>
+                        <div class="field"><label>Phụ thu</label><input type="text" inputmode="numeric" v-money-input="{ value: form.extraAmount, set: value => form.extraAmount = value }" /></div>
+                        <div class="field"><label>Giảm giá</label><input type="text" inputmode="numeric" v-money-input="{ value: form.discountAmount, set: value => form.discountAmount = value }" /></div>
                     </div>
                     <div class="booking-money-grid booking-initial-payment">
-                        <div class="field"><label>{{ editor.mode === 'edit' ? 'Khách thanh toán thêm' : 'Khách đã thanh toán / tiền cọc' }}</label><input type="number" min="0" v-bind:max="paymentLimit" step="1000" v-model.number="form.initialPaymentAmount" /></div>
+                        <div class="field"><label>{{ editor.mode === 'edit' ? 'Khách thanh toán thêm' : 'Khách đã thanh toán / tiền cọc' }}</label><input type="text" inputmode="numeric" v-money-input="{ value: form.initialPaymentAmount, set: value => setInitialPayment(value) }" /></div>
                         <div class="field"><label>Phương thức thu</label><select v-model.number="form.initialPaymentMethod"><option v-bind:value="1">Chuyển khoản</option><option v-bind:value="0">Tiền mặt</option><option v-bind:value="2">Thẻ</option><option v-bind:value="3">Khác</option></select></div>
                     </div>
+                    <partial name="_BookingDisplayColor" />
                     <div class="field mt-16"><label>Ghi chú</label><textarea v-model.trim="form.note" maxlength="2000" placeholder="Ví dụ: nhận phòng 22:30, thêm gối, khách cần hóa đơn..."></textarea></div>
                 </section>
 
@@ -125,6 +126,10 @@
                     </template>
                 </div>
                 <div class="modal-actions">
+                    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                    {
+                        <button v-if="editor.mode === 'create'" class="btn btn-light" type="button" v-bind:disabled="saving || !form.roomId" v-on:click="openQuickBlock">Khóa phòng</button>
+                    }
                     <button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button>
                     <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveBooking">{{ saving ? 'Đang lưu...' : (editor.mode === 'edit' ? 'Lưu thay đổi' : 'Lưu lượt đặt') }}</button>
                 </div>
@@ -163,7 +168,7 @@
                 <section v-if="canManage && selectedBooking.balanceAmount > 0 && ![5, 6].includes(Number(selectedBooking.status))" class="admin-booking-detail-panel">
                     <strong>Ghi nhận thanh toán bổ sung</strong>
                     <div class="booking-money-grid">
-                        <div class="field"><label>Số tiền thu thêm</label><input type="number" min="0" v-bind:max="selectedBooking.balanceAmount" step="1000" v-model.number="additionalPayment.amount" /></div>
+                        <div class="field"><label>Số tiền thu thêm</label><input type="text" inputmode="numeric" v-money-input="{ value: additionalPayment.amount, set: value => additionalPayment.amount = value }" /></div>
                         <div class="field"><label>Phương thức thu</label><select v-model.number="additionalPayment.method"><option v-bind:value="1">Chuyển khoản</option><option v-bind:value="0">Tiền mặt</option><option v-bind:value="2">Thẻ</option><option v-bind:value="3">Khác</option></select></div>
                     </div>
                     <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveAdditionalPayment">{{ saving ? 'Đang ghi nhận...' : 'Ghi nhận khoản thu' }}</button>
@@ -180,6 +185,26 @@
         </section>
     </div>
 
+    <div class="modal-backdrop modal-top" v-if="quickBlock.open" v-on:click.self="closeQuickBlock">
+        <section class="modal-card modal-small" role="dialog" aria-modal="true" aria-labelledby="quick-block-title">
+            <div class="modal-head"><h2 id="quick-block-title">Khóa phòng nhanh</h2><button class="icon-btn" type="button" v-on:click="closeQuickBlock" aria-label="Đóng">×</button></div>
+            <div class="booking-form-section">
+            <p>Chỉ chặn đơn mới trong thời gian khóa. Các đơn đã tạo vẫn được giữ nguyên.</p>
+            <div class="field"><label>Phòng</label><select v-model="quickBlock.roomId" v-on:change="resetQuickBlockConflicts"><option v-for="room in activeRooms" v-bind:key="room.id" v-bind:value="room.id">{{ room.name }}</option></select></div>
+            <div class="field"><label>Bắt đầu</label><input type="datetime-local" v-model="quickBlock.start" v-on:input="resetQuickBlockConflicts" /></div>
+            <div class="field"><label>Kết thúc</label><input type="datetime-local" v-model="quickBlock.end" v-on:input="resetQuickBlockConflicts" /></div>
+            <div class="field"><label>Lý do khóa *</label><textarea v-model="quickBlock.reason" maxlength="500" rows="3" v-on:input="resetQuickBlockConflicts"></textarea></div>
+            <div class="notice" v-if="quickBlock.error" role="alert">{{ quickBlock.error }}</div>
+            <div v-if="quickBlock.conflicts.length">
+                <p>Có đơn đã tạo trùng khoảng thời gian này:</p>
+                <div v-for="booking in quickBlock.conflicts" v-bind:key="booking.id">{{ booking.code }} · {{ dateTimeText(booking.checkInUtc) }} → {{ dateTimeText(booking.checkOutUtc) }}</div>
+                <label><input type="checkbox" v-model="quickBlock.acknowledged" /> Tôi hiểu các đơn này vẫn được giữ nguyên.</label>
+            </div>
+            </div>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="closeQuickBlock">Quay lại</button><button class="btn btn-primary" type="button" v-bind:disabled="saving || (quickBlock.conflicts.length > 0 && !quickBlock.acknowledged)" v-on:click="saveQuickBlock">{{ saving ? 'Đang khóa...' : 'Lưu lịch khóa' }}</button></div>
+        </section>
+    </div>
+
     <div class="modal-backdrop modal-top" v-if="statusConfirm.open" v-on:click.self="closeStatusConfirm">
         <section class="modal-card modal-small status-confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="calendar-v2-status-confirm-title">
             <div class="modal-head"><div><h2 id="calendar-v2-status-confirm-title">{{ statusConfirm.title }}</h2><p class="small muted">Thao tác chỉ được thực hiện sau khi bạn xác nhận.</p></div><button class="icon-btn" type="button" v-on:click="closeStatusConfirm" aria-label="Đóng">×</button></div>
@@ -193,6 +218,8 @@
 </div>
 
 @section Scripts {
+    <script src="~/vendor/inputmask/inputmask.min.js" asp-append-version="true"></script>
+    <script src="~/js/core/money-input.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-room-booking-lock.js" asp-append-version="true"></script>
     <script>window.DeLongCalendarCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") ? "true" : "false"); try { localStorage.setItem('delong.calendar.view.@Model.PropertyId', 'v2'); } catch { }</script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
