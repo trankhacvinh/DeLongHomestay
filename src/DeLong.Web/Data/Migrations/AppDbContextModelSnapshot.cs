@@ -2442,6 +2442,38 @@ namespace DeLong.Web.Data.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("housekeeping_before_check_in_minutes");
 
+                    b.Property<int>("HousekeepingCleaningMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30)
+                        .HasColumnName("housekeeping_cleaning_minutes");
+
+                    b.Property<int>("HousekeepingMaxAdvanceMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30)
+                        .HasColumnName("housekeeping_max_advance_minutes");
+
+                    b.Property<bool>("HousekeepingStaggerEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("housekeeping_stagger_enabled");
+
+                    b.Property<TimeOnly?>("HousekeepingWorkEnd")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("housekeeping_work_end");
+
+                    b.Property<TimeOnly?>("HousekeepingWorkStart")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("housekeeping_work_start");
+
+                    b.Property<int>("HousekeepingWorkerCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("housekeeping_worker_count");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");

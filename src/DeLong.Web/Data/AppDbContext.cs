@@ -231,6 +231,12 @@ public sealed class AppDbContext
             entity.Property(x => x.TimeZoneId).HasMaxLength(100).IsRequired();
             entity.Property(x => x.HousekeepingBeforeCheckInMinutes).HasDefaultValue(0).IsRequired();
             entity.Property(x => x.HousekeepingAfterCheckOutMinutes).HasDefaultValue(0).IsRequired();
+            entity.Property(x => x.HousekeepingStaggerEnabled).HasDefaultValue(false);
+            entity.Property(x => x.HousekeepingCleaningMinutes).HasDefaultValue(30);
+            entity.Property(x => x.HousekeepingWorkerCount).HasDefaultValue(1);
+            entity.Property(x => x.HousekeepingMaxAdvanceMinutes).HasDefaultValue(30);
+            entity.Property(x => x.HousekeepingWorkStart).HasColumnType("time without time zone");
+            entity.Property(x => x.HousekeepingWorkEnd).HasColumnType("time without time zone");
             entity.Property(x => x.AutomaticCheckInEnabled).HasDefaultValue(true).IsRequired();
             entity.Property(x => x.AutomaticCheckOutEnabled).HasDefaultValue(true).IsRequired();
             entity.ToTable(table =>

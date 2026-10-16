@@ -13,6 +13,61 @@ public sealed class IdentityDocumentStorageTests
     private static readonly byte[] TinyPng = Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
 
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task Completion_requires_saved_documents_for_each_required_guest(int guestCount)
+    {
+        var root = TempRoot();
+        try
+        {
+            var storage = new IdentityDocumentStorage(Paths(root), new ConfigurationBuilder().Build());
+            var property = Guid.NewGuid(); var booking = Guid.NewGuid();
+            var details = new BookingGuestDetailsDto(guestCount, true, 1, DateTime.UtcNow);
+            Assert.NotNull(await BookingCompletionValidation.ValidateAsync(storage, property, booking, null));
+            Assert.NotNull(await BookingCompletionValidation.ValidateAsync(storage, property, booking, details));
+            foreach (var side in new[] { "front", "back" })
+                await storage.SaveAsync(property, booking, side, FormImage("synthetic.png", TinyPng));
+            if (guestCount == 3)
+            {
+                Assert.NotNull(await BookingCompletionValidation.ValidateAsync(storage, property, booking, details));
+                foreach (var side in new[] { "second-front", "second-back" })
+                    await storage.SaveAsync(property, booking, side, FormImage("synthetic.png", TinyPng));
+            }
+            Assert.Null(await BookingCompletionValidation.ValidateAsync(storage, property, booking, details));
+            Assert.NotNull(await BookingCompletionValidation.ValidateAsync(storage, Guid.NewGuid(), booking, details));
+            Assert.NotNull(await BookingCompletionValidation.ValidateAsync(storage, property, booking, details with { PolicyAccepted = false }));
+            await File.WriteAllBytesAsync(Path.Combine(root, "private", "identity-documents", property.ToString("N"), booking.ToString("N"), "front.dlid"), [0, 1, 2]);
+            Assert.NotNull(await BookingCompletionValidation.ValidateAsync(storage, property, booking, details));
+        }
+        finally { Cleanup(root); }
+    }
+
+    [Fact]
+    public async Task Saved_identity_copy_preserves_encoded_bytes_without_a_second_lossy_encode()
+    {
+        var root = TempRoot();
+        try
+        {
+            var storage = new IdentityDocumentStorage(Paths(root), new ConfigurationBuilder().Build());
+            var property = Guid.NewGuid(); var source = Guid.NewGuid(); var target = Guid.NewGuid();
+            await storage.SaveAsync(property, source, "front", FormImage("synthetic.png", CreateDetailedSyntheticPng()));
+            var saved = (await storage.ReadAsync(property, source, "front"))!;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            await storage.CopyAsync(property, source, target, "front");
+            watch.Stop();
+            var copied = (await storage.ReadAsync(property, target, "front"))!;
+            Console.WriteLine($"Identity owner copy: {watch.ElapsedMilliseconds} ms, {saved.Bytes.Length} bytes");
+            Assert.Equal(saved.Bytes, copied.Bytes);
+            Assert.Equal(saved.ContentType, copied.ContentType);
+            var sourceFile = Path.Combine(root, "private", "identity-documents", property.ToString("N"), source.ToString("N"), "front.dlid");
+            var targetFile = Path.Combine(root, "private", "identity-documents", property.ToString("N"), target.ToString("N"), "front.dlid");
+            Assert.False(File.ReadAllBytes(sourceFile).SequenceEqual(File.ReadAllBytes(targetFile)));
+            Assert.Null(await storage.CopyAsync(property, Guid.NewGuid(), target, "back"));
+        }
+        finally { Cleanup(root); }
+    }
+
     [Fact]
     public async Task AutoManagedKey_EncryptsAtRest_AndSurvivesRestart()
     {
@@ -177,6 +232,18 @@ public sealed class IdentityDocumentStorageTests
             Headers = new HeaderDictionary(),
             ContentType = "image/png"
         };
+    }
+
+    private static byte[] CreateDetailedSyntheticPng()
+    {
+        using var bitmap = new SKBitmap(2000, 1200);
+        var pixels = new SKColor[2000 * 1200];
+        var random = new Random(42);
+        for (var i = 0; i < pixels.Length; i++) pixels[i] = new((byte)random.Next(256), (byte)random.Next(256), (byte)random.Next(256));
+        bitmap.Pixels = pixels;
+        using var image = SKImage.FromBitmap(bitmap);
+        using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+        return encoded.ToArray();
     }
 
     private static byte[] CreatePng(int width, int height)

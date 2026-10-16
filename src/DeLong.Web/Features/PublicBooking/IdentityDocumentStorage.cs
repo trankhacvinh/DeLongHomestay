@@ -77,11 +77,34 @@ public sealed class IdentityDocumentStorage
 
         const string optimizedContentType = "image/webp";
         var originalFileName = SafeFileName(file.FileName, ".webp");
-        var plaintext = BuildPlaintext(optimizedContentType, originalFileName, imageBytes);
+        return (await WriteEncryptedAsync(propertyId, bookingId, normalizedSide, optimizedContentType, originalFileName, imageBytes, cancellationToken), null);
+    }
+
+    public async Task<IdentityDocumentInfo?> CopyAsync(
+        Guid propertyId, Guid sourceOwnerId, Guid targetOwnerId, string side,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeSide(side);
+        if (!IsConfigured || normalized is null) return null;
+        var saved = await ReadAsync(propertyId, sourceOwnerId, normalized, cancellationToken);
+        if (saved is null) return null;
+        try
+        {
+            return await WriteEncryptedAsync(propertyId, targetOwnerId, normalized, saved.ContentType,
+                saved.OriginalFileName, saved.Bytes, cancellationToken);
+        }
+        finally { CryptographicOperations.ZeroMemory(saved.Bytes); }
+    }
+
+    private async Task<IdentityDocumentInfo> WriteEncryptedAsync(
+        Guid propertyId, Guid bookingId, string side, string contentType, string originalFileName,
+        byte[] imageBytes, CancellationToken cancellationToken)
+    {
+        var plaintext = BuildPlaintext(contentType, originalFileName, imageBytes);
         var nonce = RandomNumberGenerator.GetBytes(NonceSize);
         var ciphertext = new byte[plaintext.Length];
         var tag = new byte[TagSize];
-        var aad = AssociatedData(propertyId, bookingId, normalizedSide);
+        var aad = AssociatedData(propertyId, bookingId, side);
         using (var aes = new AesGcm(key!, TagSize))
             aes.Encrypt(nonce, plaintext, ciphertext, tag, aad);
         CryptographicOperations.ZeroMemory(plaintext);
@@ -95,7 +118,7 @@ public sealed class IdentityDocumentStorage
 
         var directory = DirectoryFor(propertyId, bookingId);
         Directory.CreateDirectory(directory);
-        var path = Path.Combine(directory, normalizedSide + ".dlid");
+        var path = Path.Combine(directory, side + ".dlid");
         var temp = path + ".tmp-" + Guid.NewGuid().ToString("N");
         try
         {
@@ -108,7 +131,7 @@ public sealed class IdentityDocumentStorage
             CryptographicOperations.ZeroMemory(ciphertext);
         }
 
-        return (new IdentityDocumentInfo(normalizedSide, optimizedContentType, originalFileName, imageBytes.LongLength), null);
+        return new IdentityDocumentInfo(side, contentType, originalFileName, imageBytes.LongLength);
     }
 
     public async Task<IdentityDocumentReadResult?> ReadAsync(

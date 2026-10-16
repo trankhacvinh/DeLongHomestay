@@ -14,9 +14,10 @@
     <section class="sepay-checkout-card">
         <div class="sepay-qr-column">
             <div class="sepay-qr-frame">
-                <div class="sepay-qr-placeholder" data-sepay-qr-placeholder>Đang tạo mã QR…</div>
+                <div class="sepay-qr-placeholder" data-sepay-qr-placeholder role="status" aria-live="polite">Đang tải mã QR…</div>
                 <img data-sepay-qr hidden="@(Model.PaymentState?.QrUrl is null)" src="@Model.PaymentState?.QrUrl" fetchpriority="high" width="360" height="360" alt="Mã VietQR thanh toán" referrerpolicy="no-referrer" />
             </div>
+            <button type="button" class="btn btn-light" data-sepay-qr-retry hidden>Tải lại mã QR</button>
             <p class="sepay-qr-help">Mở ứng dụng ngân hàng và chọn chức năng quét QR</p>
             <a class="sepay-qr-download" data-sepay-download hidden
                href="/api/public/payments/sepay/@Uri.EscapeDataString(Model.OrderId)/qr" download>

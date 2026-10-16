@@ -51,7 +51,7 @@
 
             const bar = document.createElement('div');
             bar.className = 'pve-context-toolbar';
-            bar.innerHTML = `<div class="pve-context-brand"><span>DL</span><strong>Chỉnh website</strong><small>${h(this.room ? this.room.name : this.context.propertyName || 'Website')}</small></div>
+            bar.innerHTML = `<div class="pve-context-brand"><span>✦</span><strong>Chỉnh website</strong><small>${h(this.room ? this.room.name : this.context.propertyName || 'Website')}</small></div>
                 <div class="pve-context-actions">
                     <button type="button" data-context-header>Header</button>
                     <button type="button" data-context-footer>Footer</button>

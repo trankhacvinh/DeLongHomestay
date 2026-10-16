@@ -24,13 +24,14 @@ public sealed class FinanceExcelExportServiceTests
 
         var file = new FinanceExcelExportService().Create(
             snapshot,
-            "De Long",
+            "Aurora Stay",
             range,
-            new Dictionary<Guid, string> { [propertyId] = "De Long" },
+            new Dictionary<Guid, string> { [propertyId] = "Aurora Stay" },
             new Dictionary<Guid, TimeZoneInfo> { [propertyId] = TimeZoneInfo.Utc });
 
         Assert.NotEmpty(file.Content);
         using var workbook = new XLWorkbook(new MemoryStream(file.Content));
+        Assert.Equal("Aurora Stay", workbook.Properties.Author);
         Assert.Equal(["Tổng quan", "Sổ thu chi", "Thu booking", "Chi phí"], workbook.Worksheets.Select(x => x.Name).ToArray());
         var ledger = workbook.Worksheet("Sổ thu chi");
         Assert.Equal(2_000_000m, ledger.Cell("H5").GetValue<decimal>());

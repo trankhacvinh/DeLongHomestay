@@ -236,15 +236,8 @@ public sealed class CustomerAccountService(
         if (!await HasPropertyLinkAsync(userId, propertyId, cancellationToken)) return;
         foreach (var side in new[] { "front", "back" })
         {
-            var saved = await storage.ReadAsync(propertyId, userId, side, cancellationToken);
-            if (saved is null) continue;
-            await using var stream = new MemoryStream(saved.Bytes, writable: false);
-            IFormFile file = new FormFile(stream, 0, saved.Bytes.Length, "file", saved.OriginalFileName)
-            {
-                Headers = new HeaderDictionary(),
-                ContentType = saved.ContentType
-            };
-            await storage.SaveAsync(propertyId, bookingId, side, file, cancellationToken);
+            var copied = await storage.CopyAsync(propertyId, userId, bookingId, side, cancellationToken);
+            if (copied is null) continue;
         }
     }
 }

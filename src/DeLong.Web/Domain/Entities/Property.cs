@@ -15,6 +15,12 @@ public sealed class Property : EntityBase
     public string TimeZoneId { get; set; } = "Asia/Ho_Chi_Minh";
     public int HousekeepingBeforeCheckInMinutes { get; set; }
     public int HousekeepingAfterCheckOutMinutes { get; set; }
+    public bool HousekeepingStaggerEnabled { get; set; }
+    public int HousekeepingCleaningMinutes { get; set; } = 30;
+    public int HousekeepingWorkerCount { get; set; } = 1;
+    public int HousekeepingMaxAdvanceMinutes { get; set; } = 30;
+    public TimeOnly? HousekeepingWorkStart { get; set; }
+    public TimeOnly? HousekeepingWorkEnd { get; set; }
     public bool AutomaticCheckInEnabled { get; set; } = true;
     public bool AutomaticCheckOutEnabled { get; set; } = true;
     public bool IsActive { get; set; } = true;

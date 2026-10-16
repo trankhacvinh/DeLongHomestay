@@ -7,7 +7,7 @@
         data() {
   return {
       tab: initial.tab === 'blog' ? 'blog' : 'gallery', properties: initial.properties || [], gallery: [], posts: [], loading: true, saving: false,
-      settings: { galleryEnabled: true, galleryMode: 'all', galleryPropertyIds: [], galleryItemIds: [], galleryLimit: 8, galleryTitle: 'Một vài khoảnh khắc tại De Long', galleryLayout: 'mosaic', blogEnabled: true, blogMode: 'all', blogPropertyIds: [], blogPostIds: [], blogLimit: 3, blogTitle: 'Gợi ý cho chuyến nghỉ của bạn' },
+      settings: { galleryEnabled: true, galleryMode: 'all', galleryPropertyIds: [], galleryItemIds: [], galleryLimit: 8, galleryTitle: 'Một vài khoảnh khắc tại cơ sở', galleryLayout: 'mosaic', blogEnabled: true, blogMode: 'all', blogPropertyIds: [], blogPostIds: [], blogLimit: 3, blogTitle: 'Gợi ý cho chuyến nghỉ của bạn' },
       toast: { show: false, type: 'success', message: '' }
   };
         },

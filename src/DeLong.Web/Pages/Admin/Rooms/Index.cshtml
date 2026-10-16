@@ -25,7 +25,7 @@
     <section class="panel rooms-list-panel">
         <div class="rooms-toolbar">
             <label class="rooms-search"><span>⌕</span><input v-model.trim="search" aria-label="Tìm phòng theo tên hoặc mã" placeholder="Tìm tên hoặc mã phòng..." autocomplete="off" /></label>
-            <label class="rooms-inactive-toggle"><input type="checkbox" v-model="showInactive" /><span>Hiện phòng ngừng hoạt động</span></label>
+            <label class="rooms-inactive-toggle"><input type="checkbox" v-model="showInactive" /><span>Hiện phòng đã lưu trữ</span></label>
             <span class="entity-count">{{ filteredRooms.length }} phòng</span>
         </div>
 
@@ -49,8 +49,8 @@
                         </td>
                         <td class="col-capacity" data-label="Sức chứa"><span class="room-capacity">{{ room.capacity }} <small>người</small></span></td>
                         <td class="col-rates" data-label="Khung giá">
-                            <div class="rate-inline room-rate-compact" v-if="room.rates.length">
-                                <span v-for="rate in room.rates" v-bind:key="rate.id" class="pill">{{ rate.startTime }}–{{ rate.endTime }} · {{ money(rate.price) }}</span>
+                            <div class="rate-inline room-rate-compact" v-if="activeRates(room).length">
+                                <span v-for="rate in activeRates(room)" v-bind:key="rate.id" class="pill">{{ rate.startTime }}–{{ rate.endTime }} · {{ money(rate.price) }}</span>
                             </div>
                             <span v-else class="muted small">Chưa cấu hình</span>
                         </td>
@@ -86,6 +86,7 @@
                                     @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                                     {
                                         <button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(room)">Sửa</button>
+                                        <button class="btn btn-light btn-sm" type="button" v-bind:disabled="statusSavingId === room.id" v-on:click="toggleActive(room)">{{ room.isActive ? 'Lưu trữ' : 'Khôi phục' }}</button>
                                     }
                                 </div>
                             }

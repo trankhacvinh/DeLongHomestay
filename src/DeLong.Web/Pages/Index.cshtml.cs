@@ -43,7 +43,7 @@ public sealed class IndexModel(
             IsGlobalHome = true;
             GlobalCatalog = await publicRoomContentService.GetGlobalCatalogAsync(cancellationToken);
             var globalSections = await siteContentService.GetGlobalPublicSectionsAsync(cancellationToken);
-            Sections = NormalizeGlobalSections(ToViewModels(globalSections), GlobalCatalog.Properties.Count);
+            Sections = NormalizeGlobalSections(ToViewModels(globalSections));
             GlobalEditorial = await globalEditorialShowcaseService.GetPublicAsync(cancellationToken);
             var timeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
             var localNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
@@ -106,11 +106,8 @@ public sealed class IndexModel(
     }
 
     private static IReadOnlyList<PublicHomeSectionVm> NormalizeGlobalSections(
-        IReadOnlyList<PublicHomeSectionVm> sections,
-        int activePropertyCount)
+        IReadOnlyList<PublicHomeSectionVm> sections)
     {
-        if (activePropertyCount > 1) return sections;
-
         var normalized = new List<PublicHomeSectionVm>();
         foreach (var section in sections)
         {

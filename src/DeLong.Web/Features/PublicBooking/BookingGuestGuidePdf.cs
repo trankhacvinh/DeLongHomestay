@@ -32,7 +32,7 @@ public static partial class BookingGuestGuidePdf
             if (canvas is not null) document.EndPage();
             canvas = document.BeginPage(PageWidth, PageHeight);
             y = Margin;
-            canvas.DrawText("DE LONG HOMESTAY", Margin, y, SKTextAlign.Left, mutedFont, muted);
+            canvas.DrawText("HƯỚNG DẪN NHẬN PHÒNG", Margin, y, SKTextAlign.Left, mutedFont, muted);
             y += 32;
         }
 

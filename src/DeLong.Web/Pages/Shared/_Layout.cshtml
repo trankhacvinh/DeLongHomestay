@@ -13,10 +13,6 @@
     var publicSiteSlug = !isAdmin ? Context.Request.RouteValues["siteSlug"]?.ToString() : null;
     var isGlobalPublic = !isAdmin && string.IsNullOrWhiteSpace(publicSiteSlug);
     var publicScopePrefix = !isAdmin ? DeLong.Web.Features.Site.PublicPropertyResolver.ScopePrefix(publicSiteSlug) : string.Empty;
-    var publicProperties = !isAdmin
-        ? await PublicPropertyResolver.GetActiveAsync(Context.RequestAborted)
-        : [];
-    var showPublicBranches = publicProperties.Count > 1;
     var publicSite = !isAdmin && !isGlobalPublic ? await SiteContentService.GetPublicAsync(publicSiteSlug, Context.RequestAborted) : null;
     var publicSettings = publicSite?.Settings;
     IReadOnlyList<DeLong.Web.Features.Site.HomeSectionDto> publicFaqSections = [];
@@ -25,8 +21,11 @@
         var sections = publicSite?.Sections ?? await SiteContentService.GetGlobalPublicSectionsAsync(Context.RequestAborted);
         publicFaqSections = sections.Where(x => x.IsVisible && x.Type == "Faq").ToList();
     }
-    var publicSiteName = string.IsNullOrWhiteSpace(publicSettings?.SiteName) ? "De Long Homestay" : publicSettings.SiteName;
-    var publicTagline = string.IsNullOrWhiteSpace(publicSettings?.Tagline) ? "Long Thành · Đồng Nai" : publicSettings.Tagline;
+    var globalBranding = ViewData["GlobalBranding"] as DeLong.Web.Features.Site.GlobalSiteBrandingDto;
+    var publicSiteName = string.IsNullOrWhiteSpace(publicSettings?.SiteName) ? globalBranding?.SiteName ?? "Homestay" : publicSettings.SiteName;
+    var brandInitials = string.Concat(publicSiteName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => System.Globalization.StringInfo.GetNextTextElement(x))).ToUpperInvariant();
+    var publicLogoUrl = publicSettings?.LogoUrl ?? globalBranding?.LogoUrl;
+    var publicTagline = string.IsNullOrWhiteSpace(publicSettings?.Tagline) ? globalBranding?.Tagline ?? string.Empty : publicSettings.Tagline;
     // Footer contact cards: every active property on the global site, only the current property on a property site.
     IReadOnlyList<DeLong.Web.Features.Site.PublicPropertyContactDto> publicContacts = [];
     // Standard theme: the built-in design wins over visual-editor styling, header/footer designer and custom.css.
@@ -53,6 +52,9 @@
     }
 
     string? propertyId = currentProperty?.Id.ToString();
+    var adminBrandName = currentProperty?.Name ?? publicSiteName;
+    var adminBrandInitials = string.Concat(adminBrandName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2)
+        .Select(x => System.Globalization.StringInfo.GetNextTextElement(x))).ToUpperInvariant();
 
     var canViewOperations = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") || User.IsInRole("Viewer");
     var canViewVouchers = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff");
@@ -94,7 +96,7 @@
         var requestedTitle = ViewData["Title"]?.ToString();
         var isPublicHome = !isAdmin && string.Equals(Context.Request.RouteValues["page"]?.ToString(), "/Index", StringComparison.OrdinalIgnoreCase);
         var documentTitle = isAdmin
-            ? $"{requestedTitle} - De Long Homestay"
+            ? $"{requestedTitle} - {adminBrandName}"
             : (isPublicHome ? (string.IsNullOrWhiteSpace(requestedTitle) ? publicSiteName : requestedTitle) : $"{requestedTitle} - {publicSiteName}");
         var metaDescription = ViewData["MetaDescription"]?.ToString() ?? publicSettings?.MetaDescription;
         var robots = isAdmin
@@ -125,7 +127,7 @@
                 {
                     ["@context"] = "https://schema.org",
                     ["@type"] = "WebSite",
-                    ["name"] = "De Long Homestay",
+                    ["name"] = publicSiteName,
                     ["url"] = canonicalBaseUrl,
                     ["description"] = metaDescription
                 }
@@ -318,8 +320,8 @@
         <aside class="sidebar" aria-label="Điều hướng quản trị">
             <div class="sidebar-head">
                 <a class="brand admin-brand" asp-page="/Admin/Index" asp-route-propertyId="@propertyId">
-                    <span class="brand-mark">DL</span>
-                    <span class="brand-copy"><strong>De Long</strong><small>Homestay</small></span>
+                    <span class="brand-mark">@adminBrandInitials</span>
+                    <span class="brand-copy"><strong>@adminBrandName</strong><small>Quản trị cơ sở</small></span>
                 </a>
                 <button class="sidebar-close btn-icon" type="button" data-sidebar-toggle aria-label="Đóng menu"
                         aria-expanded="false">×
@@ -596,13 +598,13 @@ else
         <div class="public-container public-site-nav">
             <a class="public-site-brand"
                href="@(isGlobalPublic ? "/" : DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(publicSiteSlug!))">
-                @if (!string.IsNullOrWhiteSpace(publicSettings?.LogoUrl))
+                @if (!string.IsNullOrWhiteSpace(publicLogoUrl))
                 {
-                    <img class="public-site-brand-logo" src="@publicSettings.LogoUrl" alt="@publicSiteName"/>
+                    <img class="public-site-brand-logo" src="@publicLogoUrl" alt="@publicSiteName"/>
                 }
                 else
                 {
-                    <span class="brand-mark">DL</span>
+                    <span class="brand-mark">@brandInitials</span>
                 }
                 <span><strong>@publicSiteName</strong><small>@publicTagline</small></span>
             </a>
@@ -612,10 +614,6 @@ else
             }
             <nav class="public-site-links" aria-label="Điều hướng trang khách">
                 <a href="/">Trang chủ</a>
-                @if (showPublicBranches)
-                {
-                    <a href="/#co-so">Cơ sở</a>
-                }
                 <a href="@bookingUrl">Lịch phòng</a>
                 <a href="/chinh-sach-dat-phong">Chính sách</a>
                 @if (publicFaqSections.Count > 0)
@@ -747,13 +745,13 @@ else
             <div class="public-footer-brand">
                 <a class="public-site-brand public-footer-brand-link"
                    href="@(isGlobalPublic ? "/" : DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(publicSiteSlug!))">
-                    @if (!string.IsNullOrWhiteSpace(publicSettings?.LogoUrl))
+                    @if (!string.IsNullOrWhiteSpace(publicLogoUrl))
                     {
-                        <img class="public-site-brand-logo" src="@publicSettings.LogoUrl" alt="@publicSiteName"/>
+                        <img class="public-site-brand-logo" src="@publicLogoUrl" alt="@publicSiteName"/>
                     }
                     else
                     {
-                        <span class="brand-mark">DL</span>
+                        <span class="brand-mark">@brandInitials</span>
                     }
                     <span><strong>@publicSiteName</strong><small>@publicTagline</small></span>
                 </a>
@@ -773,16 +771,7 @@ else
                     <a href="/@policy.Slug">@policy.Title</a>
                 }
             </div>
-            @if (showPublicBranches)
-            {
-                <div class="public-footer-column">
-                    <strong>Cơ sở</strong>
-                    @foreach (var property in publicProperties)
-                    {
-                        <a href="@DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(property.SiteSlug)">@property.Name</a>
-                    }
-                </div>
-            }
+
             @if (!isGlobalPublic && publicSettings is not null && !string.IsNullOrWhiteSpace(publicSettings.Email))
             {
                 <div class="public-footer-column public-footer-contact">
@@ -791,9 +780,9 @@ else
                 </div>
             }
         </div>
-        <div class="public-container public-footer-bottom"><span>© @DateTime.UtcNow.Year De Long Homestay</span><span>Đặt phòng trực tiếp · Giá rõ ràng · Xác nhận bởi nhân viên</span>
+        <div class="public-container public-footer-bottom"><span>© @DateTime.UtcNow.Year @publicSiteName</span><span>Đặt phòng trực tiếp · Giá rõ ràng · Xác nhận bởi nhân viên</span>
         </div>
-        <div class="public-footer-wordmark" aria-hidden="true">DE LONG</div>
+        <div class="public-footer-wordmark" aria-hidden="true">@publicSiteName.ToUpperInvariant()</div>
     </footer>
 }
 @if (isAdmin && User.IsInRole("Admin") && currentProperty is not null)

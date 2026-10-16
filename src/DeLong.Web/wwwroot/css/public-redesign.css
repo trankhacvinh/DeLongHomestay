@@ -71,7 +71,7 @@ body.public-body .public-hospitality-footer .public-eyebrow{
     text-transform:uppercase;
     color:var(--dl-accent-ink);
 }
-body.public-body .public-main .public-section{padding-block:clamp(64px,8vw,104px)}
+body.public-body .public-main .public-section{padding-block:clamp(30px,2vw,40px)}
 body.public-body .public-main .public-section-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px 40px;margin-bottom:clamp(28px,3.4vw,44px)}
 body.public-body .public-main .public-section-head>div{min-width:0;max-width:900px}
 body.public-body .public-text-link{
@@ -171,7 +171,7 @@ body.public-body .public-cms-availability .public-btn{border-radius:12px!importa
 body.public-body .public-cms-availability-calendar{background:var(--dl-surface)!important;border-block:1px solid var(--dl-line)}
 
 /* ---------- Room marquee ---------- */
-.public-room-marquee{overflow:hidden;background:var(--dl-accent,#f2b35a);color:var(--dl-ink,#12292b);padding:12px 0;margin:calc(-1 * clamp(64px,8vw,104px)) 0 clamp(56px,7vw,88px)}
+.public-room-marquee{overflow:hidden;background:var(--dl-accent,#f2b35a);color:var(--dl-ink,#12292b);padding:12px 0;margin:0 0 clamp(56px,7vw,88px)}
 .public-room-marquee-track{display:flex;width:max-content;animation:dl-marquee 40s linear infinite}
 .public-room-marquee-track span{padding-right:.6em;font-family:var(--dl-sans,sans-serif);font-weight:800;font-size:clamp(17px,1.6vw,22px);letter-spacing:.02em;line-height:1.4;text-transform:uppercase;white-space:nowrap}
 @keyframes dl-marquee{to{transform:translateX(-50%)}}

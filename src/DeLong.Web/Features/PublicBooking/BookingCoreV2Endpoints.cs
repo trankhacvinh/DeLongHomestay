@@ -42,8 +42,10 @@ public static class BookingCoreV2Endpoints
             PublicPropertyResolver resolver,
             StoragePaths paths,
             IConfiguration configuration,
+            ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
+            var totalWatch = System.Diagnostics.Stopwatch.StartNew();
             var property = await resolver.ResolveAsync(siteSlug, cancellationToken);
             if (property is null) return Results.NotFound();
             var requestKey = httpRequest.Headers["Idempotency-Key"].FirstOrDefault()?.Trim();
@@ -67,25 +69,65 @@ public static class BookingCoreV2Endpoints
             var storage = new IdentityDocumentStorage(paths, configuration);
             if (!storage.IsConfigured)
                 return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
+            var saveWatch = System.Diagnostics.Stopwatch.StartNew();
             var (document, error) = await storage.SaveAsync(property.Id, bookingId, side, file, cancellationToken);
+            var saveMs = saveWatch.ElapsedMilliseconds;
             if (error is null)
             {
                 var userIdValue = httpRequest.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (side is "front" or "back" && Guid.TryParse(userIdValue, out var userId) && httpRequest.HttpContext.User.IsInRole(CustomerAccountService.CustomerRole))
                 {
-                    var (_, accountError) = await storage.SaveAsync(property.Id, userId, side, file, cancellationToken);
-                    if (accountError is not null)
-                        return Problem("identity_account_copy_failed", accountError, StatusCodes.Status500InternalServerError);
+                    var accountCopy = await storage.CopyAsync(property.Id, bookingId, userId, side, cancellationToken);
+                    if (accountCopy is null)
+                        return Problem("identity_account_copy_failed", "Không thể lưu CCCD vào hồ sơ tài khoản.", StatusCodes.Status500InternalServerError);
                 }
             }
+            loggerFactory.CreateLogger("BookingIdentityUpload").LogInformation(
+                "Identity upload: bytes={SourceBytes}, saveMs={SaveMs}, totalMs={TotalMs}, success={Success}, trace={TraceId}",
+                file.Length, saveMs, totalWatch.ElapsedMilliseconds, error is null, httpRequest.HttpContext.TraceIdentifier);
             return error is null
                 ? Results.Ok(document)
                 : Problem("invalid_identity_document", error, StatusCodes.Status400BadRequest);
         })
         .AllowAnonymous()
         .AddEndpointFilter<ApiAntiforgeryFilter>()
-        .RequireRateLimiting("public-booking")
+        .RequireRateLimiting("public-booking-identity")
         .WithTags("Public Booking");
+
+        app.MapPost("/api/public/booking-requests/{bookingId:guid}/complete", async (
+            Guid bookingId,
+            string? siteSlug,
+            HttpRequest request,
+            AppDbContext db,
+            PublicPropertyResolver resolver,
+            StoragePaths paths,
+            IConfiguration configuration,
+            BookingGuestGuideEmailService guestEmailService,
+            CancellationToken cancellationToken) =>
+        {
+            var property = await resolver.ResolveAsync(siteSlug, cancellationToken);
+            if (property is null) return Results.NotFound();
+            var key = request.Headers["Idempotency-Key"].FirstOrDefault()?.Trim();
+            if (string.IsNullOrWhiteSpace(key) || key.Length > 100)
+                return Problem("request_key_required", "Thiếu khóa xác nhận của lượt đặt.", StatusCodes.Status400BadRequest);
+            var booking = await db.Bookings.AsNoTracking().SingleOrDefaultAsync(x =>
+                x.PropertyId == property.Id && x.Id == bookingId && x.Source == "Website" &&
+                x.PublicRequestKey == key, cancellationToken);
+            if (booking is null) return Results.NotFound();
+            if (booking.Status is BookingStatus.Cancelled or BookingStatus.NoShow or BookingStatus.Completed)
+                return Problem("booking_locked", "Lượt đặt đã kết thúc. Vui lòng kiểm tra lại.", StatusCodes.Status409Conflict);
+            var details = await new BookingGuestDetailsStore(paths).GetAsync(property.Id, bookingId, cancellationToken);
+            var error = await BookingCompletionValidation.ValidateAsync(
+                new IdentityDocumentStorage(paths, configuration), property.Id, bookingId, details, cancellationToken);
+            if (error is not null)
+                return Problem("booking_incomplete", error, StatusCodes.Status409Conflict);
+            if (booking.Status == BookingStatus.Confirmed)
+                await guestEmailService.QueueAutomaticAsync(property.Id, bookingId, cancellationToken);
+            return Results.Ok(new { complete = true });
+        }).AllowAnonymous()
+            .AddEndpointFilter<ApiAntiforgeryFilter>()
+            .RequireRateLimiting("public-booking-completion")
+            .WithTags("Public Booking");
 
         var policyGroup = app.MapGroup("/api/admin/properties/{propertyId:guid}/booking-policy")
             .RequireAuthorization("ManageRooms")

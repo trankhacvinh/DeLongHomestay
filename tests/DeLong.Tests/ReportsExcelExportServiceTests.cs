@@ -11,11 +11,12 @@ public sealed class ReportsExcelExportServiceTests
     {
         var report = CreateReport();
 
-        var file = new ReportExcelExportService().Create(report, "De Long Homestay", new DateOnly(2026, 8, 1));
+        var file = new ReportExcelExportService().Create(report, "Aurora Stay", new DateOnly(2026, 8, 1));
 
         Assert.NotEmpty(file.Content);
-        Assert.Equal("Bao-cao-kinh-doanh-De Long Homestay-2026-08.xlsx", file.FileName);
+        Assert.Equal("Bao-cao-kinh-doanh-Aurora Stay-2026-08.xlsx", file.FileName);
         using var workbook = new XLWorkbook(new MemoryStream(file.Content));
+        Assert.Equal("Aurora Stay", workbook.Properties.Author);
         Assert.Equal(11, workbook.Worksheets.Count);
         Assert.Equal(
             ["Tổng quan", "Theo ngày", "Theo tuần", "Xu hướng 12 tháng", "Theo phòng", "Nguồn booking", "Trạng thái", "Thanh toán", "Chi phí", "Tuổi công nợ", "Theo thứ"],

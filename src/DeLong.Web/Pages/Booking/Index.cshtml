@@ -129,6 +129,7 @@ else
                     <div class="public-inline-status error" v-else-if="availabilityError" role="alert"><div><strong>Chưa kiểm tra được phòng trống</strong><p>{{ availabilityError }}</p></div><button class="public-btn public-btn-ghost" type="button" v-on:click="reloadAvailability">Thử lại</button></div>
                     <div class="public-booking-room-list" v-else-if="roomList.length">
                         <button v-for="room in roomList" v-bind:key="room.id" type="button" class="public-booking-room"
+                                v-bind:data-room-capacity="room.capacity"
                                 v-bind:class="{ active: selectedRoomId === room.id, disabled: !roomSelectable(room) }"
                                 v-bind:disabled="!roomSelectable(room)" v-on:click="chooseRoom(room)">
                             <span class="public-mini-room-art public-mini-room-photo" v-if="roomImage(room)">

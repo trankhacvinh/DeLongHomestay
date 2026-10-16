@@ -84,7 +84,7 @@ public sealed class PublicBookingContactLayoutSourceContractTests
         Assert.Contains("data-capture-id", script, StringComparison.Ordinal);
         Assert.Contains("data-browse-id", script, StringComparison.Ordinal);
         Assert.Contains("data-browse-preview", script, StringComparison.Ordinal);
-        Assert.Contains("Chọn từ thư viện", script, StringComparison.Ordinal);
+        Assert.Contains("Chọn ảnh", script, StringComparison.Ordinal);
         Assert.Contains("capture=\"environment\" data-camera-input", script, StringComparison.Ordinal);
         Assert.Contains("data-library-input", script, StringComparison.Ordinal);
         Assert.Contains("cameraInput.addEventListener('change'", script, StringComparison.Ordinal);

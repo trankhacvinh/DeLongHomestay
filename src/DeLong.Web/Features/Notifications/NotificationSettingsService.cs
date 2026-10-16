@@ -34,7 +34,7 @@ public sealed partial class NotificationSettingsService(
         var host = Clean(request.SmtpHost);
         var username = Clean(request.SmtpUsername);
         var fromEmail = Clean(request.SmtpFromEmail);
-        var fromName = Clean(request.SmtpFromName) ?? "De Long Homestay";
+        var fromName = Clean(request.SmtpFromName) ?? "Thông báo cơ sở";
         var templateError = ValidateTemplates(request);
         if (templateError is not null) return (null, templateError);
 
@@ -136,7 +136,7 @@ public sealed partial class NotificationSettingsService(
             settings.SmtpUsername,
             password,
             settings.SmtpFromEmail,
-            string.IsNullOrWhiteSpace(settings.SmtpFromName) ? "De Long Homestay" : settings.SmtpFromName), null);
+            string.IsNullOrWhiteSpace(settings.SmtpFromName) ? "Thông báo cơ sở" : settings.SmtpFromName), null);
     }
 
     public async Task<(TelegramDeliveryProfile? Profile, NotificationOperationError? Error)> GetTelegramProfileAsync(
@@ -200,7 +200,7 @@ public sealed partial class NotificationSettingsService(
         settings?.SmtpUsername ?? string.Empty,
         !string.IsNullOrWhiteSpace(settings?.SmtpPasswordProtected),
         settings?.SmtpFromEmail ?? string.Empty,
-        settings?.SmtpFromName ?? "De Long Homestay",
+        settings?.SmtpFromName ?? "Thông báo cơ sở",
         settings?.TelegramBookingEnabled ?? false,
         !string.IsNullOrWhiteSpace(settings?.TelegramBotTokenProtected),
         settings?.TelegramChatIds ?? string.Empty,

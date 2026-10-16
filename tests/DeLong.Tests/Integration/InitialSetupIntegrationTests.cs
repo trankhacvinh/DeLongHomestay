@@ -106,6 +106,92 @@ public sealed class InitialSetupIntegrationTests
         }
     }
 
+    [RoomLockPostgresFact]
+    public async Task Branded_demo_setup_creates_operations_and_locks_setup()
+    {
+        var connection = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION")!;
+        var schema = $"setup_{Guid.NewGuid():N}";
+        await CreateSchemaAsync(connection, schema);
+        try
+        {
+            await using var provider = CreateProvider(connection, schema);
+            await using var scope = provider.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.MigrateAsync();
+            var service = scope.ServiceProvider.GetRequiredService<InitialSetupService>();
+            var result = await service.CompleteAsync(new InitialSetupRequest(
+                "Demo Admin", "demo@example.invalid", "Setup-QA-123!", false, true, "Aurora Stay", true));
+            Assert.True(result.Succeeded, result.Error);
+            var property = await db.Properties.AsNoTracking().SingleAsync();
+            Assert.Equal("Aurora Stay", property.Name);
+            Assert.NotEqual(DbSeeder.DeLongPropertyId, property.Id);
+            Assert.Equal(property.Id, result.PropertyId);
+            Assert.Equal(6, await db.Rooms.CountAsync());
+            Assert.Equal(24, await db.RoomRates.CountAsync());
+            Assert.Equal(property.Name, (await db.PropertyPay2SSettings.AsNoTracking().SingleAsync()).PartnerName);
+            Assert.Equal(property.Name, (await db.PropertyNotificationSettings.AsNoTracking().SingleAsync()).SmtpFromName);
+            Assert.Contains(property.Name, (await db.GlobalEditorialShowcases.AsNoTracking().SingleAsync()).GalleryTitle);
+            Assert.Equal(6, await db.Customers.CountAsync());
+            Assert.Equal(30, await db.Bookings.CountAsync());
+            Assert.True(await db.Payments.AnyAsync());
+            Assert.Equal(6, await db.Expenses.CountAsync());
+            Assert.Single(await db.Vouchers.AsNoTracking().ToListAsync());
+            Assert.False(await service.IsRequiredAsync());
+            Assert.False((await db.PropertySePaySettings.AsNoTracking().SingleAsync()).Enabled);
+            var sections = await db.Set<DeLong.Web.Domain.Entities.HomeSection>().AsNoTracking().ToListAsync();
+            Assert.Contains(sections, x => x.PropertyId == null && x.Type == "Hero");
+            Assert.Contains(sections, x => x.PropertyId == null && x.Type == "Faq");
+            Assert.DoesNotContain(sections, x => x.ContentJson.Contains("De Long", StringComparison.OrdinalIgnoreCase));
+        }
+        finally { await DropSchemaAsync(connection, schema); }
+    }
+
+    [RoomLockPostgresFact]
+    public async Task New_property_without_demo_has_no_transactions_and_existing_property_is_protected()
+    {
+        var connection = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION")!;
+        var schema = $"setup_{Guid.NewGuid():N}";
+        await CreateSchemaAsync(connection, schema);
+        try
+        {
+            await using var provider = CreateProvider(connection, schema);
+            await using var scope = provider.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.MigrateAsync();
+            var service = scope.ServiceProvider.GetRequiredService<InitialSetupService>();
+            var result = await service.CompleteAsync(new InitialSetupRequest(
+                "Admin", "empty-brand@example.invalid", "Setup-QA-123!", false, true, "New Stay", false));
+            Assert.True(result.Succeeded, result.Error);
+            Assert.Equal("New Stay", (await db.Properties.AsNoTracking().SingleAsync()).Name);
+            Assert.False(await db.Rooms.AnyAsync());
+            Assert.False(await db.Customers.AnyAsync());
+            Assert.False(await db.Bookings.AnyAsync());
+            Assert.False(await db.Payments.AnyAsync());
+            Assert.False(await db.Expenses.AnyAsync());
+            Assert.False(await db.Vouchers.AnyAsync());
+            Assert.True(await db.UserPropertyAccesses.AnyAsync(x => x.UserId == result.AdminUserId && x.PropertyId == result.PropertyId));
+        }
+        finally { await DropSchemaAsync(connection, schema); }
+
+        schema = $"setup_{Guid.NewGuid():N}";
+        await CreateSchemaAsync(connection, schema);
+        try
+        {
+            await using var provider = CreateProvider(connection, schema);
+            await using var scope = provider.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.MigrateAsync();
+            db.Properties.Add(new() { Code = "EXISTING", Name = "Existing" });
+            await db.SaveChangesAsync();
+            var result = await scope.ServiceProvider.GetRequiredService<InitialSetupService>().CompleteAsync(
+                new InitialSetupRequest("Admin", "guard@example.invalid", "Setup-QA-123!", false, true, "Demo", true));
+            Assert.False(result.Succeeded);
+            Assert.False(await db.Users.AnyAsync());
+            Assert.Equal("Existing", (await db.Properties.AsNoTracking().SingleAsync()).Name);
+        }
+        finally { await DropSchemaAsync(connection, schema); }
+    }
+
     private static ServiceProvider CreateProvider(string baseConnectionString, string schema)
     {
         var builder = new NpgsqlConnectionStringBuilder(baseConnectionString) { SearchPath = schema };

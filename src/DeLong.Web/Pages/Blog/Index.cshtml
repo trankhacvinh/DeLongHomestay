@@ -2,14 +2,14 @@
 @model DeLong.Web.Pages.Blog.IndexModel
 @{
     ViewData["Title"] = Model.Title;
-    ViewData["MetaDescription"] = Model.SiteSlug is null ? "Câu chuyện, gợi ý lưu trú và thông tin hữu ích từ các cơ sở De Long Homestay." : $"Câu chuyện, gợi ý lưu trú và thông tin hữu ích từ {Model.Title.Replace("Blog ", string.Empty)}.";
+    ViewData["MetaDescription"] = Model.SiteSlug is null ? $"Câu chuyện, gợi ý lưu trú và thông tin hữu ích từ {(ViewData["GlobalBranding"] as DeLong.Web.Features.Site.GlobalSiteBrandingDto)?.SiteName}." : $"Câu chuyện, gợi ý lưu trú và thông tin hữu ích từ {Model.Title.Replace("Blog ", string.Empty)}.";
     ViewData["CanonicalPath"] = Model.SiteSlug is null ? "/blog" : $"/h/{Model.SiteSlug}/blog";
 }
 @section Head {
     <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/hospitality-editorial.css" asp-append-version="true" />
 }
-<section class="public-blog-page"><div class="public-container"><header class="public-blog-page-head"><span class="public-eyebrow">BLOG</span><h1>@Model.Title</h1><p>Gợi ý, câu chuyện và thông tin hữu ích từ các cơ sở De Long.</p></header>
+<section class="public-blog-page"><div class="public-container"><header class="public-blog-page-head"><span class="public-eyebrow">BLOG</span><h1>@(Model.SiteSlug is null ? $"Blog {(ViewData["GlobalBranding"] as DeLong.Web.Features.Site.GlobalSiteBrandingDto)?.SiteName}" : Model.Title)</h1><p>Gợi ý, câu chuyện và thông tin hữu ích từ @((ViewData["GlobalBranding"] as DeLong.Web.Features.Site.GlobalSiteBrandingDto)?.SiteName).</p></header>
 @if (Model.Posts.Count == 0)
 {
     <div class="public-empty-state"><h2>Chưa có bài viết</h2><p>Các bài mới sẽ xuất hiện tại đây sau khi được xuất bản.</p></div>

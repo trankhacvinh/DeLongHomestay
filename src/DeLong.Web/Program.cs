@@ -263,16 +263,9 @@ builder.Services.AddRateLimiter(options =>
             detail = $"Vui lòng chờ khoảng {Math.Max(1, (int)Math.Ceiling(retryAfter / 60d))} phút rồi thử lại."
         }, cancellationToken);
     };
-    options.AddPolicy("public-booking", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(10),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            }));
+    options.AddPolicy("public-booking", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.BookingPermitLimit));
+    options.AddPolicy("public-booking-identity", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.IdentityPermitLimit));
+    options.AddPolicy("public-booking-completion", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.CompletionPermitLimit));
     options.AddPolicy("public-voucher", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -523,6 +516,18 @@ if (!string.Equals(defaultSiteRoot, storagePaths.SitePublicRoot, StringCompariso
 }
 
 app.UseRouting();
+// Route the first visit to setup only after the deployment has migrated the schema.
+app.Use(async (context, next) =>
+{
+    if ((HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method)) &&
+        context.Request.Path == "/" &&
+        await context.RequestServices.GetRequiredService<InitialSetupService>().IsRequiredAsync(context.RequestAborted))
+    {
+        context.Response.Redirect("/setup");
+        return;
+    }
+    await next(context);
+});
 app.UseAuthentication();
 app.UseMiddleware<ForcePasswordChangeMiddleware>();
 app.UseAuthorization();

@@ -45,10 +45,10 @@
         <div class="global-branding-head"><div><span class="page-eyebrow">Thương hiệu chung</span><h2>Logo & nhận diện toàn hệ thống</h2><p>Trường để trống sẽ tự dùng cấu hình của cơ sở duy nhất đang hoạt động. Khi có nhiều cơ sở, chỉ các giá trị ghi đè bên dưới được dùng cho trang chung.</p></div></div>
         <div class="global-branding-preview">
             <img v-if="brandPreviewLogo" v-bind:src="brandPreviewLogo" v-bind:alt="brandPreviewName" />
-            <span v-else class="brand-mark">DL</span>
+            <span v-else class="brand-mark">@((ViewData["GlobalBranding"] as DeLong.Web.Features.Site.GlobalSiteBrandingDto)?.SiteName?.Substring(0, 1).ToUpperInvariant())</span>
             <span><strong>{{ brandPreviewName }}</strong><small>{{ brandPreviewTagline }}</small></span>
         </div>
-        <div class="global-branding-note" v-if="brandingEffective.hasSinglePropertyFallback">Đang có 1 cơ sở: các trường để trống sẽ kế thừa từ <strong>{{ brandingEffective.fallbackPropertyName }}</strong>.</div>
+        <div class="global-branding-note" v-if="brandingEffective.hasSinglePropertyFallback">Các trường để trống sẽ kế thừa cấu hình thương hiệu từ <strong>{{ brandingEffective.fallbackPropertyName }}</strong>.</div>
         <div class="form-grid site-form-grid">
             <div class="field"><label>Tên thương hiệu chung</label><input v-model.trim="branding.siteName" v-bind:placeholder="brandingEffective.siteName" /><small>Để trống = kế thừa khi chỉ có 1 cơ sở.</small></div>
             <div class="field"><label>Tagline</label><input v-model.trim="branding.tagline" v-bind:placeholder="brandingEffective.tagline" /></div>

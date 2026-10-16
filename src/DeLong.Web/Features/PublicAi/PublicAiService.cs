@@ -54,9 +54,18 @@ public sealed class PublicAiService(
         Nếu không phải yêu cầu đặt phòng, draft=null.
         """;
 
+    private async Task<PublicPropertyContext?> ResolveChatPropertyAsync(string? siteSlug, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(siteSlug)) return await resolver.ResolveAsync(siteSlug, ct);
+        var properties = await resolver.GetActiveAsync(ct);
+        return properties.Count == 1
+            ? properties[0]
+            : properties.SingleOrDefault(x => x.Code == PublicPropertyResolver.LegacyPropertyCode);
+    }
+
     public async Task<bool> IsEnabledAsync(string? siteSlug, CancellationToken ct)
     {
-        var property = await resolver.ResolveAsync(siteSlug, ct);
+        var property = await ResolveChatPropertyAsync(siteSlug, ct);
         return property is not null && await db.PropertyAiProfiles.AsNoTracking().AnyAsync(x =>
             x.PropertyId == property.Id && x.IsEnabled && x.IsPublicAiEnabled && x.ProtectedApiKey != string.Empty, ct);
     }
@@ -65,8 +74,9 @@ public sealed class PublicAiService(
     {
         var text = request.Message?.Trim() ?? string.Empty;
         if (text.Length is < 2 or > 1000) return (null, "Nội dung phải từ 2 đến 1.000 ký tự.");
-        var property = await resolver.ResolveAsync(siteSlug, ct);
+        var property = await ResolveChatPropertyAsync(siteSlug, ct);
         if (property is null) return (null, "Không tìm thấy cơ sở.");
+        siteSlug = property.SiteSlug;
         var access = await gateway.AuthorizeAsync(property.Id, AiAudience.Customer, ct);
         if (!access.IsAllowed) return (null, access.Error);
 

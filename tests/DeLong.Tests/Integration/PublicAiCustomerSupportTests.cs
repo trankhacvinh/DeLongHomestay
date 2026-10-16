@@ -164,6 +164,29 @@ public sealed class PublicAiCustomerSupportTests
         }
     }
 
+    [RoomLockPostgresFact]
+    public async Task Global_ai_uses_the_only_active_non_DeLong_property_and_keeps_explicit_scope()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        await using var transaction = await fixture.Db.Database.BeginTransactionAsync();
+        await fixture.Db.Properties.Where(x => x.Id != fixture.Property.Id)
+            .ExecuteUpdateAsync(update => update.SetProperty(x => x.IsActive, false));
+        Assert.True(await fixture.Service.IsEnabledAsync(null, default));
+        Assert.True(await fixture.Service.IsEnabledAsync(string.Empty, default));
+        Assert.True(await fixture.Service.IsEnabledAsync(fixture.Property.SiteSlug, default));
+        Assert.False(await fixture.Service.IsEnabledAsync("missing-property", default));
+        var (response, error) = await fixture.Service.ChatAsync(null,
+            new PublicAiChatRequest("Tôi muốn hủy đặt phòng"), "test", default);
+        Assert.Null(error);
+        Assert.NotNull(response);
+        Assert.Empty(fixture.Handler.Inputs);
+        await fixture.Db.Properties.Where(x => x.Id == fixture.Other.Id)
+            .ExecuteUpdateAsync(update => update.SetProperty(x => x.IsActive, true));
+        Assert.False(await fixture.Service.IsEnabledAsync(null, default));
+        Assert.True(await fixture.Service.IsEnabledAsync(fixture.Property.SiteSlug, default));
+        await transaction.RollbackAsync();
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         public required AppDbContext Db { get; init; }

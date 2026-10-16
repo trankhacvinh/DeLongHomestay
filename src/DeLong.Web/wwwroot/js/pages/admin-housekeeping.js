@@ -91,7 +91,7 @@
                         for (const task of day.tasks) {
                             const time = this.taskTime(task);
                             if (!times.has(time)) times.set(time, []);
-                            times.get(time).push(`${time} ${task.text}`);
+                            times.get(time).push(`${time} ${task.text}${task.schedulingWarning ? ` [Cần xử lý: ${task.schedulingWarning}]` : ''}`);
                         }
                         const groups = [...times].sort(([a], [b]) => a.localeCompare(b))
                             .map(([, lines]) => lines.join('\n'));

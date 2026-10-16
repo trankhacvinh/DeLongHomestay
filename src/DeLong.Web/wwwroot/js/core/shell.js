@@ -126,12 +126,12 @@
                         if (branding.logoUrl && currentMedia) {
                             if (currentMedia.tagName === 'IMG') {
                                 currentMedia.src = branding.logoUrl;
-                                currentMedia.alt = branding.siteName || 'De Long Homestay';
+                                currentMedia.alt = branding.siteName || 'Cơ sở lưu trú';
                             } else {
                                 const image = document.createElement('img');
                                 image.className = 'public-site-brand-logo';
                                 image.src = branding.logoUrl;
-                                image.alt = branding.siteName || 'De Long Homestay';
+                                image.alt = branding.siteName || 'Cơ sở lưu trú';
                                 currentMedia.replaceWith(image);
                             }
                         }

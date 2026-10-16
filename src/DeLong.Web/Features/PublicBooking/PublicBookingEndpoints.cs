@@ -68,9 +68,12 @@ public static class PublicBookingEndpoints
             CustomerAccountService customerAccountService,
             Pay2SService pay2SService,
             BookingGuestGuideEmailService guestEmailService,
+            ILoggerFactory loggerFactory,
             VoucherService voucherService,
             CancellationToken ct) =>
         {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var logger = loggerFactory.CreateLogger("PublicBookingSubmit");
             var idempotencyKey = http.Request.Headers["Idempotency-Key"].FirstOrDefault();
             var userIdValue = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
             var customerUserId = Guid.TryParse(userIdValue, out var parsedUserId) && http.User.IsInRole(CustomerAccountService.CustomerRole)
@@ -78,6 +81,7 @@ public static class PublicBookingEndpoints
                 : (Guid?)null;
             var core = new PublicBookingCoreV2Service(db, resolver, service, voucherService, paths, configuration);
             var (result, error) = await core.CreateRequestAsync(siteSlug, request, idempotencyKey, customerUserId, ct);
+            logger.LogInformation("Booking submit: phase=create elapsedMs={ElapsedMs} success={Success} trace={TraceId}", watch.ElapsedMilliseconds, result is not null, http.TraceIdentifier);
             if (result is not null)
             {
                 if (customerUserId.HasValue)
@@ -90,12 +94,14 @@ public static class PublicBookingEndpoints
                             customerUserId.Value, property.Id, result.BookingId, new IdentityDocumentStorage(paths, configuration), ct);
                     }
                 }
+                logger.LogInformation("Booking submit: phase=account elapsedMs={ElapsedMs} trace={TraceId}", watch.ElapsedMilliseconds, http.TraceIdentifier);
                 var paymentProperty = await resolver.ResolveAsync(siteSlug, ct);
                 if (paymentProperty is null) return Results.NotFound();
                 var prefix = PublicPropertyResolver.ScopePrefix(siteSlug);
                 if (!result.PaymentRequired)
                 {
-                    await guestEmailService.QueueAutomaticAsync(paymentProperty.Id, result.BookingId, ct);
+                    if (!request.CompleteAfterIdentityUpload)
+                        await guestEmailService.QueueAutomaticAsync(paymentProperty.Id, result.BookingId, ct);
                     return Results.Created($"{prefix}/booking/success?code={Uri.EscapeDataString(result.Code)}", result);
                 }
                 var (intent, paymentError) = await pay2SService.CreateIntentAsync(
@@ -105,6 +111,7 @@ public static class PublicBookingEndpoints
                     ct,
                     siteSlug,
                     useSettlementGrace: true);
+                logger.LogInformation("Booking submit: phase=payment elapsedMs={ElapsedMs} success={Success} trace={TraceId}", watch.ElapsedMilliseconds, intent is not null, http.TraceIdentifier);
                 if (intent is null)
                 {
                     var booking = await db.Bookings.SingleAsync(x => x.Id == result.BookingId, ct);
@@ -121,6 +128,12 @@ public static class PublicBookingEndpoints
 
             return error.Code switch
             {
+                "customer_name_invalid" => Results.ValidationProblem(
+                    new Dictionary<string, string[]> { ["customerName"] = [error.Message] },
+                    extensions: new Dictionary<string, object?> { ["code"] = error.Code }),
+                "customer_phone_invalid" or "customer_inactive" => Results.ValidationProblem(
+                    new Dictionary<string, string[]> { ["customerPhone"] = [error.Message] },
+                    extensions: new Dictionary<string, object?> { ["code"] = error.Code }),
                 "booking_conflict" => Results.Conflict(new ProblemDetails { Status = 409, Title = "Phòng vừa hết chỗ", Detail = error.Message, Type = "booking_conflict" }),
                 "policy_changed" => Results.Conflict(new ProblemDetails { Status = 409, Title = "Nội quy vừa được cập nhật", Detail = error.Message, Type = "policy_changed" }),
                 "identity_storage_unavailable" => Results.Problem(statusCode: 503, title: "Chưa thể nhận CCCD", detail: error.Message, type: "identity_storage_unavailable"),

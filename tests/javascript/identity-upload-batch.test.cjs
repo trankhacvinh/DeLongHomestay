@@ -2,8 +2,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const source = readFileSync('src/DeLong.Web/wwwroot/js/pages/public-booking-core-v2.js', 'utf8');
-const block = source.slice(source.indexOf('                const documents ='), source.indexOf('\n            }\n            return result;', source.indexOf('                const documents =')));
-const run = new (Object.getPrototypeOf(async function() {}).constructor)('state', 'uploadIdentity', 'result', 'requestKey', block);
+const block = source.slice(source.indexOf('const documents ='), source.indexOf("setProgress('Đang kiểm tra hoàn tất…');", source.indexOf('const documents =')));
+const run = new (Object.getPrototypeOf(async function() {}).constructor)('state', 'uploadIdentity', 'result', 'requestKey', `const setProgress = () => {}; ${block}`);
 
 test('All four documents upload with at most two simultaneous requests', async () => {
     let active = 0, peak = 0;

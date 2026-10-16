@@ -201,6 +201,61 @@ public sealed class HousekeepingScheduleIntegrationTests
         Assert.Equal(combined ? 0 : 1, nextDayOnly!.Calendar.Single().Tasks.Count(x => x.Kind == "prepare"));
     }
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Stagger_uses_real_bookings_blocks_and_settings_without_changing_them()
+    {
+        var connection = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
+        if (string.IsNullOrWhiteSpace(connection)) return;
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connection).Options);
+        await db.Database.MigrateAsync();
+        var suffix = Guid.NewGuid().ToString("N")[..10];
+        var property = new Property { Code = $"ST-{suffix}", Name = "Stagger Test", SiteSlug = $"st-{suffix}", TimeZoneId = "Asia/Ho_Chi_Minh" };
+        var a = new Room { PropertyId = property.Id, Code = $"A-{suffix}", Name = "Abaus", Slug = $"a-{suffix}", Capacity = 2 };
+        var m = new Room { PropertyId = property.Id, Code = $"M-{suffix}", Name = "Moon", Slug = $"m-{suffix}", Capacity = 2 };
+        var customer = new Customer { PropertyId = property.Id, Name = "Test", Phone = suffix, NormalizedPhone = suffix };
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId);
+        var day = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(10);
+        var abaus = Booking(property, a, customer, $"A-{suffix}", day, 11, 14, BookingStatus.Confirmed, zone);
+        var moon = Booking(property, m, customer, $"M-{suffix}", day, 11, 14, BookingStatus.Confirmed, zone);
+        var previous = Booking(property, m, customer, $"P-{suffix}", day, 8, 10, BookingStatus.Completed, zone);
+        previous.CheckOutUtc = ToUtc(day, new(10, 30), zone);
+        var block = new RoomBookingBlock { PropertyId = property.Id, RoomId = a.Id, BatchId = Guid.NewGuid(),
+            StartUtc = ToUtc(day.AddDays(-1), new(21, 30), zone), EndUtc = ToUtc(day, new(10, 0), zone), Reason = "Bảo trì" };
+        db.AddRange(property, a, m, customer, abaus, moon, previous, block);
+        await db.SaveChangesAsync();
+        var service = new HousekeepingService(db);
+        var originalIn = abaus.CheckInUtc; var originalEnd = block.EndUtc;
+        var (settings, error) = await service.SaveSettingsAsync(property.Id,
+            new(30, 0, true, true, true, 30, 1, 30, new(8, 0), new(22, 0)));
+        Assert.Null(error); Assert.True(settings!.StaggerEnabled);
+        var tasks = (await service.GetScheduleAsync(property.Id, day, 1))!.Calendar.Single().Tasks;
+        var prepare = Assert.Single(tasks, x => x.BookingId == abaus.Id && x.Kind == "prepare");
+        Assert.Equal(ToUtc(day, new(10, 0), zone), prepare.AtUtc);
+        Assert.Null(prepare.SchedulingWarning);
+        Assert.DoesNotContain(tasks, x => x.BookingId == moon.Id && x.Kind == "prepare");
+        Assert.Equal(originalIn, (await db.Bookings.AsNoTracking().SingleAsync(x => x.Id == abaus.Id)).CheckInUtc);
+        Assert.Equal(originalEnd, (await db.RoomBookingBlocks.AsNoTracking().SingleAsync(x => x.Id == block.Id)).EndUtc);
+
+        block.EndUtc = ToUtc(day, new(10, 30), zone);
+        await db.SaveChangesAsync();
+        tasks = (await service.GetScheduleAsync(property.Id, day, 1))!.Calendar.Single().Tasks;
+        prepare = Assert.Single(tasks, x => x.BookingId == abaus.Id && x.Kind == "prepare");
+        Assert.Equal(ToUtc(day, new(10, 30), zone), prepare.AtUtc);
+        Assert.NotNull(prepare.SchedulingWarning);
+
+        block.CancelledAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        tasks = (await service.GetScheduleAsync(property.Id, day, 1))!.Calendar.Single().Tasks;
+        Assert.Equal(ToUtc(day, new(10, 0), zone), Assert.Single(tasks, x => x.BookingId == abaus.Id && x.Kind == "prepare").AtUtc);
+        var (_, invalid) = await service.SaveSettingsAsync(property.Id, new(30, 0, true, true, true));
+        Assert.NotNull(invalid);
+        var (_, disabledError) = await service.SaveSettingsAsync(property.Id, new(30, 0, true, true));
+        Assert.Null(disabledError);
+        tasks = (await service.GetScheduleAsync(property.Id, day, 1))!.Calendar.Single().Tasks;
+        Assert.Equal(ToUtc(day, new(10, 30), zone), Assert.Single(tasks, x => x.BookingId == abaus.Id && x.Kind == "prepare").AtUtc);
+    }
+
     private static Booking Booking(
         Property property,
         Room room,

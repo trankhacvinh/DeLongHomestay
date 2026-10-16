@@ -7,7 +7,7 @@ public sealed class GlobalEditorialShowcase : EntityBase
     public string GalleryPropertyIdsJson { get; set; } = "[]";
     public string GalleryItemIdsJson { get; set; } = "[]";
     public int GalleryLimit { get; set; } = 8;
-    public string GalleryTitle { get; set; } = "Một vài khoảnh khắc tại De Long";
+    public string GalleryTitle { get; set; } = "Một vài khoảnh khắc tại cơ sở";
     public string GalleryLayout { get; set; } = "mosaic";
 
     public bool BlogEnabled { get; set; } = true;

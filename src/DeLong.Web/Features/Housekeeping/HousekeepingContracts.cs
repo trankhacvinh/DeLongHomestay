@@ -8,13 +8,25 @@ public sealed record UpdateHousekeepingSettingsRequest(
     int BeforeCheckInMinutes,
     int AfterCheckOutMinutes,
     bool AutomaticCheckInEnabled,
-    bool AutomaticCheckOutEnabled);
+    bool AutomaticCheckOutEnabled,
+    bool StaggerEnabled = false,
+    int CleaningMinutes = 30,
+    int WorkerCount = 1,
+    int MaxAdvanceMinutes = 30,
+    TimeOnly? WorkStart = null,
+    TimeOnly? WorkEnd = null);
 
 public sealed record HousekeepingSettingsDto(
     int BeforeCheckInMinutes,
     int AfterCheckOutMinutes,
     bool AutomaticCheckInEnabled,
-    bool AutomaticCheckOutEnabled);
+    bool AutomaticCheckOutEnabled,
+    bool StaggerEnabled = false,
+    int CleaningMinutes = 30,
+    int WorkerCount = 1,
+    int MaxAdvanceMinutes = 30,
+    TimeOnly? WorkStart = null,
+    TimeOnly? WorkEnd = null);
 
 public sealed record HousekeepingRoomDto(
     Guid RoomId,
@@ -45,7 +57,9 @@ public sealed record HousekeepingScheduleTaskDto(
     string Kind,
     string Action,
     string Text,
-    int? ShiftOrder = null);
+    int? ShiftOrder = null,
+    DateTime? OriginalAtUtc = null,
+    string? SchedulingWarning = null);
 
 public sealed record RoomConditionTagDto(Guid Id, string Name, string Category);
 

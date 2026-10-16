@@ -5,6 +5,7 @@ using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Operations;
+using DeLong.Web.Features.Rooms;
 using DeLong.Web.Features.Site;
 using DeLong.Web.Features.Vouchers;
 using Microsoft.EntityFrameworkCore;
@@ -33,17 +34,16 @@ public sealed class PublicBookingCoreV2Service(
         var guestDetailsStore = new BookingGuestDetailsStore(storagePaths);
         var policy = await policyStore.GetAsync(property.Id, cancellationToken);
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var roomGuard = await RoomBookingGuard.AcquireAsync(db, property.Id, request.RoomId, cancellationToken);
         var validation = await ValidateAsync(property.Id, request, policy, cancellationToken);
         if (validation.Error is not null) return (null, validation.Error);
 
-        await using var transaction = string.IsNullOrWhiteSpace(request.VoucherCode)
-            ? null
-            : await db.Database.BeginTransactionAsync(cancellationToken);
         var (result, error) = await publicBookingService.CreateRequestAsync(siteSlug, request, requestKey, policy, cancellationToken);
         if (error is not null || result is null)
         {
-            if (transaction is not null) await transaction.RollbackAsync(cancellationToken);
-            if (transaction is not null && error?.Code == "public_request_retry" && !string.IsNullOrWhiteSpace(requestKey))
+            await transaction.RollbackAsync(cancellationToken);
+            if (error?.Code == "public_request_retry" && !string.IsNullOrWhiteSpace(requestKey))
             {
                 await transaction.DisposeAsync();
                 db.ChangeTracker.Clear();
@@ -67,7 +67,7 @@ public sealed class PublicBookingCoreV2Service(
             voucher = reserved.Result;
             if (reserved.Error is not null)
             {
-                if (transaction is not null) await transaction.RollbackAsync(cancellationToken);
+                await transaction.RollbackAsync(cancellationToken);
                 return (null, new(reserved.Error.Code, reserved.Error.Message));
             }
         }
@@ -87,7 +87,7 @@ public sealed class PublicBookingCoreV2Service(
                 DateTime.UtcNow),
             cancellationToken);
         await RefreshNotificationTotalAsync(property.Id, booking.Id, booking.TotalAmount, request.CustomerEmail, request.GuestCount, cancellationToken);
-        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
             property.Id,

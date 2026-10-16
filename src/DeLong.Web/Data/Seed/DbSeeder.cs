@@ -48,8 +48,114 @@ public static class DbSeeder
     public static async Task SeedDeLongAsync(AppDbContext db, CancellationToken cancellationToken = default)
     {
         await SeedPropertyAsync(db, cancellationToken);
-        await SeedPropertyConfigurationAsync(db, cancellationToken);
-        await SeedWebsiteStarterAsync(db, cancellationToken);
+        await SeedPropertyConfigurationAsync(db, cancellationToken, DeLongPropertyId);
+        await SeedWebsiteStarterAsync(db, cancellationToken, DeLongPropertyId);
+    }
+
+    public static async Task<Guid> SeedNewPropertyAsync(AppDbContext db, string name, bool demo,
+        Guid adminId, DateTime nowUtc, CancellationToken cancellationToken = default)
+    {
+        if (await db.Properties.AsNoTracking().AnyAsync(cancellationToken))
+            throw new InvalidOperationException("Dữ liệu cơ sở mới chỉ được tạo trên database trống.");
+        var property = new Property
+        {
+            Code = "DEMO", Name = name.Trim(), SiteSlug = "demo",
+            AutomaticCheckInEnabled = false, AutomaticCheckOutEnabled = false
+        };
+        db.Properties.Add(property);
+        if (demo)
+        {
+            var names = new[] { "Garden Studio", "Ocean Deluxe", "Sunset Suite", "Family Loft", "Moonlight Room", "Sky Penthouse" };
+            for (var i = 0; i < names.Length; i++)
+            {
+                var room = RoomSeed($"ROOM-{i + 1:00}", names[i], i + 1,
+                    200_000m + i * 30_000m, 350_000m + i * 40_000m,
+                    650_000m + i * 60_000m, 750_000m + i * 60_000m);
+                room.ShortDescription = $"{names[i]} · Phòng mẫu cho {room.Capacity} khách, Wi-Fi, điều hòa và phòng tắm riêng.";
+                room.DescriptionHtml = "<p>Không gian lưu trú riêng tư với giường đôi, bàn làm việc, Wi-Fi, điều hòa, nước uống và phòng tắm riêng.</p>";
+                room.GuestGuideHtml = "<p>Xuất trình giấy tờ khi nhận phòng. Không hút thuốc trong phòng. Liên hệ lễ tân để được hỗ trợ.</p>";
+                property.Rooms.Add(room);
+            }
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        await SeedPropertyConfigurationAsync(db, cancellationToken, property.Id);
+        await SeedWebsiteStarterAsync(db, cancellationToken, property.Id);
+        db.PropertySePaySettings.Add(new PropertySePaySettings { PropertyId = property.Id });
+        db.Set<HomeSection>().Add(Section(null, 6, "Faq", "Câu hỏi thường gặp", "default", new
+        {
+            title = "Thông tin trước khi đặt phòng",
+            items = new[]
+            {
+                new { question = "Tôi đặt phòng như thế nào?", answer = "Chọn phòng, ngày và khung giờ trên website, nhập thông tin và gửi yêu cầu để cơ sở xác nhận." },
+                new { question = "Có thể đổi ngày hoặc hủy không?", answer = "Liên hệ cơ sở với mã booking. Việc đổi hoặc hủy thực hiện theo chính sách đã xác nhận." },
+                new { question = "Khi nhận phòng cần chuẩn bị gì?", answer = "Mang giấy tờ tùy thân và mã booking. Kiểm tra thời gian nhận/trả phòng trên xác nhận." }
+            }
+        }));
+        var settings = await db.Set<PropertySiteSettings>().SingleAsync(x => x.PropertyId == property.Id, cancellationToken);
+        settings.SiteName = property.Name;
+        var paymentSettings = await db.PropertyPay2SSettings.SingleAsync(x => x.PropertyId == property.Id, cancellationToken);
+        paymentSettings.PartnerName = property.Name;
+        var notificationSettings = await db.PropertyNotificationSettings.SingleAsync(x => x.PropertyId == property.Id, cancellationToken);
+        notificationSettings.SmtpFromName = property.Name;
+        settings.Tagline = "Không gian nghỉ ngơi của bạn";
+        settings.Address = "Địa chỉ cơ sở mẫu — cập nhật trước khi sử dụng thực tế";
+        settings.Email = "hello@example.invalid";
+        settings.MetaTitle = property.Name;
+        settings.MetaDescription = $"Khám phá phòng, giá và lịch trống tại {property.Name}.";
+        settings.RobotsIndex = false;
+        var showcase = await db.GlobalEditorialShowcases.SingleAsync(cancellationToken);
+        showcase.GalleryTitle = $"Một vài khoảnh khắc tại {property.Name}";
+        var sections = await db.Set<HomeSection>().Where(x => x.PropertyId == property.Id || x.PropertyId == null).ToListAsync(cancellationToken);
+        foreach (var section in sections)
+        {
+            section.Name = section.Name.Replace("De Long", property.Name);
+            var node = System.Text.Json.Nodes.JsonNode.Parse(section.ContentJson)!;
+            RewriteBrand(node, property.Name);
+            section.ContentJson = node.ToJsonString(JsonOptions);
+        }
+        var posts = await db.BlogPosts.Where(x => x.PropertyId == property.Id).ToListAsync(cancellationToken);
+        foreach (var post in posts)
+        {
+            post.Title = post.Title.Replace("Long Thành", "cơ sở");
+            post.Slug = post.Slug.Replace("long-thanh", "co-so");
+        }
+        if (demo)
+        {
+            foreach (var label in new[] { "Wi-Fi", "Điều hòa", "Phòng tắm riêng", "Nước uống" })
+            {
+                var amenity = new Amenity { PropertyId = property.Id, Name = label, NormalizedName = label.ToUpperInvariant() };
+                db.Amenities.Add(amenity);
+                foreach (var room in property.Rooms)
+                    room.Amenities.Add(new RoomAmenity { RoomId = room.Id, AmenityId = amenity.Id });
+            }
+            foreach (var room in property.Rooms)
+                db.RoomHighlights.Add(new RoomHighlight { RoomId = room.Id, Text = "Không gian riêng tư, nhận phòng linh hoạt", SortOrder = 0 });
+        }
+        if (demo) DemoDataSeeder.AddOperations(db, property, adminId, nowUtc);
+        await db.SaveChangesAsync(cancellationToken);
+        await DeLong.Web.Features.Site.GlobalSiteBrandingStore.SaveAsync(db,
+            new DeLong.Web.Features.Site.SaveGlobalSiteBrandingRequest
+            {
+                SiteName = property.Name, Tagline = settings.Tagline, MetaTitle = property.Name,
+                MetaDescription = settings.MetaDescription
+            }, cancellationToken);
+        return property.Id;
+    }
+
+    private static void RewriteBrand(System.Text.Json.Nodes.JsonNode node, string name)
+    {
+        if (node is System.Text.Json.Nodes.JsonObject obj)
+        {
+            foreach (var key in obj.Select(x => x.Key).ToArray())
+            {
+                if (obj[key] is System.Text.Json.Nodes.JsonValue value && value.TryGetValue<string>(out var text))
+                    obj[key] = text.Replace("DE LONG HOMESTAY", name).Replace("De Long Homestay", name)
+                        .Replace("De Long", name).Replace("Long Thành", "cơ sở");
+                else if (obj[key] is { } child) RewriteBrand(child, name);
+            }
+        }
+        else if (node is System.Text.Json.Nodes.JsonArray array)
+            foreach (var child in array) if (child is not null) RewriteBrand(child, name);
     }
 
     private static async Task SeedPropertyAsync(AppDbContext db, CancellationToken cancellationToken)
@@ -80,21 +186,21 @@ public static class DbSeeder
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    private static async Task SeedPropertyConfigurationAsync(AppDbContext db, CancellationToken cancellationToken)
+    private static async Task SeedPropertyConfigurationAsync(AppDbContext db, CancellationToken cancellationToken, Guid propertyId)
     {
-        if (!await db.PropertyPricingSettings.AnyAsync(x => x.PropertyId == DeLongPropertyId, cancellationToken))
-            db.PropertyPricingSettings.Add(new PropertyPricingSettings { PropertyId = DeLongPropertyId });
-        if (!await db.PropertyPay2SSettings.AnyAsync(x => x.PropertyId == DeLongPropertyId, cancellationToken))
-            db.PropertyPay2SSettings.Add(new PropertyPay2SSettings { PropertyId = DeLongPropertyId });
-        if (!await db.PropertyNotificationSettings.AnyAsync(x => x.PropertyId == DeLongPropertyId, cancellationToken))
-            db.PropertyNotificationSettings.Add(new PropertyNotificationSettings { PropertyId = DeLongPropertyId });
-        if (!await db.CustomerAccountSettings.AnyAsync(x => x.PropertyId == DeLongPropertyId, cancellationToken))
-            db.CustomerAccountSettings.Add(new CustomerAccountSettings { PropertyId = DeLongPropertyId });
-        if (!await db.PropertyAiProfiles.AnyAsync(x => x.PropertyId == DeLongPropertyId, cancellationToken))
+        if (!await db.PropertyPricingSettings.AnyAsync(x => x.PropertyId == propertyId, cancellationToken))
+            db.PropertyPricingSettings.Add(new PropertyPricingSettings { PropertyId = propertyId });
+        if (!await db.PropertyPay2SSettings.AnyAsync(x => x.PropertyId == propertyId, cancellationToken))
+            db.PropertyPay2SSettings.Add(new PropertyPay2SSettings { PropertyId = propertyId });
+        if (!await db.PropertyNotificationSettings.AnyAsync(x => x.PropertyId == propertyId, cancellationToken))
+            db.PropertyNotificationSettings.Add(new PropertyNotificationSettings { PropertyId = propertyId });
+        if (!await db.CustomerAccountSettings.AnyAsync(x => x.PropertyId == propertyId, cancellationToken))
+            db.CustomerAccountSettings.Add(new CustomerAccountSettings { PropertyId = propertyId });
+        if (!await db.PropertyAiProfiles.AnyAsync(x => x.PropertyId == propertyId, cancellationToken))
         {
             db.PropertyAiProfiles.Add(new PropertyAiProfile
             {
-                PropertyId = DeLongPropertyId,
+                PropertyId = propertyId,
                 IsEnabled = false,
                 IsPublicAiEnabled = false,
                 ProtectedApiKey = string.Empty
@@ -104,9 +210,9 @@ public static class DbSeeder
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    private static async Task SeedWebsiteStarterAsync(AppDbContext db, CancellationToken cancellationToken)
+    private static async Task SeedWebsiteStarterAsync(AppDbContext db, CancellationToken cancellationToken, Guid propertyId)
     {
-        var property = await db.Properties.SingleOrDefaultAsync(x => x.Id == DeLongPropertyId, cancellationToken);
+        var property = await db.Properties.SingleOrDefaultAsync(x => x.Id == propertyId, cancellationToken);
         if (property is null) return;
 
         var settings = await db.Set<PropertySiteSettings>().SingleOrDefaultAsync(x => x.PropertyId == property.Id);
@@ -163,7 +269,7 @@ public static class DbSeeder
             );
         }
 
-        if (!await db.Set<HomeSection>().AnyAsync(x => x.PropertyId == null))
+        if (!await db.Set<HomeSection>().AnyAsync(x => x.PropertyId == null && !x.Type.StartsWith("__"), cancellationToken))
         {
             db.Set<HomeSection>().AddRange(
                 Section(null, 0, "Hero", "Mở đầu trang chung", "split", new
@@ -334,7 +440,7 @@ public static class DbSeeder
                 (new TimeOnly(19, 0), new TimeOnly(22, 0)),
                 (new TimeOnly(22, 30), new TimeOnly(11, 0))
             },
-            _ => throw new InvalidOperationException($"Unknown seeded room code: {code}")
+            _ => new (TimeOnly Start, TimeOnly End)[] { (new(10, 0), new(13, 0)), (new(14, 0), new(17, 0)), (new(18, 0), new(21, 0)), (new(22, 0), new(9, 0)) }
         };
 
         room.Rates.Add(Rate("Khung 1", 1, schedule[0].Start, schedule[0].End, dayPrice));

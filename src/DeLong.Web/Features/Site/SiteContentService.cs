@@ -505,7 +505,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
     [
         New(null, 0, "Hero", "Mở đầu trang chung", "split", new
         {
-            eyebrow = "DE LONG HOMESTAY",
+            eyebrow = "KHÔNG GIAN LƯU TRÚ",
             title = "Chọn một không gian phù hợp với nhịp nghỉ của bạn.",
             body = "Khám phá các cơ sở và phòng đang mở trên cùng một website; mỗi cơ sở vẫn có trang riêng với nội dung, phòng và luồng đặt phòng độc lập.",
             primaryText = "Xem tất cả phòng", primaryUrl = "/rooms",
@@ -532,7 +532,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         }),
         New(null, 4, "FeatureGrid", "Giới thiệu", "split", new
         {
-            eyebrow = "DE LONG HOMESTAY",
+            eyebrow = "KHÔNG GIAN LƯU TRÚ",
             title = "Nhiều cơ sở, một trải nghiệm đặt phòng rõ ràng.",
             body = "Bạn có thể xem tất cả phòng trên một danh sách, lọc theo cơ sở rồi đi sâu vào trang riêng của từng nơi.",
             items = new[] { "Phòng và giá rõ ràng", "Tách dữ liệu theo cơ sở", "Đặt phòng theo đúng chi nhánh", "Tra cứu thuận tiện" }
@@ -544,7 +544,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
     [
         New(null, 0, "Hero", "Mở đầu", "standard", new
         {
-            eyebrow = "DE LONG HOMESTAY",
+            eyebrow = "KHÔNG GIAN LƯU TRÚ",
             title = "Một khoảng nghỉ riêng, vừa đủ.",
             body = "Phòng theo chủ đề cho hai người. Đặt theo khung giờ, qua đêm hoặc theo ngày. Giá rõ ràng, nhân viên xác nhận từng đơn.",
             primaryText = "Xem lịch phòng", primaryUrl = "/#lich-phong",
@@ -574,7 +574,7 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
         New(null, 4, "FeatureGrid", "Cách đặt phòng", "standard", new
         {
             eyebrow = "CÁCH ĐẶT",
-            title = "Đặt thẳng với De Long",
+            title = "Đặt trực tiếp với cơ sở",
             body = "Chọn cách nghỉ phù hợp, xem giá ngay trên lịch và gửi yêu cầu. Nhân viên xác nhận từng đơn.",
             items = new[]
             {

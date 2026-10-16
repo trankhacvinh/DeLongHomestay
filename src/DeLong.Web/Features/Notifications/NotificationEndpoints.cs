@@ -92,8 +92,8 @@ public static class NotificationEndpoints
                 await sender.SendAsync(
                     profile,
                     recipients,
-                    "De Long Homestay · Email thông báo thử",
-                    "Đây là email thử từ cấu hình thông báo De Long Homestay. Nếu bạn nhận được email này, SMTP đang hoạt động.",
+                    "Email thông báo thử",
+                    "Đây là email thử từ cấu hình thông báo của cơ sở. Nếu bạn nhận được email này, SMTP đang hoạt động.",
                     cancellationToken);
                 settings.LastEmailSentAtUtc = DateTime.UtcNow;
                 settings.LastEmailError = null;
@@ -132,7 +132,7 @@ public static class NotificationEndpoints
                 await sender.SendAsync(
                     profile.BotToken,
                     profile.ChatIds,
-                    "✅ De Long Homestay · Kết nối Telegram thành công. Nhóm này sẽ nhận thông báo booking mới.",
+                    "✅ Kết nối Telegram thành công. Nhóm này sẽ nhận thông báo booking mới.",
                     cancellationToken);
                 settings.LastTelegramSentAtUtc = DateTime.UtcNow;
                 settings.LastTelegramError = null;

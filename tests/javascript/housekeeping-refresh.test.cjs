@@ -36,6 +36,10 @@ test('copy uses exactly the displayed schedule text', async () => {
     assert.deepEqual(copied, [vm.scheduleText]);
     assert.equal(vm.copied, true);
 });
+test('manual scheduling warning is visible in both display and copied text', () => {
+    const result = text.call({ scheduleDays: [{ date: '2026-10-12', tasks: [{ time: '10:30', text: 'Dọn phòng', schedulingWarning: 'Trùng lao công' }] }], dateText: () => '12/10', taskTime: x => x.time });
+    assert.equal(result, '12/10\n\n10:30 Dọn phòng [Cần xử lý: Trùng lao công]');
+});
 const loadBlock = source.slice(source.indexOf('            async loadSchedule()'), source.indexOf('            async copyScheduleText()'));
 function loader(api) { return new Function('DeLongApi', `return {${loadBlock}}.loadSchedule;`)(api); }
 test('refresh preserves textarea scroll when changed and retains data on failure', async () => {

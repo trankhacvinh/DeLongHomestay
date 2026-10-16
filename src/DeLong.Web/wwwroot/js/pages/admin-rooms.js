@@ -30,6 +30,9 @@
             }
         },
         methods: {
+            activeRates(room) {
+                return (room.rates || []).filter(rate => rate.isActive);
+            },
             money(value) {
                 return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
             },
@@ -105,7 +108,7 @@
             },
             toggleActive(room) {
                 const next = !room.isActive;
-                return this.updateRoomStatus(room, { isActive: next }, next ? 'Đã bật hoạt động phòng.' : 'Đã ngừng hoạt động phòng.');
+                return this.updateRoomStatus(room, { isActive: next }, next ? 'Đã khôi phục phòng.' : 'Đã lưu trữ phòng. Có thể xem lại bằng bộ lọc phòng đã lưu trữ.');
             },
             togglePublished(room) {
                 if (!room.isActive && !room.isPublished) {

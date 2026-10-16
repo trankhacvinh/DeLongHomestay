@@ -115,7 +115,7 @@
                 <button type="button" v-bind:class="{ active: taskFilter === 'all' }" v-on:click="taskFilter = 'all'">Tất cả</button>
             </div>
         </div>
-        <div class="housekeeping-offset-note">Đang áp dụng: dọn trước nhận phòng <strong>{{ schedule.settings?.beforeCheckInMinutes || 0 }} phút</strong> · dọn sau trả phòng <strong>{{ schedule.settings?.afterCheckOutMinutes || 0 }} phút</strong>. Thay đổi tại trang Cấu hình.</div>
+        <div class="housekeeping-offset-note">Đang áp dụng: dọn trước nhận phòng <strong>{{ schedule.settings?.beforeCheckInMinutes || 0 }} phút</strong> · dọn sau trả phòng <strong>{{ schedule.settings?.afterCheckOutMinutes || 0 }} phút</strong>.<span v-if="schedule.settings?.staggerEnabled"> Giãn lịch: {{ schedule.settings.workerCount }} lao công · {{ schedule.settings.cleaningMinutes }} phút/phòng · sớm tối đa {{ schedule.settings.maxAdvanceMinutes }} phút.</span> Thay đổi tại trang Cấu hình.</div>
 
         <div class="housekeeping-schedule-loading" v-show="scheduleLoading" role="status">Đang cập nhật lịch công việc…</div>
 
@@ -126,7 +126,7 @@
                     <article class="housekeeping-task" v-for="task in day.tasks" v-bind:key="task.kind + '-' + task.bookingId">
                         <time>{{ taskTime(task) }}</time>
                         <span class="housekeeping-task-kind" v-bind:class="task.kind">{{ task.kind === 'prepare' ? 'Đón khách' : 'Trả phòng' }}</span>
-                        <div><strong>{{ task.roomName }}</strong><span>{{ task.action }} · {{ task.bookingCode }}</span></div>
+                        <div><strong>{{ task.roomName }}</strong><span>{{ task.action }} · {{ task.bookingCode }}</span><small v-if="task.originalAtUtc">Đã chuyển sớm từ {{ taskTime({ atUtc: task.originalAtUtc }) }}</small><small class="text-danger" v-if="task.schedulingWarning">{{ task.schedulingWarning }}</small></div>
                         <button v-if="canManage" class="btn btn-light btn-sm" type="button" v-bind:disabled="savingId === task.roomId" v-on:click="startTask(task)">Bắt đầu dọn</button>
                     </article>
                 </div>

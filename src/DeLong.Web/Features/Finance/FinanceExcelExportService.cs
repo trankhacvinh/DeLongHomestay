@@ -22,7 +22,7 @@ public sealed class FinanceExcelExportService
         using var workbook = new XLWorkbook();
         workbook.Properties.Title = $"Sổ thu chi {scopeName} {period.Start:dd-MM-yyyy}";
         workbook.Properties.Subject = "Thu booking, hoàn tiền, chi phí và dòng tiền ròng";
-        workbook.Properties.Author = "De Long Homestay";
+        workbook.Properties.Author = scopeName;
 
         AddSummarySheet(workbook, snapshot.Summary, scopeName, period);
         AddLedgerSheet(workbook, snapshot, scopeName, period, propertyNames, propertyTimeZones);

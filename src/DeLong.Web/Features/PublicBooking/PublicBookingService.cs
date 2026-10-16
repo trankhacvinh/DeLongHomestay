@@ -421,8 +421,8 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         if (property is null) return (Guid.Empty, TimeZoneInfo.Utc, default, "", "", new("property_not_found", "Cơ sở hiện không khả dụng."));
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId); var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone));
         var name = rawName.Trim(); var phone = rawPhone.Trim();
-        if (name.Length is < 2 or > 200) return (property.Id, timeZone, today, name, phone, new("validation", "Vui lòng nhập tên khách hàng hợp lệ."));
-        if (CustomerService.NormalizePhone(phone).Length < 8) return (property.Id, timeZone, today, name, phone, new("validation", "Vui lòng nhập số điện thoại hợp lệ."));
+        if (name.Length is < 2 or > 200) return (property.Id, timeZone, today, name, phone, new("customer_name_invalid", "Vui lòng nhập họ tên từ 2 đến 200 ký tự."));
+        if (CustomerService.NormalizePhone(phone).Length is < 8 or > 20) return (property.Id, timeZone, today, name, phone, new("customer_phone_invalid", "Vui lòng kiểm tra số điện thoại: cần từ 8 đến 20 chữ số."));
         return (property.Id, timeZone, today, name, phone, null);
     }
 

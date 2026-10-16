@@ -132,10 +132,12 @@
     function currentCapacity() {
         const embeddedCapacity = Number(root.querySelector('.public-embedded-selection-summary')?.dataset.roomCapacity || 0);
         if (Number.isFinite(embeddedCapacity) && embeddedCapacity > 0) return embeddedCapacity;
+        const configuredCapacity = Number(root.querySelector('.public-booking-room.active')?.dataset.roomCapacity || 0);
+        if (Number.isInteger(configuredCapacity) && configuredCapacity > 0) return configuredCapacity;
         const text = root.querySelector('.public-booking-room.active .public-booking-room-copy small')?.textContent || '';
         const match = text.match(/(\d+)\s*người/i);
         const capacity = match ? Number(match[1]) : 0;
-        return Number.isFinite(capacity) && capacity > 0 ? capacity : 50;
+        return Number.isFinite(capacity) && capacity > 0 ? capacity : 1;
     }
 
     function currentSelectionSignature() {
@@ -378,6 +380,7 @@
                     <small data-booking-guest-summary></small>
                 </div>
             </div>
+            <p class="booking-identity-warning">Lưu ý: Quý khách vui lòng khai báo đúng số lượng người. Nếu phát sinh thêm người, vui lòng thông báo trước cho Home. Trường hợp vi phạm, Home có quyền hủy phòng và không hoàn trả chi phí đã thanh toán</p>
             <p class="booking-identity-warning">Vui lòng dùng số điện thoại và CCCD chính chủ để đặt phòng.</p>
             <div class="booking-id-section booking-primary-id-section">
                 <div class="booking-id-heading"><div><strong>CCCD / giấy tờ tùy thân${state.policy.requireIdentityDocuments ? ' *' : ''}</strong><small>Ảnh được mã hóa trước khi lưu xuống ổ đĩa; không đưa vào thư viện ảnh công khai.</small></div><span>${state.policy.requireIdentityDocuments ? 'Bắt buộc' : 'Không bắt buộc'}</span></div>
@@ -387,6 +390,7 @@
                 <div class="booking-id-heading"><div><strong>CCCD của người thứ hai *</strong><small>Từ 3 khách trở lên cần thêm căn cước của một người đi cùng.</small></div><span>Bắt buộc</span></div>
                 <div class="booking-id-grid" data-second-id-grid></div>
             </div>
+            <p class="booking-submit-progress" data-booking-progress role="status" aria-live="polite" hidden></p>
             <label class="booking-policy-check"><input type="checkbox" data-policy-accepted /><span>Tôi đã đọc và đồng ý với <button type="button" data-open-policy>${escapeHtml(state.policy.policyTitle || 'Nội quy & Chính sách')}</button>.</span></label>`;
 
         const note = grid.querySelector('.public-form-full');
@@ -484,19 +488,43 @@
         wrapper.querySelector('[data-booking-account-panel]').innerHTML = '<div class="booking-account-success"><strong>Đã tạo tài khoản</strong><small>Yêu cầu đặt phòng đang được gửi…</small></div>';
     }
 
+    function setProgress(message) {
+        const element = root.querySelector('[data-booking-progress]');
+        if (element) { element.textContent = message; element.hidden = !message; }
+    }
+
+    async function withBookingTimeout(action) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 120000);
+        try { return await action(controller.signal); }
+        catch (error) {
+            if (error.name === 'AbortError')
+                throw new Error('Yêu cầu mất quá nhiều thời gian. Vui lòng kiểm tra mạng rồi bấm gửi lại; hệ thống sẽ dùng lại lượt đặt hiện tại.');
+            throw error;
+        } finally { clearTimeout(timer); }
+    }
+
+    const uploadedIdentityFiles = new Map();
+
     async function uploadIdentity(bookingId, side, file, requestKey) {
+        const uploaded = uploadedIdentityFiles.get(bookingId) || new Map();
+        if (uploaded.get(side) === file) return;
         const query = siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : '';
         const prepared = await window.DeLongImageUpload.prepareFile(`/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`, file);
         const form = new FormData();
         form.append('file', prepared, prepared.name || `${side}.jpg`);
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-        const response = await fetch(`/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`, {
+        const response = await withBookingTimeout(signal => fetch(`/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`, {
             method: 'POST',
             credentials: 'same-origin',
             headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf, 'Idempotency-Key': requestKey },
-            body: form
-        });
-        if (response.ok) return;
+            body: form, signal
+        }));
+        if (response.ok) {
+            uploaded.set(side, file);
+            uploadedIdentityFiles.set(bookingId, uploaded);
+            return;
+        }
         let message = 'Không thể tải ảnh CCCD.';
         try {
             const payload = await response.json();
@@ -513,38 +541,51 @@
     function wrapBookingPost() {
         if (window.DeLongApi.__bookingCoreV2Wrapped) return;
         const originalPost = window.DeLongApi.post.bind(window.DeLongApi);
-        window.DeLongApi.post = async function (url, data, headers) {
-            if (!String(url).includes('/api/public/booking-requests') || String(url).includes('/identity-documents/'))
-                return originalPost(url, data, headers);
+        window.DeLongApi.post = async function (url, data, headers, options) {
+            if (!String(url).includes('/api/public/booking-requests') || String(url).includes('/identity-documents/') || String(url).includes('/complete'))
+                return originalPost(url, data, headers, options);
 
             const validation = validateExtraFields();
             if (validation) throw new Error(validation);
-            await createPendingCustomerAccount(originalPost);
-            const payload = {
-                ...data,
-                customerEmail: state.email,
-                guestCount: state.guestCount,
-                policyAccepted: true,
-                policyVersion: Number(state.policy.policyVersion || 1),
-                hasIdentityFront: !!state.front || state.savedIdentity,
-                hasIdentityBack: !!state.back || state.savedIdentity,
-                hasSecondIdentityFront: !!state.secondFront,
-                hasSecondIdentityBack: !!state.secondBack
-            };
-            const result = await originalPost(url, payload, headers);
-            const requestKey = headers?.['Idempotency-Key'] || headers?.['idempotency-key'] || '';
-            if (result?.bookingId && requestKey) {
-                const documents = [['front', state.front], ['back', state.back],
-                    ['second-front', state.secondFront], ['second-back', state.secondBack]].filter(([, file]) => file);
-                // Two uploads at a time; wait for all started requests before allowing a retry.
-                for (let i = 0; i < documents.length; i += 2) {
-                    const results = await Promise.allSettled(documents.slice(i, i + 2)
-                        .map(([side, file]) => uploadIdentity(result.bookingId, side, file, requestKey)));
-                    const failure = results.find(item => item.status === 'rejected');
-                    if (failure) throw failure.reason;
+            setProgress('Đang lưu thông tin đặt phòng…');
+            try {
+                await createPendingCustomerAccount(originalPost);
+                const payload = {
+                    ...data,
+                    customerEmail: state.email,
+                    guestCount: state.guestCount,
+                    policyAccepted: true,
+                    completeAfterIdentityUpload: true,
+                    policyVersion: Number(state.policy.policyVersion || 1),
+                    hasIdentityFront: !!state.front || state.savedIdentity,
+                    hasIdentityBack: !!state.back || state.savedIdentity,
+                    hasSecondIdentityFront: !!state.secondFront,
+                    hasSecondIdentityBack: !!state.secondBack
+                };
+                const result = await withBookingTimeout(signal => originalPost(url, payload, headers, { signal }));
+                const requestKey = headers?.['Idempotency-Key'] || headers?.['idempotency-key'] || '';
+                if (result?.bookingId && requestKey) {
+                    const documents = [['front', state.front], ['back', state.back],
+                        ['second-front', state.secondFront], ['second-back', state.secondBack]].filter(([, file]) => file);
+                    setProgress('Đang tải và lưu CCCD bảo mật…');
+                    // Two uploads at a time; wait for all started requests before allowing a retry.
+                    for (let i = 0; i < documents.length; i += 2) {
+                        const results = await Promise.allSettled(documents.slice(i, i + 2)
+                            .map(([side, file]) => uploadIdentity(result.bookingId, side, file, requestKey)));
+                        const failure = results.find(item => item.status === 'rejected');
+                        if (failure) throw failure.reason;
+                    }
+                    setProgress('Đang kiểm tra hoàn tất…');
+                    try {
+                        await withBookingTimeout(signal => originalPost(`/api/public/booking-requests/${encodeURIComponent(result.bookingId)}/complete${siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : ''}`, {}, headers, { signal }));
+                    } catch (error) {
+                        if (error.problem?.type === 'booking_incomplete') uploadedIdentityFiles.delete(result.bookingId);
+                        error.identityUploadFailed = true;
+                        throw error;
+                    }
                 }
-            }
-            return result;
+                return result;
+            } finally { setProgress(''); }
         };
         window.DeLongApi.__bookingCoreV2Wrapped = true;
     }

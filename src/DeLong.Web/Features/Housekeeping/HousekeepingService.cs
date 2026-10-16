@@ -51,7 +51,9 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
                 x.HousekeepingBeforeCheckInMinutes,
                 x.HousekeepingAfterCheckOutMinutes,
                 x.AutomaticCheckInEnabled,
-                x.AutomaticCheckOutEnabled))
+                x.AutomaticCheckOutEnabled,
+                x.HousekeepingStaggerEnabled, x.HousekeepingCleaningMinutes, x.HousekeepingWorkerCount,
+                x.HousekeepingMaxAdvanceMinutes, x.HousekeepingWorkStart, x.HousekeepingWorkEnd))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<(HousekeepingSettingsDto? Settings, string? Error)> SaveSettingsAsync(
@@ -62,6 +64,12 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
         if (request.BeforeCheckInMinutes is < 0 or > 1440 || request.AfterCheckOutMinutes is < 0 or > 1440)
             return (null, "Số phút phải nằm trong khoảng 0–1440.");
 
+        if (request.CleaningMinutes is < 1 or > 240 || request.WorkerCount is < 1 or > 20 ||
+            request.MaxAdvanceMinutes is < 0 or > 240)
+            return (null, "Thời lượng dọn phải từ 1–240 phút, số lao công từ 1–20, dọn sớm từ 0–240 phút.");
+        if (request.StaggerEnabled && (request.WorkStart is null || request.WorkEnd is null || request.WorkStart >= request.WorkEnd))
+            return (null, "Cần nhập giờ làm việc bắt đầu trước giờ kết thúc trong cùng ngày.");
+
         var property = await db.Properties.SingleOrDefaultAsync(
             x => x.Id == propertyId && x.IsActive,
             cancellationToken);
@@ -71,12 +79,20 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
         property.HousekeepingAfterCheckOutMinutes = request.AfterCheckOutMinutes;
         property.AutomaticCheckInEnabled = request.AutomaticCheckInEnabled;
         property.AutomaticCheckOutEnabled = request.AutomaticCheckOutEnabled;
+        property.HousekeepingStaggerEnabled = request.StaggerEnabled;
+        property.HousekeepingCleaningMinutes = request.CleaningMinutes;
+        property.HousekeepingWorkerCount = request.WorkerCount;
+        property.HousekeepingMaxAdvanceMinutes = request.MaxAdvanceMinutes;
+        property.HousekeepingWorkStart = request.WorkStart;
+        property.HousekeepingWorkEnd = request.WorkEnd;
         await db.SaveChangesAsync(cancellationToken);
         return (new HousekeepingSettingsDto(
             property.HousekeepingBeforeCheckInMinutes,
             property.HousekeepingAfterCheckOutMinutes,
             property.AutomaticCheckInEnabled,
-            property.AutomaticCheckOutEnabled), null);
+            property.AutomaticCheckOutEnabled,
+            property.HousekeepingStaggerEnabled, property.HousekeepingCleaningMinutes, property.HousekeepingWorkerCount,
+            property.HousekeepingMaxAdvanceMinutes, property.HousekeepingWorkStart, property.HousekeepingWorkEnd), null);
     }
 
     public async Task<HousekeepingScheduleDto?> GetScheduleAsync(
@@ -94,7 +110,9 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
                 x.HousekeepingBeforeCheckInMinutes,
                 x.HousekeepingAfterCheckOutMinutes,
                 x.AutomaticCheckInEnabled,
-                x.AutomaticCheckOutEnabled
+                x.AutomaticCheckOutEnabled,
+                x.HousekeepingStaggerEnabled, x.HousekeepingCleaningMinutes, x.HousekeepingWorkerCount,
+                x.HousekeepingMaxAdvanceMinutes, x.HousekeepingWorkStart, x.HousekeepingWorkEnd
             })
             .SingleOrDefaultAsync(cancellationToken);
         if (propertySettings is null || string.IsNullOrWhiteSpace(propertySettings.TimeZoneId)) return null;
@@ -105,8 +123,8 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
         var endUtc = ToUtc(from.AddDays(days).ToDateTime(TimeOnly.MinValue), timeZone);
         var beforeMinutes = propertySettings.HousekeepingBeforeCheckInMinutes;
         var afterMinutes = propertySettings.HousekeepingAfterCheckOutMinutes;
-        var queryStartUtc = startUtc.AddHours(-4).AddMinutes(-afterMinutes);
-        var queryEndUtc = endUtc.AddMinutes(Math.Max(beforeMinutes, 240));
+        var queryStartUtc = startUtc.AddDays(-1).AddMinutes(-afterMinutes);
+        var queryEndUtc = endUtc.AddDays(1).AddMinutes(Math.Max(beforeMinutes, 240));
 
         var rows = await db.Bookings.AsNoTracking()
             .Where(x => x.PropertyId == propertyId &&
@@ -152,6 +170,22 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
             }
         }
 
+        var blocks = propertySettings.HousekeepingStaggerEnabled
+            ? await db.RoomBookingBlocks.AsNoTracking()
+                .Where(x => x.PropertyId == propertyId && x.CancelledAtUtc == null && x.StartUtc < queryEndUtc && queryStartUtc < x.EndUtc)
+                .Select(x => new HousekeepingBusyInterval(x.RoomId, x.StartUtc, x.EndUtc)).ToListAsync(cancellationToken)
+            : [];
+        if (propertySettings.HousekeepingStaggerEnabled)
+        {
+            var lockedRooms = await db.Rooms.AsNoTracking().Where(x => x.PropertyId == propertyId && x.IsBookingLocked)
+                .Select(x => x.Id).ToListAsync(cancellationToken);
+            blocks.AddRange(lockedRooms.Select(id => new HousekeepingBusyInterval(id, queryStartUtc, queryEndUtc)));
+        }
+        var settings = new HousekeepingSettingsDto(beforeMinutes, afterMinutes,
+            propertySettings.AutomaticCheckInEnabled, propertySettings.AutomaticCheckOutEnabled,
+            propertySettings.HousekeepingStaggerEnabled, propertySettings.HousekeepingCleaningMinutes,
+            propertySettings.HousekeepingWorkerCount, propertySettings.HousekeepingMaxAdvanceMinutes,
+            propertySettings.HousekeepingWorkStart, propertySettings.HousekeepingWorkEnd);
         var daysResult = new List<HousekeepingScheduleDayDto>(days);
         for (var offset = 0; offset < days; offset++)
         {
@@ -184,6 +218,22 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
                     shifts[combinedSuccessors.GetValueOrDefault(row.Id, row.Id)]));
             }
 
+            if (settings.StaggerEnabled)
+            {
+                var busy = rows.Select(x => new HousekeepingBusyInterval(x.RoomId, x.CheckInUtc, x.CheckOutUtc))
+                    .Concat(blocks).ToList();
+                var deadlines = rows.ToDictionary(x => x.Id, x => x.CheckInUtc);
+                foreach (var (previous, next) in combinedSuccessors) deadlines[previous] = deadlines[next];
+                var adjacent = rows.SelectMany(row =>
+                {
+                    var times = new List<DateTime> { row.CheckOutUtc.AddMinutes(afterMinutes) };
+                    if (row.Status != BookingStatus.Completed && !combinedArrivals.Contains(row.Id))
+                        times.Add(row.CheckInUtc.AddMinutes(-beforeMinutes));
+                    return times.Where(at => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(at, timeZone)) != date)
+                        .Select(at => new HousekeepingBusyInterval(row.RoomId, at, at.AddMinutes(settings.CleaningMinutes)));
+                }).ToList();
+                tasks = HousekeepingSchedulePlanner.Plan(tasks, busy, deadlines, date, timeZone, settings, adjacent).ToList();
+            }
             daysResult.Add(new HousekeepingScheduleDayDto(
                 date,
                 tasks.OrderBy(x => x.AtUtc)
@@ -196,8 +246,7 @@ public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStor
             from,
             days,
             timeZoneId,
-            new HousekeepingSettingsDto(beforeMinutes, afterMinutes,
-                propertySettings.AutomaticCheckInEnabled, propertySettings.AutomaticCheckOutEnabled),
+            settings,
             daysResult);
     }
 

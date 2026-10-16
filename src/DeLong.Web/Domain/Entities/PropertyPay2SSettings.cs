@@ -7,7 +7,7 @@ public sealed class PropertyPay2SSettings : EntityBase
     public bool Enabled { get; set; }
     public bool Sandbox { get; set; } = true;
     public string PartnerCode { get; set; } = string.Empty;
-    public string PartnerName { get; set; } = "De Long Homestay";
+    public string PartnerName { get; set; } = "Cơ sở lưu trú";
     public string AccessKeyProtected { get; set; } = string.Empty;
     public string SecretKeyProtected { get; set; } = string.Empty;
     public string BankAccountNumber { get; set; } = string.Empty;

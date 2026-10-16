@@ -46,7 +46,7 @@ public sealed class InitialSetupSourceContractTests
         var page = Read("src/DeLong.Web/Pages/Setup.cshtml");
         var model = Read("src/DeLong.Web/Pages/Setup.cshtml.cs");
 
-        Assert.Contains("Input.SeedDeLongData", page, StringComparison.Ordinal);
+        Assert.Contains("Input.SeedDemoData", page, StringComparison.Ordinal);
         Assert.Contains("không có khóa bí mật/API key", page, StringComparison.Ordinal);
         Assert.Contains("[Compare(nameof(Password)", model, StringComparison.Ordinal);
         Assert.Contains("MinimumLength = 8", model, StringComparison.Ordinal);

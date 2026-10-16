@@ -70,7 +70,7 @@
 
     global.DeLongApi = {
         get: (url) => request(url),
-        post: (url, data, headers) => request(url, { method: 'POST', headers: headers || {}, body: JSON.stringify(data) }),
+        post: (url, data, headers, options) => request(url, { ...options, method: 'POST', headers: headers || {}, body: JSON.stringify(data) }),
         postForm: async (url, formData, headers) => request(url, {
             method: 'POST', headers: headers || {},
             body: await global.DeLongImageUpload.prepareForm(url, formData)

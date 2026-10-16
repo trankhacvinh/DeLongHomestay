@@ -41,6 +41,11 @@ public sealed class InitialSetupService(
         if (!await IsRequiredAsync(cancellationToken))
             return InitialSetupResult.Failure("Hệ thống đã có tài khoản quản trị. Setup lần đầu đã được khóa.");
 
+        if (request.CreateNewProperty && await db.Properties.AsNoTracking().AnyAsync(cancellationToken))
+            return InitialSetupResult.Failure("Demo mới cần database riêng, chưa có cơ sở.");
+        if (request.CreateNewProperty && (string.IsNullOrWhiteSpace(request.PropertyName) || request.PropertyName.Length > 160))
+            return InitialSetupResult.Failure("Tên cơ sở phải từ 1 đến 160 ký tự.");
+
         await DbSeeder.SeedRolesAsync(roleManager);
 
         var email = request.Email.Trim();
@@ -63,7 +68,7 @@ public sealed class InitialSetupService(
         if (!roleResult.Succeeded)
             return InitialSetupResult.Failure(FormatIdentityErrors(roleResult));
 
-        if (request.SeedDeLongData)
+        if (request.SeedDeLongData && !request.CreateNewProperty)
         {
             await DbSeeder.SeedDeLongAsync(db, cancellationToken);
             if (!await db.UserPropertyAccesses.AnyAsync(
@@ -79,12 +84,20 @@ public sealed class InitialSetupService(
             }
         }
 
+        Guid? propertyId = request.SeedDeLongData && !request.CreateNewProperty ? DbSeeder.DeLongPropertyId : null;
+        if (request.CreateNewProperty)
+        {
+            propertyId = await DbSeeder.SeedNewPropertyAsync(db, request.PropertyName, request.SeedDemoData,
+                admin.Id, DateTime.UtcNow, cancellationToken);
+            db.UserPropertyAccesses.Add(new UserPropertyAccess { UserId = admin.Id, PropertyId = propertyId.Value });
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation(
-            "Initial setup completed by administrator {AdminUserId}; De Long starter data seeded: {SeedDeLongData}",
-            admin.Id,
-            request.SeedDeLongData);
-        return InitialSetupResult.Success(admin.Id, request.SeedDeLongData);
+            "Initial setup completed by administrator {AdminUserId}; property {PropertyId}; demo data: {SeedDemoData}",
+            admin.Id, propertyId, request.SeedDemoData);
+        return InitialSetupResult.Success(admin.Id, request.SeedDeLongData) with { PropertyId = propertyId };
     }
 
     private static string FormatIdentityErrors(IdentityResult result) =>
@@ -95,7 +108,10 @@ public sealed record InitialSetupRequest(
     string DisplayName,
     string Email,
     string Password,
-    bool SeedDeLongData);
+    bool SeedDeLongData,
+    bool CreateNewProperty = false,
+    string PropertyName = "",
+    bool SeedDemoData = false);
 
 public sealed record InitialSetupResult(
     bool Succeeded,
@@ -103,6 +119,8 @@ public sealed record InitialSetupResult(
     bool SeededDeLongData,
     string? Error)
 {
+    public Guid? PropertyId { get; init; }
+
     public static InitialSetupResult Success(Guid adminUserId, bool seededDeLongData) =>
         new(true, adminUserId, seededDeLongData, null);
 

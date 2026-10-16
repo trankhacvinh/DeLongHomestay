@@ -7,7 +7,7 @@
     var page = Model.PageContent;
     string V(System.Text.Json.Nodes.JsonObject content, string path, bool image = false) => Model.ThemeStandard ? string.Empty : CustomPageModel.VisualClass(content, path, image);
     string Variant(string variant) => Model.ThemeStandard ? "standard" : variant;
-    var siteName = Model.IsGlobal ? "De Long Homestay" : (string.IsNullOrWhiteSpace(Model.SiteSettings?.SiteName) ? "De Long Homestay" : Model.SiteSettings.SiteName);
+    var siteName = Model.SiteSettings?.SiteName ?? (ViewData["GlobalBranding"] as GlobalSiteBrandingDto)?.SiteName ?? "Homestay";
     ViewData["Title"] = string.IsNullOrWhiteSpace(page.SeoTitle) ? page.Title : page.SeoTitle;
     ViewData["MetaDescription"] = page.SeoDescription;
     ViewData["CanonicalPath"] = page.Url;

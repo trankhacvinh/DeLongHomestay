@@ -76,7 +76,7 @@ public sealed class GlobalEditorialShowcaseService(
         entity.GalleryPropertyIdsJson = JsonSerializer.Serialize(request.GalleryPropertyIds.Distinct(), JsonOptions);
         entity.GalleryItemIdsJson = JsonSerializer.Serialize(request.GalleryItemIds.Distinct(), JsonOptions);
         entity.GalleryLimit = request.GalleryLimit;
-        entity.GalleryTitle = Clean(request.GalleryTitle) ?? "Một vài khoảnh khắc tại De Long";
+        entity.GalleryTitle = Clean(request.GalleryTitle) ?? "Một vài khoảnh khắc tại cơ sở";
         entity.GalleryLayout = request.GalleryLayout;
         entity.BlogEnabled = request.BlogEnabled;
         entity.BlogMode = request.BlogMode;
@@ -147,7 +147,7 @@ public sealed class GlobalEditorialShowcaseService(
         [],
         [],
         8,
-        "Một vài khoảnh khắc tại De Long",
+        "Một vài khoảnh khắc tại cơ sở",
         "mosaic",
         true,
         "all",
@@ -163,7 +163,7 @@ public sealed class GlobalEditorialShowcaseService(
         ParseIds(entity.GalleryPropertyIdsJson),
         ParseIds(entity.GalleryItemIdsJson),
         entity.GalleryLimit,
-        entity.GalleryTitle,
+        entity.GalleryTitle == "Một vài khoảnh khắc tại De Long" ? "Một vài khoảnh khắc tại cơ sở" : entity.GalleryTitle,
         entity.GalleryLayout,
         entity.BlogEnabled,
         entity.BlogMode,

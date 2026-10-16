@@ -6,6 +6,7 @@ using DeLong.Web.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace DeLong.Tests.Integration;
@@ -13,6 +14,49 @@ namespace DeLong.Tests.Integration;
 [Collection("PostgreSQL integration")]
 public sealed class NotificationFlowTests
 {
+    [Fact]
+    public async Task Failed_smtp_delivery_is_retried_without_changing_the_existing_booking()
+    {
+        var connection = Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION");
+        if (string.IsNullOrWhiteSpace(connection)) return;
+        var services = new ServiceCollection();
+        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connection));
+        var protection = new EphemeralDataProtectionProvider();
+        services.AddSingleton(new SmtpCredentialProtector(protection));
+        services.AddSingleton(new TelegramCredentialProtector(protection));
+        services.AddScoped<NotificationSettingsService>();
+        services.AddSingleton<NotificationEmailSender>();
+        services.AddSingleton<TelegramNotificationSender>();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.MigrateAsync();
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var property = new Property { Code = "FAIL-" + suffix, Name = "SMTP failure test", IsActive = true };
+        var room = new Room { Property = property, Code = "R", Name = "Room", Slug = "room", Capacity = 2, IsActive = true };
+        var customer = new Customer { Property = property, Name = "Synthetic guest", Phone = "0901234567", NormalizedPhone = "0901234567" };
+        var booking = new Booking { Property = property, Room = room, Customer = customer, Code = "FAIL-" + suffix,
+            Status = BookingStatus.Confirmed, Type = BookingType.TimeSlot, CheckInUtc = DateTime.UtcNow.AddDays(2), CheckOutUtc = DateTime.UtcNow.AddDays(2).AddHours(3), RoomAmount = 250000 };
+        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        db.Add(new PropertyNotificationSettings { Property = property, SmtpHost = "127.0.0.1", SmtpPort = port, SmtpUseSsl = false, SmtpFromEmail = "sender@example.test" });
+        var email = new BookingGuestGuideEmail { Property = property, Booking = booking, RecipientEmail = "guest@example.test", Subject = "Synthetic", BodyText = "Synthetic", NextAttemptAtUtc = DateTime.UtcNow.AddDays(-1) };
+        db.Add(email);
+        await db.SaveChangesAsync();
+        using var worker = new NotificationEmailWorker(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<NotificationEmailWorker>.Instance);
+        var process = typeof(NotificationEmailWorker).GetMethod("ProcessBatchAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        await (Task<int>)process.Invoke(worker, [CancellationToken.None])!;
+        db.ChangeTracker.Clear();
+        var stored = await db.BookingGuestGuideEmails.AsNoTracking().SingleAsync(x => x.Id == email.Id);
+        Assert.Equal(1, stored.AttemptCount);
+        Assert.Null(stored.SentAtUtc);
+        Assert.False(string.IsNullOrWhiteSpace(stored.LastError));
+        Assert.True(stored.NextAttemptAtUtc > DateTime.UtcNow);
+        Assert.Equal(BookingStatus.Confirmed, await db.Bookings.Where(x => x.Id == booking.Id).Select(x => x.Status).SingleAsync());
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     public async Task Booking_notification_is_deduplicated_and_read_state_is_per_user()

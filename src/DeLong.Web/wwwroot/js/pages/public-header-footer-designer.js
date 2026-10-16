@@ -93,7 +93,7 @@
                 const logo = globalScope ? (brand.overrideLogoUrl || '') : (brand.logoUrl || '');
                 const body = `<div class="psd-designer-form">
                     <section class="psd-editor-section"><div class="psd-section-head"><span>01</span><div><strong>Thương hiệu Header</strong><small>${globalScope ? 'Để trống để tiếp tục dùng fallback thương hiệu hiện tại.' : 'Tên, tagline và logo đang dùng trên toàn bộ trang của cơ sở.'}</small></div></div>
-                        <label><span>Tên website</span><input name="psdSiteName" value="${h(siteName)}" ${globalScope ? `placeholder="${h(brand.siteName || 'De Long Homestay')}"` : ''}></label>
+                        <label><span>Tên website</span><input name="psdSiteName" value="${h(siteName)}" ${globalScope ? `placeholder="${h(brand.siteName || 'Cơ sở lưu trú')}"` : ''}></label>
                         <label><span>Tagline</span><input name="psdTagline" value="${h(tagline)}" ${globalScope ? `placeholder="${h(brand.tagline || '')}"` : ''}></label>
                         <label><span>Logo</span><div class="psd-media-field"><input name="psdLogoUrl" value="${h(logo)}" placeholder="URL ảnh logo"><button type="button" data-psd-pick-logo>Chọn từ Media</button></div></label>
                     </section>

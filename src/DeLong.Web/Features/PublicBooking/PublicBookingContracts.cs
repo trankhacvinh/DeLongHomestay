@@ -66,6 +66,7 @@ public sealed class PublicBookingRequest
     public int GuestCount { get; init; } = 1;
     public bool PolicyAccepted { get; init; }
     public int PolicyVersion { get; init; }
+    public bool CompleteAfterIdentityUpload { get; init; }
     public bool HasIdentityFront { get; init; }
     public bool HasIdentityBack { get; init; }
     public bool HasSecondIdentityFront { get; init; }

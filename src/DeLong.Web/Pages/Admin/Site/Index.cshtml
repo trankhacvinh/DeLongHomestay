@@ -68,7 +68,7 @@
                     <div><strong>Logo</strong><small>PNG, JPG hoặc WebP</small><label class="btn btn-light btn-sm file-btn">Tải logo<input type="file" accept="image/png,image/jpeg,image/webp" v-on:change="uploadAsset('logo', $event)" /></label></div>
                 </div>
                 <div class="site-media-item">
-                    <div class="site-media-preview favicon"><img v-if="settings.faviconUrl" v-bind:src="settings.faviconUrl" alt="Favicon preview" /><span v-else>DL</span></div>
+                    <div class="site-media-preview favicon"><img v-if="settings.faviconUrl" v-bind:src="settings.faviconUrl" alt="Favicon preview" /><span v-else>@((ViewData["GlobalBranding"] as DeLong.Web.Features.Site.GlobalSiteBrandingDto)?.SiteName?.Substring(0, 1).ToUpperInvariant())</span></div>
                     <div><strong>Favicon</strong><small>Hệ thống tạo PNG 64×64</small><label class="btn btn-light btn-sm file-btn">Tải favicon<input type="file" accept="image/png,image/jpeg,image/webp" v-on:change="uploadAsset('favicon', $event)" /></label></div>
                 </div>
                 <div class="site-media-item vertical">

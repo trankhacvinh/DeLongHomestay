@@ -19,7 +19,7 @@ public sealed class ReportExcelExportService
         using var workbook = new XLWorkbook();
         workbook.Properties.Title = $"Báo cáo kinh doanh {scopeName} {month:MM-yyyy}";
         workbook.Properties.Subject = "Giá trị booking, dòng tiền, công suất, chi phí và công nợ";
-        workbook.Properties.Author = "De Long Homestay";
+        workbook.Properties.Author = scopeName;
 
         AddSummarySheet(workbook, report, scopeName, month);
         AddDailySheet(workbook, report, scopeName, month);

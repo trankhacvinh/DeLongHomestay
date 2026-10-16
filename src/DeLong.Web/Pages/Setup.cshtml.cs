@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using DeLong.Web.Data.Seed;
 using DeLong.Web.Features.Setup;
 using DeLong.Web.Identity;
 using Microsoft.AspNetCore.Authorization;
@@ -36,7 +35,7 @@ public sealed class SetupModel(
         try
         {
             var result = await setupService.CompleteAsync(
-                new InitialSetupRequest(Input.DisplayName, Input.Email, Input.Password, Input.SeedDeLongData),
+                new InitialSetupRequest(Input.DisplayName, Input.Email, Input.Password, false, true, Input.PropertyName, Input.SeedDemoData),
                 cancellationToken);
             if (!result.Succeeded)
             {
@@ -52,8 +51,8 @@ public sealed class SetupModel(
             }
 
             await signInManager.SignInAsync(admin, isPersistent: false);
-            return result.SeededDeLongData
-                ? RedirectToPage("/Admin/Index", new { propertyId = DbSeeder.DeLongPropertyId })
+            return result.PropertyId.HasValue
+                ? RedirectToPage("/Admin/Index", new { propertyId = result.PropertyId })
                 : RedirectToPage("/Admin/Properties/Index");
         }
         catch (Exception exception)
@@ -69,7 +68,7 @@ public sealed class SetupModel(
         [Required(ErrorMessage = "Vui lòng nhập tên hiển thị.")]
         [StringLength(120, MinimumLength = 2, ErrorMessage = "Tên hiển thị phải từ 2 đến 120 ký tự.")]
         [Display(Name = "Tên quản trị viên")]
-        public string DisplayName { get; set; } = "De Long Admin";
+        public string DisplayName { get; set; } = "Quản trị viên";
 
         [Required(ErrorMessage = "Vui lòng nhập email.")]
         [EmailAddress(ErrorMessage = "Email không đúng định dạng.")]
@@ -89,7 +88,11 @@ public sealed class SetupModel(
         [Display(Name = "Nhập lại mật khẩu")]
         public string ConfirmPassword { get; set; } = string.Empty;
 
-        [Display(Name = "Tạo dữ liệu mẫu De Long")]
-        public bool SeedDeLongData { get; set; } = true;
+        [Required, StringLength(160)]
+        [Display(Name = "Tên cơ sở / thương hiệu")]
+        public string PropertyName { get; set; } = "Aurora Stay";
+
+        [Display(Name = "Tạo bộ dữ liệu demo")]
+        public bool SeedDemoData { get; set; } = true;
     }
 }

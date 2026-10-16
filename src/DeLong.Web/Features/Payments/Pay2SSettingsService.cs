@@ -59,7 +59,7 @@ public sealed class Pay2SSettingsService(AppDbContext db, Pay2SCredentialProtect
         entity.Enabled = request.Enabled;
         entity.Sandbox = request.Sandbox;
         entity.PartnerCode = request.PartnerCode?.Trim() ?? string.Empty;
-        entity.PartnerName = request.PartnerName?.Trim() ?? "De Long Homestay";
+        entity.PartnerName = request.PartnerName?.Trim() ?? "Cơ sở lưu trú";
         entity.BankAccountNumber = request.BankAccountNumber?.Trim() ?? string.Empty;
         entity.BankId = request.BankId?.Trim().ToUpperInvariant() ?? string.Empty;
         entity.ApiEndpoint = NormalizeApiEndpoint(apiUri.ToString());
@@ -94,7 +94,7 @@ public sealed class Pay2SSettingsService(AppDbContext db, Pay2SCredentialProtect
     }
 
     private static Pay2SSettingsDto ToDto(PropertyPay2SSettings? x) => new(
-        x?.Enabled ?? false, x?.Sandbox ?? true, x?.PartnerCode ?? string.Empty, x?.PartnerName ?? "De Long Homestay",
+        x?.Enabled ?? false, x?.Sandbox ?? true, x?.PartnerCode ?? string.Empty, x?.PartnerName ?? "Cơ sở lưu trú",
         !string.IsNullOrWhiteSpace(x?.AccessKeyProtected), !string.IsNullOrWhiteSpace(x?.SecretKeyProtected),
         x?.BankAccountNumber ?? string.Empty, x?.BankId ?? "ACB",
         NormalizeApiEndpoint(x?.ApiEndpoint), x?.CallbackBaseUrl ?? string.Empty,

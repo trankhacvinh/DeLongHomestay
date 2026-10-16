@@ -16,7 +16,7 @@
         { value: 'Cta', label: 'Kêu gọi hành động' }
     ];
     function defaultContent(type) {
-        if (type === 'Hero') return { eyebrow: 'DE LONG HOMESTAY', title: '', body: '', primaryText: 'Xem tất cả phòng', primaryUrl: '/rooms', secondaryText: 'Khám phá các cơ sở', secondaryUrl: '/#co-so', imageUrl: '', imageUrl2: '', imageUrl3: '' };
+        if (type === 'Hero') return { eyebrow: 'KHÔNG GIAN LƯU TRÚ', title: '', body: '', primaryText: 'Xem tất cả phòng', primaryUrl: '/rooms', secondaryText: 'Khám phá các cơ sở', secondaryUrl: '/#co-so', imageUrl: '', imageUrl2: '', imageUrl3: '' };
         if (type === 'Faq') return { eyebrow: 'HỎI ĐÁP', title: 'Câu hỏi thường gặp', items: [{ question: '', answer: '' }] };
         if (type === 'BranchGrid') return { eyebrow: 'CƠ SỞ', title: 'Chọn nơi bạn muốn ghé', propertyIds: [] };
         if (type === 'RoomGrid') return { eyebrow: 'PHÒNG', title: 'Một vài lựa chọn đang mở', mode: 'all', limit: 6, propertyQuotas: {}, roomIds: [] };
@@ -42,7 +42,7 @@
         data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, brandingEffective: initial.branding || {}, branding: brandingForm(initial.branding), brandingSaving: false, brandingUploading: '', themeMode: initial.theme?.mode || 'standard', themeSaved: initial.theme?.mode || 'standard', themeSaving: false, resetConfirm: false, resetting: false, palette: ['#5f8a8b', '#7d8f69', '#b5654f', '#6f6a8a', '#b88746', '#8c6a5a'], roomColors: Object.assign({}, initial.theme?.roomColors || {}), roomColorsDirty: false, roomColorsSaving: false, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
         computed: {
             brandPreviewLogo() { return this.branding.logoUrl || this.brandingEffective.logoUrl || ''; },
-            brandPreviewName() { return this.branding.siteName || this.brandingEffective.siteName || 'De Long Homestay'; },
+            brandPreviewName() { return this.branding.siteName || this.brandingEffective.siteName || 'Cơ sở lưu trú'; },
             brandPreviewTagline() { return this.branding.tagline || this.brandingEffective.tagline || ''; }
         },
         mounted() { nextTick(() => this.mountSortable()); },

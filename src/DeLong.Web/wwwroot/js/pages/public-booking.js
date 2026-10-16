@@ -582,9 +582,14 @@
                     window.location.assign(`${this.scopePrefix}/booking/success?${query.toString()}`);
                 } catch (error) {
                     const message = error.message || 'Không thể gửi yêu cầu lúc này.';
-                    // Keep the same key only for network-level uncertainty. Any HTTP response means
-                    // the server answered definitively and a corrected retry should get a fresh key.
-                    if (error.status) this.requestKey = null;
+                    const contactField = error.problem?.code === 'customer_name_invalid' ? 'customerName'
+                        : ['customer_phone_invalid', 'customer_inactive'].includes(error.problem?.code) ? 'customerPhone' : null;
+                    if (contactField) {
+                        this.fieldErrors[contactField] = message;
+                        this.$refs[contactField]?.focus();
+                    }
+                    // A timeout or server failure can occur after the booking was committed.
+                    if (error.status >= 400 && error.status < 500 && !error.identityUploadFailed) this.requestKey = null;
                     if (error.status === 409) {
                         await this.handleBookingConflict(attemptedRoomId, attemptedRateId, message);
                         if (this.embeddedSlotSelection && window.parent !== window)

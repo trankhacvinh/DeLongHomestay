@@ -9,7 +9,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex,nofollow" />
-    <title>Thiết lập hệ thống - De Long Homestay</title>
+    <title>Thiết lập hệ thống</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body class="setup-page">
@@ -47,17 +47,18 @@
                 </div>
             </div>
 
+            <div class="field">
+                <label asp-for="Input.PropertyName"></label>
+                <input asp-for="Input.PropertyName" />
+                <span asp-validation-for="Input.PropertyName" class="validation"></span>
+            </div>
             <label class="setup-seed-option">
-                <input asp-for="Input.SeedDeLongData" />
-                <span>
-                    <strong>Tạo sẵn dữ liệu De Long Homestay</strong>
-                    <small>Gồm 6 phòng, khung giờ, giá thường/cuối tuần, combo, website và các cấu hình vận hành. Pay2S, email, Telegram và AI được tạo ở trạng thái an toàn, không có khóa bí mật/API key.</small>
-                </span>
+                <input asp-for="Input.SeedDemoData" />
+                <span><strong>Tạo bộ dữ liệu demo cho thương hiệu này</strong>
+                    <small>6 phòng, giá thường/cuối tuần, website, khách mẫu, booking quá khứ/hiện tại/tương lai, thanh toán, chi phí và voucher theo ngày thiết lập. Các tích hợp để tắt, không có khóa bí mật/API key.</small></span>
             </label>
-
-            <div class="setup-note">
-                <strong>Nếu bỏ chọn</strong>
-                <span>Hệ thống chỉ tạo tài khoản Admin. Bạn sẽ tự tạo cơ sở và cấu hình dữ liệu từ trang quản trị.</span>
+            <div class="setup-note"><strong>Nếu bỏ chọn</strong>
+                <span>Tạo Admin, cơ sở, website và cấu hình cơ bản; không tạo phòng hoặc giao dịch mẫu. Demo chỉ dành cho database mới. Địa chỉ và email mẫu cần thay bằng thông tin thật.</span>
             </div>
 
             <button class="btn btn-primary setup-submit" type="submit">Hoàn tất thiết lập</button>

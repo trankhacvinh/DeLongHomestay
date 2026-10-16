@@ -114,7 +114,7 @@
 
     function defaults(type, scope) {
         if (type === 'Hero') return scope === 'global'
-            ? { eyebrow: 'DE LONG HOMESTAY', title: '', body: '', primaryText: 'Xem tất cả phòng', primaryUrl: '/rooms', secondaryText: 'Khám phá các cơ sở', secondaryUrl: '/#co-so', imageUrl: '' }
+            ? { eyebrow: 'KHÔNG GIAN LƯU TRÚ', title: '', body: '', primaryText: 'Xem tất cả phòng', primaryUrl: '/rooms', secondaryText: 'Khám phá các cơ sở', secondaryUrl: '/#co-so', imageUrl: '' }
             : { eyebrow: '', title: '', body: '', primaryText: 'Đặt phòng', primaryUrl: '/booking', secondaryText: 'Xem phòng', secondaryUrl: '/rooms', imageUrl: '' };
         if (type === 'BranchGrid') return { eyebrow: 'CƠ SỞ', title: 'Chọn nơi bạn muốn ghé', propertyIds: [] };
         if (type === 'RoomGrid') return scope === 'global'
@@ -284,7 +284,7 @@
             const editorialButtons = this.scope === 'global'
                 ? `${isHome ? '<button type="button" data-gallery>Gallery</button><button type="button" data-blog>Blog</button>' : (isGlobalBlog ? '<button type="button" data-blog>Thiết lập Blog</button>' : '')}`
                 : `${isHome ? '<button type="button" data-gallery>Gallery</button><button type="button" data-blog>Blog</button>' : (propertyBlogMatch ? `<button type="button" data-blog>${propertyBlogMatch[1] ? 'Sửa bài viết' : 'Quản lý Blog'}</button>` : '')}`;
-            bar.innerHTML = `<div class="pve-toolbar-brand"><span>DL</span><strong>Chỉnh website</strong><small>${h(label)}</small></div><div class="pve-toolbar-actions">${isEditablePage ? '<button type="button" class="pve-primary" data-edit-toggle>✦ Chỉnh sửa trang</button><button type="button" data-add hidden>＋ Thêm khối</button>' : ''}${editorialButtons}<button type="button" data-brand>Thương hiệu</button><a href="${this.adminUrl}">${isCustomPage ? 'Quản lý trang' : 'Cấu hình đầy đủ'}</a><a href="/Admin">Quản trị</a><button type="button" data-hide aria-label="Ẩn thanh chỉnh sửa">×</button></div>`;
+            bar.innerHTML = `<div class="pve-toolbar-brand"><span>✦</span><strong>Chỉnh website</strong><small>${h(label)}</small></div><div class="pve-toolbar-actions">${isEditablePage ? '<button type="button" class="pve-primary" data-edit-toggle>✦ Chỉnh sửa trang</button><button type="button" data-add hidden>＋ Thêm khối</button>' : ''}${editorialButtons}<button type="button" data-brand>Thương hiệu</button><a href="${this.adminUrl}">${isCustomPage ? 'Quản lý trang' : 'Cấu hình đầy đủ'}</a><a href="/Admin">Quản trị</a><button type="button" data-hide aria-label="Ẩn thanh chỉnh sửa">×</button></div>`;
             document.body.prepend(bar);
             bar.querySelector('[data-edit-toggle]')?.addEventListener('click', () => this.toggleEdit());
             bar.querySelector('[data-add]')?.addEventListener('click', () => this.openCreate(null));

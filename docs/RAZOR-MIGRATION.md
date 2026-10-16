@@ -90,3 +90,17 @@ Staff/Manager/Housekeeping/Viewer dùng drawer `staff-ai-chat.js` và endpoint r
 ### Admin VND input formatting
 
 RobinHerbots Inputmask 5.0.9 is vendored under `wwwroot/vendor/inputmask` with its MIT license. `DeLongMoneyInput` registers a Vue `moneyInput` directive per booking/calendar app; do not combine it with `v-model` on the same input. Bind numeric value and setter so grouped text (`250.000`) never enters API money fields as a string. No jQuery dependency or public-page loading.
+
+## Setup website mới / demo thương hiệu (2026-10-12)
+
+- Xem `docs/WINDOWS-DEMO-SETUP.md`. Production giữ AutoMigrate/SeedOnStartup=false; migrate riêng trước khi chạy.
+- GET `/` khi chưa có Admin chuyển tới `/setup`; setup khóa sau commit, Admin được cấp quyền cơ sở mới.
+- Không thay đổi schema. Cần nghiệm thu setup, booking/payment/report và mobile trên Windows trước khi bàn giao.
+
+## Giãn lịch dọn phòng (2026-10-13)
+
+- Cấu hình theo cơ sở: bật/tắt giãn lịch, thời lượng (mặc định 30 phút), số lao công (1), dọn sớm tối đa (30 phút), giờ bắt đầu/kết thúc làm việc theo múi giờ cơ sở. Mặc định tắt; cần nhập giờ làm việc trước khi bật.
+- Chỉ việc chuẩn bị đón khách được chuyển sớm. Giữ quy tắc gộp 4 giờ và việc sau trả phòng. Không xếp dọn trong booking thật hoặc khoảng khóa đang hiệu lực; khóa đã hủy không chặn dọn.
+- Ưu tiên việc cùng giờ ít linh hoạt hơn, tránh trùng người và cùng phòng, đảm bảo đủ thời lượng trước nhận khách. Nếu không xếp được: giữ giờ gốc, báo cần phân công thủ công trên lịch và văn bản sao chép. Các việc ngoài giờ làm vẫn giữ và báo; không tự xóa việc ban đêm.
+- Migration `20261013013412_AddHousekeepingStaggerSettings` chỉ thêm cấu hình vào `properties`; không cập nhật booking/payment/khoảng khóa. Áp dụng migration trước deploy; bật tính năng sau khi xác nhận giờ làm việc.
+- Nghiệm thu: phòng khóa kết thúc 10:00 có thể dọn 10:00; kết thúc 10:30 không được chuyển sớm; khách còn ở, hết giờ làm, deadline ngắn, hai lao công, qua ngày, cấu hình tắt, không mất/trùng công việc và sao chép cảnh báo.

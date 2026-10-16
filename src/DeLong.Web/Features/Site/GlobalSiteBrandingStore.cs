@@ -60,16 +60,17 @@ public static class GlobalSiteBrandingStore
         SiteSettingsDto? inherited = null;
         string fallbackPropertyName = string.Empty;
 
-        if (activeProperties.Count == 1)
+        var primaryProperty = activeProperties.SingleOrDefault(x => x.Code == PublicPropertyResolver.LegacyPropertyCode)
+            ?? (activeProperties.Count == 1 ? activeProperties[0] : null);
+        if (primaryProperty is not null)
         {
-            var property = activeProperties[0];
+            var property = primaryProperty;
             inherited = (await siteContentService.GetPublicAsync(property.SiteSlug, ct))?.Settings;
             fallbackPropertyName = inherited?.SiteName ?? property.Name;
         }
 
-        var siteName = First(overrides.SiteName, inherited?.SiteName, "De Long Homestay");
-        var taglineDefault = activeProperties.Count > 1 ? string.Empty : "Long Thành · Đồng Nai";
-        var tagline = First(overrides.Tagline, inherited?.Tagline, taglineDefault);
+        var siteName = First(overrides.SiteName, inherited?.SiteName, "Homestay");
+        var tagline = First(overrides.Tagline, inherited?.Tagline);
         var logoUrl = First(overrides.LogoUrl, inherited?.LogoUrl);
         var faviconUrl = First(overrides.FaviconUrl, inherited?.FaviconUrl);
         var ogImageUrl = First(overrides.OgImageUrl, inherited?.OgImageUrl);

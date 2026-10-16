@@ -26,7 +26,7 @@ public static partial class NotificationEmailTemplateRenderer
         <h2>Yêu cầu đặt phòng mới</h2>
         <p><strong>Cơ sở:</strong> {{PropertyName}}<br><strong>Mã booking:</strong> {{BookingCode}}<br><strong>Khách:</strong> {{CustomerName}}<br><strong>Điện thoại:</strong> {{CustomerPhone}}<br><strong>Email:</strong> {{CustomerEmail}}</p>
         <p><strong>Phòng:</strong> {{RoomName}}<br><strong>Nhận:</strong> {{CheckIn}}<br><strong>Trả:</strong> {{CheckOut}}<br><strong>Tổng tiền:</strong> {{TotalAmount}} VND</p><p>{{ScheduleAdjustment}}</p>
-        <p>Vui lòng mở trang quản trị De Long Homestay để xử lý yêu cầu.</p>
+        <p>Vui lòng mở trang quản trị {{PropertyName}} để xử lý yêu cầu.</p>
         """;
     public const string DefaultGuestCheckInSubject = "[{{PropertyName}}] Hướng dẫn check-in · {{BookingCode}}";
     public const string DefaultGuestCheckInBody = """

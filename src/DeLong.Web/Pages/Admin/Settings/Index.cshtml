@@ -6,6 +6,7 @@
 @section Head {
     <link rel="stylesheet" href="~/css/public-visual-editor-enhancements.css" asp-append-version="true" />
     <style>
+        #settings-page .quick-rate-open, .quick-rate-backdrop { display: none !important; }
         .booking-calendar-color-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.booking-calendar-color-field{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 12px;border:1px solid #dbe6e3;border-radius:12px;background:#fbfdfc}.booking-calendar-color-field input[type=color]{width:44px;height:36px;padding:2px;border:1px solid #ccdcd8;border-radius:9px;background:#fff;cursor:pointer}.booking-calendar-color-field span{display:grid;gap:2px}.booking-calendar-color-field strong{font-size:12px;color:#294944}.booking-calendar-color-field small{font-size:9px;line-height:1.35;color:#71847f}.booking-calendar-color-field code{font-size:9px;color:#617570}@@media(max-width:760px){.booking-calendar-color-grid{grid-template-columns:1fr}.booking-calendar-color-field{grid-template-columns:40px minmax(0,1fr)}.booking-calendar-color-field code{grid-column:2}}
     </style>
 }
@@ -19,7 +20,6 @@
             <p>Cấu hình lịch dọn phòng, thông báo đặt phòng, email SMTP và các mức giá của cơ sở.</p>
         </div>
         <div class="settings-title-actions" v-show="activeTab === 'rooms'">
-            <button class="btn btn-light" type="button" data-quick-rate-open><svg><use href="#i-plus" /></svg>Tạo nhanh bộ khung giờ</button>
             <button class="btn btn-primary" type="button" v-on:click="openCreate"><svg><use href="#i-plus" /></svg>Thêm mức giá</button>
         </div>
     </div>
@@ -46,6 +46,7 @@
     </nav>
 
     <div id="settings-panel-rooms" class="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-rooms" v-show="activeTab === 'rooms'">
+        <label class="check-row mb-4"><input type="checkbox" v-model="showArchivedRates" /> Hiện mức giá đã lưu trữ</label>
         <div class="settings-room-grid">
             <section class="panel settings-room" v-for="room in activeRooms" v-bind:key="room.id">
                 <div class="panel-head">
@@ -66,7 +67,7 @@
                                     <strong>{{ rate.name }}</strong>
                                     <span v-if="rate.type === 1" class="pill">Qua đêm</span>
                                     <span v-if="rate.type === 2" class="pill success">Theo đêm</span>
-                                    <span v-if="!rate.isActive" class="pill danger">Ngừng</span>
+                                    <span v-if="!rate.isActive" class="pill danger">Đã lưu trữ</span>
                                 </div>
                                 <div class="rate-settings-meta">
                                     <template v-if="rate.type === 2">Nhận {{ rate.startTime }} · Trả {{ rate.endTime }} · {{ money(rate.price) }}/đêm</template>
@@ -76,11 +77,11 @@
                             <div class="rate-settings-actions">
                                 <strong v-if="rate.type !== 2">{{ money(rate.price) }}</strong>
                                 <button class="btn btn-light btn-sm" type="button" v-on:click="openEdit(room, rate)">Sửa</button>
-                                <button v-if="rate.isActive" class="btn btn-danger btn-sm" type="button" v-on:click="openArchive(room, rate)">Ngừng</button>
+                                <button v-if="rate.isActive" class="btn btn-danger btn-sm" type="button" v-on:click="openArchive(room, rate)">Lưu trữ</button>
                             </div>
                         </article>
                     </div>
-                    <div v-else class="empty-state"><strong>Chưa có mức giá</strong>Thêm giá theo khung giờ hoặc giá lưu trú theo đêm cho phòng này.</div>
+                    <div v-else class="empty-state"><strong>Không có mức giá đang hiển thị</strong>Thêm mức giá hoặc bật bộ lọc để xem lại mức giá đã lưu trữ.</div>
                 </div>
             </section>
         </div>
@@ -108,6 +109,15 @@
                     <div class="housekeeping-minute-input"><input id="housekeeping-after-checkout" type="number" min="0" max="1440" step="5" inputmode="numeric" v-model.number="housekeeping.afterCheckOutMinutes" /><span>phút</span></div>
                     <small>Ví dụ trả phòng 14:00, nhập 15 → công việc lúc 14:15.</small>
                 </div>
+            </div>
+            <div class="notification-settings-grid">
+                <label class="check-row full"><input type="checkbox" v-model="housekeeping.staggerEnabled" /><span><strong>Tự động giãn lịch dọn phòng</strong><small>Chỉ chuyển việc chuẩn bị đón khách sớm hơn khi phòng trống, không bị khóa và đủ thời gian. Việc sau trả phòng giữ giờ hiện tại.</small></span></label>
+                <div class="field"><label>Thời lượng dọn mỗi phòng (phút)</label><input type="number" min="1" max="240" v-model.number="housekeeping.cleaningMinutes" /></div>
+                <div class="field"><label>Số lao công làm đồng thời</label><input type="number" min="1" max="20" v-model.number="housekeeping.workerCount" /></div>
+                <div class="field"><label>Cho phép dọn sớm tối đa (phút)</label><input type="number" min="0" max="240" v-model.number="housekeeping.maxAdvanceMinutes" /></div>
+                <div class="field"><label>Giờ bắt đầu làm việc</label><input type="time" v-model="housekeeping.workStart" /></div>
+                <div class="field"><label>Giờ kết thúc làm việc</label><input type="time" v-model="housekeeping.workEnd" /></div>
+                <p class="full small muted">Giờ làm việc áp dụng theo múi giờ cơ sở, trong cùng ngày. Không xếp được an toàn sẽ giữ giờ cũ và báo cần phân công thủ công.</p>
             </div>
             <div class="notification-settings-actions">
                 <button class="btn btn-primary" type="button" v-bind:disabled="savingHousekeeping" v-on:click="saveHousekeepingSettings">{{ savingHousekeeping ? 'Đang lưu...' : 'Lưu vận hành phòng' }}</button>
@@ -206,7 +216,7 @@
                 <div class="field"><label for="smtp-password">SMTP password</label><div class="notification-settings-secret"><input id="smtp-password" type="password" v-model="notification.smtpPassword" autocomplete="new-password" placeholder="Để trống để giữ password hiện tại" /><small>{{ notification.smtpPasswordConfigured ? 'Đã lưu mã hóa' : 'Chưa có' }}</small></div></div>
                 <label v-if="notification.smtpPasswordConfigured" class="check-row full"><input type="checkbox" v-model="notification.clearSmtpPassword" /> Xóa SMTP password đang lưu</label>
                 <div class="field"><label for="smtp-from-email">Email người gửi</label><input id="smtp-from-email" type="email" v-model.trim="notification.smtpFromEmail" maxlength="320" autocomplete="email" placeholder="booking@example.com" /></div>
-                <div class="field"><label for="smtp-from-name">Tên người gửi</label><input id="smtp-from-name" v-model.trim="notification.smtpFromName" maxlength="240" placeholder="De Long Homestay" /></div>
+                <div class="field"><label for="smtp-from-name">Tên người gửi</label><input id="smtp-from-name" v-model.trim="notification.smtpFromName" maxlength="240" placeholder="Tên thương hiệu" /></div>
                 <div class="field full notification-settings-divider">
                     <strong>Mẫu email HTML tùy chỉnh</strong>
                     <small>Chạm vào mã biến trong bảng để sao chép rồi dán vào tiêu đề hoặc nội dung.</small>
@@ -309,13 +319,13 @@
     <div class="modal-backdrop modal-top" v-if="archiveEditor.open" v-on:click.self="closeArchive">
         <section class="modal-card modal-small" role="dialog" aria-modal="true" aria-labelledby="archive-rate-title">
             <div class="modal-head">
-                <div><h2 id="archive-rate-title">Ngừng mức giá?</h2><p class="small muted">Mức giá sẽ không còn xuất hiện để đặt mới nhưng lịch sử không bị xóa.</p></div>
+                <div><h2 id="archive-rate-title">Lưu trữ mức giá?</h2><p class="small muted">Mức giá sẽ được ẩn khỏi danh sách mặc định và không dùng để đặt mới. Lịch sử booking được giữ nguyên.</p></div>
                 <button class="icon-btn" type="button" v-on:click="closeArchive" aria-label="Đóng">×</button>
             </div>
             <p class="archive-copy" v-if="archiveEditor.rate"><strong>{{ archiveEditor.rate.name }}</strong> · {{ archiveEditor.room?.name }}</p>
             <div class="modal-actions">
                 <button class="btn btn-light" type="button" v-on:click="closeArchive">Hủy</button>
-                <button class="btn btn-danger" type="button" v-bind:disabled="saving" v-on:click="confirmArchive">Xác nhận ngừng</button>
+                <button class="btn btn-danger" type="button" v-bind:disabled="saving" v-on:click="confirmArchive">Xác nhận lưu trữ</button>
             </div>
         </section>
     </div>
@@ -325,5 +335,4 @@
 @section Scripts {
     <script src="~/js/pages/public-rich-editor.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-settings.js" asp-append-version="true"></script>
-    <script src="~/js/pages/admin-settings-quick-rate.js" asp-append-version="true"></script>
 }

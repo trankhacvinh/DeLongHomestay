@@ -11,7 +11,8 @@
                 propertyId: initial.propertyId,
                 activeTab: 'rooms',
                 rooms: initial.rooms || [],
-                housekeeping: { beforeCheckInMinutes: 0, afterCheckOutMinutes: 0, automaticCheckInEnabled: true, automaticCheckOutEnabled: true, ...(initial.housekeepingSettings || {}) },
+                showArchivedRates: false,
+                housekeeping: { staggerEnabled: false, cleaningMinutes: 30, workerCount: 1, maxAdvanceMinutes: 30, workStart: null, workEnd: null, beforeCheckInMinutes: 0, afterCheckOutMinutes: 0, automaticCheckInEnabled: true, automaticCheckOutEnabled: true, ...(initial.housekeepingSettings || {}) },
                 notification: { guestCheckInEmailEnabled: false, guestCancellationEmailEnabled: true, telegramBookingEnabled: false, telegramBotTokenConfigured: false, telegramChatIds: '', ...(initial.notificationSettings || {}), smtpPassword: '', clearSmtpPassword: false, telegramBotToken: '', clearTelegramBotToken: false },
                 emailVariables: [
                     { code: '{{PropertyName}}', meaning: 'Tên cơ sở' },
@@ -34,7 +35,7 @@
                 emailTemplateEditors: [],
                 activeEmailTemplateTab: 'internal',
                 customerAccounts: { registrationEnabled: true, authenticatorEnabled: true, loyaltyEnabled: false, loyaltySpendPerPoint: 10000, benefitText: '', termsTitle: '', termsHtml: '', termsVersion: 1, ...(initial.customerAccountSettings || {}) },
-                pay2s: { enabled: false, sandbox: true, partnerCode: '', partnerName: 'De Long Homestay', accessKey: '', secretKey: '', accessKeyConfigured: false, secretKeyConfigured: false, bankAccountNumber: '', bankId: 'ACB', apiEndpoint: 'https://payment.pay2s.vn/v1/gateway/api/create', callbackBaseUrl: '', holdMinutes: 15, settlementGraceMinutes: 3, clearCredentials: false, ...(initial.pay2SSettings || {}) },
+                pay2s: { enabled: false, sandbox: true, partnerCode: '', partnerName: 'Cơ sở lưu trú', accessKey: '', secretKey: '', accessKeyConfigured: false, secretKeyConfigured: false, bankAccountNumber: '', bankId: 'ACB', apiEndpoint: 'https://payment.pay2s.vn/v1/gateway/api/create', callbackBaseUrl: '', holdMinutes: 15, settlementGraceMinutes: 3, clearCredentials: false, ...(initial.pay2SSettings || {}) },
                 savingHousekeeping: false,
                 savingNotifications: false,
                 savingCustomerAccounts: false,
@@ -128,7 +129,7 @@
             },
             replaceEmailPreviewVariables(template) {
                 const samples = {
-                    '{{PropertyName}}': 'De Long Homestay', '{{BookingCode}}': 'BK-260831-ABC123',
+                    '{{PropertyName}}': initial.propertyName || 'Cơ sở lưu trú', '{{BookingCode}}': 'BK-260831-ABC123',
                     '{{CustomerName}}': 'Nguyễn Minh Anh', '{{CustomerPhone}}': '0979 745 945',
                     '{{CustomerEmail}}': 'minhanh@example.com', '{{RoomName}}': 'Coco Blue #1',
                     '{{CheckIn}}': '31/08/2026 14:00', '{{CheckOut}}': '01/09/2026 10:00',
@@ -219,6 +220,10 @@
                     return;
                 }
 
+                if (this.housekeeping.staggerEnabled && (!this.housekeeping.workStart || !this.housekeeping.workEnd || this.housekeeping.workStart >= this.housekeeping.workEnd)) {
+                    this.notify('Nhập giờ làm việc bắt đầu trước giờ kết thúc trong cùng ngày.', 'error');
+                    return;
+                }
                 this.savingHousekeeping = true;
                 try {
                     this.housekeeping = await DeLongApi.put(
@@ -227,7 +232,13 @@
                             beforeCheckInMinutes: before,
                             afterCheckOutMinutes: after,
                             automaticCheckInEnabled: this.housekeeping.automaticCheckInEnabled === true,
-                            automaticCheckOutEnabled: this.housekeeping.automaticCheckOutEnabled === true
+                            automaticCheckOutEnabled: this.housekeeping.automaticCheckOutEnabled === true,
+                            staggerEnabled: this.housekeeping.staggerEnabled === true,
+                            cleaningMinutes: Number(this.housekeeping.cleaningMinutes),
+                            workerCount: Number(this.housekeeping.workerCount),
+                            maxAdvanceMinutes: Number(this.housekeeping.maxAdvanceMinutes),
+                            workStart: this.housekeeping.workStart ? this.housekeeping.workStart.slice(0, 5) + ':00' : null,
+                            workEnd: this.housekeeping.workEnd ? this.housekeeping.workEnd.slice(0, 5) + ':00' : null
                         });
                     this.notify('Đã lưu cấu hình vận hành phòng.', 'success');
                 } catch (error) {
@@ -320,7 +331,8 @@
                 return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0);
             },
             sortedRates(room) {
-                return [...(room.rates || [])].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+                return (room.rates || []).filter(rate => this.showArchivedRates || rate.isActive)
+                    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
             },
             openCreate(room) {
                 this.form = {
@@ -409,7 +421,7 @@
                     const index = room.rates.findIndex(x => x.id === rate.id);
                     if (index >= 0) room.rates[index] = { ...rate, isActive: false };
                     this.archiveEditor.open = false;
-                    this.notify('Đã ngừng mức giá.', 'success');
+                    this.notify('Đã lưu trữ mức giá. Có thể xem lại bằng bộ lọc mức giá đã lưu trữ.', 'success');
                 } catch (error) {
                     this.notify(error.message || 'Không thể ngừng mức giá.', 'error');
                 } finally {

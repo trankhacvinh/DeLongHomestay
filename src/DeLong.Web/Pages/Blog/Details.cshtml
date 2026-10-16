@@ -18,7 +18,7 @@
         ["datePublished"] = Model.Post.PublishedAtUtc?.ToUniversalTime().ToString("O"),
         ["dateModified"] = Model.Post.PublishedAtUtc?.ToUniversalTime().ToString("O"),
         ["author"] = new Dictionary<string, object?> { ["@type"] = "Organization", ["name"] = Model.Post.PropertyName },
-        ["publisher"] = new Dictionary<string, object?> { ["@type"] = "Organization", ["name"] = "De Long Homestay" }
+        ["publisher"] = new Dictionary<string, object?> { ["@type"] = "Organization", ["name"] = (ViewData["GlobalBranding"] as DeLong.Web.Features.Site.GlobalSiteBrandingDto)?.SiteName }
     };
     ViewData["StructuredData"] = System.Text.Json.JsonSerializer.Serialize(articleStructuredData);
 }

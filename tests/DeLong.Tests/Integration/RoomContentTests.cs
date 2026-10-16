@@ -145,7 +145,13 @@ public sealed class RoomContentTests
 
         await using var db = new AppDbContext(options);
         await db.Database.MigrateAsync();
-        var property = await db.Properties.SingleAsync(x => x.Code == "DELONG");
+        var property = await db.Properties.SingleOrDefaultAsync(x => x.Code == "DELONG");
+        if (property is null)
+        {
+            property = new Property { Code = "DELONG", Name = "Public content test", TimeZoneId = "Asia/Ho_Chi_Minh", IsActive = true };
+            db.Properties.Add(property);
+            await db.SaveChangesAsync();
+        }
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var room = new Room
         {
