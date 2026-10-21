@@ -161,11 +161,13 @@
             },
             bookingVisual(booking) {
                 const visual = this.automaticBookingVisual(booking);
+                if (Number(booking?.balanceAmount || 0) > 0) return visual;
+                if (![5, 6].includes(Number(booking?.status)) && String(booking?.note || '').trim())
+                    return { color: this.calendarColors.specialRequestColor || '#7C5CC4', label: 'Có yêu cầu đặc biệt' };
                 return booking?.displayColor ? { ...visual, color: booking.displayColor, manual: true } : visual;
             },
             automaticBookingVisual(booking) {
                 const colors = this.calendarColors;
-                if (Number(booking?.status) === 4) return { color: '#7A8582', label: 'Hoàn tất' };
                 if (Number(booking?.balanceAmount || 0) > 0) return { color: colors.unpaidColor || '#C94B4B', label: 'Chưa thanh toán hết' };
                 if (String(booking?.note || '').trim()) return { color: colors.specialRequestColor || '#7C5CC4', label: 'Có yêu cầu đặc biệt' };
                 if (Number(booking?.type) === 0 && !booking?.roomRateId && Number(booking?.rateSegmentCount || 0) === 0)
@@ -173,14 +175,14 @@
                 if (Number(booking?.rateSegmentCount || 0) > 1) return { color: colors.mixedSlotColor || '#287D9B', label: 'Booking nhiều khung' };
                 if (Number(booking?.status) === 0) return { color: colors.requestedColor || '#64748B', label: 'Yêu cầu' };
                 if (Number(booking?.status) === 1) return { color: colors.heldColor || '#D39B3C', label: 'Giữ phòng' };
-                return { color: colors.confirmedColor || '#397967', label: 'Đã xác nhận' };
+                return { color: colors.confirmedColor || '#397967', label: Number(booking?.status) === 4 ? 'Hoàn tất' : 'Đã xác nhận' };
             },
             bookingStyle(booking, dayKey, roomId) {
                 return {
                     '--booking-span': booking.type === 1 && booking.status !== 0 ? this.bookingSpan(booking, dayKey) : 1,
                     '--booking-lane': this.calendarBookingLane(roomId, booking),
                     '--booking-display-color': this.bookingVisual(booking).color,
-                    ...(booking.displayColor ? { backgroundImage: 'none' } : {})
+                    backgroundImage: 'none'
                 };
             },
             activeBookingRows(roomId) {
@@ -435,32 +437,27 @@
             },
             openQuickBlock() {
                 if (root.dataset.canLockRooms !== 'true' || this.editor.mode !== 'create') return;
-                this.quickBlock = { open: true, roomId: this.form.roomId, start: this.form.checkInLocal,
-                    end: this.form.checkOutLocal, reason: '', error: '', conflicts: [], acknowledged: false };
+                this.quickBlock = { open: true, roomId: this.form.roomId, reason: '', error: '', conflicts: [], acknowledged: false };
             },
             closeQuickBlock() { if (!this.saving) this.quickBlock.open = false; },
             resetQuickBlockConflicts() { this.quickBlock.conflicts = []; this.quickBlock.acknowledged = false; },
             async saveQuickBlock() {
-                if (this.saving || root.dataset.canLockRooms !== 'true') return;
+                if (this.saving) return;
                 const block = this.quickBlock;
                 if (!block.roomId || !block.reason.trim() || block.reason.trim().length > 500)
                     return block.error = 'Chọn phòng và nhập lý do khóa (tối đa 500 ký tự).';
-                const start = new Date(`${block.start}${utcOffset}`), end = new Date(`${block.end}${utcOffset}`);
-                if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start)
-                    return block.error = 'Thời gian kết thúc phải sau thời gian bắt đầu.';
                 this.saving = true; block.error = '';
                 try {
-                    await DeLongApi.post(`/api/admin/properties/${this.propertyId}/room-blocks/`, {
-                        roomIds: [block.roomId], reason: block.reason.trim(), start: start.toISOString(), end: end.toISOString(),
-                        repeatDaily: false, acknowledgeExistingBookings: block.acknowledged,
-                        acknowledgedBookingIds: block.acknowledged ? block.conflicts.map(x => x.id) : []
+                    const updated = await DeLongApi.put(`/api/admin/properties/${this.propertyId}/rooms/${block.roomId}/booking-lock`, {
+                        isLocked: true, reason: block.reason.trim()
                     });
+                    const index = this.rooms.findIndex(x => x.id === updated.id);
+                    if (index >= 0) this.rooms.splice(index, 1, updated);
                     block.open = false; this.editor.open = false;
                     document.dispatchEvent(new CustomEvent('delong:operations-change', { detail: { propertyId: this.propertyId, roomId: block.roomId } }));
-                    this.notify('Đã khóa phòng trong khoảng thời gian đã chọn.', 'success');
+                    this.notify('Đã khóa nhận đặt phòng đến khi mở khóa. Các đơn cũ được giữ nguyên.', 'success');
                 } catch (error) {
                     block.error = error.message || 'Không thể khóa phòng.';
-                    block.conflicts = error.problem?.conflicts || []; block.acknowledged = false;
                 } finally { this.saving = false; }
             },
             async saveBooking() {
@@ -696,6 +693,6 @@
             dateRangePicker = null;
         }
     });
-    const calendarVm = calendarApp.mixin(window.DeLongRoomBookingLock).mixin(window.DeLongMoneyInput || {}).mount(root);
+    const calendarVm = calendarApp.mixin(window.DeLongBookingHistory).mixin(window.DeLongRoomBookingLock).mixin(window.DeLongCustomerAutocomplete).mixin(window.DeLongMoneyInput || {}).mount(root);
     root.__delongCalendarVm = calendarVm;
 })();

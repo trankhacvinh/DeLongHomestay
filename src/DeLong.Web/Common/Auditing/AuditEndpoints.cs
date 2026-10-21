@@ -16,12 +16,16 @@ public static class AuditEndpoints
             string entityType,
             Guid entityId,
             AuditService service,
+            int? skip,
             CancellationToken cancellationToken) =>
         {
             var history = await service.GetEntityHistoryAsync(
-                propertyId, entityType.Trim(), entityId, cancellationToken);
+                propertyId, entityType.Trim(), entityId, cancellationToken, skip ?? 0);
             return Results.Ok(history);
         });
+
+        group.MapGet("/Booking/{bookingId:guid}/activity", async (Guid propertyId, Guid bookingId, AuditService service, CancellationToken ct) =>
+            Results.Ok(await service.GetBookingActivityAsync(propertyId, bookingId, ct)));
 
         return app;
     }

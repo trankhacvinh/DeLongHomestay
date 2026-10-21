@@ -9,6 +9,7 @@
     if (!propertyId) return;
     let policy = null;
     let calendarSettings = null;
+    let publicCalendarLayout = null;
     let saving = false;
 
     function numberValue(panel, name, fallback) {
@@ -19,6 +20,28 @@
     function render() {
         renderPolicy();
         renderCalendarSettings();
+        renderPublicCalendarLayout();
+    }
+
+    function renderPublicCalendarLayout() {
+        const target = root.querySelector('[data-booking-policy-tab]');
+        if (!target || !publicCalendarLayout || target.querySelector('[data-public-calendar-layout]')) return;
+        const panel = document.createElement('section');
+        panel.className = 'panel booking-policy-settings';
+        panel.dataset.publicCalendarLayout = 'true';
+        panel.innerHTML = '<div class="panel-head"><h2>Lịch công khai trên điện thoại</h2></div><div class="panel-body"><label class="check-row"><input type="checkbox" data-mobile-all-rooms> Hiện tất cả phòng trên cùng bảng, kéo ngang để xem</label><p class="small muted">Tắt để quay lại giao diện từng phòng như cũ. Cấu hình được lưu theo cơ sở.</p><label class="field">Khung bị lấn: chặn đặt online khi còn tối đa (phút)<input data-minimum-remaining type="number" min="0" max="720" step="1"></label><p class="small muted">Mặc định 120 phút, tính sau thời gian dọn phòng. Nhập 0 để tắt ngưỡng; không áp dụng cho khung còn nguyên.</p><button type="button" class="btn btn-primary">Lưu cấu hình lịch công khai</button><p data-layout-result role="status"></p></div>';
+        panel.querySelector('input').checked = publicCalendarLayout.allRoomsOnMobile;
+        panel.querySelector('[data-minimum-remaining]').value = publicCalendarLayout.minimumRemainingMinutes ?? 120;
+        panel.querySelector('button').addEventListener('click', async event => {
+            const button = event.currentTarget;
+            button.disabled = true;
+            try {
+                publicCalendarLayout = await DeLongApi.put(`/api/admin/properties/${propertyId}/booking-policy/calendar-layout`, { allRoomsOnMobile: panel.querySelector('input').checked, minimumRemainingMinutes: Number(panel.querySelector('[data-minimum-remaining]').value) });
+                panel.querySelector('[data-layout-result]').textContent = 'Đã lưu. Tải lại lịch công khai để áp dụng.';
+            } catch (error) { panel.querySelector('[data-layout-result]').textContent = error.message || 'Không thể lưu'; }
+            finally { button.disabled = false; }
+        });
+        target.appendChild(panel);
     }
 
     function renderPolicy() {
@@ -181,5 +204,7 @@
     DeLongApi.get(`/api/admin/properties/${propertyId}/operations/booking-calendar-settings`)
         .then(value => { calendarSettings = value; render(); })
         .catch(() => { });
+    DeLongApi.get(`/api/admin/properties/${propertyId}/booking-policy/calendar-layout`)
+        .then(value => { publicCalendarLayout = value; render(); }).catch(() => {});
     new MutationObserver(render).observe(root, { childList: true, subtree: true });
 })();

@@ -4,6 +4,9 @@
     ViewData["Title"] = "Lịch phòng";
 }
 @section Head {
+    <link rel="stylesheet" href="~/css/admin-booking-history.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/vendor/tom-select/tom-select.default.min.css" asp-append-version="true" />
+    <style>.ts-wrapper{width:100%}.ts-dropdown{z-index:1100}.ts-control{min-height:44px}.ts-dropdown .option{white-space:normal;overflow-wrap:anywhere}</style>
     <link rel="stylesheet" href="~/css/room-booking-lock.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="~/css/calendar-v2-polish.css" asp-append-version="true" />
@@ -190,6 +193,7 @@
                 <button class="icon-btn" type="button" v-on:click="closeEditor" aria-label="Đóng">×</button>
             </div>
 
+            <partial name="_BookingHistorySummary" />
             <template v-if="editor.mode === 'create' || editor.mode === 'edit'">
                 <section class="booking-form-section">
                     <div class="booking-form-title">Phòng & thời gian <span>Thời gian thực tế quyết định phòng có bận hay không</span></div>
@@ -217,7 +221,7 @@
                     <div class="booking-form-title">Khách hàng <span>SĐT dùng để nhận diện khách cũ</span></div>
                     <div class="form-grid">
                         <div class="field"><label>Tên khách *</label><input v-model.trim="form.customerName" maxlength="200" placeholder="Ví dụ: Nguyễn Minh Anh" /></div>
-                        <div class="field"><label>Số điện thoại *</label><input v-model.trim="form.customerPhone" maxlength="30" inputmode="tel" placeholder="09xx xxx xxx" /></div>
+                        <div class="field"><label>Số điện thoại *</label><input data-admin-customer-phone v-model.trim="form.customerPhone" maxlength="30" inputmode="tel" placeholder="09xx xxx xxx" /></div>
                         <div class="field"><label>Email</label><input v-model.trim="form.customerEmail" type="email" maxlength="254" autocomplete="email" placeholder="ten@email.com" /></div>
                         <div class="field"><label>Số lượng khách *</label><input v-model.number="form.guestCount" type="number" min="1" v-bind:max="selectedRoom?.capacity || 1" /></div>
                         <div class="field">
@@ -330,6 +334,7 @@
 
     <partial name="_RoomBookingLockDialog" />
     <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+<partial name="_BookingHistoryDialog" />
 </div>
 
 @section Scripts {
@@ -340,5 +345,8 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script src="~/js/pages/admin-calendar-range.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-calendar-nightly.js" asp-append-version="true"></script>
+    <script src="~/vendor/tom-select/tom-select.complete.min.js" asp-append-version="true"></script>
+    <script src="~/js/pages/admin-customer-autocomplete.js" asp-append-version="true"></script>
+    <script src="~/js/pages/admin-booking-history.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-calendar.js" asp-append-version="true"></script>
 }

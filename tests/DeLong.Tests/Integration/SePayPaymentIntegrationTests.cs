@@ -247,6 +247,7 @@ public sealed class SePayPaymentIntegrationTests
         Assert.Single(results, x => x.Error is null);
         Assert.Single(results, x => x.Error?.Code == "intent_already_resolved");
         Assert.Equal(1, await f.Db.Payments.CountAsync(x => x.BookingId == f.Booking.Id && x.Type == PaymentType.Refund && x.Method == PaymentMethod.SePay));
+        Assert.Equal(1, await f.Db.AuditLogs.CountAsync(x => x.PropertyId == f.Property.Id && x.EntityId == f.Booking.Id && x.Action == "LatePaymentResolved"));
     }
 
     [PostgresFact]

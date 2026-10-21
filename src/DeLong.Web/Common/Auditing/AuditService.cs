@@ -45,7 +45,8 @@ public sealed class AuditService(AppDbContext db)
         Guid propertyId,
         string entityType,
         Guid entityId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int skip = 0)
     {
         var query =
             from log in db.AuditLogs.AsNoTracking()
@@ -53,7 +54,7 @@ public sealed class AuditService(AppDbContext db)
                 on log.ActorUserId equals (Guid?)user.Id into users
             from user in users.DefaultIfEmpty()
             where log.PropertyId == propertyId && log.EntityType == entityType && log.EntityId == entityId
-            orderby log.CreatedAtUtc descending
+            orderby log.CreatedAtUtc descending, log.Id descending
             select new AuditLogDto(
                 log.Id,
                 log.EntityType,
@@ -65,6 +66,17 @@ public sealed class AuditService(AppDbContext db)
                 log.BeforeJson,
                 log.AfterJson);
 
-        return await query.ToListAsync(cancellationToken);
+        return await query.Skip(Math.Clamp(skip, 0, 100000)).Take(50).ToListAsync(cancellationToken);
+    }
+    public async Task<object> GetBookingActivityAsync(Guid propertyId, Guid bookingId, CancellationToken ct = default)
+    {
+        var query = from log in db.AuditLogs.AsNoTracking()
+                    join user in db.Users.AsNoTracking() on log.ActorUserId equals (Guid?)user.Id into users
+                    from user in users.DefaultIfEmpty()
+                    where log.PropertyId == propertyId && log.EntityType == "Booking" && log.EntityId == bookingId
+                    select new { log.Id, log.Action, log.ActorUserId, ActorName = user == null ? null : user.DisplayName ?? user.UserName, log.CreatedAtUtc };
+        var created = await query.Where(x => x.Action == "Created").OrderBy(x => x.CreatedAtUtc).ThenBy(x => x.Id).FirstOrDefaultAsync(ct);
+        var latest = await query.OrderByDescending(x => x.CreatedAtUtc).ThenByDescending(x => x.Id).FirstOrDefaultAsync(ct);
+        return new { Created = created, Latest = latest };
     }
 }

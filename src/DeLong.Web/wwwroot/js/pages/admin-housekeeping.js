@@ -53,7 +53,8 @@
                 rooms: initial.rooms || [],
                 today: initial.today,
                 selectedDate: initial.today,
-                mode: 'status',
+                mode: 'text',
+                lightFilter: 'all',
                 taskFilter: 'all',
                 schedule: initial.schedule || { calendar: [] },
                 conditionTags: initial.conditionTags || [],
@@ -77,7 +78,8 @@
             scheduleDays() {
                 return (this.schedule?.calendar || []).map(day => ({
                     date: day.date,
-                    tasks: (day.tasks || []).filter(task => this.taskFilter === 'all' || task.kind === this.taskFilter)
+                    tasks: (day.tasks || []).filter(task => (this.taskFilter === 'all' || task.kind === this.taskFilter) &&
+                        (this.mode !== 'schedule' || this.lightFilter === 'all' || task.action === (this.lightFilter === 'on' ? 'Mở đèn' : 'Tắt đèn')))
                 }));
             },
             taskCount() {

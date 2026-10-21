@@ -225,6 +225,8 @@ public sealed class AppDbContext
 
         modelBuilder.Entity<Property>(entity =>
         {
+            entity.Property(x => x.PublicMinimumRemainingMinutes).HasDefaultValue(120).HasSentinel(-1);
+            entity.Property(x => x.PublicCalendarMobileAllRooms).HasDefaultValue(true);
             entity.HasIndex(x => x.Code).IsUnique();
             entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
@@ -679,6 +681,7 @@ public sealed class AppDbContext
 
         modelBuilder.Entity<PropertyNotificationSettings>(entity =>
         {
+            entity.Property(x => x.TelegramEventTypes).HasMaxLength(1000);
             entity.HasIndex(x => x.PropertyId).IsUnique();
             entity.Property(x => x.EmailRecipients).HasMaxLength(2000);
             entity.Property(x => x.SmtpHost).HasMaxLength(300);

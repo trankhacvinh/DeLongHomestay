@@ -63,7 +63,7 @@ public sealed class BookingNotificationService(
                 .SingleOrDefaultAsync(x => x.PropertyId == propertyId, cancellationToken);
             var inAppEnabled = settings?.InAppBookingEnabled ?? true;
             var emailEnabled = settings?.EmailBookingEnabled ?? false;
-            var telegramEnabled = IsTelegramConfigured(settings);
+            var telegramEnabled = IsTelegramConfigured(settings) && TelegramEvents.Allows(settings?.TelegramEventTypes, BookingRequestedType);
             if (!inAppEnabled && !emailEnabled && !telegramEnabled) return;
 
             if (await db.Set<PropertyNotification>().AsNoTracking()
@@ -324,7 +324,7 @@ public sealed class BookingNotificationService(
         if (await db.Set<NotificationTelegramOutbox>().AsNoTracking().AnyAsync(x => x.NotificationId == notification.Id, cancellationToken)) return;
         var settings = await db.Set<PropertyNotificationSettings>().AsNoTracking()
             .SingleOrDefaultAsync(x => x.PropertyId == propertyId, cancellationToken);
-        if (!IsTelegramConfigured(settings)) return;
+        if (!IsTelegramConfigured(settings) || !TelegramEvents.Allows(settings?.TelegramEventTypes, notification.Type)) return;
         AddTelegramOutbox(propertyId, notification, settings!.TelegramChatIds!, message);
     }
 

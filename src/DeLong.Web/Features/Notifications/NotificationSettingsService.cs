@@ -107,6 +107,12 @@ public sealed partial class NotificationSettingsService(
         settings.SmtpUsername = username;
         settings.SmtpFromEmail = fromEmail;
         settings.SmtpFromName = fromName;
+        if (request.TelegramEventTypes is not null)
+        {
+            if (request.TelegramEventTypes.Any(x => !TelegramEvents.All.Contains(x, StringComparer.Ordinal)))
+                return (null, new("telegram_events_invalid", "Loại thông báo Telegram không hợp lệ."));
+            settings.TelegramEventTypes = string.Join(',', request.TelegramEventTypes.Distinct(StringComparer.Ordinal));
+        }
         settings.TelegramBookingEnabled = request.TelegramBookingEnabled;
         settings.TelegramChatIds = telegramChatIds.Normalized;
         await db.SaveChangesAsync(cancellationToken);
@@ -209,7 +215,8 @@ public sealed partial class NotificationSettingsService(
         settings?.LastEmailErrorAtUtc,
         settings?.LastTelegramSentAtUtc,
         settings?.LastTelegramError,
-        settings?.LastTelegramErrorAtUtc);
+        settings?.LastTelegramErrorAtUtc,
+        TelegramEvents.Parse(settings?.TelegramEventTypes));
 
     private static NotificationOperationError? ValidateTemplates(UpdateNotificationSettingsRequest request)
     {

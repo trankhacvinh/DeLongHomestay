@@ -44,7 +44,8 @@ public sealed record PublicRoomCardDto(
     IReadOnlyList<PublicRoomRateDto> Rates,
     IReadOnlyList<string>? GalleryCardUrls = null,
     IReadOnlyList<string>? GalleryLargeUrls = null,
-    bool IsBookingLocked = false);
+    bool IsBookingLocked = false,
+    bool PublicCalendarMobileAllRooms = true);
 
 public sealed record PublicRoomDetailDto(
     Guid Id,

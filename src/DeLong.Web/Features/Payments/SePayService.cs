@@ -138,10 +138,14 @@ public sealed class SePayService(AppDbContext db, SePaySettingsService settings,
         intent.Status = late ? Pay2SPaymentIntentStatus.PaidAfterExpiry : Pay2SPaymentIntentStatus.Succeeded;
         intent.CallbackReceivedAtUtc = now;
         intent.LastCallbackAttemptAtUtc = now;
+        var previousBookingStatus = intent.Booking.Status;
         var confirmed = !late && intent.Booking.Status is BookingStatus.Requested or BookingStatus.Held;
         if (confirmed) intent.Booking.Status = BookingStatus.Confirmed;
         if (!late) await vouchers.MarkRedeemedAsync(intent.BookingId, ct);
         received.Outcome = late ? "paid_after_expiry" : "succeeded";
+        new DeLong.Web.Common.Auditing.AuditService(db).Add(intent.PropertyId, "Booking", intent.BookingId, "AutoPaymentConfirmed", null,
+            new { Status = previousBookingStatus.ToString() },
+            new { Status = intent.Booking.Status.ToString(), PaymentAmount = payment.Amount, PaymentMethod = payment.Method.ToString() });
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         if (late) await notifications.NotifyLatePay2SPaymentAsync(propertyId, intent.BookingId, payment.Amount, ct, "SePay");

@@ -4,8 +4,8 @@ public static class BookingDisplayColors
 {
     public static IReadOnlyList<(string Value, string Name)> Options { get; } =
     [
-        ("#C94B4B", "Đỏ"), ("#397967", "Xanh lá"), ("#D39B3C", "Vàng"),
-        ("#7C5CC4", "Tím"), ("#287D9B", "Xanh dương"), ("#7A8582", "Xám")
+        ("#C94B4B", "Đỏ — Chưa thanh toán hết"), ("#397967", "Xanh lá — Đã xác nhận"), ("#D39B3C", "Vàng — Giữ phòng"),
+        ("#7C5CC4", "Tím — Có yêu cầu đặc biệt"), ("#287D9B", "Xanh dương — Nhiều khung"), ("#7A8582", "Xám — Hoàn tất")
     ];
 
     public static bool IsValid(string? color) => color is null ||

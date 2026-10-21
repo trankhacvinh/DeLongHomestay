@@ -36,6 +36,7 @@ public sealed class IndexModel(
                 scope = context.ScopeKey,
                 scopeName = context.ScopeName,
                 properties = context.AccessibleProperties,
+                canViewAllProperties = User.IsInRole("Admin"),
                 report = context.Report
             },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
@@ -60,15 +61,12 @@ public sealed class IndexModel(
         string? scope,
         CancellationToken cancellationToken)
     {
-        var workingProperty = await currentPropertyService.ResolveAsync(User, propertyId, cancellationToken);
-        if (workingProperty is null) return null;
-
-        var accessible = await currentPropertyService.GetAccessibleAsync(User, cancellationToken);
-        var allScope = string.Equals(scope, "all", StringComparison.OrdinalIgnoreCase) && accessible.Count > 1;
-        CurrentPropertyDto? selectedProperty = null;
-        if (!allScope && Guid.TryParse(scope, out var scopedId))
-            selectedProperty = accessible.SingleOrDefault(x => x.Id == scopedId);
-        selectedProperty ??= workingProperty;
+        var reportScope = await currentPropertyService.ResolveReportingScopeAsync(User, propertyId, scope, cancellationToken);
+        if (reportScope is null) return null;
+        var workingProperty = reportScope.WorkingProperty;
+        var accessible = reportScope.Properties;
+        var allScope = reportScope.IsAll;
+        var selectedProperty = reportScope.SelectedProperty;
 
         var workingTimeZone = TimeZoneInfo.FindSystemTimeZoneById(workingProperty.TimeZoneId);
         var localNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, workingTimeZone);

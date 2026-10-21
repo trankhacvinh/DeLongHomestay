@@ -27,7 +27,8 @@ public sealed class CompletedBookingAvailabilityTests
     {
         await db.Database.MigrateAsync();
         var key = Guid.NewGuid().ToString("N");
-        var property = new Property { Code = key, Name = "Completed test", SiteSlug = key, IsActive = true, TimeZoneId = "Asia/Ho_Chi_Minh" };
+        // This suite verifies the original interval rules with the optional public threshold disabled.
+        var property = new Property { Code = key, Name = "Completed test", PublicMinimumRemainingMinutes = 0, SiteSlug = key, IsActive = true, TimeZoneId = "Asia/Ho_Chi_Minh" };
         var room = new Room { Property = property, Code = key, Name = "Blue", IsActive = true, IsPublished = true };
         room.Rates.Add(new RoomRate { Name = "Afternoon", StartTime = new(14, 0), EndTime = new(17, 0), Price = 250000, Type = RoomRateType.TimeSlot, IsActive = true });
         db.AddRange(property, room);

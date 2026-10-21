@@ -290,7 +290,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var nominalCheckInUtc = resolved[0].CheckInUtc;
         var nominalCheckOutUtc = resolved[^1].CheckOutUtc;
         var (bookableWindow, windowError) = await ResolveBookableWindowAsync(
-            context.PropertyId, room.Id, nominalCheckInUtc, nominalCheckOutUtc, ct);
+            context.PropertyId, room.Id, nominalCheckInUtc, nominalCheckOutUtc, resolved, ct);
         if (windowError is not null) return (null, windowError);
         var checkInUtc = bookableWindow!.StartUtc;
         var checkOutUtc = bookableWindow.EndUtc;
@@ -324,6 +324,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         Guid roomId,
         DateTime nominalStartUtc,
         DateTime nominalEndUtc,
+        IReadOnlyList<ResolvedPublicSlot> selectedSlots,
         CancellationToken cancellationToken)
     {
         var bookings = await db.Bookings.AsNoTracking()
@@ -338,6 +339,14 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
             .Select(x => new AvailabilityOccupancyInput(x.Id, BookingStatus.Confirmed, x.StartUtc, x.EndUtc))
             .ToListAsync(cancellationToken);
         bookings.AddRange(blocks);
+        var minimum = await db.Properties.AsNoTracking().Where(x => x.Id == propertyId)
+            .Select(x => x.PublicMinimumRemainingMinutes).SingleAsync(cancellationToken);
+        foreach (var slot in selectedSlots)
+        {
+            var part = AvailabilityIntervalProjector.Project(slot.CheckInUtc, slot.CheckOutUtc, bookings);
+            if (part.Free.Count == 1 && PublicRemainingTimePolicy.IsTooShort(slot.CheckInUtc, slot.CheckOutUtc, part.Free[0], minimum))
+                return (null, new PublicBookingError("remaining_time_too_short", $"Khung {slot.RateName} còn tối đa {minimum} phút sau khi dành thời gian dọn phòng, không đủ để đặt online. Vui lòng chọn khung khác hoặc liên hệ Home."));
+        }
         var projection = AvailabilityIntervalProjector.Project(nominalStartUtc, nominalEndUtc, bookings);
         if (projection.Free.Count != 1)
             return blocks.Count > 0
@@ -444,6 +453,7 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
         var rates = await db.RoomRates.AsNoTracking().Where(x => x.Room.PropertyId == propertyId && x.Room.IsActive && x.Room.IsPublished && x.IsActive && x.Type != RoomRateType.Nightly).Select(x => new { x.Id, x.RoomId, x.StartTime, x.EndTime, x.Type }).ToListAsync(ct);
         var blocks = await db.RoomBookingBlocks.AsNoTracking().Where(x => x.PropertyId == propertyId && x.CancelledAtUtc == null &&
             x.StartUtc < windowEndUtc && windowStartUtc < x.EndUtc).ToListAsync(ct);
+        var minimum = await db.Properties.AsNoTracking().Where(x => x.Id == propertyId).Select(x => x.PublicMinimumRemainingMinutes).SingleAsync(ct);
         HashSet<(Guid RoomId, Guid RateId)> unavailable = [];
         foreach (var rate in rates)
         {
@@ -452,7 +462,8 @@ public sealed class PublicBookingService(AppDbContext db, BookingService booking
                 Guid.Empty, BookingStatus.Confirmed, x.CheckInUtc.AddMinutes(-TurnoverMinutes), x.CheckOutUtc.AddMinutes(TurnoverMinutes)))
                 .Concat(blocks.Where(x => x.RoomId == rate.RoomId).Select(x => new AvailabilityOccupancyInput(
                     x.Id, BookingStatus.Confirmed, x.StartUtc, x.EndUtc)));
-            if (AvailabilityIntervalProjector.Project(range.CheckInUtc, range.CheckOutUtc, occupancy).Free.Count != 1)
+            var projection = AvailabilityIntervalProjector.Project(range.CheckInUtc, range.CheckOutUtc, occupancy);
+            if (projection.Free.Count != 1 || PublicRemainingTimePolicy.IsTooShort(range.CheckInUtc, range.CheckOutUtc, projection.Free[0], minimum))
                 unavailable.Add((rate.RoomId, rate.Id));
         }
         return unavailable;

@@ -258,9 +258,13 @@ public sealed class Pay2SService(
         };
         db.Add(payment);
         intent.Payment = payment;
+        var previousBookingStatus = intent.Booking.Status;
         var autoConfirmed = !late && intent.Booking.Status is BookingStatus.Requested or BookingStatus.Held;
         if (autoConfirmed) intent.Booking.Status = BookingStatus.Confirmed;
         if (!late) await voucherService.MarkRedeemedAsync(intent.BookingId, ct);
+        new DeLong.Web.Common.Auditing.AuditService(db).Add(intent.PropertyId, "Booking", intent.BookingId, "AutoPaymentConfirmed", null,
+            new { Status = previousBookingStatus.ToString() },
+            new { Status = intent.Booking.Status.ToString(), PaymentAmount = payment.Amount, PaymentMethod = payment.Method.ToString() });
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -296,7 +300,10 @@ public sealed class Pay2SService(
             intent.Status = Pay2SPaymentIntentStatus.Expired;
             if (intent.CancelBookingOnExpiry && intent.Booking.Status is BookingStatus.Held or BookingStatus.Requested)
             {
+                var previousBookingStatus = intent.Booking.Status;
                 intent.Booking.Status = BookingStatus.Cancelled;
+                new DeLong.Web.Common.Auditing.AuditService(db).Add(intent.PropertyId, "Booking", intent.BookingId, "PaymentExpired", null,
+                    new { Status = previousBookingStatus.ToString() }, new { Status = intent.Booking.Status.ToString() });
                 await voucherService.ReleaseReservedAsync(intent.BookingId, "Booking bị hủy do hết thời gian thanh toán.", ct);
             }
         }
@@ -321,6 +328,7 @@ public sealed class Pay2SService(
 
         var action = request.Action.Trim().ToLowerInvariant();
         var previousStatus = intent.Booking.Status;
+        var previousSchedule = new { intent.Booking.RoomId, intent.Booking.CheckInUtc, intent.Booking.CheckOutUtc, Status = previousStatus };
         if (action == "refund")
         {
             db.Add(new Payment
@@ -359,6 +367,9 @@ public sealed class Pay2SService(
         intent.LatePaymentResolutionNote = request.Note?.Trim();
         intent.LatePaymentResolvedAtUtc = DateTime.UtcNow;
         intent.LatePaymentResolvedByUserId = actorUserId;
+        new DeLong.Web.Common.Auditing.AuditService(db).Add(propertyId, "Booking", intent.BookingId, "LatePaymentResolved", actorUserId,
+            previousSchedule,
+            new { intent.Booking.RoomId, intent.Booking.CheckInUtc, intent.Booking.CheckOutUtc, intent.Booking.Status, Resolution = intent.LatePaymentResolution, intent.Amount });
         await db.SaveChangesAsync(ct);
         await resolutionTransaction.CommitAsync(ct);
         if (action is "confirm" or "move")

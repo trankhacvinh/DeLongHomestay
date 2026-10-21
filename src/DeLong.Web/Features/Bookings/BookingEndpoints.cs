@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Features.Operations;
+using DeLong.Web.Features.Reports;
+using DeLong.Web.Data;
 
 namespace DeLong.Web.Features.Bookings;
 
@@ -12,6 +14,20 @@ public static class BookingEndpoints
             .RequireAuthorization("ViewOperations")
             .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Bookings");
+
+        group.MapGet("/daily-summary", async (Guid propertyId, DateOnly from, int days, AppDbContext db, CancellationToken ct) =>
+        {
+            if (days is < 1 or > 62 || from.Year is < 2000 or > 2100)
+                return Results.BadRequest(new { message = "Khoảng ngày không hợp lệ (tối đa 62 ngày)." });
+            var report = await BookingDailyReport.GetAsync(db, propertyId, from, days, ct);
+            return report is null ? Results.NotFound() : Results.Ok(report.Select(x => x.Summary));
+        });
+        group.MapGet("/daily-summary/{date}", async (Guid propertyId, DateOnly date, AppDbContext db, CancellationToken ct) =>
+        {
+            if (date.Year is < 2000 or > 2100) return Results.BadRequest(new { message = "Ngày không hợp lệ." });
+            var report = await BookingDailyReport.GetAsync(db, propertyId, date, 1, ct);
+            return report is null ? Results.NotFound() : Results.Ok(report[0]);
+        });
 
         group.MapGet("/", async (
             Guid propertyId,

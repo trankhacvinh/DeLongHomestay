@@ -167,6 +167,7 @@ public sealed class NotificationEmailWorker(
         }
 
         var telegramBatch = await db.NotificationTelegramOutbox
+            .Include(x => x.Notification)
             .Where(x => x.SentAtUtc == null && x.AttemptCount < RetryMinutes.Length && x.NextAttemptAtUtc <= now)
             .OrderBy(x => x.NextAttemptAtUtc)
             .Take(10)
@@ -176,7 +177,7 @@ public sealed class NotificationEmailWorker(
             var settings = await db.PropertyNotificationSettings
                 .SingleOrDefaultAsync(x => x.PropertyId == outbox.PropertyId, cancellationToken);
             var (profile, profileError) = await settingsService.GetTelegramProfileAsync(outbox.PropertyId, true, cancellationToken);
-            if (profileError?.Code == "telegram_disabled")
+            if (profileError?.Code == "telegram_disabled" || !TelegramEvents.Allows(settings?.TelegramEventTypes, outbox.Notification.Type))
             {
                 outbox.NextAttemptAtUtc = DateTime.UtcNow.AddMinutes(5);
                 await db.SaveChangesAsync(cancellationToken);

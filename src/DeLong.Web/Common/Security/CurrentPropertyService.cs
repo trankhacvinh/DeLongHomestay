@@ -6,12 +6,38 @@ using Microsoft.EntityFrameworkCore;
 namespace DeLong.Web.Common.Security;
 
 public sealed record CurrentPropertyDto(Guid Id, string Code, string Name, string TimeZoneId);
+public sealed record ReportingPropertyScope(CurrentPropertyDto WorkingProperty, CurrentPropertyDto SelectedProperty,
+    IReadOnlyList<CurrentPropertyDto> Properties, bool IsAll);
 
 public sealed class CurrentPropertyService(
     AppDbContext db,
     IHttpContextAccessor httpContextAccessor)
 {
     public const string WorkingPropertyCookieName = "delong.working-property";
+
+    public async Task<ReportingPropertyScope?> ResolveReportingScopeAsync(ClaimsPrincipal user, Guid? requestedPropertyId,
+        string? scope, CancellationToken cancellationToken = default)
+    {
+        if (user.Identity?.IsAuthenticated != true || !Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out _)) return null;
+        if (!user.IsInRole("Admin"))
+        {
+            var working = await ResolveAsync(user, requestedPropertyId, cancellationToken);
+            if (working is null) return null;
+            if (!string.IsNullOrWhiteSpace(scope) && (!Guid.TryParse(scope, out var scopedId) || scopedId != working.Id)) return null;
+            return new(working, working, [working], false);
+        }
+
+        // Read-only reporting scope is independent of permission to mutate a working property.
+        var properties = await db.Properties.AsNoTracking().OrderByDescending(x => x.IsActive).ThenBy(x => x.Name).ThenBy(x => x.Id)
+            .Select(x => new CurrentPropertyDto(x.Id, x.Code, x.Name, x.TimeZoneId)).ToListAsync(cancellationToken);
+        var workingProperty = requestedPropertyId.HasValue ? properties.SingleOrDefault(x => x.Id == requestedPropertyId) : properties.FirstOrDefault();
+        if (workingProperty is null) return null;
+        if (string.IsNullOrWhiteSpace(scope) || string.Equals(scope, "all", StringComparison.OrdinalIgnoreCase))
+            return new(workingProperty, workingProperty, properties, true);
+        if (!Guid.TryParse(scope, out var selectedId)) return null;
+        var selected = properties.SingleOrDefault(x => x.Id == selectedId);
+        return selected is null ? null : new(workingProperty, selected, properties, false);
+    }
 
     public async Task<CurrentPropertyDto?> ResolveAsync(
         ClaimsPrincipal user,

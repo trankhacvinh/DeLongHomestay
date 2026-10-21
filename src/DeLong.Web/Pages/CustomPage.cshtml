@@ -118,8 +118,8 @@
         {
             var days = Math.Clamp(content["days"]?.GetValue<int>() ?? 7, 1, 14);
             var roomsJson = Model.IsGlobal
-                ? JsonSerializer.Serialize(Model.GlobalCatalog.Rooms.Select(item => new { id = item.Room.Id, code = item.Room.Code, name = item.Room.Name, propertyName = item.PropertyName, siteSlug = item.PropertySiteSlug, bookingUrl = PublicUrlBuilder.Booking(item.PropertySiteSlug, room: item.Room.Code) }))
-                : JsonSerializer.Serialize(Model.Catalog.Rooms.Select(room => new { id = room.Id, code = room.Code, name = room.Name, propertyName = siteName, siteSlug = Model.SiteSlug ?? string.Empty, bookingUrl = PublicUrlBuilder.Booking(Model.SiteSlug!, room: room.Code) }));
+                ? JsonSerializer.Serialize(Model.GlobalCatalog.Rooms.Select(item => new { id = item.Room.Id, mobileAllRooms = item.Room.PublicCalendarMobileAllRooms, code = item.Room.Code, name = item.Room.Name, propertyName = item.PropertyName, siteSlug = item.PropertySiteSlug, bookingUrl = PublicUrlBuilder.Booking(item.PropertySiteSlug, room: item.Room.Code) }))
+                : JsonSerializer.Serialize(Model.Catalog.Rooms.Select(room => new { id = room.Id, mobileAllRooms = room.PublicCalendarMobileAllRooms, code = room.Code, name = room.Name, propertyName = siteName, siteSlug = Model.SiteSlug ?? string.Empty, bookingUrl = PublicUrlBuilder.Booking(Model.SiteSlug!, room: room.Code) }));
             <section class="public-section public-cms-availability-calendar variant-@(Variant(section.Variant))" data-public-availability-calendar data-days="@days"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">@CustomPageModel.Text(content, "eyebrow", "LỊCH PHÒNG")</span><h2>@CustomPageModel.Text(content, "title", "Xem phòng và khung giờ còn trống")</h2></div></div><script type="application/json" data-availability-rooms>@Html.Raw(roomsJson)</script><div data-availability-calendar-host></div></div></section>
             break;
         }

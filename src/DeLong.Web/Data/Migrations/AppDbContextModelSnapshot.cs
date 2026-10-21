@@ -2484,6 +2484,18 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
+                    b.Property<bool>("PublicCalendarMobileAllRooms")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("public_calendar_mobile_all_rooms");
+
+                    b.Property<int>("PublicMinimumRemainingMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(120)
+                        .HasColumnName("public_minimum_remaining_minutes");
+
                     b.Property<string>("SiteSlug")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -2963,6 +2975,11 @@ namespace DeLong.Web.Data.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("telegram_chat_ids");
+
+                    b.Property<string>("TelegramEventTypes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("telegram_event_types");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone")

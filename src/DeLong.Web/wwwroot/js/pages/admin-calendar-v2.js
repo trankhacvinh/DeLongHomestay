@@ -91,6 +91,8 @@
         pollTimer: null
     };
 
+    const dailySummary = window.DeLongCalendarDailySummary?.create({ propertyId, timeZone, openBooking });
+
     const panel = document.createElement('section');
     panel.className = 'calendar-v2-panel';
     panel.dataset.calendarV2Panel = 'true';
@@ -104,7 +106,7 @@
         '  <div><strong data-v2-range>—</strong><span>Cuộn dọc để xem ngày · bấm phần trống để tạo booking · bấm phần đã đặt để mở chi tiết</span></div>',
         '  <div class="calendar-v2-date-tools"><label class="calendar-date-range"><span>Khoảng ngày</span><input type="text" data-v2-date-range aria-label="Chọn ngày bắt đầu và ngày kết thúc" placeholder="Chọn khoảng ngày"></label><div class="calendar-v2-date-actions"><button type="button" data-v2-date-prev>‹ 7 ngày</button><button type="button" data-v2-today>Hôm nay</button><button type="button" data-v2-date-next>7 ngày ›</button></div></div>',
         '</div>',
-        '<div class="calendar-v2-legend"><span><i class="available"></i>Trống</span><span><i class="partial"></i>Còn trống một phần</span><span><i data-v2-color="unpaid"></i>Chưa thanh toán hết</span><span><i data-v2-color="flexible"></i>Giờ linh động</span><span><i data-v2-color="special"></i>Có ghi chú</span><span><i data-v2-color="mixed"></i>Nhiều khung</span><span><i data-v2-color="held"></i>Giữ phòng</span><span><i data-v2-color="confirmed"></i>Đã xác nhận</span><span><i data-v2-color="completed"></i>Hoàn tất</span><span><i data-v2-color="locked"></i>Tạm khóa</span></div>',
+        '<div class="calendar-v2-legend"><span><i class="available"></i>Trống</span><span><i class="partial"></i>Còn trống một phần</span><span><i data-v2-color="unpaid"></i>Chưa thanh toán hết</span><span><i data-v2-color="flexible"></i>Giờ linh động</span><span><i data-v2-color="special"></i>Có ghi chú</span><span><i data-v2-color="mixed"></i>Nhiều khung</span><span><i data-v2-color="held"></i>Giữ phòng</span><span><i data-v2-color="confirmed"></i>Đã xác nhận</span><span><i data-v2-color="locked"></i>Tạm khóa</span></div>',
         '<div class="calendar-v2-status show" data-v2-status>Đang tải lịch phòng…</div>',
         '<div class="calendar-v2-zoom" role="group" aria-label="Kích thước lịch"><span>Kích thước lịch</span><button type="button" data-v2-zoom-out aria-label="Thu nhỏ lịch">−</button><output data-v2-zoom-label aria-live="polite">100%</output><button type="button" data-v2-zoom-in aria-label="Phóng to lịch">+</button><button type="button" data-v2-zoom-fit aria-pressed="false">Vừa màn hình</button></div>',
         '<div class="calendar-v2-scroll" data-v2-scroll></div>'
@@ -152,7 +154,6 @@
         mixed: state.colors.mixedSlotColor || '#287D9B',
         held: state.colors.heldColor || '#D39B3C',
         confirmed: state.colors.confirmedColor || '#397967',
-        completed: '#7A8582',
         locked: '#64748B'
     };
     panel.querySelectorAll('[data-v2-color]').forEach(icon => {
@@ -271,6 +272,9 @@
 
     function bookingVisual(range) {
         const visual = automaticBookingVisual(range);
+        if (!range?.isRoomBlock && Number(range?.balanceAmount || 0) > 0) return visual;
+        if (!range?.isRoomBlock && ![5, 6].includes(Number(range?.status)) && range?.hasSpecialRequest === true)
+            return { key: 'special', color: state.colors.specialRequestColor || '#7C5CC4', label: 'Có yêu cầu đặc biệt' };
         return !range?.isRoomBlock && range?.displayColor ? { ...visual, color: range.displayColor, manual: true } : visual;
     }
 
@@ -278,13 +282,12 @@
         const colors = state.colors;
         if (range?.isRoomBlock) return { key: 'locked', color: '#64748B', label: 'Tạm khóa' };
         if (Number(range?.balanceAmount || 0) > 0) return { key: 'unpaid', color: colors.unpaidColor || '#C94B4B', label: 'Chưa thanh toán hết' };
-        if (Number(range?.status) === 4) return { key: 'completed', color: '#7a8582', label: 'Hoàn tất' };
         if (range?.hasSpecialRequest === true) return { key: 'special', color: colors.specialRequestColor || '#7C5CC4', label: 'Có yêu cầu đặc biệt' };
         if (range?.isFlexibleTime === true) return { key: 'flexible', color: colors.flexibleTimeColor || '#D6A72C', label: 'Giờ linh động' };
         if (range?.isMixedSlot === true) return { key: 'mixed', color: colors.mixedSlotColor || '#287D9B', label: 'Booking nhiều khung' };
         if (Number(range?.status) === 0) return { key: 'requested', color: colors.requestedColor || '#64748B', label: 'Yêu cầu' };
         if (Number(range?.status) === 1) return { key: 'held', color: colors.heldColor || '#D39B3C', label: 'Giữ phòng' };
-        return { key: 'confirmed', color: colors.confirmedColor || '#397967', label: 'Đã xác nhận' };
+        return { key: 'confirmed', color: colors.confirmedColor || '#397967', label: Number(range?.status) === 4 ? 'Hoàn tất' : 'Đã xác nhận' };
     }
 
     function bookingGuestText(range) {
@@ -363,7 +366,10 @@
                 endUtc: new Date(Math.min(slotEnd, new Date(booking.checkOutUtc).getTime())).toISOString(),
                 customerName: booking.customerName,
                 customerPhone: booking.customerPhone,
-                status: booking.status, balanceAmount: booking.balanceAmount, displayColor: booking.displayColor
+                status: booking.status, balanceAmount: booking.balanceAmount, displayColor: booking.displayColor,
+                hasSpecialRequest: !!String(booking.note || '').trim(),
+                isFlexibleTime: Number(booking.type) === 0 && !booking.roomRateId && Number(booking.rateSegmentCount || 0) === 0,
+                isMixedSlot: Number(booking.rateSegmentCount || 0) > 1
             }));
     }
 
@@ -402,7 +408,7 @@
             segment.dataset.bookingId = range.bookingId;
             segment.setAttribute('style', segmentStyle(range.startUtc, range.endUtc, slot.startUtc, slot.endUtc));
             segment.style.backgroundColor = visual.color;
-            if (visual.manual) segment.style.backgroundImage = 'none';
+            segment.style.backgroundImage = 'none';
             const guestText = bookingGuestText(range);
             const stateText = visual.label;
             segment.title = range.isRoomBlock
@@ -433,9 +439,9 @@
             segment.dataset.bookingId = range.bookingId;
             segment.setAttribute('style', segmentStyle(range.startUtc, range.endUtc, slot.startUtc, slot.endUtc));
             segment.style.backgroundColor = visual.color;
-            if (visual.manual) segment.style.backgroundImage = 'none';
+            segment.style.backgroundImage = 'none';
             const guestText = bookingGuestText(range);
-            segment.title = `Hoàn tất${guestText ? ` · ${guestText}` : ''} · ${timeText(range.startUtc)}–${timeText(range.endUtc)} · bấm để xem lịch sử`;
+            segment.title = `Hoàn tất${visual.label !== 'Hoàn tất' ? ` · ${visual.label}` : ''}${guestText ? ` · ${guestText}` : ''} · ${timeText(range.startUtc)}–${timeText(range.endUtc)} · bấm để xem lịch sử`;
             segment.setAttribute('aria-label', segment.title);
             if (guestText) {
                 const label = document.createElement('span');
@@ -491,7 +497,8 @@
         const thead = document.createElement('thead');
         const headRow = document.createElement('tr');
         const dateHead = document.createElement('th');
-        dateHead.textContent = 'Ngày';
+        dateHead.textContent = 'Ngày · Toàn cơ sở';
+        dateHead.classList.add('calendar-day-heading');
         headRow.appendChild(dateHead);
         headerSlots.forEach(slot => {
             const th = document.createElement('th');
@@ -510,6 +517,7 @@
             const tr = document.createElement('tr');
             const th = document.createElement('th');
             th.textContent = dateText(day.date);
+            if (dailySummary) { th.classList.add('calendar-day-heading'); th.appendChild(dailySummary.button(day.date)); }
             if (day.date === today) th.classList.add('today');
             tr.appendChild(th);
             const byRate = new Map(visibleSlots(day.slots).map(slot => [slot.rateId, slot]));
@@ -547,7 +555,10 @@
         statusBox.className = 'calendar-v2-status show';
         try {
             const query = new URLSearchParams({ from: state.from, days: String(state.days) });
-            const data = await DeLongApi.get(`/api/admin/properties/${propertyId}/operations/availability/rooms/${room.id}?${query}`);
+            const [data] = await Promise.all([
+                DeLongApi.get(`/api/admin/properties/${propertyId}/operations/availability/rooms/${room.id}?${query}`),
+                dailySummary?.load(state.from, state.days)
+            ]);
             if (serial === state.requestSerial) render(data);
             document.documentElement.dataset.calendarV2 = reason || 'loaded';
         } catch (error) {

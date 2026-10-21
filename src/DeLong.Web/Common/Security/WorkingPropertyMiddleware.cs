@@ -47,6 +47,9 @@ public sealed class WorkingPropertyMiddleware(RequestDelegate next)
         if (!HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method)) return false;
         if (!context.Request.Path.StartsWithSegments("/Admin")) return false;
         if (context.Request.Path.StartsWithSegments("/Admin/SelectProperty")) return false;
+        var path = context.Request.Path.Value?.TrimEnd('/') ?? "";
+        if (context.User.IsInRole("Admin") && new[] { "/Admin", "/Admin/Index", "/Admin/Reports", "/Admin/Reports/Index" }
+            .Contains(path, StringComparer.OrdinalIgnoreCase)) return false;
         return true;
     }
 }

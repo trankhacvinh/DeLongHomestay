@@ -57,6 +57,9 @@
                 canManage: window.DeLongBookingsCanManage === true,
                 search: '',
                 statusFilter: '',
+                debtOnly: false,
+                dateFrom: '',
+                dateTo: '',
                 sortMode: 'operations',
                 selectedBooking: null,
                 customerRiskForm: { note: '', isBlacklisted: false, blacklistReason: '', isBlocked: false },
@@ -80,9 +83,20 @@
             };
         },
         computed: {
+            filteredDebtSummary() {
+                const rows = this.filteredBookings.filter(booking => ![5, 6].includes(Number(booking.status)) && Number(booking.balanceAmount || 0) > 0);
+                return { count: rows.length, amount: rows.reduce((sum, booking) => sum + Number(booking.balanceAmount), 0) };
+            },
             filteredBookings() {
                 const q = this.search.toLowerCase();
+                if (this.dateFrom && this.dateTo && this.dateFrom > this.dateTo) return [];
                 const rows = this.bookings.filter(booking => {
+                    if (this.debtOnly && ([5, 6].includes(Number(booking.status)) || Number(booking.balanceAmount || 0) <= 0)) return false;
+                    if (this.dateFrom || this.dateTo) {
+                        const date = localDateKey(booking.checkInUtc);
+                        if (this.dateFrom && date < this.dateFrom) return false;
+                        if (this.dateTo && date > this.dateTo) return false;
+                    }
                     if (this.statusFilter !== '' && String(booking.status) !== this.statusFilter) return false;
                     if (!q) return true;
                     return [booking.code, booking.customerName, booking.customerPhone, booking.roomName, booking.roomCode]
@@ -92,6 +106,7 @@
                 const timestamp = value => new Date(value || 0).getTime();
                 const activeStatuses = new Set([0, 1, 2, 3]);
                 return rows.slice().sort((a, b) => {
+                    if (this.sortMode === 'debt-desc') return Math.max(0, Number(b.balanceAmount || 0)) - Math.max(0, Number(a.balanceAmount || 0));
                     if (this.sortMode === 'checkin-asc') return timestamp(a.checkInUtc) - timestamp(b.checkInUtc);
                     if (this.sortMode === 'checkin-desc') return timestamp(b.checkInUtc) - timestamp(a.checkInUtc);
                     if (this.sortMode === 'created-desc') return timestamp(b.createdAtUtc) - timestamp(a.createdAtUtc);
@@ -594,5 +609,5 @@
                 this.toast = { show: true, message: String(message || ''), type, timer };
             }
         }
-    }).mixin(window.DeLongMoneyInput || {}).mount(root);
+    }).mixin(window.DeLongMoneyInput || {}).mixin(window.DeLongBookingHistory).mount(root);
 })();

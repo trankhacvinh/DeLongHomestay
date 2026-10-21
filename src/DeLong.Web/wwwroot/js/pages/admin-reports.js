@@ -19,6 +19,7 @@
                 scope: initial.scope || initial.propertyId,
                 scopeName: initial.scopeName || initial.propertyName || '',
                 properties: initial.properties || [],
+                canViewAllProperties: initial.canViewAllProperties === true,
                 month: initial.month,
                 report: {
                     byRoom: [], bySource: [], byStatus: [], byPaymentMethod: [], byExpenseCategory: [], byWeekday: [], outstandingBuckets: [], daily: [], weekly: [], trend: [],

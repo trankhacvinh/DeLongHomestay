@@ -1,3 +1,4 @@
+using DeLong.Web.Common.Auditing;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
@@ -9,7 +10,8 @@ namespace DeLong.Web.Features.Payments;
 public sealed class PaymentService(
     AppDbContext db,
     BookingNotificationService? notificationService = null,
-    ILogger<PaymentService>? logger = null)
+    ILogger<PaymentService>? logger = null,
+    AuditService? auditService = null)
 {
     public async Task<IReadOnlyList<PaymentDto>> GetByBookingAsync(
         Guid propertyId,
@@ -71,6 +73,9 @@ public sealed class PaymentService(
         };
 
         db.Payments.Add(payment);
+        (auditService ?? new AuditService(db)).Add(propertyId, "Booking", bookingId,
+            payment.Type == PaymentType.Receipt ? "PaymentReceived" : "PaymentRefunded", recordedByUserId,
+            after: new { PaymentId = payment.Id, PaymentType = payment.Type.ToString(), PaymentMethod = payment.Method.ToString(), PaymentAmount = payment.Amount, payment.OccurredAtUtc });
         await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, bookingId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         if (payment.Type == PaymentType.Receipt)
@@ -102,10 +107,13 @@ public sealed class PaymentService(
             }
         }
 
+        var auditBefore = new { PaymentId = payment.Id, PaymentType = payment.Type.ToString(), PaymentMethod = payment.Method.ToString(), PaymentAmount = payment.Amount, payment.IsVoided };
         payment.IsVoided = true;
         payment.VoidedAtUtc = DateTime.UtcNow;
         payment.VoidedByUserId = voidedByUserId;
         payment.VoidReason = reason.Trim();
+        (auditService ?? new AuditService(db)).Add(propertyId, "Booking", payment.BookingId, "PaymentVoided", voidedByUserId,
+            auditBefore, new { PaymentId = payment.Id, PaymentType = payment.Type.ToString(), PaymentMethod = payment.Method.ToString(), PaymentAmount = payment.Amount, payment.IsVoided });
         await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, payment.BookingId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return (ToDto(payment), null);

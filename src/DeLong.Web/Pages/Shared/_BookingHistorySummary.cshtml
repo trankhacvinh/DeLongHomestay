@@ -1,0 +1,6 @@
+<div v-if="selectedBooking" class="booking-history-summary">
+    <button type="button" class="btn btn-light btn-sm" v-on:click="bookingHistory.open = true; loadBookingHistory(selectedBooking.id)">
+        Lịch sử · {{ bookingHistoryActor(bookingHistory.activity?.latest) }} · {{ bookingHistoryTime(bookingHistory.activity?.latest?.createdAtUtc) }}
+    </button>
+    <p v-if="bookingHistory.activity?.created" class="small muted">Tạo bởi {{ bookingHistoryActor(bookingHistory.activity.created) }} · {{ bookingHistoryTime(bookingHistory.activity.created.createdAtUtc) }}</p>
+</div>

@@ -1,3 +1,5 @@
+using DeLong.Web.Data;
+using Microsoft.EntityFrameworkCore;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Common.Operations;
 using DeLong.Web.Features.PublicBooking;
@@ -12,6 +14,18 @@ public static class CustomerEndpoints
             .RequireAuthorization("ViewOperations")
             .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Customers");
+
+        group.MapGet("/autocomplete", async (Guid propertyId, string? q, AppDbContext db, CancellationToken ct) =>
+        {
+            var query = q?.Trim() ?? "";
+            if (query.Length is < 3 or > 100) return Results.Ok(Array.Empty<object>());
+            var normalized = CustomerService.NormalizePhone(query);
+            var matches = await db.Customers.AsNoTracking().Where(x => x.PropertyId == propertyId &&
+                (x.Name.ToLower().Contains(query.ToLower()) || (normalized != "" && x.NormalizedPhone.Contains(normalized))))
+                .OrderByDescending(x => x.IsActive && !x.IsBlocked).ThenBy(x => x.Name).ThenBy(x => x.Id).Take(20)
+                .Select(x => new { x.Id, x.Name, x.Phone, x.Email, x.IsActive, x.IsBlocked }).ToListAsync(ct);
+            return Results.Ok(matches);
+        });
 
         group.MapGet("/", async (
             Guid propertyId,

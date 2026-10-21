@@ -1,3 +1,4 @@
+using DeLong.Web.Common.Auditing;
 using System.Net.Mail;
 using System.Text.RegularExpressions;
 using DeLong.Web.Common.Operations;
@@ -134,6 +135,24 @@ public static class BookingCoreV2Endpoints
             .AddEndpointFilter<PropertyAccessFilter>()
             .WithTags("Booking Policy");
 
+        policyGroup.MapGet("/calendar-layout", async (Guid propertyId, AppDbContext db, CancellationToken ct) =>
+        {
+            var value = await db.Properties.AsNoTracking().Where(x => x.Id == propertyId)
+                .Select(x => new PublicCalendarLayoutRequest(x.PublicCalendarMobileAllRooms, x.PublicMinimumRemainingMinutes)).SingleOrDefaultAsync(ct);
+            return value is null ? Results.NotFound() : Results.Ok(value);
+        });
+        policyGroup.MapPut("/calendar-layout", async (Guid propertyId, PublicCalendarLayoutRequest request, AppDbContext db, CancellationToken ct) =>
+        {
+            var property = await db.Properties.SingleOrDefaultAsync(x => x.Id == propertyId, ct);
+            if (property is null) return Results.NotFound();
+            if (request.MinimumRemainingMinutes is < 0 or > 720)
+                return Problem("invalid_remaining_minutes", "Ngưỡng thời gian còn lại phải từ 0 đến 720 phút.", StatusCodes.Status400BadRequest);
+            property.PublicCalendarMobileAllRooms = request.AllRoomsOnMobile;
+            if (request.MinimumRemainingMinutes.HasValue) property.PublicMinimumRemainingMinutes = request.MinimumRemainingMinutes.Value;
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(request);
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+
         policyGroup.MapGet("/", async (
             Guid propertyId,
             StoragePaths paths,
@@ -221,6 +240,8 @@ public static class BookingCoreV2Endpoints
             Guid bookingId,
             UpdateAdminBookingGuestDetailsRequest request,
             AppDbContext db,
+            ClaimsPrincipal user,
+            AuditService audit,
             StoragePaths paths,
             BookingGuestGuideEmailService guestGuideEmailService,
             CancellationToken cancellationToken) =>
@@ -238,12 +259,20 @@ public static class BookingCoreV2Endpoints
                 return Problem("email_invalid", "Email khách không hợp lệ.", StatusCodes.Status400BadRequest);
 
             var (current, cleanNote) = await LoadOrMigrateGuestDetailsAsync(db, paths, booking, cancellationToken);
+            var emailChanged = !string.Equals(booking.Customer.Email, email, StringComparison.OrdinalIgnoreCase);
             booking.Customer.Email = email;
             booking.Note = cleanNote;
             await db.SaveChangesAsync(cancellationToken);
 
             var updated = current with { GuestCount = request.GuestCount };
             await new BookingGuestDetailsStore(paths).SaveAsync(propertyId, bookingId, updated, cancellationToken);
+            if (current.GuestCount != updated.GuestCount || emailChanged)
+            {
+                var actor = Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var parsed) ? parsed : (Guid?)null;
+                audit.Add(propertyId, "Booking", bookingId, "GuestDetailsUpdated", actor,
+                    new { current.GuestCount, EmailUpdated = false }, new { updated.GuestCount, EmailUpdated = emailChanged });
+                await db.SaveChangesAsync(cancellationToken);
+            }
             if (booking.Status == BookingStatus.Confirmed && email is not null)
                 await guestGuideEmailService.QueueAutomaticAsync(propertyId, bookingId, cancellationToken);
             return Results.Ok(new
@@ -323,6 +352,7 @@ public static class BookingCoreV2Endpoints
             string side,
             HttpRequest httpRequest,
             AppDbContext db,
+            AuditService audit,
             StoragePaths paths,
             IConfiguration configuration,
             CancellationToken cancellationToken) =>
@@ -339,6 +369,12 @@ public static class BookingCoreV2Endpoints
             if (!storage.IsConfigured)
                 return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
             var (document, error) = await storage.SaveAsync(propertyId, bookingId, side, file, cancellationToken);
+            if (error is null)
+            {
+                var actor = Guid.TryParse(httpRequest.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsed) ? parsed : (Guid?)null;
+                audit.Add(propertyId, "Booking", bookingId, "IdentityUpdated", actor, after: new { Side = side });
+                await db.SaveChangesAsync(cancellationToken);
+            }
             return error is null
                 ? Results.Ok(document)
                 : Problem("invalid_identity_document", error, StatusCodes.Status400BadRequest);
@@ -349,6 +385,8 @@ public static class BookingCoreV2Endpoints
             Guid bookingId,
             string side,
             AppDbContext db,
+            AuditService audit,
+            ClaimsPrincipal user,
             StoragePaths paths,
             IConfiguration configuration,
             CancellationToken cancellationToken) =>
@@ -361,7 +399,13 @@ public static class BookingCoreV2Endpoints
             try
             {
                 var path = storage.GetEncryptedPathForDiagnostics(propertyId, bookingId, side);
-                if (File.Exists(path)) File.Delete(path);
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                    var actor = Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var parsed) ? parsed : (Guid?)null;
+                    audit.Add(propertyId, "Booking", bookingId, "IdentityRemoved", actor, after: new { Side = side });
+                    await db.SaveChangesAsync(cancellationToken);
+                }
                 return Results.NoContent();
             }
             catch (ArgumentException)
@@ -443,3 +487,5 @@ public static class BookingCoreV2Endpoints
 
     private sealed record LegacyWebNote(int GuestCount, bool PolicyAccepted, int? PolicyVersion, string? CleanNote);
 }
+
+public sealed record PublicCalendarLayoutRequest(bool AllRoomsOnMobile, int? MinimumRemainingMinutes = null);

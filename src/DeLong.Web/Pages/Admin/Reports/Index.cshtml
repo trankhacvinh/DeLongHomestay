@@ -17,7 +17,7 @@
                 <span>Xuất Excel</span>
             </a>
             <select class="property-scope-select" v-model="scope" v-on:change="changeScope" aria-label="Phạm vi cơ sở">
-                <option v-if="properties.length > 1" value="all">Tất cả cơ sở</option>
+                <option v-if="canViewAllProperties" value="all">Tất cả cơ sở</option>
                 <option v-for="property in properties" v-bind:key="property.id" v-bind:value="property.id">{{ property.name }}</option>
             </select>
             <button class="btn-icon" type="button" v-on:click="moveMonth(-1)" aria-label="Tháng trước"><svg><use href="#i-chevron-left" /></svg></button>

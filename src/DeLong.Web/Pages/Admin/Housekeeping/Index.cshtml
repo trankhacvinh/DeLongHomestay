@@ -16,92 +16,18 @@
             <p>Checkout tự chuyển phòng sang Bẩn. Cập nhật theo luồng Bẩn → Đang dọn → Sạch để lịch luôn phản ánh đúng tình trạng thực tế.</p>
         </div>
         <div class="housekeeping-summary" aria-live="polite">
-            <strong>{{ mode === 'status' ? dirtyRooms.length + cleaningRooms.length : taskCount }}</strong>
-            <span>{{ mode === 'status' ? 'phòng đang xử lý' : 'việc trong lịch' }}</span>
+            <strong>{{ taskCount }}</strong>
+            <span>việc trong lịch</span>
         </div>
     </div>
 
     <nav class="housekeeping-view-switch" aria-label="Chế độ xem dọn phòng">
-        <button type="button" v-bind:class="{ active: mode === 'status' }" v-on:click="mode = 'status'">Tình trạng phòng</button>
-        <button type="button" v-bind:class="{ active: mode === 'schedule' }" v-on:click="mode = 'schedule'">Lịch công việc</button>
         <button type="button" v-bind:class="{ active: mode === 'text' }" v-on:click="openTextMode">Văn bản</button>
+        <button type="button" v-bind:class="{ active: mode === 'schedule' }" v-on:click="mode = 'schedule'">Lịch công việc</button>
         <a class="housekeeping-report-link" href="/Admin/RoomConditionReports?propertyId=@Model.PropertyId">Tình trạng phòng ↗</a>
     </nav>
 
-    <div class="housekeeping-board" v-if="mode === 'status'">
-        <section class="panel housekeeping-column">
-            <div class="panel-head">
-                <div class="housekeeping-heading">
-                    <span class="housekeeping-status-dot dirty" aria-hidden="true"></span>
-                    <div class="housekeeping-heading-copy"><h2>Phòng bẩn</h2><span>Cần bắt đầu dọn</span></div>
-                </div>
-                <span class="pill warning">{{ dirtyRooms.length }}</span>
-            </div>
-            <div class="panel-body housekeeping-list">
-                <article class="housekeeping-card" v-for="room in dirtyRooms" v-bind:key="room.roomId">
-                    <div class="housekeeping-room">
-                        <span class="housekeeping-room-icon" aria-hidden="true"><svg><use href="#i-bed" /></svg></span>
-                        <div class="housekeeping-room-copy"><strong>{{ room.roomName }}</strong><span>{{ room.roomCode }} · {{ updatedText(room) }}</span></div>
-                    </div>
-                    <div class="housekeeping-actions" v-if="canManage">
-                        <button class="btn btn-primary btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 2)">Bắt đầu dọn</button>
-                        <button class="btn btn-light btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 0)">Đánh dấu sạch</button>
-                        <a class="btn btn-light btn-sm" v-bind:href="'/Admin/RoomConditionReports?propertyId=@Model.PropertyId&roomId=' + room.roomId">Báo cáo</a>
-                    </div>
-                </article>
-                <div v-if="dirtyRooms.length === 0" class="empty-state"><strong>Không có phòng bẩn</strong>Phòng checkout mới sẽ tự xuất hiện ở đây.</div>
-            </div>
-        </section>
-
-        <section class="panel housekeeping-column">
-            <div class="panel-head">
-                <div class="housekeeping-heading">
-                    <span class="housekeeping-status-dot cleaning" aria-hidden="true"></span>
-                    <div class="housekeeping-heading-copy"><h2>Đang dọn</h2><span>Đang được xử lý</span></div>
-                </div>
-                <span class="pill">{{ cleaningRooms.length }}</span>
-            </div>
-            <div class="panel-body housekeeping-list">
-                <article class="housekeeping-card" v-for="room in cleaningRooms" v-bind:key="room.roomId">
-                    <div class="housekeeping-room">
-                        <span class="housekeeping-room-icon" aria-hidden="true"><svg><use href="#i-sparkles" /></svg></span>
-                        <div class="housekeeping-room-copy"><strong>{{ room.roomName }}</strong><span>{{ room.roomCode }} · {{ updatedText(room) }}</span></div>
-                    </div>
-                    <div class="housekeeping-actions" v-if="canManage">
-                        <button class="btn btn-primary btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 0)">Hoàn tất / Sạch</button>
-                        <button class="btn btn-light btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 1)">Vẫn bẩn</button>
-                        <a class="btn btn-light btn-sm" v-bind:href="'/Admin/RoomConditionReports?propertyId=@Model.PropertyId&roomId=' + room.roomId">Báo cáo</a>
-                    </div>
-                </article>
-                <div v-if="cleaningRooms.length === 0" class="empty-state"><strong>Chưa có phòng đang dọn</strong>Bấm “Bắt đầu dọn” ở cột Phòng bẩn để chuyển trạng thái.</div>
-            </div>
-        </section>
-
-        <section class="panel housekeeping-column">
-            <div class="panel-head">
-                <div class="housekeeping-heading">
-                    <span class="housekeeping-status-dot" aria-hidden="true"></span>
-                    <div class="housekeeping-heading-copy"><h2>Sẵn sàng</h2><span>Có thể nhận khách</span></div>
-                </div>
-                <span class="pill success">{{ cleanRooms.length }}</span>
-            </div>
-            <div class="panel-body housekeeping-list">
-                <article class="housekeeping-card" v-for="room in cleanRooms" v-bind:key="room.roomId">
-                    <div class="housekeeping-room">
-                        <span class="housekeeping-room-icon" aria-hidden="true"><svg><use href="#i-bed" /></svg></span>
-                        <div class="housekeeping-room-copy"><strong>{{ room.roomName }}</strong><span>{{ room.roomCode }} · {{ updatedText(room) }}</span></div>
-                    </div>
-                    <div class="housekeeping-actions" v-if="canManage">
-                        <button class="btn btn-light btn-sm" type="button" v-bind:disabled="savingId === room.roomId" v-on:click="setStatus(room, 1)">Đánh dấu bẩn</button>
-                        <a class="btn btn-light btn-sm" v-bind:href="'/Admin/RoomConditionReports?propertyId=@Model.PropertyId&roomId=' + room.roomId">Báo cáo</a>
-                    </div>
-                </article>
-                <div v-if="cleanRooms.length === 0" class="empty-state"><strong>Chưa có phòng sẵn sàng</strong>Hoàn tất dọn phòng để chuyển phòng về trạng thái sạch.</div>
-            </div>
-        </section>
-    </div>
-
-    <section class="housekeeping-schedule-shell" v-else>
+    <section class="housekeeping-schedule-shell">
         <div class="housekeeping-schedule-toolbar">
             <div class="housekeeping-date-controls">
                 <button class="btn btn-light btn-sm" type="button" v-on:click="moveDate(-1)" aria-label="Ngày trước">‹</button>
@@ -117,6 +43,11 @@
         </div>
         <div class="housekeeping-offset-note">Đang áp dụng: dọn trước nhận phòng <strong>{{ schedule.settings?.beforeCheckInMinutes || 0 }} phút</strong> · dọn sau trả phòng <strong>{{ schedule.settings?.afterCheckOutMinutes || 0 }} phút</strong>.<span v-if="schedule.settings?.staggerEnabled"> Giãn lịch: {{ schedule.settings.workerCount }} lao công · {{ schedule.settings.cleaningMinutes }} phút/phòng · sớm tối đa {{ schedule.settings.maxAdvanceMinutes }} phút.</span> Thay đổi tại trang Cấu hình.</div>
 
+        <div v-if="mode === 'schedule'" class="housekeeping-task-filter" aria-label="Lọc thao tác đèn">
+            <button type="button" v-bind:class="{ active: lightFilter === 'all' }" v-on:click="lightFilter = 'all'">Tất cả</button>
+            <button type="button" v-bind:class="{ active: lightFilter === 'on' }" v-on:click="lightFilter = 'on'">Mở đèn</button>
+            <button type="button" v-bind:class="{ active: lightFilter === 'off' }" v-on:click="lightFilter = 'off'">Tắt đèn</button>
+        </div>
         <div class="housekeeping-schedule-loading" v-show="scheduleLoading" role="status">Đang cập nhật lịch công việc…</div>
 
         <div class="housekeeping-schedule" v-if="mode === 'schedule'">

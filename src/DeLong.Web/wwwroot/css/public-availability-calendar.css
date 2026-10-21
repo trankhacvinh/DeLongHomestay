@@ -114,3 +114,15 @@
 .public-v2-slot-bar.state-locked{background:#e4e8e7;border-color:#d2d9d7;cursor:not-allowed;opacity:.75}
 
 .public-v2-slot-bar.state-locked > span{position:static;display:block;width:auto;height:auto;margin:0;padding:0 4px;clip:auto;overflow:hidden;text-overflow:ellipsis;font-size:10px;line-height:26px}
+
+@media(max-width:760px){
+ .public-v2-viewport{overflow-x:auto;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch}
+ .public-v2-grid-head>.public-v2-head-slot{box-sizing:border-box;padding:8px 10px;text-align:center;overflow:visible}
+ .public-v2-grid-head>.public-v2-head-slot>strong{font-size:12px;line-height:1.35;letter-spacing:0;white-space:nowrap;overflow:visible;text-overflow:clip}
+ .public-v2-viewport.is-multi{overflow-x:auto;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch}
+ .public-v2-viewport.is-multi .public-v2-grid-head,.public-v2-viewport.is-multi .public-v2-grid-row{width:100%;min-width:100%}
+ .public-v2-viewport.is-multi .public-v2-date-column{position:sticky;left:0;z-index:3;background:#fff}
+ .public-v2-viewport.is-multi .public-v2-grid-head .public-v2-date-column{z-index:6}
+ .public-v2-viewport.is-multi .public-v2-head-room span strong{font-size:11px}
+ .public-v2-viewport.is-multi .public-v2-slot-bar{font-size:9px}
+}

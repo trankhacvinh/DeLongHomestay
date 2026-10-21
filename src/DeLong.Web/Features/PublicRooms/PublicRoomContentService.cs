@@ -101,6 +101,7 @@ public sealed class PublicRoomContentService(AppDbContext db, IFusionCache? fusi
                 x.Capacity,
                 x.ShortDescription,
                 x.IsBookingLocked,
+                x.Property.PublicCalendarMobileAllRooms,
                 Amenities = x.Amenities.Where(a => a.Amenity.IsActive).Select(a => a.Amenity.Name).OrderBy(a => a).ToList(),
                 Tags = x.Tags.Where(t => t.RoomTag.IsActive).Select(t => t.RoomTag.Name).OrderBy(t => t).ToList(),
                 Cover = x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder)
@@ -140,7 +141,7 @@ public sealed class PublicRoomContentService(AppDbContext db, IFusionCache? fusi
                 x.Gallery.Select(i => string.IsNullOrWhiteSpace(i.LargePath)
                         ? MediaUrlVersioner.WithCropVersion(i.CardPath, i.FocalX, i.FocalY)!
                         : MediaUrlVersioner.WithCropVersion(i.LargePath, i.FocalX, i.FocalY)!)
-                    .Where(url => !string.IsNullOrWhiteSpace(url)).Distinct().ToList(), x.IsBookingLocked);
+                    .Where(url => !string.IsNullOrWhiteSpace(url)).Distinct().ToList(), x.IsBookingLocked, x.PublicCalendarMobileAllRooms);
         }).ToList();
 
         return new PublicRoomCatalogDto(result);

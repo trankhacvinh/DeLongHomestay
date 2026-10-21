@@ -90,6 +90,9 @@
         const maxRoomsPerRequest = 24;
         const multiColumnWidth = 92;
         const dateColumnWidth = 104;
+        const mobileColumnWidth = 128;
+        const mobileDateColumnWidth = 76;
+        const useMultiRoomLayout = () => (wideQuery.matches || groupRooms().every(room => room.mobileAllRooms !== false)) && groupRooms().length > 1;
         const branchStorageKey = 'delong.publicCalendar.branches';
         const wideQuery = window.matchMedia('(min-width: 761px)');
         const defaultPolicy = { publicMaxConsecutiveSlotDays: 3, multiSlotDiscountTiers: [] };
@@ -166,8 +169,13 @@
         const currentRoom = () => (state.selectedRoomId ? roomById(state.selectedRoomId) : null) || visibleRooms()[0];
         const visibleSlots = day => (day?.slots || []).filter(slot => Number(slot.rateType) !== 2);
         const slotCountOf = room => visibleSlots(daysOf(room)[0]).length;
-        const gridTemplate = count => `clamp(74px, 18%, 104px) repeat(${Math.max(1, count)}, minmax(0, 1fr))`;
-        const gridMinWidth = count => state.multi ? `${dateColumnWidth + (Math.max(1, count) * multiColumnWidth)}px` : '';
+        const gridTemplate = count => !wideQuery.matches
+            ? `${mobileDateColumnWidth}px repeat(${Math.max(1, count)}, minmax(${mobileColumnWidth}px, 1fr))`
+            : state.multi ? `${dateColumnWidth}px repeat(${Math.max(1, count)}, minmax(${multiColumnWidth}px, 1fr))`
+            : `clamp(74px, 18%, 104px) repeat(${Math.max(1, count)}, minmax(0, 1fr))`;
+        const gridMinWidth = count => !wideQuery.matches
+            ? `${mobileDateColumnWidth + Math.max(1, count) * mobileColumnWidth}px`
+            : state.multi ? `${dateColumnWidth + Math.max(1, count) * multiColumnWidth}px` : '';
         const policyFor = room => state.policies.get(room?.siteSlug || '') || state.policies.get('') || defaultPolicy;
 
         function bookingUrl(room) {
@@ -391,6 +399,7 @@
             list.forEach(room => {
                 visibleSlots(daysOf(room)[0]).forEach((slot, index) => {
                     const cell = document.createElement('div');
+                    cell.className = 'public-v2-head-slot';
                     cell.style.gridRow = String(headerRows);
                     cell.style.gridColumn = String(column);
                     if (index === 0 && showRooms) cell.classList.add('is-room-start');
@@ -719,7 +728,7 @@
         }
 
         function resetRoom() {
-            state.multi = wideQuery.matches && groupRooms().length > 1;
+            state.multi = useMultiRoomLayout();
             state.requestVersion += 1;
             state.abort?.abort();
             state.abort = new AbortController();
@@ -828,7 +837,7 @@
             status.textContent = 'Một khung vừa được khách khác giữ. Lịch đã được cập nhật, vui lòng chọn lại.';
             status.className = 'public-v2-status show error';
         });
-        const handleWidthChange = () => { if ((wideQuery.matches && groupRooms().length > 1) !== state.multi) resetRoom(); };
+        const handleWidthChange = () => { if (useMultiRoomLayout() !== state.multi) resetRoom(); };
         if (wideQuery.addEventListener) wideQuery.addEventListener('change', handleWidthChange);
         else if (wideQuery.addListener) wideQuery.addListener(handleWidthChange);
         if ('ResizeObserver' in window) new ResizeObserver(queueRender).observe(viewport);

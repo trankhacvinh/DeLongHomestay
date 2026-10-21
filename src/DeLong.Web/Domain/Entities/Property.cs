@@ -6,6 +6,8 @@ namespace DeLong.Web.Domain.Entities;
 [Index(nameof(SiteSlug), IsUnique = true)]
 public sealed class Property : EntityBase
 {
+    public int PublicMinimumRemainingMinutes { get; set; } = 120;
+    public bool PublicCalendarMobileAllRooms { get; set; } = true;
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
 

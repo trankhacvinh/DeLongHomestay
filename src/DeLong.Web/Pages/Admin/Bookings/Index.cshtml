@@ -4,6 +4,8 @@
     ViewData["Title"] = "Đặt phòng";
 }
 @section Head {
+    <link rel="stylesheet" href="~/css/booking-debt-filters.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-booking-history.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/entities.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/booking-v2-polish.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-booking-guest-details.css" asp-append-version="true" />
@@ -19,11 +21,22 @@
         </div>
         @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff"))
         {
-            <a class="btn btn-primary" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId"><svg><use href="#i-plus" /></svg>Đặt phòng</a>
+            <a class="btn btn-primary" asp-page="/Admin/CalendarV2" asp-route-propertyId="@Model.PropertyId"><svg><use href="#i-plus" /></svg>Đặt phòng</a>
         }
     </div>
 
     <section class="panel booking-list-panel">
+        <div class="booking-debt-filters">
+            <div role="group" aria-label="Lọc công nợ" class="booking-debt-switch">
+                <button class="btn btn-light" type="button" v-bind:aria-pressed="!debtOnly" v-on:click="debtOnly = false">Tất cả</button>
+                <button class="btn btn-light" type="button" v-bind:aria-pressed="debtOnly" v-on:click="debtOnly = true; statusFilter = ''; sortMode = 'debt-desc'">Còn nợ</button>
+            </div>
+            <label>Từ ngày nhận phòng<input type="date" v-model="dateFrom" v-bind:max="dateTo || undefined" /></label>
+            <label>Đến ngày nhận phòng<input type="date" v-model="dateTo" v-bind:min="dateFrom || undefined" /></label>
+            <button class="btn btn-light" type="button" v-on:click="dateFrom = ''; dateTo = ''">Tất cả thời gian</button>
+            <div role="status"><strong>{{ filteredDebtSummary.count }} booking còn nợ · {{ money(filteredDebtSummary.amount) }}</strong><small>Theo bộ lọc hiện tại; không tính đơn hủy/không đến. Lọc theo ngày nhận phòng.</small></div>
+            <p class="text-danger" v-if="dateFrom && dateTo && dateFrom > dateTo">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>
+        </div>
         <div class="entity-toolbar booking-toolbar">
             <div class="entity-toolbar-main booking-toolbar-main">
                 <input class="search-input" v-model.trim="search" placeholder="Tìm mã, khách, SĐT hoặc phòng..." aria-label="Tìm lượt đặt phòng" />
@@ -39,6 +52,7 @@
                 </select>
                 <select class="filter-select booking-sort-select" v-model="sortMode" aria-label="Sắp xếp lượt đặt">
                     <option value="operations">Đang xử lý trước</option>
+                    <option value="debt-desc">Nợ nhiều nhất</option>
                     <option value="checkin-desc">Ngày nhận mới → cũ</option>
                     <option value="checkin-asc">Ngày nhận cũ → mới</option>
                     <option value="created-desc">Tạo gần đây nhất</option>
@@ -74,7 +88,8 @@
                 <div><h2>{{ selectedBooking.code }}</h2><p class="small muted">{{ selectedBooking.customerName }} · {{ selectedBooking.roomName }}</p></div>
                 <button class="icon-btn" type="button" v-on:click="closeDetail" aria-label="Đóng">×</button>
             </div>
-            <div class="booking-detail-hero">
+<partial name="_BookingHistorySummary" />
+                        <div class="booking-detail-hero">
                 <div><span>Khách hàng</span><strong>{{ selectedBooking.customerName }}</strong><span>{{ selectedBooking.customerPhone }} · {{ dateTimeText(selectedBooking.checkInUtc) }}</span></div>
                 <span class="pill" v-bind:class="statusClass(selectedBooking.status)">{{ statusText(selectedBooking.status) }}</span>
             </div>
@@ -276,11 +291,13 @@
     </div>
 
     <div class="toast booking-toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
+<partial name="_BookingHistoryDialog" />
 </div>
 @section Scripts {
     <script src="~/vendor/inputmask/inputmask.min.js" asp-append-version="true"></script>
     <script src="~/js/core/money-input.js" asp-append-version="true"></script>
     <script>window.DeLongBookingsCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") ? "true" : "false");</script>
+    <script src="~/js/pages/admin-booking-history.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-bookings.js" asp-append-version="true"></script>
     <script src="~/js/core/admin-booking-live-v2.js" asp-append-version="true" data-admin-booking-live-v2></script>
 }

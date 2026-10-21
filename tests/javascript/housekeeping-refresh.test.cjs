@@ -60,3 +60,14 @@ test('unchanged response does not replace schedule and page keeps DOM while load
     const page = fs.readFileSync('src/DeLong.Web/Pages/Admin/Housekeeping/Index.cshtml', 'utf8');
     assert.doesNotMatch(page, /v-if="mode === '(schedule|text)' && !scheduleLoading"/);
 });
+
+const scheduleDaysBlock = source.slice(source.indexOf('            scheduleDays()'), source.indexOf('            taskCount()'));
+const scheduleDays = new Function(`return {${scheduleDaysBlock}}.scheduleDays;`)();
+test('light filter combines with task kind and never filters the text tab', () => {
+    const on = {kind:'prepare',action:'Mở đèn'}, off = {kind:'turnover',action:'Tắt đèn'}, turnoverOn = {kind:'turnover',action:'Mở đèn'};
+    const vm = {schedule:{calendar:[{date:'2026-10-17',tasks:[on,off,turnoverOn]}]},mode:'schedule',taskFilter:'all',lightFilter:'on'};
+    assert.deepEqual(scheduleDays.call(vm)[0].tasks,[on,turnoverOn]);
+    vm.taskFilter='turnover'; assert.deepEqual(scheduleDays.call(vm)[0].tasks,[turnoverOn]);
+    vm.lightFilter='off'; assert.deepEqual(scheduleDays.call(vm)[0].tasks,[off]);
+    vm.mode='text';vm.taskFilter='all'; assert.deepEqual(scheduleDays.call(vm)[0].tasks,[on,off,turnoverOn]);
+});

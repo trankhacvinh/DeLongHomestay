@@ -10,10 +10,16 @@
             return {
                 propertyId: initial.propertyId,
                 activeTab: 'rooms',
+                telegramEvents: [
+                    {key:'booking-requested',label:'Đặt phòng mới'}, {key:'booking-confirmed',label:'Xác nhận đặt phòng'},
+                    {key:'booking-cancelled',label:'Hủy đặt phòng'}, {key:'booking-checked-in',label:'Nhận phòng'},
+                    {key:'booking-completed',label:'Hoàn tất / trả phòng'}, {key:'payment-receipt',label:'Ghi nhận thanh toán'},
+                    {key:'pay2s-failed',label:'Thanh toán thất bại'}, {key:'pay2s-paid-after-expiry',label:'Nhận tiền sau hết hạn'}
+                ],
                 rooms: initial.rooms || [],
                 showArchivedRates: false,
                 housekeeping: { staggerEnabled: false, cleaningMinutes: 30, workerCount: 1, maxAdvanceMinutes: 30, workStart: null, workEnd: null, beforeCheckInMinutes: 0, afterCheckOutMinutes: 0, automaticCheckInEnabled: true, automaticCheckOutEnabled: true, ...(initial.housekeepingSettings || {}) },
-                notification: { guestCheckInEmailEnabled: false, guestCancellationEmailEnabled: true, telegramBookingEnabled: false, telegramBotTokenConfigured: false, telegramChatIds: '', ...(initial.notificationSettings || {}), smtpPassword: '', clearSmtpPassword: false, telegramBotToken: '', clearTelegramBotToken: false },
+                notification: { guestCheckInEmailEnabled: false, guestCancellationEmailEnabled: true, telegramBookingEnabled: false, telegramBotTokenConfigured: false, telegramChatIds: '', ...(initial.notificationSettings || {}), telegramEventTypes: initial.notificationSettings?.telegramEventTypes ?? ['booking-requested','booking-confirmed','booking-cancelled','booking-checked-in','booking-completed','payment-receipt','pay2s-failed','pay2s-paid-after-expiry'], smtpPassword: '', clearSmtpPassword: false, telegramBotToken: '', clearTelegramBotToken: false },
                 emailVariables: [
                     { code: '{{PropertyName}}', meaning: 'Tên cơ sở' },
                     { code: '{{BookingCode}}', meaning: 'Mã booking' },
@@ -276,7 +282,8 @@
                         telegramBookingEnabled: this.notification.telegramBookingEnabled === true,
                         telegramBotToken: this.notification.telegramBotToken || null,
                         clearTelegramBotToken: this.notification.clearTelegramBotToken === true,
-                        telegramChatIds: this.notification.telegramChatIds || null
+                        telegramChatIds: this.notification.telegramChatIds || null,
+                        telegramEventTypes: this.notification.telegramEventTypes ?? null
                     };
                     const saved = await DeLongApi.put(`/api/admin/properties/${this.propertyId}/notifications/settings`, payload);
                     this.notification = { ...saved, smtpPassword: '', clearSmtpPassword: false, telegramBotToken: '', clearTelegramBotToken: false };

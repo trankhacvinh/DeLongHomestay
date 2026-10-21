@@ -57,12 +57,13 @@ public sealed class IndexModel(
 
     public async Task<IActionResult> OnGetAsync(Guid? propertyId, string? scope, CancellationToken cancellationToken)
     {
-        var workingProperty = await currentPropertyService.ResolveAsync(User, propertyId, cancellationToken);
-        if (workingProperty is null) return Forbid();
+        var reportScope = await currentPropertyService.ResolveReportingScopeAsync(User, propertyId, scope, cancellationToken);
+        if (reportScope is null) return Forbid();
+        var workingProperty = reportScope.WorkingProperty;
 
         PropertyId = workingProperty.Id;
         WorkingPropertyName = workingProperty.Name;
-        Properties = await currentPropertyService.GetAccessibleAsync(User, cancellationToken);
+        Properties = reportScope.Properties;
 
         var housekeepingOnly = User.IsInRole("Housekeeping") &&
             !User.IsInRole("Admin") &&
@@ -82,11 +83,8 @@ public sealed class IndexModel(
             return RedirectToPage("/Admin/Rooms/Index", new { propertyId = PropertyId });
         }
 
-        IsAllScope = string.Equals(scope, "all", StringComparison.OrdinalIgnoreCase) && Properties.Count > 1;
-        CurrentPropertyDto? selectedProperty = null;
-        if (!IsAllScope && Guid.TryParse(scope, out var scopedId))
-            selectedProperty = Properties.SingleOrDefault(x => x.Id == scopedId);
-        selectedProperty ??= workingProperty;
+        IsAllScope = reportScope.IsAll;
+        var selectedProperty = reportScope.SelectedProperty;
 
         Scope = IsAllScope ? "all" : selectedProperty.Id.ToString();
         PropertyName = IsAllScope ? "Tất cả cơ sở" : selectedProperty.Name;

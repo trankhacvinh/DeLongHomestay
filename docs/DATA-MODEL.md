@@ -131,3 +131,11 @@ Ghi các thay đổi quan trọng: booking, payment, status, settings, user acti
 - `VoucherRedemption`: sổ cái một-một với booking; snapshot mã, phần trăm, tiền phòng đủ điều kiện, tiền giảm và trạng thái `Reserved`, `Redeemed`, `Released`, `ManuallyRestored`.
 - `VoucherEmailDelivery`: outbox gửi mã có retry và lưu snapshot tiêu đề/HTML/text.
 - `Reserved` và `Redeemed` cùng tiêu thụ hạn mức. `Booking.DiscountAmount` là số tiền giảm thực tế; phụ thu không được giảm.
+
+## 17/10/2026 — cấu hình lịch mobile và Telegram
+
+Migration `AddMobileCalendarAndTelegramEvents`: `properties.public_calendar_mobile_all_rooms` boolean mặc định true; `property_notification_settings.telegram_event_types` varchar(1000) nullable, CSV allowlist (NULL tương thích mọi sự kiện cũ, chuỗi rỗng không gửi). Không đổi dữ liệu booking/payment. Audit booking tái sử dụng AuditLogs; xem OPERATIONS-FEEDBACK-2026-10-17.md.
+
+## 1.8.6 — ngưỡng thời gian còn lại của khung public
+
+`properties.public_minimum_remaining_minutes`: integer NOT NULL DEFAULT 120, miền cấu hình 0–720 phút (0 tắt). Chỉ chặn bán online khung đã bị lấn; tính theo khoảng liền mạch sau buffer dọn phòng. Migration AddPublicMinimumRemainingMinutes không sửa dữ liệu booking/payment/block. Chi tiết tại HOUSEKEEPING-CALENDAR-FEEDBACK-2026-10-17.md.

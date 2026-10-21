@@ -128,7 +128,7 @@
         const track = document.createElement('div');
         track.className = 'public-room-availability-track';
 
-        (slot.free || []).forEach(rangeItem => {
+        (slot.state === 'occupied' ? [] : slot.free || []).forEach(rangeItem => {
             const segment = document.createElement('button');
             segment.type = 'button';
             segment.className = 'public-room-availability-segment free';

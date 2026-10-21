@@ -43,7 +43,8 @@ public sealed record NotificationSettingsDto(
     DateTime? LastEmailErrorAtUtc,
     DateTime? LastTelegramSentAtUtc,
     string? LastTelegramError,
-    DateTime? LastTelegramErrorAtUtc);
+    DateTime? LastTelegramErrorAtUtc,
+    IReadOnlyList<string>? TelegramEventTypes = null);
 
 public sealed class UpdateNotificationSettingsRequest
 {
@@ -72,6 +73,7 @@ public sealed class UpdateNotificationSettingsRequest
     public string? TelegramBotToken { get; set; }
     public bool ClearTelegramBotToken { get; set; }
     public string? TelegramChatIds { get; set; }
+    public string[]? TelegramEventTypes { get; set; }
 }
 
 public sealed record NotificationRealtimeEvent(

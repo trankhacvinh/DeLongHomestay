@@ -4,6 +4,7 @@ namespace DeLong.Web.Domain.Entities;
 
 public sealed class PropertyNotificationSettings : EntityBase
 {
+    public string? TelegramEventTypes { get; set; }
     public Guid PropertyId { get; set; }
     public Property Property { get; set; } = null!;
 

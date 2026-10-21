@@ -256,9 +256,12 @@
                     </section>
                 </div>
                 <div class="field full notification-settings-divider"><strong>Telegram cho đội xử lý</strong><small>Tạo bot bằng BotFather, thêm bot vào nhóm rồi nhập bot token và chat ID của nhóm.</small></div>
-                <label class="check-row full"><input type="checkbox" v-model="notification.telegramBookingEnabled" /> Gửi booking mới vào Telegram</label>
+                <label class="check-row full"><input type="checkbox" v-model="notification.telegramBookingEnabled" /> Bật thông báo Telegram</label>
                 <div class="field"><label for="telegram-token">Bot token</label><div class="notification-settings-secret"><input id="telegram-token" type="password" v-model="notification.telegramBotToken" autocomplete="new-password" placeholder="Để trống để giữ token hiện tại" /><small>{{ notification.telegramBotTokenConfigured ? 'Đã lưu mã hóa' : 'Chưa có' }}</small></div></div>
                 <div class="field"><label for="telegram-chat-ids">Chat ID / @@username</label><textarea id="telegram-chat-ids" rows="2" v-model.trim="notification.telegramChatIds" placeholder="-1001234567890"></textarea><small>Có thể nhập nhiều nhóm, cách nhau bằng dấu phẩy hoặc xuống dòng.</small></div>
+                <fieldset class="full"><legend>Thông báo gửi qua Telegram</legend>
+                    <label v-for="event in telegramEvents" v-bind:key="event.key" class="check-row"><input type="checkbox" v-model="notification.telegramEventTypes" v-bind:value="event.key" /> {{ event.label }}</label>
+                </fieldset>
                 <label v-if="notification.telegramBotTokenConfigured" class="check-row full"><input type="checkbox" v-model="notification.clearTelegramBotToken" /> Xóa bot token Telegram đang lưu</label>
             </div>
             <div class="notification-settings-status error" v-if="notification.lastEmailError"><strong>Lỗi email gần nhất:</strong><span>{{ notification.lastEmailError }}</span></div>

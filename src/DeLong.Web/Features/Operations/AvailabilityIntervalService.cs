@@ -264,7 +264,7 @@ public sealed class AvailabilityIntervalService(
     {
         var room = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == property.Id && x.Id == roomId && x.IsActive && x.IsPublished)
-            .Select(x => new { x.Id, x.Code, x.Name, x.IsBookingLocked, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice, BookingScheduleUpdatedAtUtc = db.RoomBookingBlocks.Where(b => b.PropertyId == property.Id && b.RoomId == x.Id).Max(b => (DateTime?)b.UpdatedAtUtc) })
+            .Select(x => new { x.Id, x.Code, x.Name, x.IsBookingLocked, x.Property.PublicMinimumRemainingMinutes, x.FullDayPricingEnabled, x.FullDayPrice, x.UseWeekdayFullDayPriceOnWeekend, x.WeekendFullDayPrice, BookingScheduleUpdatedAtUtc = db.RoomBookingBlocks.Where(b => b.PropertyId == property.Id && b.RoomId == x.Id).Max(b => (DateTime?)b.UpdatedAtUtc) })
             .SingleOrDefaultAsync(cancellationToken);
         if (room is null) return null;
 
@@ -282,9 +282,11 @@ public sealed class AvailabilityIntervalService(
                     var bookable = !room.IsBookingLocked && slot.Projection.Free.Count == 1 ? slot.Projection.Free[0] : null;
                     var adjusted = bookable is not null &&
                                    (bookable.StartUtc > slot.StartUtc || bookable.EndUtc < slot.EndUtc);
+                    var tooShort = bookable is not null && PublicRemainingTimePolicy.IsTooShort(slot.StartUtc, slot.EndUtc, bookable, room.PublicMinimumRemainingMinutes);
+                    if (tooShort) bookable = null;
                     return new PublicAvailabilitySlotDto(
                         slot.RateId, slot.RateName, slot.RateType, slot.Price,
-                        slot.StartUtc, slot.EndUtc, slot.Projection.State, slot.Projection.OccupiedRatio,
+                        slot.StartUtc, slot.EndUtc, tooShort ? "occupied" : slot.Projection.State, slot.Projection.OccupiedRatio,
                         slot.Projection.Occupied.Select(x => new PublicAvailabilityOccupancyDto(
                             x.IsRoomBlock ? "locked" : x.Status == BookingStatus.Held ? "held" : "booked",
                             x.StartUtc,
@@ -292,7 +294,7 @@ public sealed class AvailabilityIntervalService(
                         slot.Projection.Free,
                         bookable?.StartUtc,
                         bookable?.EndUtc,
-                        adjusted ? "Thời gian được điều chỉnh theo lịch khóa phòng hoặc để dành 30 phút dọn phòng giữa hai lượt khách." : null);
+                        tooShort ? "Khung còn lại quá ngắn để đặt online. Vui lòng chọn khung khác hoặc liên hệ Home." : adjusted ? "Thời gian được điều chỉnh theo lịch khóa phòng hoặc để dành 30 phút dọn phòng giữa hai lượt khách." : null);
                 }).ToList(),
                 day.Policy.DayProfile,
                 day.Policy.SpecialDayName,

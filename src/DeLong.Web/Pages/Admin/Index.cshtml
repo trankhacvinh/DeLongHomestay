@@ -13,7 +13,7 @@
         <form method="get" class="dashboard-scope-form">
             <input type="hidden" name="propertyId" value="@Model.PropertyId" />
             <select name="scope" class="property-scope-select" aria-label="Phạm vi cơ sở" onchange="this.form.submit()">
-                @if (Model.Properties.Count > 1)
+                @if (User.IsInRole("Admin"))
                 {
                     if (Model.IsAllScope)
                     {
@@ -44,7 +44,7 @@
 
 @if (Model.IsAllScope)
 {
-    <div class="dashboard-scope-note"><strong>Đang xem tổng hợp tất cả cơ sở được phân quyền.</strong><span>Các nút thao tác vẫn mở cơ sở đang làm việc: @Model.WorkingPropertyName.</span></div>
+    <div class="dashboard-scope-note"><strong>Đang xem tổng hợp tất cả chi nhánh.</strong><span>Các nút thao tác vẫn mở cơ sở đang làm việc: @Model.WorkingPropertyName.</span></div>
 }
 
 @if (Model.RequestedCount > 0)

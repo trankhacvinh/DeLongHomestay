@@ -206,3 +206,34 @@
 - Ưu tiên việc cùng giờ ít linh hoạt hơn, tránh trùng người và cùng phòng, đảm bảo đủ thời lượng trước nhận khách. Nếu không xếp được: giữ giờ gốc, báo cần phân công thủ công trên lịch và văn bản sao chép. Các việc ngoài giờ làm vẫn giữ và báo; không tự xóa việc ban đêm.
 - Migration `20261013013412_AddHousekeepingStaggerSettings` chỉ thêm cấu hình vào `properties`; không cập nhật booking/payment/khoảng khóa. Áp dụng migration trước deploy; bật tính năng sau khi xác nhận giờ làm việc.
 - Nghiệm thu: phòng khóa kết thúc 10:00 có thể dọn 10:00; kết thúc 10:30 không được chuyển sớm; khách còn ở, hết giờ làm, deadline ngắn, hai lao công, qua ngày, cấu hình tắt, không mất/trùng công việc và sao chép cảnh báo.
+
+## Feedback vận hành 17/10/2026 — 1.8.5
+
+- [x] Source: lịch công khai mobile nhiều phòng có cấu hình quay lại; Telegram theo sự kiện; Tom Select tìm khách; khóa nhanh vô thời hạn; lịch sử thao tác; link CalendarV2.
+- [x] Kiểm chứng cục bộ: migration trên PostgreSQL test, 47 .NET tests, 30 JS tests và Chrome mobile/desktop fixtures.
+- [ ] Publish bundle mới, migration/deploy production và UAT điện thoại/Telegram thật. Xem [bàn giao](OPERATIONS-FEEDBACK-2026-10-17.md).
+
+## Dọn phòng và kiểm kê ngày — 1.8.6 (17/10/2026)
+
+- [x] Source: Văn bản mặc định, bỏ tab tình trạng, filter đèn; giải thích màu và ưu tiên ghi chú; thống kê toàn cơ sở theo ngày có chi tiết.
+- [x] Ngưỡng khung bị lấn còn tối đa 120 phút áp dụng API/public, cấu hình DB 0–720; migration AddPublicMinimumRemainingMinutes.
+- [x] 61 .NET tests, 102 JavaScript tests và Chrome fixture mobile/desktop đạt.
+- [ ] Publish/migrate/deploy và UAT tài khoản/điện thoại thật. Xem [bàn giao](HOUSEKEEPING-CALENDAR-FEEDBACK-2026-10-17.md).
+
+## Báo cáo theo quyền, danh sách nợ và màu — 1.8.7
+
+- [x] Source: Admin tổng hợp tất cả/một chi nhánh trên Tổng quan/Báo cáo/Excel; non-Admin chỉ ngữ cảnh chi nhánh được cấp, chặn scope mở rộng server-side.
+- [x] Nợ ưu tiên hơn manual/ghi chú; bỏ màu riêng hoàn tất, giữ màu cấu hình. Danh sách Còn nợ có ngày nhận phòng/tìm kiếm/sắp xếp/tổng theo lọc.
+- [x] Build Web, 29 .NET tests, 107 JavaScript tests, Chrome fixtures mobile/desktop đạt. Không thêm schema/migration.
+- [ ] Publish/deploy và UAT tài khoản/iPhone thật. Xem [bàn giao](REPORTING-SCOPE-DEBT-COLORS-2026-10-17.md).
+
+## Lịch public mobile — 1.8.8 (19/10/2026)
+
+- [x] Sửa header/body lệch cột do width:max-content; giữ cuộn ngang và ngày sticky. Browser regression 5 trường hợp và 107 JS tests đạt.
+- [ ] Deploy và kiểm tra Safari/iPhone thật. Xem [chi tiết](PUBLIC-CALENDAR-MOBILE-ALIGNMENT-2026-10-19.md).
+
+## Nhãn giờ lịch public mobile — 1.8.9 (19/10/2026)
+
+- [x] Mobile: cột giờ tối thiểu 128px, font 12px, padding 10px; không cắt/chồng nhãn, header/body thẳng hàng và cuộn ngang.
+- [x] 107 JS tests và 7 browser cases (375/390/414px, desktop và mode cũ) đạt; ảnh trước/sau 390px lưu trong docs/qa.
+- [ ] Deploy và kiểm tra iPhone/Safari thật. Xem [chi tiết](PUBLIC-CALENDAR-TIME-LABELS-2026-10-19.md).
