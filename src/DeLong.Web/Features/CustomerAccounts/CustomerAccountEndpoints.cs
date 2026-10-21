@@ -54,7 +54,7 @@ public static class CustomerAccountEndpoints
             var hasAccount = await service.CustomerAccountExistsAsync(property.Id, phone, ct);
             var exists = hasAccount || await service.CustomerProfileExistsAsync(property.Id, phone, ct);
             return Results.Ok(new { exists, hasAccount, isBlocked = false });
-        }).AllowAnonymous().RequireRateLimiting("account-login").WithTags("Customer Accounts");
+        }).AllowAnonymous().RequireRateLimiting("account-status").WithTags("Customer Accounts");
 
         app.MapPost("/api/public/customer-account/register", async (
             string? siteSlug,
@@ -75,11 +75,14 @@ public static class CustomerAccountEndpoints
         app.MapPost("/api/public/customer-account/login", async (
             CustomerLoginRequest request,
             CustomerAccountService service,
+            UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             HttpContext httpContext) =>
         {
             var user = await service.FindLoginUserAsync(request.Phone, httpContext.RequestAborted);
             if (user is null) return InvalidLogin();
+            userManager.Options = CustomerLoginPolicy.CreateOptions(userManager.Options);
+            signInManager.Options = userManager.Options;
             var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
             if (!result.Succeeded) return InvalidLogin(result.IsLockedOut);
             await signInManager.SignInAsync(user, request.RememberMe);
@@ -99,12 +102,15 @@ public static class CustomerAccountEndpoints
             if (property is null || !(await settingsService.GetAsync(property.Id)).AuthenticatorEnabled) return InvalidLogin();
             var user = await service.FindLoginUserAsync(request.Phone);
             if (user is null || !user.TwoFactorEnabled) return InvalidLogin();
+            userManager.Options = CustomerLoginPolicy.CreateOptions(userManager.Options);
+            signInManager.Options = userManager.Options;
+            if (await userManager.IsLockedOutAsync(user)) return InvalidLogin(true);
             var valid = await userManager.VerifyTwoFactorTokenAsync(
                 user, TokenOptions.DefaultAuthenticatorProvider, request.Code.Replace(" ", string.Empty).Replace("-", string.Empty));
             if (!valid)
             {
                 await userManager.AccessFailedAsync(user);
-                return InvalidLogin();
+                return InvalidLogin(await userManager.IsLockedOutAsync(user));
             }
             await userManager.ResetAccessFailedCountAsync(user);
             await signInManager.SignInAsync(user, request.RememberMe);

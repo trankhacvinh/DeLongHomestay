@@ -50,17 +50,7 @@ public sealed class BookingService(
             return (null, new(RoomBookingGuard.ErrorCode, "Phòng tạm khóa trong thời gian đã chọn. Vui lòng chọn thời gian hoặc phòng khác."));
         if (BookingRules.LocksRoom(request.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken)) return (null, ConflictError());
         var customer = await customerService.FindOrCreateEntityAsync(propertyId, request.CustomerId, request.CustomerName, request.CustomerPhone, cancellationToken);
-        if (customer is null)
-        {
-            var normalizedPhone = CustomerService.NormalizePhone(request.CustomerPhone);
-            var inactive = await db.Customers.AsNoTracking().AnyAsync(x =>
-                x.PropertyId == propertyId && !x.IsActive &&
-                (request.CustomerId.HasValue ? x.Id == request.CustomerId.Value : x.NormalizedPhone == normalizedPhone),
-                cancellationToken);
-            return inactive
-                ? (null, new("customer_inactive", "Hồ sơ khách gắn với thông tin liên hệ này đang ngừng hoạt động. Vui lòng liên hệ Home để kiểm tra và khôi phục hồ sơ trước khi đặt phòng."))
-                : (null, new("customer_invalid", "Thông tin khách chưa hợp lệ. Vui lòng kiểm tra họ tên và số điện thoại hoặc liên hệ Home để được hỗ trợ."));
-        }
+        if (customer is null) return (null, new("customer_invalid", "Thông tin khách chưa hợp lệ. Vui lòng kiểm tra họ tên và số điện thoại hoặc liên hệ Home để được hỗ trợ."));
         if (customer.IsBlocked) return (null, new("customer_blocked", "Khách hàng đã bị chặn. Vui lòng kiểm tra hồ sơ khách trước khi tạo booking."));
 
         var booking = new Booking
@@ -124,7 +114,7 @@ public sealed class BookingService(
         var rateError = await ValidateRateReferenceAsync(request.Type, request.RoomId, request.RoomRateId, cancellationToken);
         if (rateError is not null) return (null, rateError);
 
-        var customer = await db.Customers.SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == request.CustomerId && x.IsActive, cancellationToken);
+        var customer = await db.Customers.SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == request.CustomerId, cancellationToken);
         if (customer is null) return (null, new("customer_invalid", "Không tìm thấy khách hàng."));
         if (customer.IsBlocked) return (null, new("customer_blocked", "Khách hàng đã bị chặn. Vui lòng kiểm tra hồ sơ khách trước khi cập nhật booking."));
         var normalizedPhone = CustomerService.NormalizePhone(request.CustomerPhone);

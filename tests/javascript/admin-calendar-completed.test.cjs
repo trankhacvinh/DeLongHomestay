@@ -45,3 +45,18 @@ test('configured debt and automatic colors apply to completed and active booking
     assert.equal(configured({status:4,balanceAmount:0,displayColor:'#ABCDEF'}).color,'#ABCDEF');
     assert.equal(configured({status:4,balanceAmount:0,hasSpecialRequest:true}).color,'#880088');
 });
+
+test('configured mixed and checked-in colors are used, with debt and notes retaining priority', () => {
+    const configured = new Function('state', `${visualSource}; return bookingVisual;`)({ colors: {
+        mixedSlotColor: '#FF8800', checkedInColor: '#123456', confirmedColor: '#FFA55F',
+        unpaidColor: '#FF2929', specialRequestColor: '#F34DFF', flexibleTimeColor: '#FAFE01'
+    } });
+    assert.equal(configured({ status: 2, isMixedSlot: true }).color, '#FF8800');
+    assert.equal(configured({ status: 3 }).color, '#123456');
+    assert.equal(configured({ status: 2 }).color, '#FFA55F');
+    assert.equal(configured({ status: 4, isMixedSlot: true }).color, '#FF8800');
+    assert.equal(configured({ status: 3, isMixedSlot: true }).color, '#FF8800');
+    assert.equal(configured({ isMixedSlot: true, balanceAmount: 1 }).color, '#FF2929');
+    assert.equal(configured({ isMixedSlot: true, hasSpecialRequest: true }).color, '#F34DFF');
+    assert.equal(configured({ isMixedSlot: true, isFlexibleTime: true }).color, '#FAFE01');
+});

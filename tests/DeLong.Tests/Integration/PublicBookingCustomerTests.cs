@@ -23,6 +23,7 @@ public sealed class PublicBookingCustomerTests
     [InlineData("existing")]
     [InlineData("inactive")]
     [InlineData("blocked")]
+    [InlineData("inactive-blocked")]
     [InlineData("badphone")]
     [InlineData("badname")]
     public async Task Anonymous_customer_resolution_preserves_identity_booking_and_retry_rules(string scenario)
@@ -40,7 +41,7 @@ public sealed class PublicBookingCustomerTests
         Customer? customer = null;
         if (scenario != "new")
         {
-            customer = new Customer { Property = property, Name = "Synthetic customer", Phone = phone, NormalizedPhone = phone, IsActive = scenario != "inactive", IsBlocked = scenario == "blocked", IsBlacklisted = scenario == "blocked", BlacklistReason = scenario == "blocked" ? "Synthetic block" : null };
+            customer = new Customer { Property = property, Name = "Synthetic customer", Phone = phone, NormalizedPhone = phone, IsActive = !scenario.StartsWith("inactive"), IsBlocked = scenario.EndsWith("blocked"), IsBlacklisted = scenario.EndsWith("blocked"), BlacklistReason = scenario.EndsWith("blocked") ? "Synthetic block" : null };
             db.Customers.Add(customer);
         }
         await db.SaveChangesAsync();
@@ -57,12 +58,12 @@ public sealed class PublicBookingCustomerTests
             var request = new PublicBookingRequest { RoomId = room.Id, RateId = rate.Id, StayDate = DateTime.UtcNow.AddDays(5).ToString("yyyy-MM-dd"), Type = BookingType.TimeSlot, CustomerName = scenario == "badname" ? "A" : "Synthetic guest", CustomerPhone = scenario == "badphone" ? "123456789012345678901" : "+84 900 000 123", CustomerEmail = "guest@example.test", GuestCount = 2, HasIdentityFront = true, HasIdentityBack = true, PolicyAccepted = true, PolicyVersion = policy.PolicyVersion };
             var key = "synthetic-" + suffix;
             var result = await service.CreateRequestAsync(suffix, request, key, null);
-            if (scenario is "inactive" or "blocked" or "badphone" or "badname")
+            if (scenario is "inactive-blocked" or "blocked" or "badphone" or "badname")
             {
-                Assert.Equal(scenario switch { "inactive" => "customer_inactive", "blocked" => "customer_blocked", "badphone" => "customer_phone_invalid", _ => "customer_name_invalid" }, result.Error?.Code);
+                Assert.Equal(scenario switch { "inactive-blocked" or "blocked" => "customer_blocked", "badphone" => "customer_phone_invalid", _ => "customer_name_invalid" }, result.Error?.Code);
                 Assert.Null(result.Result);
                 Assert.Equal(0, await db.Bookings.CountAsync(x => x.PropertyId == property.Id));
-                Assert.Equal(scenario != "inactive", (await db.Customers.AsNoTracking().SingleAsync(x => x.Id == customer!.Id)).IsActive);
+                Assert.Equal(!scenario.StartsWith("inactive"), (await db.Customers.AsNoTracking().SingleAsync(x => x.Id == customer!.Id)).IsActive);
                 return;
             }
             Assert.Null(result.Error);
@@ -75,7 +76,18 @@ public sealed class PublicBookingCustomerTests
             var booking = await db.Bookings.AsNoTracking().SingleAsync(x => x.PropertyId == property.Id);
             Assert.Equal(BookingStatus.Held, booking.Status);
             Assert.Equal(210000, booking.RoomAmount);
-            if (customer is not null) Assert.Equal(customer.Id, booking.CustomerId);
+            if (customer is not null)
+            {
+                Assert.Equal(customer.Id, booking.CustomerId);
+                Assert.Equal(scenario != "inactive", (await db.Customers.AsNoTracking().SingleAsync(x => x.Id == customer.Id)).IsActive);
+            }
+            if (scenario == "inactive")
+            {
+                for (var attempt = 0; attempt < 10; attempt++)
+                    Assert.Equal(booking.Id, (await service.CreateRequestAsync(suffix, request, key, null)).Result!.BookingId);
+                Assert.Equal(1, await db.Bookings.CountAsync(x => x.PropertyId == property.Id));
+                Assert.Equal(1, await db.Customers.CountAsync(x => x.PropertyId == property.Id));
+            }
             Assert.Equal(0, await db.Payments.CountAsync(x => x.BookingId == booking.Id));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }

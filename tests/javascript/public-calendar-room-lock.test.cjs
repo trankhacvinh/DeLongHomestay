@@ -19,11 +19,23 @@ test('multi-room calendar disables only the locked room even with stale bookable
     const locked = render({ date: '2026-10-07', roomId: 'locked' }, slot, null);
     assert.equal(locked.disabled, true);
     assert.match(locked.className, /state-locked/);
-    assert.match(locked.innerHTML, /Tạm ngừng nhận đặt phòng/);
+    assert.equal(locked.innerHTML, '<span></span>');
+    assert.match(locked.attributes['aria-label'], /Tạm ngừng nhận đặt phòng/);
     assert.equal(locked.listeners.length, 0);
     const open = render({ date: '2026-10-07', roomId: 'open' }, slot, null);
     assert.equal(open.listeners.length, 1);
     assert.match(open.className, /state-available/);
+});
+test('scheduled room block has no visible label but stays disabled and accessible', () => {
+    const { render } = fixture();
+    const button = render({ date: '2026-10-07', roomId: 'open' }, {
+        state: 'occupied', rateId: 'overnight', rateName: 'Qua đêm',
+        startUtc: '21:00', endUtc: '09:30', occupied: [{ kind: 'locked' }]
+    }, null);
+    assert.equal(button.innerHTML, '<span></span>');
+    assert.equal(button.disabled, true);
+    assert.equal(button.listeners.length, 0);
+    assert.match(button.attributes['aria-label'], /Tạm khóa/);
 });
 test('unlock restores selection using the same gallery/calendar room object', () => {
     const { render, rooms } = fixture();

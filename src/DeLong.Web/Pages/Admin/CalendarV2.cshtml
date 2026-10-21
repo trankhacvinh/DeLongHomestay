@@ -15,6 +15,7 @@
     <link data-admin-calendar-v2 rel="stylesheet" href="~/css/admin-calendar-v2.css" asp-append-version="true" />
     <style>#calendar-page[data-calendar-v2-page="true"] .calendar-v2-view-switch{display:none!important}</style>
 }
+<script id="calendar-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 <div id="calendar-page" data-can-lock-rooms="@((User.IsInRole("Admin") || User.IsInRole("Manager")) ? "true" : "false")"
      data-calendar-v2-page="true"
      data-property-id="@Model.PropertyId"
@@ -23,8 +24,6 @@
      data-range-days="@Model.RangeDays"
      data-today="@Model.Today"
      v-cloak>
-    <script id="calendar-page-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
-
     <div class="calendar-page-head">
         <div class="page-title-row">
             <div>

@@ -266,26 +266,9 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("public-booking", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.BookingPermitLimit));
     options.AddPolicy("public-booking-identity", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.IdentityPermitLimit));
     options.AddPolicy("public-booking-completion", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.CompletionPermitLimit));
-    options.AddPolicy("public-voucher", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 30,
-                Window = TimeSpan.FromMinutes(10),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            }));
-    options.AddPolicy("public-lookup", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(10),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            }));
+    options.AddPolicy("public-voucher", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.VoucherPermitLimit));
+    options.AddPolicy("public-lookup", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.LookupPermitLimit));
+    options.AddPolicy("account-status", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.AccountStatusPermitLimit));
     options.AddPolicy("pay2s-status", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             $"{httpContext.Connection.RemoteIpAddress}:{httpContext.Request.RouteValues["orderId"]}",
@@ -326,16 +309,7 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
-    options.AddPolicy("account-login", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            $"{httpContext.Connection.RemoteIpAddress}:account",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 8,
-                Window = TimeSpan.FromMinutes(10),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            }));
+    options.AddPolicy("account-login", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.AccountLoginPermitLimit));
 });
 
 builder.Services.AddScoped<ApiAntiforgeryFilter>();

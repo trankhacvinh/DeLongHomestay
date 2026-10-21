@@ -440,7 +440,7 @@
             const stateText = room?.isBookingLocked ? 'Tạm ngừng nhận đặt phòng' : selectedTime || (slot.state === 'available' ? (Number(day.bookingMode) === 1 ? 'Chọn cả ngày' : 'Còn trống') : slot.state === 'partial' && canBook ? adjustedTime : hasRoomBlock ? 'Tạm khóa' : 'Đã có khách');
             const selectedSchedule = selected && canBook
                 ? `<span class="public-v2-selected-schedule">${selectedLabels.map(label => `<b>${label}</b>`).join('')}</span>`
-                : `<span>${stateText}</span>`;
+                : `<span>${!canBook && (hasRoomBlock || room?.isBookingLocked) ? '' : stateText}</span>`;
             button.innerHTML = selectedSchedule;
             const roomName = state.multi ? `${roomById(day.roomId)?.name || ''}, ` : '';
             button.title = `${roomName}${stateText}`;

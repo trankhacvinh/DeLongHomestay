@@ -22,7 +22,7 @@ window.DeLongCustomerAutocomplete = {
                 create: value => ({ phone: value.trim(), name: '' }),
                 shouldLoad: query => query.trim().length >= 3,
                 render: {
-                    option: (item, escape) => `<div>${escape(item.phone)} — ${escape(item.name || 'Khách mới')}${item.isBlocked ? ' · Đã chặn' : item.isActive === false ? ' · Đã ngừng' : ''}</div>`,
+                    option: (item, escape) => `<div>${escape(item.phone)} — ${escape(item.name || 'Khách mới')}${item.isBlocked ? ' · Đã chặn' : item.isActive === false ? ' · Hồ sơ đã ẩn' : ''}</div>`,
                     item: (item, escape) => `<div>${escape(item.phone)}</div>`,
                     no_results: () => '<div>Chưa có khách phù hợp. Tiếp tục nhập để tạo khách mới.</div>'
                 },
@@ -31,7 +31,7 @@ window.DeLongCustomerAutocomplete = {
                     try {
                         const data = await DeLongApi.get(`/api/admin/properties/${owner.propertyId}/customers/autocomplete?q=${encodeURIComponent(query.trim())}`);
                         if (version !== requestVersion || !input.isConnected) return callback();
-                        const options = data.map(item => ({ ...item, disabled: !item.isActive || item.isBlocked }));
+                        const options = data.map(item => ({ ...item, disabled: item.isBlocked }));
                         callback(options);
                         const exact = options.find(item => !item.disabled && normalize(item.phone) === normalize(query));
                         if (exact && normalize(owner.form.customerPhone) === normalize(query)) {

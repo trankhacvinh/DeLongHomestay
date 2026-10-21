@@ -72,7 +72,11 @@ window.DeLongCalendarDailySummary = {
                 try {
                     const rows = await DeLongApi.get(`/api/admin/properties/${propertyId}/bookings/daily-summary?${new URLSearchParams({ from, days })}`);
                     if (version === requestVersion) summaries = new Map(rows.map(row => [row.date, row]));
-                } catch { if (version === requestVersion) summaries = new Map(); }
+                    return rows;
+                } catch {
+                    if (version === requestVersion) summaries = new Map();
+                    return null;
+                }
             },
             button(date) {
                 const row = summaries.get(date);

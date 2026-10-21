@@ -237,3 +237,27 @@
 - [x] Mobile: cột giờ tối thiểu 128px, font 12px, padding 10px; không cắt/chồng nhãn, header/body thẳng hàng và cuộn ngang.
 - [x] 107 JS tests và 7 browser cases (375/390/414px, desktop và mode cũ) đạt; ảnh trước/sau 390px lưu trong docs/qa.
 - [ ] Deploy và kiểm tra iPhone/Safari thật. Xem [chi tiết](PUBLIC-CALENDAR-TIME-LABELS-2026-10-19.md).
+
+## Hồ sơ khách đã ẩn vẫn đặt phòng — 1.8.10 (21/10/2026)
+
+- [x] Dùng lại hồ sơ ẩn khi tạo/sửa booking; giữ chặn thủ công, không tự khôi phục hay nhân đôi hồ sơ. Payload thiếu IsActive không thay đổi trạng thái.
+- [x] 34 .NET tests khách hàng/tài khoản và 109 JavaScript tests đạt.
+- [ ] Điều tra test QR đồng thời lỗi khi chạy nhóm (chạy riêng đạt); deploy/UAT điện thoại. Xem [bàn giao](CUSTOMER-HIDDEN-BOOKING-FIX-2026-10-21.md).
+
+## Tăng giới hạn thao tác khách — 1.8.11 (21/10/2026)
+
+- [x] Tăng hạn mức booking/upload/hoàn tất/tra cứu/voucher; tách tra cứu hồ sơ khỏi đăng nhập. Khách sai 15 lần khóa 1 phút, Admin giữ chính sách cũ.
+- [x] 32 test tập trung đạt, build qua và diff check sạch; không migration/sửa dữ liệu production.
+- [ ] Deploy và UAT request/đăng nhập thực tế. Xem [chi tiết](CUSTOMER-RATE-LIMIT-2026-10-21.md).
+
+## Màu cấu hình lịch V2 — 1.8.12 (21/10/2026)
+
+- [x] Giữ JSON ngoài root Vue, fallback và refresh màu; dùng màu đã nhận phòng riêng, bỏ chú giải xác nhận. Public bỏ chữ ô khóa, giữ disabled.
+- [x] 111 JS tests, 17 .NET tests và 2 Chrome cases đạt; không migration/sửa dữ liệu production.
+- [ ] Deploy/UAT quyền xem lịch và iPhone. Xem [chi tiết](CALENDAR-CONFIGURED-COLORS-2026-10-21.md).
+
+## Lịch V2 cập nhật nền không nhảy — 1.8.13 (21/10/2026)
+
+- [x] Poll/focus/realtime chạy nền, không dựng lại DOM khi dữ liệu không đổi; cập nhật thật giữ scroll/focus, gồm thay đổi thống kê/màu.
+- [x] 111 JS tests, 2 Chrome cases và 8 .NET contract tests đạt; 1 DB integration test skip.
+- [ ] Deploy và UAT đa tài khoản/iPhone. Xem [chi tiết](CALENDAR-BACKGROUND-REFRESH-2026-10-21.md).

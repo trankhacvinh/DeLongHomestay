@@ -11,6 +11,8 @@ public sealed class PublicBookingRateLimitPolicyTests
     [Theory]
     [InlineData(PublicBookingRateLimitPolicy.BookingPermitLimit)]
     [InlineData(PublicBookingRateLimitPolicy.IdentityPermitLimit)]
+    [InlineData(PublicBookingRateLimitPolicy.AccountStatusPermitLimit)]
+    [InlineData(PublicBookingRateLimitPolicy.AccountLoginPermitLimit)]
     public void Each_ip_has_its_own_budget_and_excess_requests_get_retry_metadata(int permits)
     {
         var policy = new PublicBookingRateLimitPolicy(permits);
@@ -30,7 +32,7 @@ public sealed class PublicBookingRateLimitPolicyTests
     }
 
     [Fact]
-    public void Thirty_bookings_can_each_upload_two_images_and_complete_without_consuming_creation_budget()
+    public void Full_booking_budget_can_upload_two_images_each_and_complete_independently()
     {
         using var create = PartitionedRateLimiter.Create<HttpContext, string>(
             new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.BookingPermitLimit).GetPartition);
@@ -39,7 +41,7 @@ public sealed class PublicBookingRateLimitPolicyTests
         using var complete = PartitionedRateLimiter.Create<HttpContext, string>(
             new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.CompletionPermitLimit).GetPartition);
         var context = Context("192.0.2.1");
-        for (var i = 0; i < 30; i++)
+        for (var i = 0; i < PublicBookingRateLimitPolicy.BookingPermitLimit; i++)
         {
             using var booking = create.AttemptAcquire(context);
             using var front = identity.AttemptAcquire(context);

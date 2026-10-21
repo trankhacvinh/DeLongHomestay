@@ -146,7 +146,7 @@ public sealed class CustomerService(AppDbContext db)
         customer.IsBlacklisted = request.IsBlacklisted;
         customer.BlacklistReason = request.IsBlacklisted ? Clean(request.BlacklistReason) : null;
         customer.IsBlocked = request.IsBlacklisted && request.IsBlocked;
-        customer.IsActive = request.IsActive;
+        if (request.IsActive.HasValue) customer.IsActive = request.IsActive.Value;
         await db.SaveChangesAsync(cancellationToken);
         return (await GetAsync(propertyId, customerId, cancellationToken), null);
     }
@@ -196,7 +196,7 @@ public sealed class CustomerService(AppDbContext db)
         if (customerId.HasValue)
         {
             return await db.Customers.SingleOrDefaultAsync(
-                x => x.PropertyId == propertyId && x.Id == customerId.Value && x.IsActive,
+                x => x.PropertyId == propertyId && x.Id == customerId.Value,
                 cancellationToken);
         }
 
@@ -208,7 +208,6 @@ public sealed class CustomerService(AppDbContext db)
             cancellationToken);
         if (existing is not null)
         {
-            if (!existing.IsActive) return null;
             existing.Name = customerName.Trim();
             return existing;
         }

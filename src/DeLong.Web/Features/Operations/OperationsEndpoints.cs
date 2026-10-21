@@ -60,7 +60,7 @@ public static class OperationsEndpoints
             StoragePaths paths,
             CancellationToken cancellationToken) =>
             Results.Ok(await new BookingCalendarDisplaySettingsStore(paths).GetAsync(propertyId, cancellationToken)))
-            .RequireAuthorization("ManageRooms");
+            .RequireAuthorization("ViewOperations");
 
         admin.MapPut("/booking-calendar-settings", async (
             Guid propertyId,

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const source = readFileSync('src/DeLong.Web/wwwroot/js/pages/admin-calendar-v2.js', 'utf8');
-const block = source.slice(source.indexOf('    let calendarScale ='), source.indexOf('\n    const legendColors'));
+const block = source.slice(source.indexOf('    let calendarScale ='), source.indexOf('\n    function updateLegendColors('));
 function setup(mobile) {
     const nodes = new Map();
     const styles = new Map();

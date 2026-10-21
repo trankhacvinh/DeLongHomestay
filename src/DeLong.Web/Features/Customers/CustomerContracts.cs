@@ -54,7 +54,7 @@ public sealed record UpdateCustomerRequest(
     bool IsBlacklisted,
     string? BlacklistReason,
     bool IsBlocked,
-    bool IsActive);
+    bool? IsActive = null);
 
 public sealed record UpdateCustomerInternalProfileRequest(
     string? Note,
