@@ -2,6 +2,8 @@ using System.Text.Json;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Rooms;
+using DeLong.Web.Features.Operations;
+using DeLong.Web.Common.Operations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -10,7 +12,8 @@ namespace DeLong.Web.Pages.Admin.Bookings;
 public sealed class IndexModel(
     BookingService bookingService,
     RoomService roomService,
-    CurrentPropertyService currentPropertyService) : PageModel
+    CurrentPropertyService currentPropertyService,
+    StoragePaths storagePaths) : PageModel
 {
     public Guid PropertyId { get; private set; }
     public string PageDataJson { get; private set; } = "{}";
@@ -23,6 +26,8 @@ public sealed class IndexModel(
         PropertyId = property.Id;
         var bookings = await bookingService.GetAllAsync(PropertyId, null, null, cancellationToken);
         var rooms = await roomService.GetAllAsync(PropertyId, cancellationToken);
+        var colors = await new BookingCalendarDisplaySettingsStore(storagePaths).GetAsync(PropertyId, cancellationToken);
+        ViewData["BookingDisplayColors"] = BookingDisplayColors.ForSettings(colors);
         PageDataJson = JsonSerializer.Serialize(
             new { propertyId = PropertyId, propertyName = property.Name, timeZoneId = property.TimeZoneId, bookings, rooms },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));

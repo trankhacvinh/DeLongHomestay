@@ -590,7 +590,7 @@
                     }
                     // A timeout or server failure can occur after the booking was committed.
                     if (error.status >= 400 && error.status < 500 && !error.identityUploadFailed) this.requestKey = null;
-                    if (error.status === 409) {
+                    if (error.status === 409 && !error.identityUploadFailed) {
                         await this.handleBookingConflict(attemptedRoomId, attemptedRateId, message);
                         if (this.embeddedSlotSelection && window.parent !== window)
                             window.parent.postMessage({ type: 'delong-booking-conflict' }, window.location.origin);

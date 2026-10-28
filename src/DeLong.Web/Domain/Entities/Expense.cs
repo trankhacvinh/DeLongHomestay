@@ -6,6 +6,10 @@ public sealed class Expense : EntityBase
 {
     public Guid PropertyId { get; set; }
     public Property Property { get; set; } = null!;
+    public Guid? RoomId { get; set; }
+    public Room? Room { get; set; }
+    public Guid? RequestKey { get; set; }
+    public string? RequestHash { get; set; }
 
     public DateTime OccurredAtUtc { get; set; } = DateTime.UtcNow;
     public string Category { get; set; } = string.Empty;

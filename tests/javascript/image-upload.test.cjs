@@ -15,13 +15,13 @@ function setup(width, height, encodedSize = 100) {
     };
     const document = { createElement: () => ({
         width: 0, height: 0,
-        getContext: () => ({ drawImage: (...args) => draws.push(args.slice(1)) }),
+        getContext: () => ({ fillRect() {}, drawImage: (...args) => draws.push(args.slice(1)) }),
         toBlob(callback, type, quality) {
             draws.push({ type, quality });
             callback(new Blob([new Uint8Array(encodedSize)], { type }));
         }
     }) };
-    vm.runInNewContext(source, { window, document, URL, File, FormData });
+    vm.runInNewContext(source, { window, document, URL, File, FormData, setTimeout, clearTimeout });
     return { prepare: window.DeLongImageUpload.prepareForm, draws, closed: () => closed };
 }
 

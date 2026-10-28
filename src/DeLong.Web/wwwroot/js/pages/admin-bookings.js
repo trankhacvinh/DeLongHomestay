@@ -5,6 +5,7 @@
     const initial = JSON.parse(document.getElementById('bookings-page-data').textContent || '{}');
     const { createApp } = Vue;
     const timeZone = initial.timeZoneId || 'Asia/Ho_Chi_Minh';
+    let todayTimer = null;
 
     function parseDateKey(key) {
         const [year, month, day] = String(key || '').split('-').map(Number);
@@ -53,6 +54,7 @@
             return {
                 propertyId: initial.propertyId,
                 bookings: initial.bookings || [],
+                todayDateKey: localDateKey(new Date()),
                 rooms: initial.rooms || [],
                 canManage: window.DeLongBookingsCanManage === true,
                 search: '',
@@ -83,6 +85,11 @@
             };
         },
         computed: {
+            createdTodayCount() {
+                return this.bookings.filter(booking => booking.createdAtUtc &&
+                    Number.isFinite(new Date(booking.createdAtUtc).getTime()) &&
+                    localDateKey(booking.createdAtUtc) === this.todayDateKey).length;
+            },
             filteredDebtSummary() {
                 const rows = this.filteredBookings.filter(booking => ![5, 6].includes(Number(booking.status)) && Number(booking.balanceAmount || 0) > 0);
                 return { count: rows.length, amount: rows.reduce((sum, booking) => sum + Number(booking.balanceAmount), 0) };
@@ -608,6 +615,12 @@
                 const timer = setTimeout(() => { this.toast.show = false; }, duration);
                 this.toast = { show: true, message: String(message || ''), type, timer };
             }
+        },
+        mounted() {
+            todayTimer = setInterval(() => { this.todayDateKey = localDateKey(new Date()); }, 60000);
+        },
+        beforeUnmount() {
+            if (todayTimer) clearInterval(todayTimer);
         }
     }).mixin(window.DeLongMoneyInput || {}).mixin(window.DeLongBookingHistory).mount(root);
 })();

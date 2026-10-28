@@ -2,6 +2,7 @@ using System.Text.Json;
 using DeLong.Web.Common.Operations;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
+using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.Site;
 using DeLong.Web.Features.Pricing;
@@ -27,6 +28,24 @@ public static class OperationsEndpoints
             .WithTags("Operations");
 
         admin.MapGet("/stream", StreamAsync);
+
+        admin.MapGet("/booking-time-suggestions/rooms/{roomId:guid}", async (
+            Guid propertyId, Guid roomId, string date, AppDbContext db, HttpContext context, CancellationToken ct) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var day) || day.Year is < 1900 or > 9998)
+                return Results.Problem(detail: "Ngày gợi ý không hợp lệ.", statusCode: 400);
+            try
+            {
+                var result = await new BookingTimeSuggestionService(db).GetAsync(propertyId, roomId, day, ct);
+                return result is null ? Results.NotFound() : Results.Ok(result);
+            }
+            catch (ArgumentException)
+            {
+                return Results.Problem(detail: "Ngày giờ không hợp lệ trong múi giờ chi nhánh.", statusCode: 400);
+            }
+        }).RequireAuthorization("ViewOperations");
 
         admin.MapGet("/availability/rooms/{roomId:guid}", async (
             Guid propertyId,

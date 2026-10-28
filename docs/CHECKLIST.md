@@ -115,3 +115,35 @@
 - Ưu tiên việc cùng giờ ít linh hoạt hơn, tránh trùng người và cùng phòng, đảm bảo đủ thời lượng trước nhận khách. Nếu không xếp được: giữ giờ gốc, báo cần phân công thủ công trên lịch và văn bản sao chép. Các việc ngoài giờ làm vẫn giữ và báo; không tự xóa việc ban đêm.
 - Migration `20261013013412_AddHousekeepingStaggerSettings` chỉ thêm cấu hình vào `properties`; không cập nhật booking/payment/khoảng khóa. Áp dụng migration trước deploy; bật tính năng sau khi xác nhận giờ làm việc.
 - Nghiệm thu: phòng khóa kết thúc 10:00 có thể dọn 10:00; kết thúc 10:30 không được chuyển sớm; khách còn ở, hết giờ làm, deadline ngắn, hai lao công, qua ngày, cấu hình tắt, không mất/trùng công việc và sao chép cảnh báo.
+
+## Kho chung và tiền mặt (1.8.15 — 27/10/2026)
+
+- [x] Tồn liên tháng, decimal, chống âm theo ngày lùi, xuất đồng thời, request key retry và hủy có lý do trên PostgreSQL test.
+- [x] Cash payment thu/hoàn, thu ngoài, expense có phòng/ghi chú; void loại khỏi tổng; không cộng chuyển khoản; Admin all/one và non-Admin scope.
+- [x] HTTP role/property/warehouse authorization và antiforgery; migration rehearsal bảo toàn khoản chi cũ; 20 .NET tests tập trung đạt.
+- [x] 4 JavaScript tests và 4 Chrome fixtures mobile/desktop đạt; Excel numeric và chống công thức từ nội dung nhập.
+- [ ] Publish/efbundle mới, backup và migration production trước khi chạy app; khởi tạo kho/gán quyền và UAT Home/iPhone thật. Không chạy Down xóa dữ liệu đã phát sinh. Xem [bàn giao](INVENTORY-CASH-2026-10-27.md).
+
+## Kho compact/import — 1.8.16 (28/10/2026)
+
+- [x] Tự sinh mã và giữ mã khi sửa; case/space dedup tên/ĐVT, import preview/commit và retry đồng thời không trùng tồn.
+- [x] Không import đè tồn đã phát sinh, không đổi quy cách/phiếu cũ; lỗi dòng chặn batch, stale/tampered token và quyền/CSRF được kiểm thử.
+- [x] 26 .NET tests, 5 JS tests, 8 Chrome cases ở 375/390/414/1280px; ảnh trước/sau và modal trong docs/qa.
+- [ ] Deploy cùng migration `20261028032715_AddInventoryImportReceipts`, UAT Files/Safari/iPhone và file thực. Xem [chi tiết](INVENTORY-IMPORT-COMPACT-2026-10-28.md).
+
+## Upload CCCD / khóa khung — 1.8.17
+
+- [x] Ảnh camera lớn resize ngay khi decode, EXIF, queue/encoder timeout và cleanup; preview không decode lại ảnh gốc. Upload tiến độ/idle timeout và retry không tạo booking mới.
+- [x] Hai scope khóa, qua đêm, xác nhận đơn trùng; mở một interval, giữ khóa khác, quyền chi nhánh/CSRF, request key/concurrency/audit.
+- [ ] Deploy/UAT thiết bị/mạng thật. Source contract QR cũ lỗi đối chiếu chuỗi được tách rõ, không thay đổi QR trong bản sửa này. Xem [bàn giao](MOBILE-IDENTITY-AND-ROOM-LOCKS-2026-10-28.md).
+
+## Giờ gợi ý booking Admin — 1.8.18
+
+- [x] Dropdown và form dùng giờ trả thực tế + thời lượng dọn của cơ sở; giữ giá/giờ kết thúc, xét khóa/qua đêm và không ghi đè giờ nhập tay.
+- [x] 22 .NET tests trên PostgreSQL test, 28 JS tests và Chrome fixtures 390/1280px đạt; không thêm migration.
+- [ ] Deploy và UAT điện thoại/dữ liệu thực. Xem [bàn giao](BOOKING-TIME-SUGGESTIONS-2026-10-28.md).
+
+## Lượt tạo hôm nay — 1.8.19
+
+- [x] Đếm theo ngày tạo/timezone chi nhánh, gồm mọi nguồn, độc lập bộ lọc; 9 JS tests và 2 Chrome fixtures đạt, build/test version đạt.
+- [ ] Deploy/UAT website và nhân viên tạo booking. Xem [bàn giao](BOOKING-CREATED-TODAY-2026-10-28.md).

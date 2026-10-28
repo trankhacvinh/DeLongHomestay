@@ -156,7 +156,7 @@ public sealed class OperationsAvailabilityIntegrationTests
             Assert.Equal(customer.Phone, afternoonOccupied.CustomerPhone);
             Assert.Equal(200_000m, afternoonOccupied.BalanceAmount);
             Assert.True(afternoonOccupied.HasSpecialRequest);
-            Assert.False(afternoonOccupied.IsFlexibleTime);
+            Assert.True(afternoonOccupied.IsFlexibleTime);
             Assert.False(afternoonOccupied.IsMixedSlot);
             var afternoonFree = Assert.Single(afternoon.Free);
             Assert.Equal(ToUtc(targetDate, new TimeOnly(14, 0), timeZone), afternoonFree.StartUtc);

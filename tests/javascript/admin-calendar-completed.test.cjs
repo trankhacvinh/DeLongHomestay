@@ -60,3 +60,13 @@ test('configured mixed and checked-in colors are used, with debt and notes retai
     assert.equal(configured({ isMixedSlot: true, hasSpecialRequest: true }).color, '#F34DFF');
     assert.equal(configured({ isMixedSlot: true, isFlexibleTime: true }).color, '#FAFE01');
 });
+
+test('history overlay respects server classification even when old rate metadata disagrees', () => {
+    const base = { id: 'old', roomId: 'r', type: 0, status: 4, roomRateId: 'first-preset', rateSegmentCount: 0,
+        checkInUtc: '2026-10-26T03:30:00Z', checkOutUtc: '2026-10-26T10:00:00Z', isFlexibleTime: false, isMixedSlot: true };
+    const history = new Function('vm', 'currentRoom', `${historySource}; return completedBookingsForSlot;`)(
+        () => ({ bookings: [base] }), () => ({ id: 'r' }));
+    const row = history({ startUtc: base.checkInUtc, endUtc: base.checkOutUtc, occupied: [] })[0];
+    assert.equal(row.isMixedSlot, true);
+    assert.equal(row.isFlexibleTime, false);
+});

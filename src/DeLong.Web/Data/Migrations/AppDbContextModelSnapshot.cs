@@ -1257,6 +1257,99 @@ namespace DeLong.Web.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.CashReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsVoided")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_voided");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("note");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at_utc");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<Guid?>("RecordedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recorded_by_user_id");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<Guid>("RequestKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_key");
+
+                    b.Property<Guid?>("RoomId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("room_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<string>("VoidReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("void_reason");
+
+                    b.Property<DateTime?>("VoidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("voided_at_utc");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voided_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_cash_receipts");
+
+                    b.HasIndex("RoomId")
+                        .HasDatabaseName("i_x_cash_receipts_room_id");
+
+                    b.HasIndex("PropertyId", "OccurredAtUtc")
+                        .HasDatabaseName("i_x_cash_receipts_property_id_occurred_at_utc");
+
+                    b.HasIndex("PropertyId", "RequestKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_cash_receipts_property_id_request_key");
+
+                    b.ToTable("cash_receipts", t =>
+                        {
+                            t.HasCheckConstraint("ck_cash_receipt_amount", "amount > 0");
+                        });
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Customer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1654,6 +1747,19 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("reference");
 
+                    b.Property<string>("RequestHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<Guid?>("RequestKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_key");
+
+                    b.Property<Guid?>("RoomId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("room_id");
+
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at_utc");
@@ -1679,8 +1785,15 @@ namespace DeLong.Web.Data.Migrations
                     b.HasKey("Id")
                         .HasName("p_k_expenses");
 
+                    b.HasIndex("RoomId")
+                        .HasDatabaseName("i_x_expenses_room_id");
+
                     b.HasIndex("PropertyId", "OccurredAtUtc")
                         .HasDatabaseName("i_x_expenses_property_id_occurred_at_utc");
+
+                    b.HasIndex("PropertyId", "RequestKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_expenses_property_id_request_key");
 
                     b.ToTable("expenses");
                 });
@@ -1831,6 +1944,370 @@ namespace DeLong.Web.Data.Migrations
                         .HasDatabaseName("i_x_home_section_property_id_sort_order");
 
                     b.ToTable("home_section");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<bool>("IsVoided")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_voided");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("note");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at_utc");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<Guid?>("RecipientPropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recipient_property_id");
+
+                    b.Property<Guid?>("RecordedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recorded_by_user_id");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<Guid>("RequestKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_key");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<string>("VoidReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("void_reason");
+
+                    b.Property<DateTime?>("VoidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("voided_at_utc");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voided_by_user_id");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_inventory_documents");
+
+                    b.HasIndex("RecipientPropertyId")
+                        .HasDatabaseName("i_x_inventory_documents_recipient_property_id");
+
+                    b.HasIndex("WarehouseId", "OccurredAtUtc")
+                        .HasDatabaseName("i_x_inventory_documents_warehouse_id_occurred_at_utc");
+
+                    b.HasIndex("WarehouseId", "RequestKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_inventory_documents_warehouse_id_request_key");
+
+                    b.ToTable("inventory_documents", t =>
+                        {
+                            t.HasCheckConstraint("ck_inventory_document_recipient", "(type = 2 AND recipient_property_id IS NOT NULL) OR (type <> 2 AND recipient_property_id IS NULL)");
+
+                            t.HasCheckConstraint("ck_inventory_document_type", "type BETWEEN 0 AND 4");
+                        });
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryDocumentLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("item_name");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("UnitName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("unit_name");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_inventory_document_lines");
+
+                    b.HasIndex("ItemId")
+                        .HasDatabaseName("i_x_inventory_document_lines_item_id");
+
+                    b.HasIndex("DocumentId", "ItemId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_inventory_document_lines_document_id_item_id");
+
+                    b.ToTable("inventory_document_lines", t =>
+                        {
+                            t.HasCheckConstraint("ck_inventory_line_values", "quantity > 0 AND unit_price >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryImport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<Guid>("RequestKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_key");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("result_json");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_inventory_imports");
+
+                    b.HasIndex("WarehouseId", "RequestKey")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_inventory_imports_warehouse_id_request_key");
+
+                    b.ToTable("inventory_imports");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<decimal>("ReferencePrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("reference_price");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("unit_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_inventory_items");
+
+                    b.HasIndex("UnitId")
+                        .HasDatabaseName("i_x_inventory_items_unit_id");
+
+                    b.HasIndex("WarehouseId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_inventory_items_warehouse_id_code");
+
+                    b.ToTable("inventory_items", t =>
+                        {
+                            t.HasCheckConstraint("ck_inventory_item_price", "reference_price >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryUnit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("normalized_name");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_inventory_units");
+
+                    b.HasIndex("WarehouseId", "NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_inventory_units_warehouse_id_normalized_name");
+
+                    b.ToTable("inventory_units");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryWarehouse", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_inventory_warehouses");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_inventory_warehouses_code");
+
+                    b.HasIndex("PropertyId")
+                        .HasDatabaseName("i_x_inventory_warehouses_property_id");
+
+                    b.ToTable("inventory_warehouses");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.LoyaltyLedgerEntry", b =>
@@ -5216,6 +5693,26 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("RoomRate");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.CashReceipt", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_cash_receipts_properties_property_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Room", "Room")
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_cash_receipts_rooms_room_id");
+
+                    b.Navigation("Property");
+
+                    b.Navigation("Room");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Customer", b =>
                 {
                     b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
@@ -5312,7 +5809,15 @@ namespace DeLong.Web.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("f_k_expenses_properties_property_id");
 
+                    b.HasOne("DeLong.Web.Domain.Entities.Room", "Room")
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_expenses_rooms_room_id");
+
                     b.Navigation("Property");
+
+                    b.Navigation("Room");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.HomeSection", b =>
@@ -5322,6 +5827,104 @@ namespace DeLong.Web.Data.Migrations
                         .HasForeignKey("PropertyId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("f_k_home_section_properties_property_id");
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryDocument", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "RecipientProperty")
+                        .WithMany()
+                        .HasForeignKey("RecipientPropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("f_k_inventory_documents_properties_recipient_property_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.InventoryWarehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_inventory_documents_inventory_warehouses_warehouse_id");
+
+                    b.Navigation("RecipientProperty");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryDocumentLine", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.InventoryDocument", "Document")
+                        .WithMany("Lines")
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_inventory_document_lines_inventory_documents_document_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.InventoryItem", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_inventory_document_lines_inventory_items_item_id");
+
+                    b.Navigation("Document");
+
+                    b.Navigation("Item");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryImport", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.InventoryWarehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_inventory_imports_inventory_warehouses_warehouse_id");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryItem", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.InventoryUnit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_inventory_items_inventory_units_unit_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.InventoryWarehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_inventory_items_inventory_warehouses_warehouse_id");
+
+                    b.Navigation("Unit");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryUnit", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.InventoryWarehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_inventory_units_inventory_warehouses_warehouse_id");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryWarehouse", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_inventory_warehouses_properties_property_id");
 
                     b.Navigation("Property");
                 });
@@ -6000,6 +6603,11 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("RateSegments");
 
                     b.Navigation("VoucherRedemption");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.InventoryDocument", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.Property", b =>

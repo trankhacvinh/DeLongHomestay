@@ -35,6 +35,7 @@
             <label>Đến ngày nhận phòng<input type="date" v-model="dateTo" v-bind:min="dateFrom || undefined" /></label>
             <button class="btn btn-light" type="button" v-on:click="dateFrom = ''; dateTo = ''">Tất cả thời gian</button>
             <div role="status"><strong>{{ filteredDebtSummary.count }} booking còn nợ · {{ money(filteredDebtSummary.amount) }}</strong><small>Theo bộ lọc hiện tại; không tính đơn hủy/không đến. Lọc theo ngày nhận phòng.</small></div>
+            <div role="status" data-booking-created-today><strong>Hôm nay tạo mới: {{ createdTodayCount }} lượt đặt</strong><small>Gồm khách tự đặt và nhân viên tạo, kể cả đơn đã hủy. Tính theo ngày tạo, không phụ thuộc bộ lọc.</small></div>
             <p class="text-danger" v-if="dateFrom && dateTo && dateFrom > dateTo">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>
         </div>
         <div class="entity-toolbar booking-toolbar">

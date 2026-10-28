@@ -35,7 +35,9 @@ public sealed record BookingDto(
     string? Note,
     int RateSegmentCount,
     DateTime CreatedAtUtc,
-    string? DisplayColor = null);
+    string? DisplayColor = null,
+    bool? IsFlexibleTime = null,
+    bool? IsMixedSlot = null);
 
 public sealed class CreateBookingRequest
 {

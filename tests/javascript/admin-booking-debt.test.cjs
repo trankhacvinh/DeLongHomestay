@@ -43,3 +43,13 @@ test('V1 uses the same debt-first and configured-color rules as V2',()=>{
     assert.equal(a.bookingVisual({status:4,balanceAmount:0,displayColor:'#ABCDEF'}).color,'#ABCDEF');
     assert.equal(a.bookingVisual({status:4,balanceAmount:0}).color,'#112233');
 });
+
+test('V1 follows actual-time classification for stale preset IDs and missing segments',()=>{
+    const calendar=fs.readFileSync('src/DeLong.Web/wwwroot/js/pages/admin-calendar.js','utf8');
+    const block=calendar.slice(calendar.indexOf('            bookingVisual(booking)'),calendar.indexOf('            bookingStyle('));
+    const methods=new Function(`return ({${block}});`)();
+    const a={calendarColors:{flexibleTimeColor:'#FAFE01',mixedSlotColor:'#945600',confirmedColor:'#FFA55F'},...methods};
+    assert.equal(a.bookingVisual({status:2,type:0,roomRateId:'old',rateSegmentCount:0,isFlexibleTime:true,isMixedSlot:false}).color,'#FAFE01');
+    assert.equal(a.bookingVisual({status:2,type:0,roomRateId:null,rateSegmentCount:0,isFlexibleTime:false,isMixedSlot:true}).color,'#945600');
+    assert.equal(a.bookingVisual({status:2,type:0,roomRateId:null,rateSegmentCount:0,isFlexibleTime:false,isMixedSlot:false}).color,'#FFA55F');
+});

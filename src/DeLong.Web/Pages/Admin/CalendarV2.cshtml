@@ -70,11 +70,11 @@
                             <label>Mức giá</label>
                             <select v-model="form.rateId" v-on:change="applyRate">
                                 <option value="">Tùy chỉnh giờ/giá</option>
-                                <option v-for="rate in selectedRoomRates" v-bind:key="rate.id" v-bind:value="rate.id">{{ rate.name }} · {{ rate.startTime }}–{{ rate.endTime }} · {{ money(rate.price) }}</option>
-                            </select>
+                                <option v-for="rate in selectedRoomRateOptions" v-bind:key="rate.id" v-bind:value="rate.id" v-bind:disabled="rate.unavailable">{{ rate.name }} · {{ rate.unavailable ? 'Không còn khoảng trống' : rate.labelStart+'–'+rate.labelEnd }} · {{ money(rate.price) }}</option>
+                            </select><small v-if="editor.mode==='create' && rateSuggestions.loading" role="status">Đang cập nhật giờ trống…</small><small v-if="editor.mode==='create' && rateSuggestions.error" role="alert">{{ rateSuggestions.error }} <button type="button" class="btn btn-light btn-sm" v-on:click="loadRateSuggestions">Thử lại</button></small>
                         </div>
-                        <div class="field"><label>Nhận phòng *</label><input type="datetime-local" v-model="form.checkInLocal" /></div>
-                        <div class="field"><label>Trả phòng *</label><input type="datetime-local" v-model="form.checkOutLocal" /></div>
+                        <div class="field"><label>Nhận phòng *</label><input type="datetime-local" v-model="form.checkInLocal" v-on:change="bookingTimeChanged" /></div>
+                        <div class="field"><label>Trả phòng *</label><input type="datetime-local" v-model="form.checkOutLocal" v-on:change="bookingTimeChanged" /></div>
                     </div>
                 </section>
 
@@ -132,7 +132,7 @@
                 <div class="modal-actions">
                     @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                     {
-                        <button v-if="editor.mode === 'create'" class="btn btn-light" type="button" v-bind:disabled="saving || !form.roomId" v-on:click="openQuickBlock">Khóa phòng</button>
+                        <button v-if="editor.mode === 'create' && canLockRooms" class="btn btn-light" type="button" v-bind:disabled="saving || !form.roomId" v-on:click="openQuickBlock">Khóa phòng</button>
                     }
                     <button class="btn btn-light" type="button" v-on:click="closeEditor">Hủy</button>
                     <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveBooking">{{ saving ? 'Đang lưu...' : (editor.mode === 'edit' ? 'Lưu thay đổi' : 'Lưu lượt đặt') }}</button>
@@ -193,10 +193,14 @@
         <section class="modal-card modal-small" role="dialog" aria-modal="true" aria-labelledby="quick-block-title">
             <div class="modal-head"><h2 id="quick-block-title">Khóa phòng nhanh</h2><button class="icon-btn" type="button" v-on:click="closeQuickBlock" aria-label="Đóng">×</button></div>
             <div class="booking-form-section">
-            <p>Khóa nhận đơn mới ngay, đến khi nhân viên mở khóa. Các đơn đã tạo vẫn được giữ nguyên.</p>
+            <div class="quick-lock-options" role="group" aria-label="Phạm vi khóa">
+                <label><input type="radio" v-model="quickBlock.scope" value="slot" v-on:change="resetQuickBlockConflicts" /><span><strong>Khóa khung đang chọn</strong><small>{{ dateTimeText(quickBlock.start) }} → {{ dateTimeText(quickBlock.end) }}</small></span></label>
+                <label><input type="radio" v-model="quickBlock.scope" value="room" v-on:change="resetQuickBlockConflicts" /><span><strong>Khóa toàn phòng</strong><small>Đến khi nhân viên mở lại</small></span></label>
+            </div>
             <div class="field"><label>Phòng</label><select v-model="quickBlock.roomId" v-on:change="resetQuickBlockConflicts"><option v-for="room in activeRooms" v-bind:key="room.id" v-bind:value="room.id">{{ room.name }}</option></select></div>
             <div class="field"><label>Lý do khóa *</label><textarea v-model="quickBlock.reason" maxlength="500" rows="3" v-on:input="resetQuickBlockConflicts"></textarea></div>
             <div class="notice" v-if="quickBlock.error" role="alert">{{ quickBlock.error }}</div>
+            <div v-if="quickBlock.conflicts.length"><ul><li v-for="booking in quickBlock.conflicts" v-bind:key="booking.id">{{ booking.code }} · {{ booking.roomName }} · {{ dateTimeText(booking.checkInUtc) }} → {{ dateTimeText(booking.checkOutUtc) }}</li></ul><label class="check-row"><input type="checkbox" v-model="quickBlock.acknowledged" /><span>Đã kiểm tra các đơn trùng. Giữ nguyên booking và thanh toán.</span></label></div>
             </div>
             <div class="modal-actions"><button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="closeQuickBlock">Quay lại</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveQuickBlock">{{ saving ? 'Đang khóa...' : 'Khóa phòng' }}</button></div>
         </section>

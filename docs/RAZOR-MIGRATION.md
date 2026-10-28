@@ -1,5 +1,14 @@
 # Mapping Demo → Production Razor Pages
 
+## Kho và tiền mặt — 1.8.15
+
+- Bản 1.8.16 cần thêm migration `20261028032715_AddInventoryImportReceipts` sau migration kho ban đầu, lưu kết quả import để retry an toàn. Không có data backfill. Xem [chi tiết](INVENTORY-IMPORT-COMPACT-2026-10-28.md).
+
+- Hai Razor Pages `/Admin/Inventory`, `/Admin/Cash` render dữ liệu ban đầu ngoài Vue root; Vue chỉ quản lý phạm vi trang. API mutation có authorization, kiểm tra quyền chi nhánh/kho và antiforgery; không thêm dependency.
+- Cần migration `20261027162525_AddSharedInventoryAndCash` trước khi chạy bản mới. Migration chỉ thêm schema, không tự khởi tạo kho hoặc nhập Excel. Admin khởi tạo kho và chọn chi nhánh quản lý trong giao diện.
+- Bảng mới: `inventory_warehouses`, `inventory_units`, `inventory_items`, `inventory_documents`, `inventory_document_lines`, `cash_receipts`. Thêm 3 cột nullable cho `expenses`: `room_id`, `request_key`, `request_hash`. Khi rollback ứng dụng sau khi đã có nghiệp vụ mới, giữ schema/dữ liệu; không chạy Down để xóa bảng.
+- Đã rehearsal trên PostgreSQL UTF-8 riêng: migrate schema cũ, chèn khoản chi cũ, migrate bản mới hai lần và xác nhận giữ tiền/phòng rỗng; không có pending model change. Production migration/deploy/UAT chưa thực hiện.
+
 ## Pay2S payment boundary
 
 - Razor/Vue chỉ khởi tạo phiên và hiển thị/điều hướng trạng thái; Pay2S IPN là nguồn sự thật thanh toán.

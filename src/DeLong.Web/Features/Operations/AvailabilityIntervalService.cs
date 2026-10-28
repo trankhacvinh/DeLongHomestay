@@ -5,6 +5,7 @@ using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.Site;
 using DeLong.Web.Features.Pricing;
 using Microsoft.EntityFrameworkCore;
+using DeLong.Web.Features.Bookings;
 
 namespace DeLong.Web.Features.Operations;
 
@@ -200,6 +201,9 @@ public sealed class AvailabilityIntervalService(
         if (room is null) return null;
 
         var calendar = await BuildAsync(propertyId, roomId, property.TimeZoneId, from, days, 0, cancellationToken);
+        var bookingIds = calendar.SelectMany(day => day.Slots).SelectMany(slot => slot.Projection.Occupied)
+            .Where(x => !x.IsRoomBlock).Select(x => x.BookingId).Distinct().ToArray();
+        var displays = await BookingScheduleDisplay.LoadAsync(db, propertyId, bookingIds, cancellationToken);
         return new AdminRoomAvailabilityDto(
             propertyId, room.Id, room.Code, room.Name, property.TimeZoneId, from, days,
             calendar.Select(day => new AdminAvailabilityDayDto(
@@ -209,7 +213,10 @@ public sealed class AvailabilityIntervalService(
                     slot.StartUtc, slot.EndUtc, slot.Projection.State, slot.Projection.OccupiedRatio,
                     slot.Projection.Occupied.Select(x => new AdminAvailabilityOccupancyDto(
                         x.BookingId, x.Status, x.StartUtc, x.EndUtc, x.CustomerName, x.CustomerPhone,
-                        x.BalanceAmount, x.HasSpecialRequest, x.IsFlexibleTime, x.IsMixedSlot, x.IsRoomBlock, x.BlockReason, x.DisplayColor)).ToList(),
+                        x.BalanceAmount, x.HasSpecialRequest,
+                        displays.GetValueOrDefault(x.BookingId)?.IsFlexibleTime ?? x.IsFlexibleTime,
+                        displays.GetValueOrDefault(x.BookingId)?.IsMixedSlot ?? x.IsMixedSlot,
+                        x.IsRoomBlock, x.BlockReason, x.DisplayColor)).ToList(),
                     slot.Projection.Free)).ToList())).ToList(), room.IsBookingLocked, room.BookingLockReason, room.BookingLockedAtUtc, room.BookingLockedByName);
     }
 

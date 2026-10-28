@@ -111,6 +111,18 @@ public sealed class RoomBookingLockApiTests
         Assert.Equal(HttpStatusCode.BadRequest, await Schedule("Manager", property.Id, room.Id, false));
         foreach (var role in new[] { "Manager", "Admin" })
             Assert.Equal(HttpStatusCode.OK, await Schedule(role, property.Id, room.Id));
+        var intervalId=await db.RoomBookingBlocks.AsNoTracking().Where(x=>x.PropertyId==property.Id).Select(x=>x.Id).FirstAsync();
+        async Task<HttpStatusCode> UnlockInterval(string role,Guid branchId,bool csrf=true){
+            client.DefaultRequestHeaders.Remove("X-Fixture-Role");if(role!="")client.DefaultRequestHeaders.Add("X-Fixture-Role",role);
+            client.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");if(csrf)client.DefaultRequestHeaders.Add("X-CSRF-TOKEN",await client.GetFromJsonAsync<string>("/csrf"));
+            using var response=await client.PostAsJsonAsync($"/api/admin/properties/{branchId}/room-blocks/intervals/{intervalId}/end",new{});return response.StatusCode;
+        }
+        Assert.Equal(HttpStatusCode.Unauthorized,await UnlockInterval("",property.Id,false));
+        foreach(var role in new[]{"Staff","Media","Viewer"})Assert.Equal(HttpStatusCode.Forbidden,await UnlockInterval(role,property.Id));
+        Assert.Equal(HttpStatusCode.Forbidden,await UnlockInterval("Manager",other.Id));
+        Assert.Equal(HttpStatusCode.BadRequest,await UnlockInterval("Manager",property.Id,false));
+        Assert.Equal(HttpStatusCode.OK,await UnlockInterval("Manager",property.Id));
+        Assert.Equal(HttpStatusCode.OK,await UnlockInterval("Manager",property.Id));
         db.ChangeTracker.Clear();
         Assert.True((await db.Rooms.SingleAsync(x => x.Id == room.Id)).IsBookingLocked);
         Assert.False((await db.Rooms.SingleAsync(x => x.Id == otherRoom.Id)).IsBookingLocked);

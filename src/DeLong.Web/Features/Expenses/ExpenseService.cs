@@ -1,10 +1,13 @@
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using DeLong.Web.Common.Persistence;
+using DeLong.Web.Domain.Enums;
+using DeLong.Web.Common.Auditing;
 
 namespace DeLong.Web.Features.Expenses;
 
-public sealed class ExpenseService(AppDbContext db)
+public sealed class ExpenseService(AppDbContext db, AuditService? audit = null)
 {
     public async Task<IReadOnlyList<ExpenseDto>> GetAllAsync(
         Guid propertyId,
@@ -39,10 +42,23 @@ public sealed class ExpenseService(AppDbContext db)
     {
         var validation = Validate(request);
         if (validation is not null) return (null, validation);
+        if (request.RoomId.HasValue && !await db.Rooms.AsNoTracking().AnyAsync(x => x.Id == request.RoomId && x.PropertyId == propertyId, cancellationToken))
+            return (null, new("validation", "Phòng không thuộc chi nhánh."));
+        if (request.RequestKey == Guid.Empty) return (null, new("validation", "Mã gửi lại không hợp lệ."));
+        await using var transaction = request.RequestKey.HasValue ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
+        var hash = request.RequestKey.HasValue ? RequestFingerprint.Create(request) : null;
+        if (request.RequestKey.HasValue) {
+            await RequestFingerprint.LockAsync(db, $"expense:{propertyId}:{request.RequestKey}", cancellationToken);
+            var previous = await db.Expenses.AsNoTracking().SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.RequestKey == request.RequestKey, cancellationToken);
+            if (previous is not null) return previous.RequestHash == hash ? (ToDto(previous), null) : (null, new("retry_conflict", "Mã gửi lại đã dùng cho nội dung khác."));
+        }
 
         var expense = new Expense
         {
             PropertyId = propertyId,
+            RoomId = request.RoomId,
+            RequestKey = request.RequestKey,
+            RequestHash = hash,
             OccurredAtUtc = request.OccurredAt?.UtcDateTime ?? DateTime.UtcNow,
             Category = request.Category.Trim(),
             Description = request.Description.Trim(),
@@ -55,7 +71,10 @@ public sealed class ExpenseService(AppDbContext db)
         };
 
         db.Expenses.Add(expense);
+        (audit ?? new AuditService(db)).Add(propertyId, "Expense", expense.Id, "Created", actorUserId,
+            after: new { expense.OccurredAtUtc, expense.Amount, expense.Method, expense.RoomId, expense.Category, expense.Description, expense.Note });
         await db.SaveChangesAsync(cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         return (ToDto(expense), null);
     }
 
@@ -66,9 +85,11 @@ public sealed class ExpenseService(AppDbContext db)
         Guid? actorUserId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(reason))
+        if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length > 1000)
             return (null, new("validation", "Cần nhập lý do void khoản chi."));
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await RequestFingerprint.LockAsync(db, $"expense-void:{propertyId}:{expenseId}", cancellationToken);
         var expense = await db.Expenses.SingleOrDefaultAsync(
             x => x.PropertyId == propertyId && x.Id == expenseId,
             cancellationToken);
@@ -79,12 +100,16 @@ public sealed class ExpenseService(AppDbContext db)
         expense.VoidedAtUtc = DateTime.UtcNow;
         expense.VoidedByUserId = actorUserId;
         expense.VoidReason = reason.Trim();
+        (audit ?? new AuditService(db)).Add(propertyId, "Expense", expense.Id, "Voided", actorUserId, after: new { expense.VoidReason });
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return (ToDto(expense), null);
     }
 
     private static ExpenseOperationError? Validate(CreateExpenseRequest request)
     {
+        if (!Enum.IsDefined(request.Method) || decimal.Round(request.Amount, 2) != request.Amount) return new("validation", "Phương thức hoặc số tiền không hợp lệ (tối đa 2 chữ số lẻ).");
+        if (request.Note?.Length > 2000 || request.Reference?.Length > 200 || request.Vendor?.Length > 200) return new("validation", "Nội dung ghi chú/tham chiếu vượt giới hạn.");
         if (string.IsNullOrWhiteSpace(request.Category)) return new("validation", "Nhóm chi phí là bắt buộc.");
         if (request.Category.Trim().Length > 100) return new("validation", "Nhóm chi phí tối đa 100 ký tự.");
         if (string.IsNullOrWhiteSpace(request.Description)) return new("validation", "Nội dung chi phí là bắt buộc.");
@@ -97,7 +122,7 @@ public sealed class ExpenseService(AppDbContext db)
     private static ExpenseDto ToDto(Expense x) => new(
         x.Id, x.PropertyId, x.OccurredAtUtc, x.Category, x.Description, x.Amount, x.Method,
         x.Vendor, x.Reference, x.Note, x.RecordedByUserId, x.IsVoided,
-        x.VoidedAtUtc, x.VoidedByUserId, x.VoidReason);
+        x.VoidedAtUtc, x.VoidedByUserId, x.VoidReason, x.RoomId);
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

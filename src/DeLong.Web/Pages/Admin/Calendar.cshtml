@@ -209,11 +209,11 @@
                             <label>Mức giá</label>
                             <select v-model="form.rateId" v-on:change="applyRate">
                                 <option value="">Tùy chỉnh giờ/giá</option>
-                                <option v-for="rate in selectedRoomRates" v-bind:key="rate.id" v-bind:value="rate.id">{{ rate.name }} · {{ rate.startTime }}–{{ rate.endTime }} · {{ money(rate.price) }}<template v-if="rate.type === 2">/đêm</template></option>
-                            </select>
+                                <option v-for="rate in selectedRoomRateOptions" v-bind:key="rate.id" v-bind:value="rate.id" v-bind:disabled="rate.unavailable">{{ rate.name }} · {{ rate.unavailable ? 'Không còn khoảng trống' : rate.labelStart+'–'+rate.labelEnd }} · {{ money(rate.price) }}<template v-if="rate.type === 2">/đêm</template></option>
+                            </select><small v-if="editor.mode==='create' && rateSuggestions.loading" role="status">Đang cập nhật giờ trống…</small><small v-if="editor.mode==='create' && rateSuggestions.error" role="alert">{{ rateSuggestions.error }} <button type="button" class="btn btn-light btn-sm" v-on:click="loadRateSuggestions">Thử lại</button></small>
                         </div>
-                        <div class="field"><label>Nhận phòng *</label><input type="datetime-local" v-model="form.checkInLocal" /></div>
-                        <div class="field"><label>Trả phòng *</label><input type="datetime-local" v-model="form.checkOutLocal" /></div>
+                        <div class="field"><label>Nhận phòng *</label><input type="datetime-local" v-model="form.checkInLocal" v-on:change="bookingTimeChanged" /></div>
+                        <div class="field"><label>Trả phòng *</label><input type="datetime-local" v-model="form.checkOutLocal" v-on:change="bookingTimeChanged" /></div>
                     </div>
                 </section>
 

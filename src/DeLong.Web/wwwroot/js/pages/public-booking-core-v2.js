@@ -234,29 +234,35 @@
     }
 
     function setDocument(side, file, card) {
+        const oldFile=state[side];
+        if(oldFile&&oldFile!==file&&!['front','back','secondFront','secondBack'].some(key=>key!==side&&state[key]===oldFile))window.DeLongImageUpload.discardFile?.(oldFile);
         revokePreview(side);
         state[side] = file || null;
-        if (file) {
-            const uploadSide = side.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
-            window.DeLongImageUpload.prepareFile(`/api/public/booking-requests/prepare/identity-documents/${uploadSide}`, file)
-                .catch(() => {}); // Upload retries preparation and reports errors through the booking form.
-        }
         const preview = card.querySelector('img');
         const empty = card.querySelector('.booking-id-empty');
         const remove = card.querySelector('[data-remove-id]');
+        const message = card.querySelector('[data-id-message]');
+        const version = String(Number(card.dataset.fileVersion || 0) + 1);
+        card.dataset.fileVersion = version;
+        preview.removeAttribute('src'); preview.hidden = true;
         if (file) {
-            const key = `${side}Url`;
-            state[key] = URL.createObjectURL(file);
-            preview.src = state[key];
-            preview.hidden = false;
-            empty.hidden = true;
+            empty.hidden = false;
             remove.hidden = false;
-            card.classList.add('has-image');
+            message.hidden = false; message.textContent = 'Đang xử lý ảnh…'; message.classList.remove('is-error');
+            const uploadSide = side.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+            window.DeLongImageUpload.prepareFile(`/api/public/booking-requests/prepare/identity-documents/${uploadSide}`, file).then(prepared => {
+                if (card.dataset.fileVersion !== version || state[side] !== file) return;
+                const key = `${side}Url`; state[key] = URL.createObjectURL(prepared);
+                preview.src = state[key]; preview.hidden = false; empty.hidden = true;
+                message.hidden = true; card.classList.add('has-image');
+            }).catch(error => {
+                if (card.dataset.fileVersion !== version) return;
+                message.hidden = false; message.textContent = error.message || 'Không thể xử lý ảnh. Vui lòng chọn lại.'; message.classList.add('is-error');
+            });
         } else {
-            preview.removeAttribute('src');
-            preview.hidden = true;
             empty.hidden = false;
             remove.hidden = true;
+            message.hidden = true;
             card.classList.remove('has-image');
         }
     }
@@ -275,6 +281,7 @@
                 <button type="button" data-capture-id><span aria-hidden="true">⌾</span> Chụp ảnh</button>
                 <button type="button" data-browse-id><span aria-hidden="true">▧</span> Chọn ảnh</button>
             </div>
+            <p class="booking-id-message" data-id-message role="status" aria-live="polite" hidden></p>
             <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" data-camera-input hidden />
             <input type="file" accept="image/jpeg,image/png,image/webp" data-library-input hidden />`;
         const cameraInput = card.querySelector('[data-camera-input]');
@@ -495,8 +502,9 @@
 
     async function withBookingTimeout(action) {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 120000);
-        try { return await action(controller.signal); }
+        let timer;
+        const timeout = new Promise((_, reject) => { timer = setTimeout(() => { controller.abort(); const error = new Error('timeout'); error.name = 'AbortError'; reject(error); }, 120000); });
+        try { return await Promise.race([action(controller.signal), timeout]); }
         catch (error) {
             if (error.name === 'AbortError')
                 throw new Error('Yêu cầu mất quá nhiều thời gian. Vui lòng kiểm tra mạng rồi bấm gửi lại; hệ thống sẽ dùng lại lượt đặt hiện tại.');
@@ -508,34 +516,36 @@
 
     async function uploadIdentity(bookingId, side, file, requestKey) {
         const uploaded = uploadedIdentityFiles.get(bookingId) || new Map();
+        uploadedIdentityFiles.set(bookingId, uploaded);
         if (uploaded.get(side) === file) return;
         const query = siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : '';
         const prepared = await window.DeLongImageUpload.prepareFile(`/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`, file);
         const form = new FormData();
         form.append('file', prepared, prepared.name || `${side}.jpg`);
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-        const response = await withBookingTimeout(signal => fetch(`/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf, 'Idempotency-Key': requestKey },
-            body: form, signal
-        }));
-        if (response.ok) {
-            uploaded.set(side, file);
-            uploadedIdentityFiles.set(bookingId, uploaded);
-            return;
-        }
-        let message = 'Không thể tải ảnh CCCD.';
+        const label = { front:'mặt trước',back:'mặt sau','second-front':'mặt trước người thứ hai','second-back':'mặt sau người thứ hai' }[side];
         try {
-            const payload = await response.json();
-            const firstValidation = payload?.errors && typeof payload.errors === 'object'
-                ? Object.values(payload.errors).flat().find(value => typeof value === 'string' && value.trim())
-                : null;
-            message = payload.detail || firstValidation || payload.title || message;
-        } catch { }
-        const error = new Error(`Lượt đặt đã được tạo nhưng ${message} Bấm gửi lại để hệ thống thử tải ảnh lần nữa.`);
-        error.identityUploadFailed = true;
-        throw error;
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest(); let idle; let finished = false;
+                const done = (error) => { if(finished)return;finished=true;clearTimeout(idle);xhr.upload.onprogress=null;error?reject(error):resolve(); };
+                const touch = () => { clearTimeout(idle);idle=setTimeout(()=>{done(new Error('Tải ảnh không có tiến triển. Kiểm tra kết nối và bấm gửi lại.'));xhr.abort();},30000); };
+                xhr.open('POST', `/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`);
+                xhr.withCredentials = true; xhr.timeout = 90000;
+                xhr.setRequestHeader('Accept','application/json');xhr.setRequestHeader('X-CSRF-TOKEN',csrf);xhr.setRequestHeader('Idempotency-Key',requestKey);
+                xhr.upload.onprogress = event => { touch();setProgress(event.lengthComputable && event.total>0 ? `Đang tải CCCD ${label}… ${Math.round(event.loaded/event.total*100)}%` : `Đang tải CCCD ${label}…`); };
+                xhr.upload.onload = () => {touch();setProgress(`Đang lưu CCCD ${label} bảo mật…`);};
+                xhr.onload = () => {
+                    let payload;try{payload=JSON.parse(xhr.responseText);}catch{}
+                    if(xhr.status>=200 && xhr.status<300 && payload?.side===side){done();return;}
+                    const error=new Error(payload?.detail||payload?.title||'Không thể lưu ảnh CCCD.');error.status=xhr.status;done(error);
+                };
+                xhr.onerror=()=>done(new Error('Mất kết nối khi tải ảnh CCCD.'));
+                xhr.ontimeout=()=>done(new Error('Tải ảnh mất quá nhiều thời gian. Kiểm tra kết nối và bấm gửi lại.'));
+                xhr.onabort=()=>done(new Error('Tải ảnh bị gián đoạn.'));
+                setProgress(`Đang tải CCCD ${label}…`);touch();xhr.send(form);
+            });
+            uploaded.set(side, file);
+        } catch(error){error.identityUploadFailed=true;throw error;}
     }
 
     function wrapBookingPost() {
@@ -547,8 +557,17 @@
 
             const validation = validateExtraFields();
             if (validation) throw new Error(validation);
+            const controls=[...root.querySelectorAll('[data-booking-v2-fields] input, [data-booking-v2-fields] button, [data-booking-customer-name], [data-booking-customer-phone]')].map(element=>({element,disabled:element.disabled}));
+            for(const item of controls)item.element.disabled=true;
             setProgress('Đang lưu thông tin đặt phòng…');
             try {
+                const selectedDocuments = [['front',state.front],['back',state.back],...(state.guestCount>=3?[['second-front',state.secondFront],['second-back',state.secondBack]]:[])].filter(([,file])=>file);
+                for (let i=0;i<selectedDocuments.length;i++) {
+                    setProgress(`Đang xử lý ảnh CCCD (${i+1}/${selectedDocuments.length})…`);
+                    const [side,file]=selectedDocuments[i];
+                    await window.DeLongImageUpload.prepareFile(`/api/public/booking-requests/prepare/identity-documents/${side}`,file);
+                }
+                setProgress('Đang lưu thông tin đặt phòng…');
                 await createPendingCustomerAccount(originalPost);
                 const payload = {
                     ...data,
@@ -565,16 +584,9 @@
                 const result = await withBookingTimeout(signal => originalPost(url, payload, headers, { signal }));
                 const requestKey = headers?.['Idempotency-Key'] || headers?.['idempotency-key'] || '';
                 if (result?.bookingId && requestKey) {
-                    const documents = [['front', state.front], ['back', state.back],
-                        ['second-front', state.secondFront], ['second-back', state.secondBack]].filter(([, file]) => file);
+                    const documents = selectedDocuments;
                     setProgress('Đang tải và lưu CCCD bảo mật…');
-                    // Two uploads at a time; wait for all started requests before allowing a retry.
-                    for (let i = 0; i < documents.length; i += 2) {
-                        const results = await Promise.allSettled(documents.slice(i, i + 2)
-                            .map(([side, file]) => uploadIdentity(result.bookingId, side, file, requestKey)));
-                        const failure = results.find(item => item.status === 'rejected');
-                        if (failure) throw failure.reason;
-                    }
+                    for (const [side,file] of documents) await uploadIdentity(result.bookingId,side,file,requestKey);
                     setProgress('Đang kiểm tra hoàn tất…');
                     try {
                         await withBookingTimeout(signal => originalPost(`/api/public/booking-requests/${encodeURIComponent(result.bookingId)}/complete${siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : ''}`, {}, headers, { signal }));
@@ -585,7 +597,7 @@
                     }
                 }
                 return result;
-            } finally { setProgress(''); }
+            } finally { for(const item of controls)if(item.element.isConnected)item.element.disabled=item.disabled;setProgress(''); }
         };
         window.DeLongApi.__bookingCoreV2Wrapped = true;
     }

@@ -64,7 +64,7 @@ public sealed class FinanceService(AppDbContext db)
             .Select(x => new ExpenseDto(
                 x.Id, x.PropertyId, x.OccurredAtUtc, x.Category, x.Description, x.Amount, x.Method,
                 x.Vendor, x.Reference, x.Note, x.RecordedByUserId, x.IsVoided,
-                x.VoidedAtUtc, x.VoidedByUserId, x.VoidReason))
+                x.VoidedAtUtc, x.VoidedByUserId, x.VoidReason, x.RoomId))
             .ToListAsync(cancellationToken);
 
         var outstanding = await db.Bookings

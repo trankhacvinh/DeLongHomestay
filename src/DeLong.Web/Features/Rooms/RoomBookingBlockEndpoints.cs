@@ -29,6 +29,12 @@ public static class RoomBookingBlockEndpoints
             if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var actor)) return Results.Forbid();
             return Result(await service.CancelAsync(propertyId, batchId, actor, ct));
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
+        group.MapPost("/intervals/{blockId:guid}/end", async (Guid propertyId, Guid blockId, ClaimsPrincipal user,
+            RoomBookingBlockService service, CancellationToken ct) =>
+        {
+            if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var actor)) return Results.Forbid();
+            return Result(await service.CancelIntervalAsync(propertyId, blockId, actor, ct));
+        }).AddEndpointFilter<ApiAntiforgeryFilter>();
         return app;
     }
 

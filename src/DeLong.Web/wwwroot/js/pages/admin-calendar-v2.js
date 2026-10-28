@@ -340,8 +340,9 @@
         const app = vm();
         const room = currentRoom();
         if (!app || !room || typeof app.openCreate !== 'function' || !app.canManage) return;
-        if (room.isBookingLocked) { app.notify('Phòng đang tạm ngừng nhận đặt phòng.', 'error'); return; }
+        if (room.isBookingLocked) { if(root.dataset.canLockRooms==='true')app.openRoomBookingLock(room);else app.notify('Phòng đang tạm ngừng nhận đặt phòng.', 'error');return; }
         app.openCreate(room, { key: day.date });
+        app.selectedLockSlot = { roomId:room.id,rateId:slot.rateId,startUtc:slot.startUtc,endUtc:slot.endUtc };
         app.$nextTick(() => {
             const fullSlot = slot.state === 'available' && Array.isArray(slot.free) && slot.free.length === 1;
             if (fullSlot) {
@@ -375,14 +376,18 @@
                 customerPhone: booking.customerPhone,
                 status: booking.status, balanceAmount: booking.balanceAmount, displayColor: booking.displayColor,
                 hasSpecialRequest: !!String(booking.note || '').trim(),
-                isFlexibleTime: Number(booking.type) === 0 && !booking.roomRateId && Number(booking.rateSegmentCount || 0) === 0,
-                isMixedSlot: Number(booking.rateSegmentCount || 0) > 1
+                isFlexibleTime: booking.isFlexibleTime ?? (Number(booking.type) === 0 && !booking.roomRateId && Number(booking.rateSegmentCount || 0) === 0),
+                isMixedSlot: booking.isMixedSlot ?? (Number(booking.rateSegmentCount || 0) > 1)
             }));
     }
 
     function renderSlot(slot, day, previousSlot, nextSlot) {
         const cell = document.createElement('div');
         cell.className = `calendar-v2-slot state-${slot.state}`;
+        cell.addEventListener('click',event=>{
+            if(!currentRoom()?.isBookingLocked || root.dataset.canLockRooms!=='true')return;
+            event.preventDefault();event.stopImmediatePropagation();vm()?.openRoomBookingLock(currentRoom());
+        },true);
 
         const track = document.createElement('div');
         track.className = 'calendar-v2-track';
@@ -392,7 +397,8 @@
             const segment = document.createElement('button');
             segment.type = 'button';
             segment.className = 'calendar-v2-segment free';
-            segment.disabled = currentRoom()?.isBookingLocked === true;
+            segment.disabled = currentRoom()?.isBookingLocked === true && root.dataset.canLockRooms!=='true';
+            if(currentRoom()?.isBookingLocked)segment.classList.add('room-booking-locked');
             segment.setAttribute('style', segmentStyle(range.startUtc, range.endUtc, slot.startUtc, slot.endUtc));
             segment.title = `Trống ${timeText(range.startUtc)}–${timeText(range.endUtc)} · bấm để tạo booking`;
             segment.addEventListener('click', event => {
@@ -431,7 +437,7 @@
             segment.addEventListener('click', event => {
                 event.stopPropagation();
                 if (range.isRoomBlock) {
-                    if (root.dataset.canLockRooms === 'true') window.location.href = `/Admin/RoomBlocks?propertyId=${propertyId}&blockId=${range.bookingId}`;
+                    if (root.dataset.canLockRooms === 'true') vm()?.openRoomSlotUnlock(currentRoom(),range);
                     else vm()?.notify(range.blockReason || 'Phòng tạm khóa trong thời gian này.', 'info');
                 } else openBooking(range.bookingId);
             });

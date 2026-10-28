@@ -13,7 +13,7 @@ public sealed record RoomBlockWindow(TimeOnly Start, TimeOnly End);
 public sealed record SaveRoomBlockRequest(IReadOnlyList<Guid> RoomIds, string Reason,
     DateTimeOffset Start, DateTimeOffset End, bool RepeatDaily, DateOnly? FromDate,
     DateOnly? ToDate, IReadOnlyList<RoomBlockWindow>? Windows, bool AcknowledgeExistingBookings = false,
-    IReadOnlyList<Guid>? AcknowledgedBookingIds = null);
+    IReadOnlyList<Guid>? AcknowledgedBookingIds = null, Guid? RequestKey = null);
 public sealed record RoomBlockConflict(Guid Id, string Code, string RoomName, DateTime CheckInUtc, DateTime CheckOutUtc);
 public sealed record RoomBlockError(string Code, string Message, IReadOnlyList<RoomBlockConflict>? Conflicts = null);
 public sealed record RoomBlockDto(Guid Id, Guid BatchId, Guid RoomId, string RoomName,
@@ -54,6 +54,8 @@ public sealed class RoomBookingBlockService(AppDbContext db, AuditService audit,
         if (request.RoomIds is not { Count: > 0 and <= 50 } || request.RoomIds.Any(x => x == Guid.Empty) ||
             string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length > 500)
             return new("validation", "Chọn phòng và nhập lý do từ 1 đến 500 ký tự (tối đa 50 phòng).");
+        if (request.RequestKey == Guid.Empty || batchId.HasValue && request.RequestKey.HasValue)
+            return new("validation", "Mã yêu cầu khóa không hợp lệ.");
         var property = await db.Properties.AsNoTracking().SingleOrDefaultAsync(x => x.Id == propertyId, ct);
         if (property is null) return new("not_found", "Không tìm thấy chi nhánh.");
         IReadOnlyList<(DateTime Start, DateTime End)> ranges;
@@ -78,6 +80,16 @@ public sealed class RoomBookingBlockService(AppDbContext db, AuditService audit,
                 if (guard.Room is null || (roomIds.Contains(id) && !guard.Room.IsActive))
                     return new("room_not_found", "Phòng không tồn tại trong chi nhánh hoặc đã ngừng hoạt động.");
             }
+            if (request.RequestKey.HasValue) {
+                await Common.Persistence.RequestFingerprint.LockAsync(db, $"room-block:{propertyId}:{request.RequestKey}", ct);
+                var previous = await db.RoomBookingBlocks.AsNoTracking().Where(x => x.PropertyId == propertyId && x.BatchId == request.RequestKey).ToListAsync(ct);
+                if (previous.Count > 0) {
+                    var expected = roomIds.SelectMany(id => ranges.Select(r => (RoomId:id, r.Start, r.End))).OrderBy(x => x.RoomId).ThenBy(x => x.Start).ThenBy(x => x.End).ToArray();
+                    var actual = previous.Select(x => (x.RoomId, Start:x.StartUtc, End:x.EndUtc)).OrderBy(x => x.RoomId).ThenBy(x => x.Start).ThenBy(x => x.End).ToArray();
+                    return previous.All(x => x.CancelledAtUtc == null && x.Reason == request.Reason.Trim() && x.RepeatDaily == request.RepeatDaily) && expected.SequenceEqual(actual)
+                        ? null : new("conflict", "Yêu cầu khóa này đã được xử lý hoặc thay đổi. Hãy tải lại lịch.");
+                }
+            }
             // Re-read after the room locks: concurrent edits cannot revive an ended batch.
             if (batchId.HasValue)
             {
@@ -93,7 +105,7 @@ public sealed class RoomBookingBlockService(AppDbContext db, AuditService audit,
             if (conflicts.Count > 0 && (!request.AcknowledgeExistingBookings ||
                 conflicts.Any(x => request.AcknowledgedBookingIds?.Contains(x.Id) != true)))
                 return new("existing_bookings", "Khoảng khóa trùng các đơn dưới đây. Các đơn vẫn được giữ nguyên; xác nhận sau khi đã sắp xếp với khách.", conflicts);
-            var idBatch = batchId ?? Guid.CreateVersion7();
+            var idBatch = batchId ?? request.RequestKey ?? Guid.CreateVersion7();
             var now = DateTime.UtcNow;
             foreach (var item in old) { item.CancelledAtUtc = now; item.CancelledByUserId = actorId; }
             foreach (var roomId in roomIds)
@@ -136,6 +148,21 @@ public sealed class RoomBookingBlockService(AppDbContext db, AuditService audit,
             return null;
         }
         finally { foreach (var guard in guards) await guard.DisposeAsync(); }
+    }
+
+    public async Task<RoomBlockError?> CancelIntervalAsync(Guid propertyId, Guid blockId, Guid actorId, CancellationToken ct)
+    {
+        var row = await db.RoomBookingBlocks.AsNoTracking().SingleOrDefaultAsync(x => x.Id == blockId && x.PropertyId == propertyId, ct);
+        if (row is null) return new("not_found", "Không tìm thấy khoảng khóa trong chi nhánh.");
+        await using var guard = await RoomBookingGuard.AcquireAsync(db, propertyId, row.RoomId, ct);
+        if (guard.Room is null) return new("not_found", "Không tìm thấy phòng.");
+        var block = await db.RoomBookingBlocks.SingleAsync(x => x.Id == blockId && x.PropertyId == propertyId, ct);
+        await db.Entry(block).ReloadAsync(ct);
+        if (block.CancelledAtUtc.HasValue) return null;
+        block.CancelledAtUtc = DateTime.UtcNow; block.CancelledByUserId = actorId;
+        audit.Add(propertyId, "RoomBookingBlockInterval", block.Id, "Ended", actorId,
+            before: new { block.BatchId, block.RoomId, block.StartUtc, block.EndUtc, block.Reason }, after: new { block.CancelledAtUtc });
+        await db.SaveChangesAsync(ct); await guard.CommitAsync(ct); Invalidate(propertyId); return null;
     }
 
     private void Invalidate(Guid propertyId)

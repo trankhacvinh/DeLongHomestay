@@ -134,3 +134,28 @@ Dùng checklist này sau khi apply migrations/seed trên `delong_dev`.
 - [ ] Không có password/connection string thật trong Git.
 - [ ] Backup/restore thử thành công.
 - [ ] UAT trên dữ liệu clone thực tế.
+
+## 11. Kho chung và tiền mặt — 1.8.15
+
+- [ ] Admin khởi tạo một kho; Manager/Viewer được giới hạn theo chi nhánh quản lý kho; xuất chỉ tới chi nhánh được cấp. Staff không có quyền tài chính/kho mới.
+- [ ] Tạo ĐVT/hàng, tồn đầu, nhập/xuất nhiều dòng số lẻ, tồn chuyển tháng; không đổi ĐVT/đơn giá phiếu cũ khi sửa hàng.
+- [ ] Hai người xuất đồng thời không âm; lỗi mạng gửi lại không trùng; ngày lùi/hủy gây âm bị chặn; xem lịch sử/ẩn mặt hàng/Excel.
+- [ ] Booking Cash/hoàn Cash đúng tổng; chuyển khoản/QR không cộng; thu ngoài/chi có ghi chú và phòng tùy chọn; void không cộng tổng.
+- [ ] Admin tất cả/một chi nhánh, người khác không xem chi nhánh ngoài quyền; lọc phòng/ngày/tháng/nhóm chi và mở chi tiết khớp Excel.
+- [ ] iPhone/Safari và desktop: cuộn bảng riêng, modal không tràn; đối chiếu ngày đầu/cuối tháng Việt Nam.
+- [ ] Không nhập Excel chưa chuẩn hóa; xác nhận đơn vị/mặt hàng/ngày và thời điểm tồn đầu trước yêu cầu import riêng.
+
+## 12. Kho compact và import — 1.8.16
+
+- [ ] Tạo hàng không nhập mã; sửa tên/giá không đổi mã cũ. `kg/KG/kG` không nhân đôi đơn vị.
+- [ ] File mẫu danh mục/tồn đầu, chọn sheet, preview mới/cập nhật/bỏ qua/lỗi, không ghi trước xác nhận. Dòng lỗi chặn batch.
+- [ ] Hàng danh mục chưa phát sinh ghi tồn đầu được; hàng đã phát sinh giữ tồn, chỉ cập nhật danh mục khi chọn. Retry không nhân đôi tồn.
+- [ ] Mobile 375–414px/Safari thật: không tràn toàn trang, bảng ngang/cột hàng, form nhiều dòng có khoảng cách, chọn file và footer modal.
+- [ ] Manager đúng scope, Viewer không import; bản xem trước hết hạn/dữ liệu đổi yêu cầu xem lại.
+
+## 13. CCCD mobile / hai chế độ khóa — 1.8.17
+
+- [ ] Android Brave/iPhone: chụp ảnh lớn, chọn ảnh, EXIF, hai/four ảnh; không treo, thấy tiến độ và retry đúng một booking/ảnh lỗi. Đủ CCCD mới chuyển thanh toán.
+- [ ] Khóa đúng khung qua đêm, toàn phòng đến mở lại, xác nhận booking trùng và không đổi booking/payment cũ.
+- [ ] Click khung khóa mở đúng interval; toàn phòng click khung trống/có booking đều thấy mở toàn phòng; lịch khóa khác còn giữ.
+- [ ] Staff/Viewer/ngoài chi nhánh không khóa/mở; lỗi mạng/retry không tạo nhiều khoảng khóa trùng.

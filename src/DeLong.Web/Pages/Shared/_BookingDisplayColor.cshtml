@@ -1,11 +1,17 @@
+@{
+    var colors = ViewData["BookingDisplayColors"] as IReadOnlyList<(string Value, string Name)>
+        ?? DeLong.Web.Features.Bookings.BookingDisplayColors.Options;
+    var savedColorCondition = $"form.displayColor && !{System.Text.Json.JsonSerializer.Serialize(colors.Select(x => x.Value))}.includes(form.displayColor)";
+}
 <div class="field mt-16">
     <label for="booking-display-color">Màu hiển thị trên lịch</label>
     <select id="booking-display-color" v-model="form.displayColor">
         <option value="">Tự động</option>
-        @foreach (var color in DeLong.Web.Features.Bookings.BookingDisplayColors.Options)
+        @foreach (var color in colors)
         {
             <option value="@color.Value">@color.Name (thủ công)</option>
         }
+        <option v-if="@savedColorCondition" v-bind:value="form.displayColor">Màu đã lưu — {{ form.displayColor }} (thủ công)</option>
     </select>
     <small>Màu nợ theo cấu hình luôn được ưu tiên khi còn tiền phải thu, kể cả booking hoàn tất. Khi hết nợ: ghi chú → màu Có yêu cầu đặc biệt; không có ghi chú → màu thủ công hoặc màu tự động. Màu không thay đổi số tiền hoặc trạng thái đặt phòng.</small>
 </div>

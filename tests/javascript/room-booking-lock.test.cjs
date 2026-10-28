@@ -42,10 +42,23 @@ test('lock and unlock reconcile the room and signal calendar without reloading',
     assert.equal(app.roomLock.open, false);
     assert.equal(events[0].detail.roomId, 'room');
     await app.openRoomBookingLock(app.rooms[0]);
+    assert.equal(app.roomLock.open, true);
+    assert.equal(calls.length, 1);
+    await app.saveRoomBookingLock();
     assert.equal(app.roomLock.open, false);
     assert.equal(calls.length, 2);
     assert.equal(app.rooms[0].isBookingLocked, false);
     assert.equal(calls[1].body.isLocked, false);
+});
+
+test('slot unlock requires confirmation and targets one interval rather than an entire batch',async()=>{
+    const {app,calls,context}=fixture();
+    context.DeLongApi.post=async(url,body)=>{calls.push({url,body});};
+    const range={bookingId:'interval-1',blockReason:'Bảo trì',startUtc:'2031-01-10T07:00:00Z',endUtc:'2031-01-10T10:00:00Z'};
+    context.DeLongApi.get=async()=>[{id:'interval-1',roomId:'room',startUtc:range.startUtc,endUtc:range.endUtc,reason:'Bảo trì'}];
+    await app.openRoomSlotUnlock(app.rooms[0],range);assert.equal(app.roomLock.open,true);assert.equal(calls.length,0);
+    await app.saveRoomBookingLock();assert.match(calls[0].url,/room-blocks\/intervals\/interval-1\/end$/);
+    assert.equal(app.rooms[0].isBookingLocked,false);assert.equal(app.roomLock.open,false);
 });
 test('failed request retains dialog and releases saving state', async () => {
     const { app, context } = fixture();
@@ -57,4 +70,14 @@ test('failed request retains dialog and releases saving state', async () => {
     assert.equal(app.roomLock.saving, false);
     assert.equal(app.roomLock.error, 'Không có quyền chi nhánh');
     assert.equal(app.rooms[0].isBookingLocked, false);
+});
+
+test('unlock waits for original interval bounds and does not mutate when reading fails',async()=>{
+    const {app,calls,context}=fixture();context.DeLongApi.get=async()=>{throw new Error('Read failed');};
+    context.DeLongApi.post=async(...args)=>calls.push(args);
+    await app.openRoomSlotUnlock(app.rooms[0],{bookingId:'interval',startUtc:'2031-01-10T07:00:00Z',endUtc:'2031-01-10T08:00:00Z'});
+    await app.saveRoomBookingLock();assert.equal(calls.length,0);assert.equal(app.roomLock.open,true);assert.equal(app.roomLock.unlockReady,false);
+    context.DeLongApi.get=async()=>[{id:'interval',roomId:'room',startUtc:'2031-01-10T07:00:00Z',endUtc:'2031-01-10T14:00:00Z',reason:'Long interval'}];
+    await app.openRoomSlotUnlock(app.rooms[0],{bookingId:'interval',startUtc:'2031-01-10T07:00:00Z',endUtc:'2031-01-10T08:00:00Z'});
+    assert.equal(app.roomLock.range.endUtc,'2031-01-10T14:00:00Z');assert.equal(app.roomLock.unlockReady,true);
 });

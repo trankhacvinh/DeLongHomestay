@@ -42,6 +42,9 @@ const fs = require('node:fs');
                             ] },
                             { rateId: 'r2', rateName: 'Khung 2', rateType: 0, state: 'occupied', startUtc: '2026-10-21T07:00:00Z', endUtc: '2026-10-21T10:00:00Z', free: [], occupied: [
                                 { bookingId: 'checked', status: 3, customerName: 'Synthetic checked', startUtc: '2026-10-21T07:00:00Z', endUtc: '2026-10-21T10:00:00Z' }
+                            ] },
+                            { rateId: 'r3', rateName: 'Khung 3', rateType: 0, state: 'partial', startUtc: '2026-10-21T10:30:00Z', endUtc: '2026-10-21T13:30:00Z', free: [], occupied: [
+                                { bookingId: 'flexible', status: 2, isFlexibleTime: true, customerName: 'Synthetic flexible', startUtc: '2026-10-21T10:30:00Z', endUtc: '2026-10-21T13:00:00Z' }
                             ] }
                         ] }] };
                     throw new Error(`Unexpected fixture URL: ${url}`);
@@ -51,6 +54,7 @@ const fs = require('node:fs');
             await page.waitForFunction(() => document.querySelector('[data-booking-id="multi"]'));
             assert.equal(await page.locator('[data-booking-id="multi"]').evaluate(el => el.style.backgroundColor), 'rgb(255, 136, 0)');
             assert.equal(await page.locator('[data-booking-id="checked"]').evaluate(el => el.style.backgroundColor), 'rgb(18, 52, 86)');
+            assert.equal(await page.locator('[data-booking-id="flexible"]').evaluate(el => el.style.backgroundColor), 'rgb(250, 254, 1)');
             assert.equal(await page.locator('[data-v2-color="mixed"]').evaluate(el => el.style.backgroundColor), 'rgb(255, 136, 0)');
             assert.doesNotMatch(await page.locator('.calendar-v2-legend').innerText(), /Đã xác nhận/);
             await page.evaluate(() => {

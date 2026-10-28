@@ -60,6 +60,7 @@
         const methods = options.methods;
         const originalOpenBooking = methods.openBooking;
         const originalOpenEditBooking = methods.openEditBooking;
+        const originalApplyRate = methods.applyRate;
 
         methods.nightlyRateForRoom = function () {
             return this.selectedRoomRates.find(x => Number(x.type) === 2) || null;
@@ -129,12 +130,14 @@
                 this.form.rateId = rate.id;
                 this.applyRate();
             }
+            this.loadRateSuggestions();
         };
 
         methods.applyRate = function () {
             const rate = this.selectedRoomRates.find(x => x.id === this.form.rateId);
             if (!rate) return;
             const type = Number(rate.type);
+            if (type !== 2) return originalApplyRate.call(this);
             this.nightlySyncing = true;
             try {
                 this.form.checkInLocal = `${this.selectedDayKey}T${rate.startTime}`;

@@ -261,3 +261,42 @@
 - [x] Poll/focus/realtime chạy nền, không dựng lại DOM khi dữ liệu không đổi; cập nhật thật giữ scroll/focus, gồm thay đổi thống kê/màu.
 - [x] 111 JS tests, 2 Chrome cases và 8 .NET contract tests đạt; 1 DB integration test skip.
 - [ ] Deploy và UAT đa tài khoản/iPhone. Xem [chi tiết](CALENDAR-BACKGROUND-REFRESH-2026-10-21.md).
+
+## Màu linh động/nhiều khung từ giờ thực tế — 1.8.14 (26/10/2026)
+
+- [x] API booking/lịch nhận diện giờ thực tế dù preset cũ còn được gắn hoặc không có segment; palette thủ công dùng cấu hình cơ sở và giữ giá trị lịch sử.
+- [x] 34 .NET tests trên PostgreSQL test, 113 JS tests và 2 Chrome cases đạt; không migration/backfill.
+- [ ] Deploy/UAT mobile và booking production cụ thể. Xem [chi tiết](CALENDAR-ACTUAL-TIME-COLORS-2026-10-26.md).
+
+## Kho chung và thống kê tiền mặt — 1.8.15 (27/10/2026)
+
+- [x] Danh mục/ĐVT, tồn đầu, phiếu nhập/xuất cấp chi nhánh, điều chỉnh và hủy có lý do; tồn liên tháng, lịch sử mặt hàng, chống âm/trùng/đồng thời; Excel.
+- [x] Tiền mặt từ payment booking, thu ngoài và chi có ghi chú/phòng; nhóm theo chi nhánh/phòng/ngày/nhóm chi, chi tiết và Excel. Giữ phạm vi báo cáo cũ.
+- [x] Phân quyền trang/API, antiforgery, request key và audit. Migration cộng thêm, rehearsal giữ dữ liệu cũ trên PostgreSQL local.
+- [x] 20 .NET tests tập trung, 4 JavaScript tests mới và 4 Chrome fixture cases đạt.
+- [ ] Production migration/deploy, UAT quyền quản lý kho, dữ liệu đối soát và iPhone thật; chưa import Excel. Xem [bàn giao](INVENTORY-CASH-2026-10-27.md).
+
+## Kho compact và import — 1.8.16 (28/10/2026)
+
+- [x] Bố cục compact, modal tách nhóm, bảng cuộn riêng/cột hàng sticky, bỏ text thừa, tối ưu 375–414px và desktop.
+- [x] Mã tự cấp; import danh mục/tồn đầu, tạo ĐVT/hàng, dedup case/space/NFC, preview và cập nhật/bỏ qua, giữ tồn đã phát sinh, transaction/retry receipt và audit.
+- [x] 26 .NET tests, 5 JavaScript tests và 8 Chrome fixtures đạt; migration rehearsal local giữ dữ liệu cũ.
+- [ ] Production migration/deploy và UAT iPhone/file thực tế. Xem [bàn giao](INVENTORY-IMPORT-COMPACT-2026-10-28.md).
+
+## Upload CCCD mobile và hai chế độ khóa — 1.8.17 (28/10/2026)
+
+- [x] Tái hiện queue ảnh treo trong script production; decode resize/EXIF, preview ảnh nhỏ, timeout/cleanup, preflight trước booking, tiến độ upload từng mặt và retry cùng key.
+- [x] Khóa khung/toàn phòng trong modal booking; click vùng khóa để xác nhận mở; mở một interval không ảnh hưởng batch/ngày/phòng khác; chống tạo trùng khóa nhanh.
+- [x] PostgreSQL tests quyền/CSRF/audit/concurrency và browser mobile/desktop; giữ bảo mật CCCD/booking/payment và màu/refresh lịch.
+- [ ] Deploy/UAT Android Brave và iPhone thật; test QR source contract cũ còn lỗi assertion, đã ghi riêng. Xem [bàn giao](MOBILE-IDENTITY-AND-ROOM-LOCKS-2026-10-28.md).
+
+## Giờ bắt đầu khả dụng trong modal Admin — 1.8.18 (28/10/2026)
+
+- [x] API read-only theo phòng/ngày/chi nhánh; dropdown và preset dùng giờ thực tế sau dọn phòng, bảo toàn giá và giờ kết thúc.
+- [x] Tích hợp script nightly, chống phản hồi cũ/ghi đè dữ liệu nhập tay, test PostgreSQL và trình duyệt mobile/desktop.
+- [ ] Deploy/UAT thực tế. Xem [bàn giao](BOOKING-TIME-SUGGESTIONS-2026-10-28.md).
+
+## Tổng lượt tạo hôm nay trong danh sách booking — 1.8.19
+
+- [x] Thống kê riêng theo CreatedAtUtc trong ngày địa phương, mọi nguồn/trạng thái và đúng chi nhánh; không theo bộ lọc ngày nhận phòng/công nợ.
+- [ ] Deploy/UAT. Xem [bàn giao](BOOKING-CREATED-TODAY-2026-10-28.md).

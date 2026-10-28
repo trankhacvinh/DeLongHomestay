@@ -42,6 +42,45 @@ public sealed class RoomBookingScheduleTests
         CheckOut=(start??Start).AddHours(3), RoomAmount=250000, Status=BookingStatus.Confirmed };
 
     [RoomLockPostgresFact]
+    public async Task Unlocking_one_interval_keeps_other_rooms_dates_and_indefinite_lock_intact()
+    {
+        await using var db=Db();var(property,room,actor)=await Seed(db);
+        var other=new Room{PropertyId=property.Id,Code="OTHER",Name="Other",IsActive=true};db.Rooms.Add(other);await db.SaveChangesAsync();
+        var request=Request(room.Id) with {RoomIds=[room.Id,other.Id],RepeatDaily=true,FromDate=new(2031,1,10),ToDate=new(2031,1,11),Windows=[new(new(14,0),new(17,0))]};
+        Assert.Null(await Blocks(db).SaveAsync(property.Id,null,request,actor.Id,default));
+        var interval=await db.RoomBookingBlocks.AsNoTracking().SingleAsync(x=>x.PropertyId==property.Id&&x.RoomId==room.Id&&x.StartUtc==Start.UtcDateTime);
+        var roomService=new RoomService(db);
+        Assert.Null((await roomService.SetBookingLockAsync(property.Id,room.Id,new(true,"Global"),actor.Id)).Error);
+        Assert.Equal("not_found",(await Blocks(db).CancelIntervalAsync(Guid.NewGuid(),interval.Id,actor.Id,default))?.Code);
+        Assert.Null(await Blocks(db).CancelIntervalAsync(property.Id,interval.Id,actor.Id,default));
+        Assert.Null(await Blocks(db).CancelIntervalAsync(property.Id,interval.Id,actor.Id,default));
+        Assert.Equal(3,await db.RoomBookingBlocks.CountAsync(x=>x.PropertyId==property.Id&&x.CancelledAtUtc==null));
+        Assert.True((await db.Rooms.AsNoTracking().SingleAsync(x=>x.Id==room.Id)).IsBookingLocked);
+        Assert.False(await RoomBookingGuard.HasScheduledLockAsync(db,property.Id,room.Id,Start.UtcDateTime,Start.AddHours(3).UtcDateTime,default));
+        Assert.True(await RoomBookingGuard.HasScheduledLockAsync(db,property.Id,room.Id,Start.AddDays(1).UtcDateTime,Start.AddDays(1).AddHours(3).UtcDateTime,default));
+        Assert.Null((await roomService.SetBookingLockAsync(property.Id,room.Id,new(false,null),actor.Id)).Error);
+        Assert.Null((await Bookings(db).CreateAsync(property.Id,Order(room.Id))).Error);
+        Assert.Equal("room_booking_locked",(await Bookings(db).CreateAsync(property.Id,Order(room.Id,Start.AddDays(1)))).Error?.Code);
+        Assert.Equal("room_booking_locked",(await Bookings(db).CreateAsync(property.Id,Order(other.Id))).Error?.Code);
+        Assert.Single(await db.AuditLogs.Where(x=>x.EntityId==interval.Id&&x.Action=="Ended").ToListAsync());
+    }
+
+    [RoomLockPostgresFact]
+    public async Task Quick_slot_retries_and_concurrent_requests_do_not_duplicate_the_lock()
+    {
+        await using var db=Db();var(property,room,actor)=await Seed(db);
+        var request=Request(room.Id) with {RequestKey=Guid.NewGuid()};
+        async Task<RoomBlockError?> Save(){await using var other=Db();return await Blocks(other).SaveAsync(property.Id,null,request,actor.Id,default);}
+        var results=await Task.WhenAll(Save(),Save());Assert.All(results,x=>Assert.Null(x));
+        var block=await db.RoomBookingBlocks.AsNoTracking().SingleAsync(x=>x.BatchId==request.RequestKey);
+        Assert.Null(await Blocks(db).SaveAsync(property.Id,null,request,actor.Id,default));
+        Assert.Equal("conflict",(await Blocks(db).SaveAsync(property.Id,null,request with {Reason="Changed"},actor.Id,default))?.Code);
+        Assert.Null(await Blocks(db).CancelIntervalAsync(property.Id,block.Id,actor.Id,default));
+        Assert.Equal("conflict",(await Blocks(db).SaveAsync(property.Id,null,request,actor.Id,default))?.Code);
+        Assert.Single(await db.RoomBookingBlocks.Where(x=>x.BatchId==request.RequestKey).ToListAsync());
+    }
+
+    [RoomLockPostgresFact]
     public async Task Schedule_blocks_overlap_but_allows_exact_boundary_and_ending_restores_admission()
     {
         await using var db=Db();var (property,room,actor)=await Seed(db);

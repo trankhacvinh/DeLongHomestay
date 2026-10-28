@@ -17,10 +17,13 @@ public sealed record ExpenseDto(
     bool IsVoided,
     DateTime? VoidedAtUtc,
     Guid? VoidedByUserId,
-    string? VoidReason);
+    string? VoidReason,
+    Guid? RoomId = null);
 
 public sealed class CreateExpenseRequest
 {
+    public Guid? RoomId { get; init; }
+    public Guid? RequestKey { get; init; }
     public DateTimeOffset? OccurredAt { get; init; }
     public string Category { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;

@@ -28,11 +28,18 @@ public sealed class BookingService(
         var query = db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId);
         if (from.HasValue) { var utc = from.Value.UtcDateTime; query = query.Where(x => x.CheckOutUtc > utc); }
         if (to.HasValue) { var utc = to.Value.UtcDateTime; query = query.Where(x => x.CheckInUtc < utc); }
-        return await Project(query.OrderBy(x => x.CheckInUtc)).ToListAsync(cancellationToken);
+        var bookings = await Project(query.OrderBy(x => x.CheckInUtc)).ToListAsync(cancellationToken);
+        var displays = await BookingScheduleDisplay.LoadAsync(db, propertyId, bookings.Select(x => x.Id).ToArray(), cancellationToken);
+        return bookings.Select(x => x with { IsFlexibleTime = displays[x.Id].IsFlexibleTime, IsMixedSlot = displays[x.Id].IsMixedSlot }).ToList();
     }
 
-    public Task<BookingDto?> GetAsync(Guid propertyId, Guid bookingId, CancellationToken cancellationToken = default) =>
-        Project(db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Id == bookingId)).SingleOrDefaultAsync(cancellationToken);
+    public async Task<BookingDto?> GetAsync(Guid propertyId, Guid bookingId, CancellationToken cancellationToken = default)
+    {
+        var booking = await Project(db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Id == bookingId)).SingleOrDefaultAsync(cancellationToken);
+        if (booking is null) return null;
+        var displays = await BookingScheduleDisplay.LoadAsync(db, propertyId, [bookingId], cancellationToken);
+        return booking with { IsFlexibleTime = displays[bookingId].IsFlexibleTime, IsMixedSlot = displays[bookingId].IsMixedSlot };
+    }
 
     public async Task<(BookingDto? Booking, BookingOperationError? Error)> CreateAsync(Guid propertyId, CreateBookingRequest request, Guid? actorUserId = null, CancellationToken cancellationToken = default)
     {
@@ -231,7 +238,7 @@ public sealed class BookingService(
         x.RoomAmount, x.SpecialSurchargeAmount, x.ExtraAmount, x.DiscountAmount, x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount,
         x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
         x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount - x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
-        x.Source, x.Note, x.RateSegments.Count(), x.CreatedAtUtc, x.DisplayColor));
+        x.Source, x.Note, x.RateSegments.Count(), x.CreatedAtUtc, x.DisplayColor, null, null));
 
     private static object Snapshot(Booking b) => new { b.Id, b.Code, Type = b.Type.ToString(), b.RoomId, b.CustomerId, b.RoomRateId, b.RateName, b.UnitPrice, b.NightCount, b.CheckInUtc, b.CheckOutUtc, Status = b.Status.ToString(), b.RoomAmount, b.SpecialSurchargeAmount, b.ExtraAmount, b.DiscountAmount, b.Source, b.Note, b.DisplayColor };
 

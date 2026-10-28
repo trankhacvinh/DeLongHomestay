@@ -1,5 +1,21 @@
 # Kiến trúc DeLongHomestay
 
+## Kho chung và tiền mặt (1.8.15, 27/10/2026)
+
+Cập nhật 1.8.16: mã hàng tự cấp dưới khóa transaction; import catalog/tồn đầu dùng preview ký theo tài khoản/kho, kiểm tra state trước commit và `inventory_imports` lưu receipt chống lặp. Cả batch ghi một transaction. Danh mục so trùng NFC/case/space; không tự gộp tên trùng khác ĐVT, không nhập đè tồn đã phát sinh. Xem [import và layout compact](INVENTORY-IMPORT-COMPACT-2026-10-28.md).
+
+- `Features/Inventory` quản lý một kho `MAIN`; `PropertyId` là chi nhánh quản lý quyền kho, `RecipientPropertyId` trên phiếu xuất là chi nhánh nhận. Không có tồn riêng ở chi nhánh nhận. Admin khởi tạo kho; Manager/Viewer cần quyền vào chi nhánh quản lý. Manager chỉ xuất tới chi nhánh được cấp quyền; Viewer chỉ đọc.
+- Danh mục đơn vị/mặt hàng tách khỏi phiếu và dòng phiếu. Phiếu lưu tên/đơn vị/đơn giá tại thời điểm ghi nhận; không đổi đơn vị của hàng đã phát sinh. Mặt hàng ngừng dùng được ẩn, phiếu chỉ hủy có lý do, không xóa vật lý. Tồn đầu chỉ khai báo khi hàng chưa có phát sinh còn hiệu lực.
+- Mọi thay đổi kho khóa transaction theo warehouse bằng PostgreSQL advisory lock. Kiểm tra tồn theo dòng thời gian, gồm tác động lên các phát sinh sau ngày nhập lùi. Hủy phiếu cũng phải giữ tồn không âm. Request key + hash + unique index ngăn tạo trùng do gửi lại; audit và dữ liệu ghi cùng transaction.
+- `Features/Cash` tổng hợp `Payment.Method=Cash` (thu/hoàn), `CashReceipt` (thu ngoài booking) và `Expense.Method=Cash`. Chỉ giao dịch chưa hủy được tính tổng, theo thời điểm thực thu/chi trong múi giờ chi nhánh; Admin xem tất cả hoặc một chi nhánh, tài khoản còn lại chỉ phạm vi đã cấp. Gắn phòng với khoản thu/chi ngoài là tùy chọn; khoản chung không tự chia phòng.
+- Thu booking theo phòng hiện tại của booking. Không suy đoán lịch sử chuyển phòng. Chênh lệch thu–chi không có tồn quỹ đầu kỳ nên không được gọi là số dư két hoặc lợi nhuận. Báo cáo tài chính cũ giữ nguồn như trước; thu ngoài chỉ xuất hiện trong báo cáo Tiền mặt mới.
+- Kho không tự sinh thanh toán/chi phí. Giá trị phiếu không phải phương pháp tính giá vốn FIFO/bình quân. Không cộng số lượng khác đơn vị thành một tổng.
+- Migration cộng thêm `20261027162525_AddSharedInventoryAndCash`: 6 bảng mới, `expenses.room_id/request_key/request_hash` nullable cùng index/FK. Không backfill/sửa tiền hoặc booking cũ. Xem [bàn giao](INVENTORY-CASH-2026-10-27.md).
+
+## Client ảnh CCCD và khóa nhanh — 1.8.17
+
+Ảnh CCCD được chuẩn bị với decode resize/EXIF và timeout trước tạo booking; preview dùng bản đã chuẩn bị. Upload từng mặt với tiến độ/deadline, completion kiểm tra ảnh lưu thật; AES/quyền server giữ nguyên. Khóa nhanh chọn interval hoặc cờ vô thời hạn hiện có; kết thúc một interval riêng với audit và room guard, không kết thúc cả batch. Request key khóa mới dùng BatchId hiện có để retry idempotent dưới room/advisory lock. Không thêm schema. Xem [bàn giao](MOBILE-IDENTITY-AND-ROOM-LOCKS-2026-10-28.md).
+
 ## Pricing authority
 
 `PricingService` là nguồn tính giá server-side cho booking khung giờ và xem trước voucher. Lịch public chỉ ước tính để phản hồi nhanh; khi gửi form, server đọc lại giá, ngày đặc biệt và quyền đặt trước khi khóa phòng. Client không được quyết định tổng tiền.

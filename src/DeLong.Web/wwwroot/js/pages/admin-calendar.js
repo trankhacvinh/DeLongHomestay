@@ -46,6 +46,7 @@
             const finePointer = window.matchMedia ? window.matchMedia('(pointer: fine)').matches : true;
             return {
                 propertyId: initial.propertyId,
+                timeZoneId: timeZone,
                 startDate: initial.startDate,
                 rangeDays: Math.max(1, Math.min(31, Number(initial.rangeDays || 7))),
                 today: initial.today,
@@ -60,7 +61,10 @@
                 saving: false,
                 paymentEdited: false,
                 editor: { open: false, mode: 'create' },
-                quickBlock: { open: false, roomId: '', start: '', end: '', reason: '', error: '', conflicts: [], acknowledged: false },
+                selectedLockSlot: null,
+                rateSuggestions: { scope: '', rates: [], loading: false, error: '', serial: 0 },
+                ratePresetStamp: null,
+                quickBlock: { open: false, scope: 'slot', roomId: '', start: '', end: '', reason: '', error: '', conflicts: [], acknowledged: false },
                 selectedBooking: null,
                 additionalPayment: { amount: 0, method: 1 },
                 guestDetails: { loading: false, error: '', customerEmail: '', guestCount: 1, documents: [] },
@@ -96,6 +100,16 @@
             },
             selectedRoomRates() {
                 return (this.selectedRoom?.rates || []).filter(x => x.isActive && Number(x.type) !== 2).sort((a, b) => a.sortOrder - b.sortOrder);
+            },
+            selectedRoomRateOptions() {
+                const scope = `${this.form.roomId}:${this.selectedDayKey}`;
+                return this.selectedRoomRates.map(rate => {
+                    const suggestion = this.editor.mode === 'create' && this.rateSuggestions.scope === scope
+                        ? this.rateSuggestions.rates.find(x => x.rateId === rate.id) : null;
+                    const start = suggestion?.suggestedStartUtc ? utcToLocalInput(suggestion.suggestedStartUtc).slice(11) : rate.startTime;
+                    const end = suggestion ? utcToLocalInput(suggestion.endUtc).slice(11) : rate.endTime;
+                    return { ...rate, labelStart: start, labelEnd: end, unavailable: !!suggestion && !suggestion.suggestedStartUtc };
+                });
             },
             totalAmount() {
                 return Math.max(0, Number(this.form.roomAmount || 0) + Number(this.form.extraAmount || 0) + (this.editor.mode === 'edit' ? Number(this.selectedBooking?.specialSurchargeAmount || 0) : 0) - Number(this.form.discountAmount || 0));
@@ -170,9 +184,9 @@
                 const colors = this.calendarColors;
                 if (Number(booking?.balanceAmount || 0) > 0) return { color: colors.unpaidColor || '#C94B4B', label: 'Chưa thanh toán hết' };
                 if (String(booking?.note || '').trim()) return { color: colors.specialRequestColor || '#7C5CC4', label: 'Có yêu cầu đặc biệt' };
-                if (Number(booking?.type) === 0 && !booking?.roomRateId && Number(booking?.rateSegmentCount || 0) === 0)
+                if (booking?.isFlexibleTime ?? (Number(booking?.type) === 0 && !booking?.roomRateId && Number(booking?.rateSegmentCount || 0) === 0))
                     return { color: colors.flexibleTimeColor || '#D6A72C', label: 'Giờ linh động' };
-                if (Number(booking?.rateSegmentCount || 0) > 1) return { color: colors.mixedSlotColor || '#287D9B', label: 'Booking nhiều khung' };
+                if (booking?.isMixedSlot ?? (Number(booking?.rateSegmentCount || 0) > 1)) return { color: colors.mixedSlotColor || '#287D9B', label: 'Booking nhiều khung' };
                 if (Number(booking?.status) === 0) return { color: colors.requestedColor || '#64748B', label: 'Yêu cầu' };
                 if (Number(booking?.status) === 1) return { color: colors.heldColor || '#D39B3C', label: 'Giữ phòng' };
                 return { color: colors.confirmedColor || '#397967', label: Number(booking?.status) === 4 ? 'Hoàn tất' : 'Đã xác nhận' };
@@ -347,6 +361,10 @@
                 const selectedRoom = room || this.activeRooms.find(x => !x.isBookingLocked) || null;
                 if (!selectedRoom || selectedRoom.isBookingLocked) return this.notify('Phòng đang tạm ngừng nhận đặt phòng. Vui lòng chọn phòng khác.', 'error');
                 this.selectedDayKey = day?.key || this.today;
+                this.selectedLockSlot = null;
+                this.ratePresetStamp = null;
+                this.rateSuggestions.scope = '';
+                this.rateSuggestions.rates = [];
                 this.paymentEdited = false;
                 this.form = this.emptyForm();
                 this.form.guestCount = Math.min(2, Math.max(1, Number(selectedRoom?.capacity || 2)));
@@ -363,6 +381,7 @@
                     this.form.checkInLocal = toInputValue(this.selectedDayKey, '14:00');
                     this.form.checkOutLocal = toInputValue(this.selectedDayKey, '17:00');
                 }
+                this.$nextTick(() => this.loadRateSuggestions());
             },
             async openEditBooking(booking) {
                 if (!this.canEditBooking(booking)) return;
@@ -398,6 +417,34 @@
                     this.form.rateId = rate.id;
                     this.applyRate();
                 }
+                this.loadRateSuggestions();
+            },
+            bookingTimeChanged() {
+                this.ratePresetStamp = null;
+                const day = this.form.checkInLocal?.slice(0, 10);
+                if (this.editor.mode === 'create' && day && day !== this.selectedDayKey) {
+                    this.selectedDayKey = day;
+                    this.loadRateSuggestions();
+                }
+            },
+            async loadRateSuggestions() {
+                if (this.editor.mode !== 'create' || !this.form.roomId) return;
+                const serial = ++this.rateSuggestions.serial;
+                const scope = `${this.form.roomId}:${this.selectedDayKey}`;
+                this.rateSuggestions.loading = true;
+                this.rateSuggestions.error = '';
+                try {
+                    const data = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/operations/booking-time-suggestions/rooms/${this.form.roomId}?date=${encodeURIComponent(this.selectedDayKey)}`);
+                    if (serial !== this.rateSuggestions.serial || scope !== `${this.form.roomId}:${this.selectedDayKey}` || this.editor.mode !== 'create' || !this.editor.open) return;
+                    this.rateSuggestions.rates = data.rates;
+                    this.rateSuggestions.scope = scope;
+                    const stamp = this.ratePresetStamp;
+                    if (stamp && stamp.rateId === this.form.rateId && stamp.start === this.form.checkInLocal && stamp.end === this.form.checkOutLocal) this.applyRate();
+                } catch (error) {
+                    if (serial === this.rateSuggestions.serial) this.rateSuggestions.error = error.message || 'Không tải được giờ gợi ý.';
+                } finally {
+                    if (serial === this.rateSuggestions.serial) this.rateSuggestions.loading = false;
+                }
             },
             applyRate() {
                 const rate = this.selectedRoomRates.find(x => x.id === this.form.rateId);
@@ -405,6 +452,13 @@
                 this.form.checkInLocal = toInputValue(this.selectedDayKey, rate.startTime);
                 const checkoutDay = Number(rate.type) === 1 || rate.isOvernight ? addDays(this.selectedDayKey, 1) : this.selectedDayKey;
                 this.form.checkOutLocal = toInputValue(checkoutDay, rate.endTime);
+                const suggestion = this.editor.mode === 'create' && this.rateSuggestions.scope === `${this.form.roomId}:${this.selectedDayKey}`
+                    ? this.rateSuggestions.rates.find(x => x.rateId === rate.id) : null;
+                if (suggestion?.suggestedStartUtc) {
+                    this.form.checkInLocal = utcToLocalInput(suggestion.suggestedStartUtc);
+                    this.form.checkOutLocal = utcToLocalInput(suggestion.endUtc);
+                }
+                this.ratePresetStamp = { rateId: rate.id, start: this.form.checkInLocal, end: this.form.checkOutLocal };
                 this.form.roomAmount = Number(rate.price || 0);
             },
             async openBooking(booking) {
@@ -424,6 +478,12 @@
             validateForm() {
                 if (!this.form.roomId) return 'Vui lòng chọn phòng.';
                 if (this.selectedRoom?.isBookingLocked && (this.editor.mode === 'create' || this.form.roomId !== this.selectedBooking?.roomId)) return 'Phòng đang tạm ngừng nhận đặt phòng.';
+                if (this.editor.mode === 'create' && this.form.rateId) {
+                    if (this.rateSuggestions.loading) return 'Đang cập nhật giờ trống. Vui lòng chờ một chút.';
+                    const suggestion = this.rateSuggestions.scope === `${this.form.roomId}:${this.selectedDayKey}`
+                        ? this.rateSuggestions.rates.find(x => x.rateId === this.form.rateId) : null;
+                    if (suggestion && !suggestion.suggestedStartUtc) return 'Khung này không còn khoảng trống phù hợp. Chọn khung khác hoặc tùy chỉnh giờ.';
+                }
                 if (!this.form.customerName.trim()) return 'Vui lòng nhập tên khách.';
                 if (!this.form.customerPhone.trim()) return 'Vui lòng nhập số điện thoại.';
                 if (this.form.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.customerEmail)) return 'Email khách không hợp lệ.';
@@ -437,7 +497,9 @@
             },
             openQuickBlock() {
                 if (root.dataset.canLockRooms !== 'true' || this.editor.mode !== 'create') return;
-                this.quickBlock = { open: true, roomId: this.form.roomId, reason: '', error: '', conflicts: [], acknowledged: false };
+                const slot = this.selectedLockSlot?.roomId === this.form.roomId && (!this.form.rateId || this.selectedLockSlot.rateId === this.form.rateId) ? this.selectedLockSlot : null;
+                this.quickBlock = { open: true, scope: 'slot', requestKey:window.crypto?.randomUUID?.(), roomId: this.form.roomId, start: slot?.startUtc || `${this.form.checkInLocal}${utcOffset}`,
+                    end: slot?.endUtc || `${this.form.checkOutLocal}${utcOffset}`, reason: '', error: '', conflicts: [], acknowledged: false };
             },
             closeQuickBlock() { if (!this.saving) this.quickBlock.open = false; },
             resetQuickBlockConflicts() { this.quickBlock.conflicts = []; this.quickBlock.acknowledged = false; },
@@ -448,16 +510,21 @@
                     return block.error = 'Chọn phòng và nhập lý do khóa (tối đa 500 ký tự).';
                 this.saving = true; block.error = '';
                 try {
-                    const updated = await DeLongApi.put(`/api/admin/properties/${this.propertyId}/rooms/${block.roomId}/booking-lock`, {
-                        isLocked: true, reason: block.reason.trim()
-                    });
-                    const index = this.rooms.findIndex(x => x.id === updated.id);
-                    if (index >= 0) this.rooms.splice(index, 1, updated);
+                    if(block.scope === 'slot') {
+                        const start = new Date(block.start), end = new Date(block.end);
+                        if(!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {block.error='Khung đang chọn không có thời gian hợp lệ.';return;}
+                        await DeLongApi.post(`/api/admin/properties/${this.propertyId}/room-blocks/`,{requestKey:block.requestKey,roomIds:[block.roomId],reason:block.reason.trim(),start:block.start,end:block.end,repeatDaily:false,
+                            acknowledgeExistingBookings:block.acknowledged,acknowledgedBookingIds:block.acknowledged?block.conflicts.map(x=>x.id):[]});
+                    } else {
+                        const updated = await DeLongApi.put(`/api/admin/properties/${this.propertyId}/rooms/${block.roomId}/booking-lock`, {isLocked:true,reason:block.reason.trim()});
+                        const index=this.rooms.findIndex(x=>x.id===updated.id);if(index>=0)this.rooms.splice(index,1,updated);
+                    }
                     block.open = false; this.editor.open = false;
                     document.dispatchEvent(new CustomEvent('delong:operations-change', { detail: { propertyId: this.propertyId, roomId: block.roomId } }));
-                    this.notify('Đã khóa nhận đặt phòng đến khi mở khóa. Các đơn cũ được giữ nguyên.', 'success');
+                    this.notify(block.scope==='slot'?'Đã khóa khung đang chọn.':'Đã khóa toàn phòng đến khi mở lại.', 'success');
                 } catch (error) {
                     block.error = error.message || 'Không thể khóa phòng.';
+                    block.conflicts=error.problem?.conflicts||[];block.acknowledged=false;
                 } finally { this.saving = false; }
             },
             async saveBooking() {

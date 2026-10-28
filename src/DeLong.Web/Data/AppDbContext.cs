@@ -35,6 +35,13 @@ public sealed class AppDbContext
     public DbSet<Pay2SPaymentIntent> Pay2SPaymentIntents => Set<Pay2SPaymentIntent>();
     public DbSet<PropertyPay2SSettings> PropertyPay2SSettings => Set<PropertyPay2SSettings>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<CashReceipt> CashReceipts => Set<CashReceipt>();
+    public DbSet<InventoryWarehouse> InventoryWarehouses => Set<InventoryWarehouse>();
+    public DbSet<InventoryUnit> InventoryUnits => Set<InventoryUnit>();
+    public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
+    public DbSet<InventoryDocument> InventoryDocuments => Set<InventoryDocument>();
+    public DbSet<InventoryDocumentLine> InventoryDocumentLines => Set<InventoryDocumentLine>();
+    public DbSet<InventoryImport> InventoryImports => Set<InventoryImport>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<UserPropertyAccess> UserPropertyAccesses => Set<UserPropertyAccess>();
     public DbSet<PropertyGalleryItem> PropertyGalleryItems => Set<PropertyGalleryItem>();
@@ -591,6 +598,9 @@ public sealed class AppDbContext
 
         modelBuilder.Entity<Expense>(entity =>
         {
+            entity.HasIndex(x => new { x.PropertyId, x.RequestKey }).IsUnique();
+            entity.Property(x => x.RequestHash).HasMaxLength(64);
+            entity.HasOne(x => x.Room).WithMany().HasForeignKey(x => x.RoomId).OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(x => new { x.PropertyId, x.OccurredAtUtc });
             entity.Property(x => x.Category).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Description).HasMaxLength(500).IsRequired();

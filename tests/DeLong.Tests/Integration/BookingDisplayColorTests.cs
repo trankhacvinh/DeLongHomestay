@@ -55,7 +55,10 @@ public sealed class BookingDisplayColorTests
         var changed = await service.UpdateAsync(property.Id, booking.Id, Update(true, "#7c5cc4"));
         Assert.Null(changed.Error);
         Assert.Equal("#7C5CC4", changed.Booking!.DisplayColor);
-        var invalid = await service.UpdateAsync(property.Id, booking.Id, Update(true, "#000000"));
+        var configured = await service.UpdateAsync(property.Id, booking.Id, Update(true, "#945600"));
+        Assert.Null(configured.Error);
+        Assert.Equal("#945600", configured.Booking!.DisplayColor);
+        var invalid = await service.UpdateAsync(property.Id, booking.Id, Update(true, "red;background:url(x)"));
         Assert.Equal("display_color_invalid", invalid.Error!.Code);
         var automatic = await service.UpdateAsync(property.Id, booking.Id, Update(true, null));
         Assert.Null(automatic.Error);

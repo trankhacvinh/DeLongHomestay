@@ -60,6 +60,7 @@ public sealed class CalendarModel(
             .ToList();
         var calendarDisplaySettings = await new BookingCalendarDisplaySettingsStore(storagePaths)
             .GetAsync(PropertyId, cancellationToken);
+        ViewData["BookingDisplayColors"] = BookingDisplayColors.ForSettings(calendarDisplaySettings);
 
         PageDataJson = JsonSerializer.Serialize(
             new
