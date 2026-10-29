@@ -4,11 +4,11 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = 'src/DeLong.Web/wwwroot/js/pages/';
 
-function component(name, initial, api) {
+function component(name, initial, api, overrides = {}) {
     let options;
-    const context = vm.createContext({ window: {}, Intl, Date, URLSearchParams, FormData, crypto: require('node:crypto').webcrypto,
+    const context = vm.createContext({ window: {}, Intl, Date, URLSearchParams, FormData, AbortController, setTimeout, clearTimeout, crypto: require('node:crypto').webcrypto,
         document: { getElementById: id => id.endsWith('-data') ? { textContent: JSON.stringify(initial) } : {} },
-        DeLongApi: api, Vue: { createApp: value => { options = value; return { mount() {} }; } } });
+        DeLongApi: api, Vue: { createApp: value => { options = value; return { directive() { return this; }, mount() {} }; } }, ...overrides });
     vm.runInContext(fs.readFileSync(path + 'operational-forms.js', 'utf8'), context);
     vm.runInContext(fs.readFileSync(path + name, 'utf8'), context);
     const state = options.data();
@@ -68,6 +68,23 @@ test('switching item history discards old responses and loads selected item', as
     assert.equal(state.historyRows.length, 1); assert.equal(state.historyRows[0].id, 'b-doc');
 });
 
+test('cash cancels old month requests and releases loading on timeout without showing old totals', async () => {
+    const pending = [], timers = [];
+    const { state } = component('admin-cash.js', { propertyId:'a',scope:'all',month:'2026-10',snapshot:{month:'2026-10'},rooms:[],properties:[],editableProperties:[] }, {
+        get: (url, options) => new Promise((resolve,reject) => {
+            pending.push({url,signal:options?.signal,resolve});
+            options?.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), {name:'AbortError'})));
+        })
+    }, { setTimeout: (fn, ms) => { assert.equal(ms,30000);timers.push(fn);return timers.length; }, clearTimeout(){} });
+    const first=state.load();assert.ok(pending[0].signal,'month loads must have an abort signal');
+    state.month='2026-09';const next=state.load();assert.equal(pending[0].signal.aborted,true);
+    await first;assert.equal(state.loading,true);
+    timers.at(-1)();await next;
+    assert.equal(state.loading,false);assert.equal(state.loadedQuery,'');assert.match(state.error,/quá lâu/);
+    const retry=state.load();pending.at(-1).resolve({month:'2026-09',entries:[]});await retry;
+    assert.equal(state.snapshot.month,'2026-09');assert.equal(state.loadedQuery,state.query);assert.equal(state.error,'');
+});
+
 test('item form omits code; import preview uses timezone and retry preserves signed token and request key', async () => {
     const bodies = [], forms = [];
     const { state } = component('admin-inventory.js', { month: '2026-10', snapshot: { warehouse: { timeZoneId: 'Asia/Ho_Chi_Minh' }, items: [] } }, {
@@ -85,4 +102,34 @@ test('item form omits code; import preview uses timezone and retry preserves sig
     assert.equal(bodies[1].body.requestKey, bodies[2].body.requestKey); assert.equal(bodies[2].body.token, 'signed');
     state.openImport('catalog'); state.importPreview = { token: 'old' }; const oldKey = state.importKey;
     state.clearPreview(); assert.equal(state.importPreview, null); assert.notEqual(state.importKey, oldKey);
+});
+
+
+test('recipient suggestions reuse external names across months, resolve branches, and totals summarize received issued and closing', () => {
+    const {state}=component('admin-inventory.js',{month:'2026-10',properties:[{id:'p',name:'De Long'}],snapshot:{
+        items:[{id:'a',isActive:true},{id:'b',isActive:true}],
+        stock:[{itemId:'a',name:'A',unitName:'kg',opening:3,received:2,issued:5,closing:0},{itemId:'b',name:'B',unitName:'chai',opening:5,received:0,issued:1,closing:4}],
+        documents:[{type:1},{type:2},{type:2,isVoided:true}],distribution:[],
+        recipients:[{propertyId:null,name:'home1'},{propertyId:null,name:' HOME1 '},{propertyId:'p',name:'De Long'}]
+    }},{});
+    assert.equal(state.recipientOptions.length,2);
+    state.openDocument(2);state.documentForm.recipientText=' de long ';
+    assert.equal(state.documentRecipient().recipientPropertyId,'p');
+    state.documentForm.recipientText='home1';assert.equal(state.documentRecipient().recipientName,'home1');
+    assert.equal(state.documentRecipient().recipientPropertyId,null);
+    assert.equal(state.quickSummary.empty,1);assert.equal(state.quickSummary.receipts,1);assert.equal(state.quickSummary.issues,1);
+    assert.equal(state.stockTotals.received,2);assert.equal(state.stockTotals.issued,6);assert.equal(state.stockTotals.closing,4);
+    state.search='A';assert.equal(state.stockTotals.issued,5);assert.equal(state.stockTotals.closing,0);
+    assert.equal(state.recipientKey({recipientName:' HOME1 '}),state.recipientKey({recipientName:'home1'}));
+});
+
+
+test('shared API GET forwards cancellation and propagates abort while reading JSON', async () => {
+    const controller=new AbortController();let received;
+    const window={location:{hostname:'example.com',origin:'https://example.com'},addEventListener(){}};
+    const context={window,URL,FormData,document:{body:null,getElementById:()=>null,querySelector:()=>null},
+        fetch:async(url,config)=>{received=config;return {ok:true,status:200,headers:{get:()=> 'application/json'},json:async()=>{throw Object.assign(new Error('aborted'),{name:'AbortError'});}};}};
+    vm.runInNewContext(fs.readFileSync('src/DeLong.Web/wwwroot/js/core/api.js','utf8'),context);
+    await assert.rejects(window.DeLongApi.get('/api/admin/cash/',{signal:controller.signal}),{name:'AbortError'});
+    assert.equal(received.signal,controller.signal);assert.equal(received.credentials,'same-origin');
 });

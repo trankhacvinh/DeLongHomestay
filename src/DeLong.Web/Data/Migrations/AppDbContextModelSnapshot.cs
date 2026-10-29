@@ -1980,6 +1980,11 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("property_id");
 
+                    b.Property<string>("RecipientName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("recipient_name");
+
                     b.Property<Guid?>("RecipientPropertyId")
                         .HasColumnType("uuid")
                         .HasColumnName("recipient_property_id");
@@ -2038,7 +2043,7 @@ namespace DeLong.Web.Data.Migrations
 
                     b.ToTable("inventory_documents", t =>
                         {
-                            t.HasCheckConstraint("ck_inventory_document_recipient", "(type = 2 AND recipient_property_id IS NOT NULL) OR (type <> 2 AND recipient_property_id IS NULL)");
+                            t.HasCheckConstraint("ck_inventory_document_recipient", "(type = 2 AND (recipient_property_id IS NOT NULL OR length(btrim(coalesce(recipient_name, ''))) > 0)) OR (type <> 2 AND recipient_property_id IS NULL AND recipient_name IS NULL)");
 
                             t.HasCheckConstraint("ck_inventory_document_type", "type BETWEEN 0 AND 4");
                         });

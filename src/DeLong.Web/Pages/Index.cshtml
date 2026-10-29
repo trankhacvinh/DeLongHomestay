@@ -7,6 +7,7 @@
 @model DeLong.Web.Pages.IndexModel
 @{
     var branding = ViewData["GlobalBranding"] as GlobalSiteBrandingDto;
+    ViewData["PublicHomeCssBundle"] = true;
     var siteName = Model.IsGlobalHome ? branding?.SiteName ?? "Homestay" : Model.SiteSettings?.SiteName ?? branding?.SiteName ?? "Homestay";
     ViewData["Title"] = Model.IsGlobalHome ? branding?.MetaTitle ?? siteName : Model.SiteSettings?.MetaTitle ?? siteName;
     ViewData["MetaDescription"] = Model.IsGlobalHome ? branding?.MetaDescription : Model.SiteSettings?.MetaDescription;
@@ -87,6 +88,8 @@
 }
 
 @section Head {
+    @if (ViewData["PublicHomeCssBundle"] is not true)
+    {
     <link rel="stylesheet" href="~/css/public-polish.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/public-room-content.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/homepage-cms.css" asp-append-version="true" />
@@ -94,6 +97,7 @@
     <link rel="stylesheet" href="~/css/hospitality-editorial.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/property-storytelling.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/public-availability-calendar.css" asp-append-version="true" />
+    }
 }
 
 @if (Model.IsGlobalHome)

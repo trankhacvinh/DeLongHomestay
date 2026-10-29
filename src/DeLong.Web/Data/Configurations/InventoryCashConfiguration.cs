@@ -38,12 +38,13 @@ public sealed class InventoryCashConfiguration : IEntityTypeConfiguration<Invent
         b.Property(x => x.Code).HasMaxLength(40).IsRequired();
         b.Property(x => x.RequestHash).HasMaxLength(64).IsRequired();
         b.Property(x => x.Note).HasMaxLength(2000);
+        b.Property(x => x.RecipientName).HasMaxLength(200);
         b.Property(x => x.VoidReason).HasMaxLength(1000);
         b.HasOne(x => x.Warehouse).WithMany().HasForeignKey(x => x.WarehouseId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.RecipientProperty).WithMany().HasForeignKey(x => x.RecipientPropertyId).OnDelete(DeleteBehavior.Restrict);
         b.ToTable(t => {
             t.HasCheckConstraint("ck_inventory_document_type", "type BETWEEN 0 AND 4");
-            t.HasCheckConstraint("ck_inventory_document_recipient", "(type = 2 AND recipient_property_id IS NOT NULL) OR (type <> 2 AND recipient_property_id IS NULL)");
+            t.HasCheckConstraint("ck_inventory_document_recipient", "(type = 2 AND (recipient_property_id IS NOT NULL OR length(btrim(coalesce(recipient_name, ''))) > 0)) OR (type <> 2 AND recipient_property_id IS NULL AND recipient_name IS NULL)");
         });
     }
     public void Configure(EntityTypeBuilder<InventoryDocumentLine> b)

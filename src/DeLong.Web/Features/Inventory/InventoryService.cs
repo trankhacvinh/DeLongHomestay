@@ -68,13 +68,17 @@ public sealed class InventoryService(AppDbContext db, AuditService audit, Proper
         }).ToList();
         var documents = await db.InventoryDocuments.AsNoTracking().Where(x => x.WarehouseId == warehouse.Id && x.OccurredAtUtc >= from && x.OccurredAtUtc < to)
             .OrderByDescending(x => x.OccurredAtUtc).ThenByDescending(x => x.CreatedAtUtc).Select(x => new InventoryDocumentDto(x.Id, x.Code, x.Type, x.OccurredAtUtc,
-                x.RecipientPropertyId, x.RecipientProperty == null ? null : x.RecipientProperty.Name, x.Note, x.RecordedByUserId,
+                x.RecipientPropertyId, x.RecipientName ?? (x.RecipientProperty == null ? null : x.RecipientProperty.Name), x.Note, x.RecordedByUserId,
                 db.Users.Where(u => u.Id == x.RecordedByUserId).Select(u => u.DisplayName != "" ? u.DisplayName : u.UserName).FirstOrDefault(), x.CreatedAtUtc, x.IsVoided, x.VoidReason,
                 x.Lines.OrderBy(l => l.ItemName).Select(l => new InventoryLineDto(l.ItemId, l.ItemName, l.UnitName, l.Quantity, l.UnitPrice)).ToList())).ToListAsync(ct);
         var distribution = documents.Where(x => !x.IsVoided && x.Type == InventoryDocumentType.Issue).SelectMany(x => x.Lines.Select(l => new { Document = x, Line = l }))
-            .GroupBy(x => new { Recipient = x.Document.RecipientPropertyId!.Value, x.Document.RecipientName, x.Line.ItemId, x.Line.ItemName, x.Line.UnitName })
-            .Select(g => new InventoryDistributionDto(g.Key.Recipient, g.Key.RecipientName!, g.Key.ItemId, g.Key.ItemName, g.Key.UnitName, g.Sum(x => x.Line.Quantity), g.Sum(x => x.Line.Quantity * x.Line.UnitPrice))).ToList();
-        return (new(ToWarehouse(warehouse), units, items, stock, documents, distribution), null);
+            .GroupBy(x => new { Recipient = x.Document.RecipientPropertyId, Name = x.Document.RecipientPropertyId.HasValue ? "" : InventoryIdentity.Normalize(x.Document.RecipientName ?? ""), x.Line.ItemId, x.Line.ItemName, x.Line.UnitName })
+            .Select(g => new InventoryDistributionDto(g.Key.Recipient, g.First().Document.RecipientName ?? "", g.Key.ItemId, g.Key.ItemName, g.Key.UnitName, g.Sum(x => x.Line.Quantity), g.Sum(x => x.Line.Quantity * x.Line.UnitPrice))).ToList();
+        var destinations = await db.InventoryDocuments.AsNoTracking().Where(x => x.WarehouseId == warehouse.Id && x.Type == InventoryDocumentType.Issue)
+            .Select(x => new InventoryRecipientDto(x.RecipientPropertyId, x.RecipientName ?? (x.RecipientProperty == null ? "" : x.RecipientProperty.Name))).Distinct().ToListAsync(ct);
+        var recipients = destinations.Where(x => !string.IsNullOrWhiteSpace(x.Name))
+            .GroupBy(x => (x.PropertyId, InventoryIdentity.Normalize(x.Name))).Select(x => x.First()).OrderBy(x => x.Name).ToList();
+        return (new(ToWarehouse(warehouse), units, items, stock, documents, distribution, recipients), null);
     }
 
     public async Task<(InventoryUnitDto? Result, InventoryError? Error)> AddUnitAsync(ClaimsPrincipal user, InventoryUnitRequest request, CancellationToken ct)
@@ -129,13 +133,24 @@ public sealed class InventoryService(AppDbContext db, AuditService audit, Proper
             request.Lines is null || request.Lines.Count is < 1 or > 100 || request.Lines.Any(x => x is null) || request.Lines.Select(x => x.ItemId).Distinct().Count() != request.Lines.Count ||
             request.Lines.Any(x => x.Quantity <= 0 || x.Quantity > 1_000_000_000m || decimal.Round(x.Quantity, 3) != x.Quantity || x.UnitPrice < 0 || x.UnitPrice > 1_000_000_000m || decimal.Round(x.UnitPrice, 2) != x.UnitPrice || x.Quantity * x.UnitPrice > 1_000_000_000_000m))
             return (null, Invalid("Phiếu cần ngày hợp lệ, 1–100 mặt hàng khác nhau; số lượng dương tối đa 3 chữ số lẻ, giá không âm."));
+        if (request.RecipientName?.Length > 200) return (null, Invalid("Tên nơi nhận tối đa 200 ký tự."));
+        string? recipientName = null;
         if (request.Type == InventoryDocumentType.Issue) {
-            if (!request.RecipientPropertyId.HasValue || !await db.Properties.AnyAsync(x => x.Id == request.RecipientPropertyId && x.IsActive, ct)) return (null, Invalid("Chọn chi nhánh nhận hàng."));
-            if (!user.IsInRole("Admin") && !await access.CanAccessAsync(user, request.RecipientPropertyId.Value, ct)) return (null, Forbidden);
-        } else if (request.RecipientPropertyId.HasValue) return (null, Invalid("Chỉ phiếu xuất có chi nhánh nhận."));
+            if (request.RecipientPropertyId.HasValue) {
+                recipientName = await db.Properties.AsNoTracking().Where(x => x.Id == request.RecipientPropertyId && x.IsActive).Select(x => x.Name).SingleOrDefaultAsync(ct);
+                if (recipientName is null) return (null, Invalid("Chi nhánh nhận không tồn tại hoặc đã ngừng hoạt động."));
+                if (!user.IsInRole("Admin") && !await access.CanAccessAsync(user, request.RecipientPropertyId.Value, ct)) return (null, Forbidden);
+            } else {
+                if (string.IsNullOrWhiteSpace(request.RecipientName)) return (null, Invalid("Chọn chi nhánh hoặc nhập tên nơi nhận hàng."));
+                recipientName = string.Join(' ', request.RecipientName.Normalize(NormalizationForm.FormC).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+            }
+        } else if (request.RecipientPropertyId.HasValue || request.RecipientName is not null) return (null, Invalid("Chỉ phiếu xuất có nơi nhận."));
         if (request.Type is InventoryDocumentType.AdjustmentIn or InventoryDocumentType.AdjustmentOut && string.IsNullOrWhiteSpace(request.Note)) return (null, Invalid("Điều chỉnh cần ghi rõ lý do."));
         await using var tx = await db.Database.BeginTransactionAsync(ct); await RequestFingerprint.LockAsync(db, "inventory:" + warehouse.Id, ct);
-        var hash = RequestFingerprint.Create(request);
+        // Retain fingerprints for retries sent by clients predating free-text recipients.
+        var hash = request.RecipientName is null
+            ? RequestFingerprint.Create(new { request.RequestKey, request.Type, request.OccurredAt, request.RecipientPropertyId, request.Note, request.Lines })
+            : RequestFingerprint.Create(request);
         var prior = await db.InventoryDocuments.AsNoTracking().SingleOrDefaultAsync(x => x.WarehouseId == warehouse.Id && x.RequestKey == request.RequestKey, ct);
         if (prior is not null) return prior.RequestHash == hash ? (prior.Id, null) : (null, new("retry_conflict", "Mã gửi lại đã được dùng cho nội dung khác.", 409));
         var ids = request.Lines.Select(x => x.ItemId).ToArray();
@@ -145,7 +160,7 @@ public sealed class InventoryService(AppDbContext db, AuditService audit, Proper
             return (null, Invalid("Tồn đầu chỉ khai báo khi mặt hàng chưa có phát sinh. Dùng phiếu điều chỉnh nếu cần sửa tồn."));
         var document = new InventoryDocument { PropertyId = warehouse.PropertyId, WarehouseId = warehouse.Id, RequestKey = request.RequestKey, RequestHash = hash,
             Code = "K" + Guid.CreateVersion7().ToString("N"), Type = request.Type, OccurredAtUtc = request.OccurredAt.UtcDateTime, RecipientPropertyId = request.RecipientPropertyId,
-            Note = request.Note?.Trim(), RecordedByUserId = Actor(user) };
+            RecipientName = recipientName, Note = request.Note?.Trim(), RecordedByUserId = Actor(user) };
         foreach (var row in request.Lines) {
             var item = items.Single(x => x.Id == row.ItemId);
             document.Lines.Add(new InventoryDocumentLine { PropertyId = warehouse.PropertyId, ItemId = item.Id, ItemName = item.Name, UnitName = item.Unit.Name, Quantity = row.Quantity, UnitPrice = row.UnitPrice });
@@ -190,7 +205,7 @@ public sealed class InventoryService(AppDbContext db, AuditService audit, Proper
         var rows = await db.InventoryDocuments.AsNoTracking().Where(x => x.WarehouseId == warehouse.Id && x.Lines.Any(l => l.ItemId == itemId))
             .OrderByDescending(x => x.OccurredAtUtc).ThenByDescending(x => x.CreatedAtUtc).ThenBy(x => x.Id).Skip(Math.Max(0, skip)).Take(100)
             .Select(x => new InventoryDocumentDto(x.Id, x.Code, x.Type, x.OccurredAtUtc, x.RecipientPropertyId,
-                x.RecipientProperty == null ? null : x.RecipientProperty.Name, x.Note, x.RecordedByUserId,
+                x.RecipientName ?? (x.RecipientProperty == null ? null : x.RecipientProperty.Name), x.Note, x.RecordedByUserId,
                 db.Users.Where(u => u.Id == x.RecordedByUserId).Select(u => u.DisplayName != "" ? u.DisplayName : u.UserName).FirstOrDefault(),
                 x.CreatedAtUtc, x.IsVoided, x.VoidReason, x.Lines.Where(l => l.ItemId == itemId).Select(l => new InventoryLineDto(l.ItemId, l.ItemName, l.UnitName, l.Quantity, l.UnitPrice)).ToList())).ToListAsync(ct);
         return (rows, null);

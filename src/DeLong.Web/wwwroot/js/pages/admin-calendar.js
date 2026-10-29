@@ -500,9 +500,24 @@
                 const slot = this.selectedLockSlot?.roomId === this.form.roomId && (!this.form.rateId || this.selectedLockSlot.rateId === this.form.rateId) ? this.selectedLockSlot : null;
                 this.quickBlock = { open: true, scope: 'slot', requestKey:window.crypto?.randomUUID?.(), roomId: this.form.roomId, start: slot?.startUtc || `${this.form.checkInLocal}${utcOffset}`,
                     end: slot?.endUtc || `${this.form.checkOutLocal}${utcOffset}`, reason: '', error: '', conflicts: [], acknowledged: false };
+                this.quickBlock.error = this.quickBlockSlotError();
+            },
+            quickBlockSlotError() {
+                const start = new Date(this.quickBlock.start), end = new Date(this.quickBlock.end);
+                if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start)
+                    return 'Khung đang chọn không có thời gian hợp lệ. Vui lòng chọn lại khung trên lịch.';
+                if (end.getTime() <= Date.now())
+                    return 'Khung đang chọn đã kết thúc. Vui lòng chọn khung chưa kết thúc trên lịch hoặc chọn “Khóa toàn phòng” để ngừng nhận đơn từ bây giờ.';
+                if (end - start > 366 * 86400000)
+                    return 'Khoảng khóa tối đa 366 ngày. Vui lòng chọn lại khung trên lịch.';
+                return '';
             },
             closeQuickBlock() { if (!this.saving) this.quickBlock.open = false; },
-            resetQuickBlockConflicts() { this.quickBlock.conflicts = []; this.quickBlock.acknowledged = false; },
+            resetQuickBlockConflicts() {
+                this.quickBlock.conflicts = [];
+                this.quickBlock.acknowledged = false;
+                this.quickBlock.error = this.quickBlock.scope === 'slot' ? this.quickBlockSlotError() : '';
+            },
             async saveQuickBlock() {
                 if (this.saving) return;
                 const block = this.quickBlock;
@@ -511,8 +526,8 @@
                 this.saving = true; block.error = '';
                 try {
                     if(block.scope === 'slot') {
-                        const start = new Date(block.start), end = new Date(block.end);
-                        if(!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {block.error='Khung đang chọn không có thời gian hợp lệ.';return;}
+                        const slotError = this.quickBlockSlotError();
+                        if (slotError) { block.error = slotError; return; }
                         await DeLongApi.post(`/api/admin/properties/${this.propertyId}/room-blocks/`,{requestKey:block.requestKey,roomIds:[block.roomId],reason:block.reason.trim(),start:block.start,end:block.end,repeatDaily:false,
                             acknowledgeExistingBookings:block.acknowledged,acknowledgedBookingIds:block.acknowledged?block.conflicts.map(x=>x.id):[]});
                     } else {

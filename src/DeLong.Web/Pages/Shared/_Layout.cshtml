@@ -207,6 +207,24 @@
             <script type="application/ld+json">@Html.Raw(structuredDataJson)</script>
         }
     }
+    @if (!isAdmin)
+    {
+        <link rel="preload" href="~/fonts/brand/be-vietnam-pro-400.woff2?v=446d2bf4dee42971" as="font" type="font/woff2" crossorigin />
+        <link rel="preload" href="~/fonts/brand/be-vietnam-pro-900.woff2?v=6328bd1e835d03f5" as="font" type="font/woff2" crossorigin />
+        @if (ViewData["PublicHomeCssBundle"] is true)
+        {
+            <link rel="preload" href="~/fonts/brand/be-vietnam-pro-600.woff2?v=005d745804315fcb" as="font" type="font/woff2" crossorigin media="(max-width:820px)" />
+            <link rel="preload" href="~/fonts/brand/be-vietnam-pro-700.woff2?v=07f8fd1cdac43745" as="font" type="font/woff2" crossorigin media="(max-width:820px)" />
+        }
+    }
+    @if (!isAdmin && ViewData["PublicHomeCssBundle"] is true)
+    {
+        <link rel="stylesheet" href="~/css/public-home.bundle.css" asp-append-version="true"
+              data-public-row-responsive data-public-row-templates data-public-row-advanced-elements data-public-custom-pages data-booking-core-v2 />
+        @await RenderSectionAsync("Head", required: false)
+    }
+    else
+    {
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
     @if (!isAdmin)
     {
@@ -233,13 +251,12 @@
     @if (!isAdmin)
     {
         <link rel="stylesheet" href="~/css/hospitality-shell.css" asp-append-version="true"/>
-        <link rel="preload" href="~/fonts/brand/be-vietnam-pro-400.woff" as="font" type="font/woff" crossorigin/>
-        <link rel="preload" href="~/fonts/brand/be-vietnam-pro-900.woff" as="font" type="font/woff" crossorigin/>
         <link rel="stylesheet" href="~/css/public-redesign.css" asp-append-version="true"/>
         @if (publicFaqSections.Count > 0)
         {
             <link rel="stylesheet" href="~/css/public-faq-modal.css" asp-append-version="true"/>
         }
+    }
     }
     @if (!isAdmin && !isGlobalPublic && !publicThemeStandard)
     {

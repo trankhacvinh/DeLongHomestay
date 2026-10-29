@@ -1,5 +1,11 @@
 # Mapping Demo → Production Razor Pages
 
+## Public assets — 1.8.22
+
+- Build/publish bằng .NET SDK tự sinh CSS bundle trang chủ qua `Build/PublicHomeCss.targets`; không sửa trực tiếp file sinh và không cần npm trên Ubuntu. Publish phải sao chép đủ `wwwroot`, gồm bundle và 4 font WOFF2.
+- Razor vẫn render HTML đầu; Index chọn bundle qua ViewData, các trang khác giữ CSS riêng. Giữ hash asset, cookie/antiforgery và header HTML hiện có; không cache availability theo TTL dài.
+- Không có migration cho thay đổi này. Rollback bản app/static assets đồng bộ, giữ schema/dữ liệu nghiệp vụ. Xem [ADR](ADR-PUBLIC-ASSET-BUILD.md).
+
 ## Kho và tiền mặt — 1.8.15
 
 - Bản 1.8.16 cần thêm migration `20261028032715_AddInventoryImportReceipts` sau migration kho ban đầu, lưu kết quả import để retry an toàn. Không có data backfill. Xem [chi tiết](INVENTORY-IMPORT-COMPACT-2026-10-28.md).

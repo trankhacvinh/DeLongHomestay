@@ -147,3 +147,27 @@
 
 - [x] Đếm theo ngày tạo/timezone chi nhánh, gồm mọi nguồn, độc lập bộ lọc; 9 JS tests và 2 Chrome fixtures đạt, build/test version đạt.
 - [ ] Deploy/UAT website và nhân viên tạo booking. Xem [bàn giao](BOOKING-CREATED-TODAY-2026-10-28.md).
+
+## Sửa khóa khung / click booking — 1.8.20
+
+- [x] Báo/chặn khung đã hết giờ trước khi gửi; đổi scope xóa lỗi. Bấm booking khi khóa toàn phòng vẫn xem chi tiết.
+- [x] 16 .NET, 22 JS tests và Chrome fixture 390/1280px đạt; không thêm migration.
+- [ ] Deploy/UAT. Xem [bàn giao](ROOM-LOCK-CLICK-EXPIRY-2026-10-28.md).
+
+## Bố cục thu bổ sung / lịch sử — 1.8.21
+
+- [x] Grid thanh toán compact, lịch sử có lề/gap và metadata riêng; build, 9 JS tests và 4 Chrome fixtures đạt.
+- [ ] Deploy/UAT. Xem [bàn giao](BOOKING-MODAL-SPACING-2026-10-28.md).
+
+## Public performance — 1.8.22
+
+- [x] Bundle CSS qua .NET SDK, WOFF2/fingerprint, core form DOM ready; Release publish đã kiểm tra đủ tài nguyên.
+- [x] 19 .NET tests tập trung, 149 JS unit tests, 4 replay cases và test browser ảnh treo; mobile CLS replay về 0, layout hero giữ nguyên.
+- [ ] Deploy, Lighthouse lại trên production cùng điều kiện, UAT thiết bị/phiên editor thật. Xem [bàn giao](PUBLIC-PERFORMANCE-OPTIMIZATION-2026-10-28.md).
+
+
+## Kho và tiền mặt — 1.8.23
+
+- [x] Schema cộng thêm và kiểm thử nơi nhận, retry, số dư, phân quyền; 12 PostgreSQL, 152 JS, 8 màn hình Chrome qua.
+- [ ] Backup, xác minh database đích, publish/bundle mới và migrate production (InventoryImportReceipts + InventoryRecipientNames).
+- [ ] UAT home1 xuyên tháng, hết hàng/mobile và tiền mặt tháng 09/2026 trên VPS. Xem [bàn giao](INVENTORY-RECIPIENTS-CASH-2026-10-29.md).

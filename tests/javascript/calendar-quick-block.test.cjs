@@ -27,3 +27,24 @@ test('slot lock uses the selected overnight window and retains a stable retry ke
 test('selected full slot is preserved even when the booking form uses only its free remainder',()=>{
  const {vm}=setup();vm.selectedLockSlot={roomId:'blue',rateId:'r1',startUtc:'2031-01-10T07:00:00Z',endUtc:'2031-01-10T10:00:00Z'};vm.openQuickBlock();assert.equal(vm.quickBlock.start,vm.selectedLockSlot.startUtc);assert.equal(vm.quickBlock.end,vm.selectedLockSlot.endUtc);
 });
+
+test('expired slot is explained before submit, sends no request, and requires an explicit room-lock choice', async () => {
+ const {vm,calls}=setup();
+ vm.form.checkInLocal='2020-01-10T14:00';vm.form.checkOutLocal='2020-01-10T17:00';vm.openQuickBlock();
+ assert.equal(vm.quickBlock.scope,'slot');assert.match(vm.quickBlock.error,/đã kết thúc/);
+ vm.quickBlock.reason='Sửa';await vm.saveQuickBlock();assert.equal(calls.length,0);assert.equal(vm.quickBlock.open,true);
+ vm.quickBlock.scope='room';vm.resetQuickBlockConflicts();assert.equal(vm.quickBlock.error,'');
+ await vm.saveQuickBlock();assert.equal(calls.length,1);assert.match(calls[0][0],/booking-lock$/);
+});
+test('slot expiring while the modal is open is checked again before sending', async () => {
+ const {vm,calls}=setup();vm.quickBlock.reason='Sửa';vm.quickBlock.end=new Date(Date.now()-1000).toISOString();
+ vm.quickBlock.start=new Date(Date.now()-3600000).toISOString();await vm.saveQuickBlock();
+ assert.equal(calls.length,0);assert.match(vm.quickBlock.error,/đã kết thúc/);assert.equal(vm.saving,false);
+});
+test('ongoing and overnight slots remain valid while invalid or excessive ranges are rejected', async () => {
+ const {vm,calls}=setup();vm.quickBlock.reason='Sửa';
+ vm.quickBlock.start=new Date(Date.now()-3600000).toISOString();vm.quickBlock.end=new Date(Date.now()+3600000).toISOString();
+ assert.equal(vm.quickBlockSlotError(),'');await vm.saveQuickBlock();assert.equal(calls.length,1);
+ vm.quickBlock.start='invalid';assert.match(vm.quickBlockSlotError(),/không có thời gian hợp lệ/);
+ vm.quickBlock.start='2031-01-10T00:00:00Z';vm.quickBlock.end='2033-01-10T00:00:00Z';assert.match(vm.quickBlockSlotError(),/366/);
+});

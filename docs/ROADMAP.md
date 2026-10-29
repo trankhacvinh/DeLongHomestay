@@ -300,3 +300,19 @@
 
 - [x] Thống kê riêng theo CreatedAtUtc trong ngày địa phương, mọi nguồn/trạng thái và đúng chi nhánh; không theo bộ lọc ngày nhận phòng/công nợ.
 - [ ] Deploy/UAT. Xem [bàn giao](BOOKING-CREATED-TODAY-2026-10-28.md).
+
+## Khóa khung hết giờ và xem đơn khi khóa toàn phòng — 1.8.20
+
+- [x] Validate cụ thể trước gửi/server và sửa thứ tự xử lý click, giữ lựa chọn scope rõ ràng.
+- [ ] Deploy/UAT. Xem [bàn giao](ROOM-LOCK-CLICK-EXPIRY-2026-10-28.md).
+
+## Tài nguyên public — 1.8.22
+
+- [x] CSS trang chủ theo đúng cascade trong một bundle, font WOFF2, giảm nạp trùng và form không chờ ảnh/window load. Không đổi kiến trúc Razor/Vue hoặc nghiệp vụ booking.
+- [x] Build/publish, focused .NET, JS và replay/browser checks đạt; số đo local tách khỏi production.
+- [ ] Deploy/UAT và đo lại production; API 22s cần timing/query evidence nếu còn tái diễn. Xem [bàn giao](PUBLIC-PERFORMANCE-OPTIMIZATION-2026-10-28.md).
+
+
+## Kho và tiền mặt — 1.8.23
+
+Đã làm trong source: nơi nhận tự do/gợi ý lại, thống kê kho, màu nhập/xuất/hết hàng, ẩn mã, cột mobile gọn và timeout/hủy request tiền mặt. Còn triển khai migration/publish mới, xác minh VPS và UAT điện thoại thật. Xem [bàn giao](INVENTORY-RECIPIENTS-CASH-2026-10-29.md).

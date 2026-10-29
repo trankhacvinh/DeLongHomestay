@@ -31,7 +31,10 @@
         let payload;
         if (isJson) {
             try { payload = await response.json(); }
-            catch { payload = null; }
+            catch (error) {
+                if (error?.name === 'AbortError') throw error;
+                payload = null;
+            }
         } else {
             payload = await response.text();
         }
@@ -69,7 +72,7 @@
     }
 
     global.DeLongApi = {
-        get: (url) => request(url),
+        get: (url, options) => request(url, { ...options, method: 'GET' }),
         post: (url, data, headers, options) => request(url, { ...options, method: 'POST', headers: headers || {}, body: JSON.stringify(data) }),
         postForm: async (url, formData, headers) => request(url, {
             method: 'POST', headers: headers || {},
@@ -116,6 +119,11 @@
     function afterWindowLoad(callback) {
         if (document.readyState === 'complete') setTimeout(callback, 0);
         else window.addEventListener('load', callback, { once: true });
+    }
+
+    function afterDomReady(callback) {
+        if (document.readyState !== 'loading') setTimeout(callback, 0);
+        else document.addEventListener('DOMContentLoaded', callback, { once: true });
     }
 
     if (document.body?.classList.contains('admin-body')) {
@@ -208,8 +216,9 @@
             addScript('data-public-header-footer-designer', '/js/pages/public-header-footer-designer.js?v=20260818-1');
             addScript('data-public-footer-inline-editor', '/js/pages/public-footer-inline-editor.js?v=20260818-1');
         }
-        afterWindowLoad(() => {
-            addScript('data-public-booking-core-v2', '/js/pages/public-booking-core-v2.js?v=20260819-5');
+        afterDomReady(() => {
+            if (document.getElementById('public-booking-page'))
+                addScript('data-public-booking-core-v2', '/js/pages/public-booking-core-v2.js?v=20260819-5');
             if (document.querySelector('.public-room-page')) {
                 addStyle('data-public-room-availability', '/css/public-room-availability.css?v=20260820-1');
                 addScript('data-public-room-availability', '/js/pages/public-room-availability.js?v=20260820-1');

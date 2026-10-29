@@ -1,17 +1,19 @@
 <div class="modal-backdrop modal-top" v-if="bookingHistory.open" v-on:click.self="bookingHistory.open = false">
     <section class="modal-card booking-history-dialog" role="dialog" aria-modal="true" aria-labelledby="booking-history-title">
         <div class="modal-head"><h2 id="booking-history-title">Lịch sử · {{ selectedBooking?.code }}</h2><button type="button" class="icon-btn" aria-label="Đóng lịch sử" v-on:click="bookingHistory.open = false">×</button></div>
+        <div class="booking-history-body">
         <p v-if="bookingHistory.error" class="notice" role="alert">{{ bookingHistory.error }}</p>
         <p v-if="bookingHistory.loading" role="status">Đang tải lịch sử…</p>
         <p v-if="!bookingHistory.loading && !bookingHistory.error && !bookingHistory.rows.length">Chưa có dữ liệu lịch sử. Không thể xác định người thao tác từ các bản ghi chưa lưu audit.</p>
         <div v-for="row in bookingHistory.rows" v-bind:key="row.id" class="booking-history-row">
-            <div><strong>{{ bookingHistoryAction(row.action) }}</strong><div>{{ bookingHistoryActor(row) }} · {{ bookingHistoryTime(row.createdAtUtc) }}</div></div>
-            <button type="button" class="btn btn-light btn-sm" v-on:click="bookingHistory.selected = bookingHistory.selected === row.id ? null : row.id">Chi tiết</button>
+            <div class="booking-history-entry"><strong>{{ bookingHistoryAction(row.action) }}</strong><div class="booking-history-meta"><span>{{ bookingHistoryActor(row) }}</span><time v-bind:datetime="row.createdAtUtc">{{ bookingHistoryTime(row.createdAtUtc) }}</time></div></div>
+            <button type="button" class="btn btn-light btn-sm" v-bind:aria-expanded="bookingHistory.selected === row.id" v-on:click="bookingHistory.selected = bookingHistory.selected === row.id ? null : row.id">Chi tiết</button>
             <div v-if="bookingHistory.selected === row.id" class="booking-history-changes">
                 <div v-for="change in bookingHistoryChanges(row)" v-bind:key="change.key"><strong>{{ change.label }}</strong><span>{{ change.before }}</span><span>→ {{ change.after }}</span></div>
                 <p v-if="!bookingHistoryChanges(row).length">Bản ghi này không lưu chi tiết thay đổi có thể hiển thị.</p>
             </div>
         </div>
         <button v-if="bookingHistory.more" type="button" class="btn btn-light" v-bind:disabled="bookingHistory.loading" v-on:click="loadBookingHistory(selectedBooking.id, true)">Xem thêm</button>
+        </div>
     </section>
 </div>

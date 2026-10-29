@@ -61,9 +61,12 @@ public sealed class RoomBookingBlockService(AppDbContext db, AuditService audit,
         IReadOnlyList<(DateTime Start, DateTime End)> ranges;
         try { ranges = Expand(request, TimeZoneInfo.FindSystemTimeZoneById(property.TimeZoneId)); }
         catch (ArgumentException ex) { return new("validation", ex.Message); }
-        if (ranges.Any(x => x.End <= x.Start || x.End - x.Start > TimeSpan.FromDays(366)) ||
-            ranges.Max(x => x.End) <= DateTime.UtcNow)
-            return new("validation", "Giờ kết thúc phải sau giờ bắt đầu; lịch khóa phải còn hiệu lực và tối đa 366 ngày.");
+        if (ranges.Any(x => x.End <= x.Start))
+            return new("validation", "Giờ kết thúc khóa phải sau giờ bắt đầu. Vui lòng chọn lại khung trên lịch.");
+        if (ranges.Any(x => x.End - x.Start > TimeSpan.FromDays(366)))
+            return new("validation", "Khoảng khóa tối đa 366 ngày.");
+        if (ranges.Max(x => x.End) <= DateTime.UtcNow)
+            return new("validation", "Khung khóa đã kết thúc. Vui lòng chọn khung chưa kết thúc hoặc chọn khóa toàn phòng để ngừng nhận đơn từ bây giờ.");
         var old = batchId.HasValue
             ? await db.RoomBookingBlocks.Where(x => x.PropertyId == propertyId && x.BatchId == batchId && x.CancelledAtUtc == null).ToListAsync(ct)
             : [];

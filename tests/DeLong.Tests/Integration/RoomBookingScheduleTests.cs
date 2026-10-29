@@ -142,6 +142,20 @@ public sealed class RoomBookingScheduleTests
     }
 
     [RoomLockPostgresFact]
+    public async Task Ended_slot_reports_expiry_without_writing_a_lock()
+    {
+        await using var db = Db();
+        var (property, room, actor) = await Seed(db);
+        var request = Request(room.Id) with { Start = DateTimeOffset.UtcNow.AddHours(-2), End = DateTimeOffset.UtcNow.AddHours(-1) };
+        var error = await Blocks(db).SaveAsync(property.Id, null, request, actor.Id, default);
+        Assert.Equal("validation", error?.Code);
+        Assert.Contains("đã kết thúc", error!.Message);
+        Assert.False(await db.RoomBookingBlocks.AsNoTracking().AnyAsync(x => x.PropertyId == property.Id));
+        var invalid = await Blocks(db).SaveAsync(property.Id, null, request with { End = request.Start }, actor.Id, default);
+        Assert.Contains("sau giờ bắt đầu", invalid!.Message);
+    }
+
+    [RoomLockPostgresFact]
     public async Task Concurrent_booking_waits_for_schedule_commit_then_is_rejected()
     {
         await using var db=Db();var (property,room,actor)=await Seed(db);

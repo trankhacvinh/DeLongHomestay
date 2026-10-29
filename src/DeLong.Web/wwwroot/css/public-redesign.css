@@ -7,10 +7,10 @@
  * Vietnamese stacked diacritics never collide between lines.
  */
 
-@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:400;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-400.woff") format("woff")}
-@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:500 600;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-600.woff") format("woff")}
-@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:700 800;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-700.woff") format("woff")}
-@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:900;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-900.woff") format("woff")}
+@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:400;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-400.woff2?v=446d2bf4dee42971") format("woff2")}
+@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:500 600;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-600.woff2?v=005d745804315fcb") format("woff2")}
+@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:700 800;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-700.woff2?v=07f8fd1cdac43745") format("woff2")}
+@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:900;font-display:swap;src:url("../fonts/brand/be-vietnam-pro-900.woff2?v=6328bd1e835d03f5") format("woff2")}
 
 body.public-body{
     --dl-ground:#f8f1e6;

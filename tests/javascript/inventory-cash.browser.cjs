@@ -11,7 +11,7 @@ const branch2 = { id: 'branch2', name: 'Chi nhánh mẫu 2', timeZoneId: 'Asia/H
 const unit = { id: 'unit', name: 'kg' };
 const item = { id: 'item', name: 'Vật tư mẫu', code: 'VT01', unitId: 'unit', unitName: 'kg', referencePrice: 20000, isActive: true };
 const stock = { itemId: 'item', code: 'VT01', name: item.name, unitName: 'kg', opening: 10.5, received: 2, issued: 1.5, adjustments: 0, closing: 11 };
-const inv = { warehouse: { id: 'warehouse', name: 'Kho chung', ownerName: branch.name, timeZoneId: branch.timeZoneId }, units: [unit], items: [item], stock: [stock], documents: [], distribution: [] };
+const inv = { warehouse: { id: 'warehouse', name: 'Kho chung', ownerName: branch.name, timeZoneId: branch.timeZoneId }, units: [unit], items: [item, {...item,id:'empty',name:'Hàng đã hết',code:'VT02'}], stock: [stock,{...stock,itemId:'empty',name:'Hàng đã hết',code:'VT02',opening:0,received:0,issued:0,closing:0}], documents: [], distribution: [] };
 const entry = { id: 'payment', source: 'booking-receipt', propertyId: 'branch', propertyName: branch.name, roomId: 'room', roomName: 'Phòng mẫu', occurredAtUtc: '2026-10-01T02:00:00Z', description: 'BK-MAU', note: 'Dữ liệu kiểm thử', inflow: 210000, outflow: 0, isVoided: false };
 const group = { key: 'branch', name: branch.name, inflow: 210000, refunds: 0, expenses: 0, net: 210000 };
 const cash = { month: '2026-10', totals: { bookingReceipts: 210000, otherReceipts: 0, refunds: 0, expenses: 0, net: 210000 }, entries: [entry], byProperty: [group], byRoom: [], byDay: [], byExpense: [] };
@@ -34,11 +34,12 @@ async function mount(browser, kind, width) {
         window.DeLongApi = {
             get: async url => url.includes('/history') ? [] : structuredClone(url.includes('/inventory/') ? window.inventoryFixture : window.cashFixture),
             postForm: async () => ({ token:'preview-token', sheet:'Mat hang',newItems:1,updatedItems:0,newUnits:1,openingItems:1,skipped:0,errors:0,rows:[{row:2,name:'Hàng import mẫu',unit:'kg',quantity:1.5,price:2000,action:'create',message:'Thêm mặt hàng; ghi tồn đầu.'}] }),
-            post: async (url, body) => { window.calls.push({ url, body: structuredClone(body) }); if (window.failNext) { window.failNext = false; throw new Error('Mạng gián đoạn, gửi lại cùng nội dung.'); } return { id: 'saved',createdItems:1,updatedItems:0,createdUnits:1,openingItems:1,skipped:0 }; },
+            post: async (url, body) => { window.calls.push({ url, body: structuredClone(body) }); if (window.failNext) { window.failNext = false; throw new Error('Mạng gián đoạn, gửi lại cùng nội dung.'); } if(body.recipientName)window.inventoryFixture.recipients=[{propertyId:null,name:body.recipientName}]; return { id: 'saved',createdItems:1,updatedItems:0,createdUnits:1,openingItems:1,skipped:0 }; },
             put: async (url, body) => { window.calls.push({ url, body: structuredClone(body) }); return { id: 'saved' }; }
         };
     }, { inv, cash });
     await page.addScriptTag({ path: vuePath });
+    if(kind==='inventory'){await page.addStyleTag({path:web+'wwwroot/vendor/tom-select/tom-select.default.min.css'});await page.addScriptTag({path:web+'wwwroot/vendor/tom-select/tom-select.complete.min.js'});}
     await page.addScriptTag({ path: web + 'wwwroot/js/pages/operational-forms.js' });
     await page.addScriptTag({ path: before && kind === 'inventory' ? '/private/tmp/inventory-1815.js' : web + `wwwroot/js/pages/admin-${kind}.js` });
     await page.waitForFunction(kind => document.getElementById(kind + '-page').hasAttribute('data-v-app'), kind);
@@ -61,7 +62,11 @@ async function mount(browser, kind, width) {
                     await page.close(); continue;
                 }
                 if (kind === 'inventory') {
+                    assert.equal(await page.locator('.inventory-zero').count(),1,'empty stock highlighted');
+                    assert.equal(await page.locator('.inventory-zero').getByText('Hết hàng',{exact:true}).count(),0);
                     assert.ok(await page.locator('h1').evaluate(el=>parseFloat(getComputedStyle(el).fontSize))<=24,'compact title');
+                    assert.equal((await page.locator('.inventory-stock-table').innerText()).includes('VT01'),false,'item codes are hidden');
+                    if(width<650)assert.ok(await page.locator('.inventory-stock-table tbody td').first().evaluate(el=>el.getBoundingClientRect().width)<=111,'compact item column');
                     assert.equal(await page.locator('.inventory-stock-table td').first().evaluate(el=>getComputedStyle(el).position),'sticky');
                     await page.getByRole('button', { name: 'Xuất kho', exact: true }).click();
                     const dialog = page.getByRole('dialog');
@@ -70,9 +75,13 @@ async function mount(browser, kind, width) {
                     const gaps=await dialog.locator('.ops-fieldset').evaluate(el=>parseFloat(getComputedStyle(el).rowGap));
                     assert.ok(gaps>=12,'document sections need separation');
                     await page.screenshot({ animations:'disabled',path:`${output}/document-${width}.png`});
+                    const note=dialog.getByLabel('Ghi chú (không bắt buộc)',{exact:true});
+                    assert.equal(await note.getAttribute('required'),null);
+                    assert.ok(await note.evaluate(el=>el.compareDocumentPosition(document.querySelector('.inventory-add-line'))&Node.DOCUMENT_POSITION_PRECEDING),'note follows items');
                     await dialog.getByLabel('Ngày giờ ghi nhận').fill('2026-10-01T09:00');
-                    await dialog.getByLabel('Chi nhánh nhận').selectOption('branch2');
-                    await dialog.getByLabel(/^Mặt hàng/).selectOption('item');
+                    await dialog.getByLabel('Nơi nhận', { exact: true }).fill(branch2.name);
+                    await dialog.getByRole('combobox',{name:'Tìm mặt hàng'}).first().fill('Vật tư');
+                    await dialog.locator('.ts-dropdown .option').filter({hasText:'Vật tư mẫu'}).click();
                     await dialog.getByLabel('Số lượng', { exact: true }).fill('1.5');
                     await page.evaluate(() => { window.failNext = true; });
                     await dialog.getByRole('button', { name: 'Ghi nhận', exact: true }).click();
@@ -82,8 +91,19 @@ async function mount(browser, kind, width) {
                     const calls = await page.evaluate(() => window.calls);
                     assert.equal(calls.length, 2); assert.equal(calls[0].body.requestKey, calls[1].body.requestKey);
                     assert.equal(calls[1].body.lines[0].quantity, 1.5); assert.equal(calls[1].body.recipientPropertyId, 'branch2');
+                    await page.getByRole('button',{name:'Xuất kho',exact:true}).click();
+                    await dialog.getByLabel('Nơi nhận',{exact:true}).fill('home1');
+                    await dialog.getByRole('combobox',{name:'Tìm mặt hàng'}).first().fill('Vật tư');
+                    await dialog.locator('.ts-dropdown .option').filter({hasText:'Vật tư mẫu'}).click();
+                    await dialog.getByRole('button',{name:'Ghi nhận',exact:true}).click();
+                    await dialog.waitFor({state:'detached'});
+                    assert.equal(await page.evaluate(()=>window.calls.at(-1).body.recipientPropertyId),null);
+                    assert.equal(await page.evaluate(()=>window.calls.at(-1).body.recipientName),'home1');
+                    await page.getByRole('button',{name:'Xuất kho',exact:true}).click();
+                    assert.equal(await dialog.locator('datalist option[value="home1"]').count(),1,'saved external destination is offered again');
+                    await dialog.getByRole('button',{name:'Hủy',exact:true}).click();
                     await page.getByRole('button', { name: 'Mặt hàng / ĐVT', exact: true }).click();
-                    await page.getByRole('button', { name: 'Sửa', exact: true }).click();
+                    await page.getByRole('button', { name: 'Sửa', exact: true }).first().click();
                     await page.getByRole('dialog').getByLabel('Đang sử dụng').uncheck();
                     await page.getByRole('dialog').getByRole('button', { name: 'Ghi nhận', exact: true }).click();
                     await page.getByRole('dialog').waitFor({ state: 'detached' });

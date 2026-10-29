@@ -169,13 +169,13 @@
                     <div><span>Còn lại</span><strong v-bind:class="selectedBooking.balanceAmount > 0 ? 'text-danger' : 'text-success'">{{ money(selectedBooking.balanceAmount) }}</strong></div>
                     <div v-if="selectedBooking.note"><span>Ghi chú</span><strong>{{ selectedBooking.note }}</strong></div>
                 </div>
-                <section v-if="canManage && selectedBooking.balanceAmount > 0 && ![5, 6].includes(Number(selectedBooking.status))" class="admin-booking-detail-panel">
+                <section v-if="canManage && selectedBooking.balanceAmount > 0 && ![5, 6].includes(Number(selectedBooking.status))" class="admin-booking-detail-panel booking-payment-panel">
                     <strong>Ghi nhận thanh toán bổ sung</strong>
                     <div class="booking-money-grid">
                         <div class="field"><label>Số tiền thu thêm</label><input type="text" inputmode="numeric" v-money-input="{ value: additionalPayment.amount, set: value => additionalPayment.amount = value }" /></div>
                         <div class="field"><label>Phương thức thu</label><select v-model.number="additionalPayment.method"><option v-bind:value="1">Chuyển khoản</option><option v-bind:value="0">Tiền mặt</option><option v-bind:value="2">Thẻ</option><option v-bind:value="3">Khác</option></select></div>
+                        <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveAdditionalPayment">{{ saving ? 'Đang ghi nhận...' : 'Ghi nhận khoản thu' }}</button>
                     </div>
-                    <button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveAdditionalPayment">{{ saving ? 'Đang ghi nhận...' : 'Ghi nhận khoản thu' }}</button>
                 </section>
                 <div class="notice" v-if="selectedBooking.type === 1 && canManage">Lưu trú theo đêm có thể sửa trực tiếp tại màn Đặt phòng; Calendar V2 dùng khoảng thời gian thật để hiển thị mức độ chiếm phòng.</div>
                 <div class="modal-actions">
@@ -202,7 +202,7 @@
             <div class="notice" v-if="quickBlock.error" role="alert">{{ quickBlock.error }}</div>
             <div v-if="quickBlock.conflicts.length"><ul><li v-for="booking in quickBlock.conflicts" v-bind:key="booking.id">{{ booking.code }} · {{ booking.roomName }} · {{ dateTimeText(booking.checkInUtc) }} → {{ dateTimeText(booking.checkOutUtc) }}</li></ul><label class="check-row"><input type="checkbox" v-model="quickBlock.acknowledged" /><span>Đã kiểm tra các đơn trùng. Giữ nguyên booking và thanh toán.</span></label></div>
             </div>
-            <div class="modal-actions"><button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="closeQuickBlock">Quay lại</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="saveQuickBlock">{{ saving ? 'Đang khóa...' : 'Khóa phòng' }}</button></div>
+            <div class="modal-actions"><button class="btn btn-light" type="button" v-bind:disabled="saving" v-on:click="closeQuickBlock">Quay lại</button><button class="btn btn-primary" type="button" v-bind:disabled="saving || (quickBlock.scope === 'slot' && !!quickBlockSlotError())" v-on:click="saveQuickBlock">{{ saving ? 'Đang khóa...' : 'Khóa phòng' }}</button></div>
         </section>
     </div>
 

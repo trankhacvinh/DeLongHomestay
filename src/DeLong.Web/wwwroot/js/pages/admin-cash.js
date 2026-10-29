@@ -1,6 +1,7 @@
 (function () {
     const root=document.getElementById('cash-page');if(!root)return;
     const initial=JSON.parse(document.getElementById('cash-data').textContent);const helpers=window.DeLongOperations;
+    let activeLoad = null;
     Vue.createApp({
         data:()=>({...initial,roomId:initial.roomId||'',requestVersion:0,loadedQuery:new URLSearchParams({propertyId:initial.propertyId,scope:initial.scope,month:initial.month,...(initial.roomId?{roomId:initial.roomId}:{})}).toString(),loading:false,saving:false,error:'',message:'',tab:'ledger',showVoided:false,editor:'',form:{},formError:'',detailGroup:null,detailEntry:null,voidReason:'',
             tabs:[{key:'ledger',name:'Giao dịch'},{key:'byProperty',name:'Theo chi nhánh'},{key:'byRoom',name:'Theo phòng'},{key:'byDay',name:'Theo ngày'},{key:'byExpense',name:'Theo nhóm chi'}]}),
@@ -18,13 +19,29 @@
             dateText(e){return helpers.dateText(e.occurredAtUtc,this.zone(e.propertyId));},
             sourceText(source){return {'booking-receipt':'Thu booking','booking-refund':'Hoàn tiền booking','other-receipt':'Thu ngoài booking',expense:'Chi tiền mặt'}[source]||source;},
             scopeChanged(){this.roomId='';this.load();},
-            async load(){const version=++this.requestVersion;const query=this.query;this.loading=true;this.error='';try{const data=await DeLongApi.get('/api/admin/cash/?'+query);if(version===this.requestVersion){this.snapshot=data;this.loadedQuery=query;this.detailGroup=null;}}catch(e){if(version===this.requestVersion){this.error=e.message;this.loadedQuery='';}}finally{if(version===this.requestVersion)this.loading=false;}},
+            async load(){
+                activeLoad?.abort();
+                const controller = new AbortController();activeLoad = controller;
+                const version=++this.requestVersion,query=this.query;
+                this.loading=true;this.error='';
+                const timer=setTimeout(()=>controller.abort(),30000);
+                try{
+                    const data=await DeLongApi.get('/api/admin/cash/?'+query,{signal:controller.signal});
+                    if(version===this.requestVersion){this.snapshot=data;this.loadedQuery=query;this.detailGroup=null;}
+                }catch(e){
+                    if(version===this.requestVersion){this.error=controller.signal.aborted?'Tải báo cáo tiền mặt mất quá lâu. Vui lòng bấm Tải lại.':e.message;this.loadedQuery='';}
+                }finally{
+                    clearTimeout(timer);
+                    if(version===this.requestVersion){this.loading=false;activeLoad=null;}
+                }
+            },
             openEditor(kind){this.formError='';this.editor=kind;const property=this.editableProperties.find(p=>p.id===this.scope)||this.editableProperties.find(p=>p.id===this.propertyId)||this.editableProperties[0];if(!property){this.editor='';return;}const now=helpers.localInput(Date.now(),this.zone(property.id));this.form={requestKey:crypto.randomUUID(),propertyId:property.id,roomId:'',localAt:now.startsWith(this.month)?now:this.month+'-01T09:00',amount:0,description:'',category:'Vật tư',note:''};},
             formPropertyChanged(){this.form.roomId='';const now=helpers.localInput(Date.now(),this.zone(this.form.propertyId));this.form.localAt=now.startsWith(this.month)?now:this.month+'-01T09:00';},
             closeEditor(){if(!this.saving)this.editor='';},
             async save(){if(this.saving)return;this.saving=true;this.formError='';try{const f=this.form;const body={requestKey:f.requestKey,occurredAt:helpers.toUtc(f.localAt,this.zone(f.propertyId)),roomId:f.roomId||null,amount:Number(f.amount),description:f.description,note:f.note||null};const url=this.editor==='receipt'?`/api/admin/properties/${f.propertyId}/cash/receipts`:`/api/admin/properties/${f.propertyId}/expenses`;if(this.editor==='expense')Object.assign(body,{category:f.category,method:0});await DeLongApi.post(url,body);this.editor='';this.message='Đã ghi nhận giao dịch tiền mặt.';await this.load();}catch(e){this.formError=e.message;}finally{this.saving=false;}},
             openEntry(e){this.detailEntry=e;this.formError='';this.voidReason='';},closeEntry(){if(!this.saving)this.detailEntry=null;},
             async voidEntry(){if(this.saving||!this.canVoidEntry)return;this.saving=true;this.formError='';try{const e=this.detailEntry;const path=e.source==='expense'?`expenses/${e.id}/void`:`cash/receipts/${e.id}/void`;await DeLongApi.post(`/api/admin/properties/${e.propertyId}/${path}`,{reason:this.voidReason});this.detailEntry=null;this.message='Đã hủy giao dịch; tổng tiền đã được tính lại.';await this.load();}catch(e){this.formError=e.message;}finally{this.saving=false;}}
-        }
+        },
+        beforeUnmount(){this.requestVersion++;activeLoad?.abort();}
     }).mount(root);
 })();

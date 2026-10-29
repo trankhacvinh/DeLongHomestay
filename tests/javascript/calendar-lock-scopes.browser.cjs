@@ -19,6 +19,7 @@ const base='src/DeLong.Web/';const output='docs/qa/room-lock-scopes-2026-10-28';
     window.calls=[];window.blocks=[];window.fullLock=false;
     window.DeLongApi={
       get:async url=>{
+       if(url.endsWith('/bookings/existing-booking'))return{id:'existing-booking',roomId:room.id,customerName:'Khách mẫu',status:2};
        if(url.endsWith('/room-blocks/'))return structuredClone(window.blocks);
        if(url.endsWith('/rooms/'))return[{...room,isBookingLocked:window.fullLock}];
        if(url.includes('booking-calendar-settings'))return{};
@@ -33,7 +34,7 @@ const base='src/DeLong.Web/';const output='docs/qa/room-lock-scopes-2026-10-28';
       put:async(url,body)=>{window.calls.push({url,body});window.fullLock=body.isLocked;return{...room,isBookingLocked:body.isLocked,bookingLockReason:body.reason};}
     };
     const actions=new Function('root','DeLongApi','document','CustomEvent','window','utcOffset',`return {${methods}}`)(document.getElementById('calendar-page'),DeLongApi,document,CustomEvent,window,'+07:00');
-    const app=Vue.createApp({data:()=>({propertyId,rooms:[room],bookings:[],canManage:true,saving:false,form:{roomId:room.id},editor:{open:false,mode:'create'},quickBlock:{open:false},timeZoneId:'Asia/Ho_Chi_Minh'}),computed:{activeRooms(){return this.rooms;}},methods:{...actions,notify(){},dateTimeText(value){return new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',dateStyle:'short',timeStyle:'short'}).format(new Date(value));},openCreate(){this.form={roomId:room.id,rateId:''};this.editor={open:true,mode:'create'};},applyRate(){},}}).mixin(DeLongRoomBookingLock).mount('#calendar-page');
+    const app=Vue.createApp({data:()=>({propertyId,rooms:[room],bookings:[],canManage:true,saving:false,form:{roomId:room.id},editor:{open:false,mode:'create'},quickBlock:{open:false},timeZoneId:'Asia/Ho_Chi_Minh'}),computed:{activeRooms(){return this.rooms;}},methods:{...actions,notify(){},openBooking(booking){window.viewedBooking=booking.id;},dateTimeText(value){return new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',dateStyle:'short',timeStyle:'short'}).format(new Date(value));},openCreate(){this.form={roomId:room.id,rateId:''};this.editor={open:true,mode:'create'};},applyRate(){},}}).mixin(DeLongRoomBookingLock).mount('#calendar-page');
     document.getElementById('calendar-page').__delongCalendarVm=app;
    },{propertyId,room,methods});
    await page.addScriptTag({path:base+'wwwroot/js/pages/admin-calendar-v2.js'});await page.locator('.calendar-v2-slot').first().waitFor();
@@ -46,10 +47,20 @@ const base='src/DeLong.Web/';const output='docs/qa/room-lock-scopes-2026-10-28';
    await dialog.getByRole('button',{name:'Mở khóa',exact:true}).click();await dialog.waitFor({state:'detached'});await page.locator('[data-booking-id="interval"]').waitFor({state:'detached'});
    await page.locator('.calendar-v2-slot').first().locator('button').click();await page.locator('#fixture-lock').click();await dialog.getByRole('radio',{name:/Khóa toàn phòng/}).check();await dialog.locator('textarea').fill('Khóa toàn phòng mẫu');await dialog.getByRole('button',{name:'Khóa phòng',exact:true}).click();await dialog.waitFor({state:'detached'});
    await page.waitForSelector('.room-booking-locked');
-   for(const index of [0,1]){await page.locator('.calendar-v2-slot').nth(index).locator('button').click();await dialog.getByRole('heading',{name:'Mở khóa toàn phòng'}).waitFor();await dialog.getByRole('button',{name:'Quay lại'}).click();await dialog.waitFor({state:'detached'});}
+   const booked=page.locator('[data-booking-id="existing-booking"]');
+   await booked.locator('span').click();await page.waitForFunction(()=>window.viewedBooking==='existing-booking');
+   assert.equal(await dialog.count(),0);assert.equal(await page.evaluate(()=>window.fullLock),true);
+   await page.evaluate(()=>window.viewedBooking=null);await booked.focus();await booked.press('Enter');
+   await page.waitForFunction(()=>window.viewedBooking==='existing-booking');assert.equal(await dialog.count(),0);
+   await page.locator('.calendar-v2-slot').nth(1).locator('button').click();await dialog.getByRole('heading',{name:'Mở khóa toàn phòng'}).waitFor();await dialog.getByRole('button',{name:'Quay lại'}).click();await dialog.waitFor({state:'detached'});
    assert.equal(await page.evaluate(()=>window.fullLock),true);
    await page.locator('.calendar-v2-slot').last().click();await dialog.getByRole('button',{name:'Mở khóa',exact:true}).click();await dialog.waitFor({state:'detached'});assert.equal(await page.evaluate(()=>window.fullLock),false);
-   assert.deepEqual(errors,[]);await page.close();console.log('PASS slot/global lock and click-to-unlock '+width+'px');
+   await page.evaluate(()=>{const app=document.getElementById('calendar-page').__delongCalendarVm;app.form={roomId:'blue',rateId:'',checkInLocal:'2020-10-27T14:00',checkOutLocal:'2020-10-27T17:00'};app.editor={open:true,mode:'create'};app.selectedLockSlot=null;});
+   await page.locator('#fixture-lock').click();await dialog.getByRole('alert').filter({hasText:'đã kết thúc'}).waitFor();
+   await dialog.locator('textarea').fill('Bảo trì mẫu');assert.equal(await dialog.getByRole('button',{name:'Khóa phòng',exact:true}).isDisabled(),true);
+   await dialog.getByRole('radio',{name:/Khóa toàn phòng/}).check();assert.equal(await dialog.getByRole('button',{name:'Khóa phòng',exact:true}).isEnabled(),true);assert.equal(await dialog.getByRole('alert').count(),0);
+   await dialog.getByRole('button',{name:'Quay lại'}).click();
+   assert.deepEqual(errors,[]);await page.close();console.log('PASS slot/global lock, booked click/keyboard and expired slot '+width+'px');
   }
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

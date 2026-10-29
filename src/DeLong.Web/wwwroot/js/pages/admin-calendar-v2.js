@@ -386,6 +386,7 @@
         cell.className = `calendar-v2-slot state-${slot.state}`;
         cell.addEventListener('click',event=>{
             if(!currentRoom()?.isBookingLocked || root.dataset.canLockRooms!=='true')return;
+            if (event.target.closest('[data-booking-id]')) return;
             event.preventDefault();event.stopImmediatePropagation();vm()?.openRoomBookingLock(currentRoom());
         },true);
 

@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <UserSecretsId>DeLongHomestay-Development</UserSecretsId>
-    <VersionPrefix>1.8.19</VersionPrefix>
+    <VersionPrefix>1.8.23</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(BuildId)' != ''">
@@ -27,4 +27,5 @@
     <Folder Include="artifacts\publish\" />
     <EmbeddedResource Include="Assets/Fonts/*.ttf" />
   </ItemGroup>
+  <Import Project="Build/PublicHomeCss.targets" />
 </Project>

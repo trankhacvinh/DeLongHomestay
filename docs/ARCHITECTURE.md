@@ -1,5 +1,11 @@
 # Kiến trúc DeLongHomestay
 
+## Tài nguyên trang chủ public — 1.8.22
+
+`Build/PublicHomeCss.targets` dùng MSBuild/Roslyn có trong .NET SDK để sinh `wwwroot/css/public-home.bundle.css` trước build. Danh sách CSS cố định theo đúng thứ tự cascade; import CSS cùng thư mục được mở rộng tại build, import không hỗ trợ/cycle làm build lỗi. Không thêm project, dependency runtime, endpoint ghép CSS hay yêu cầu Node trên production. File sinh không commit; được khai báo Content để build/publish sạch vẫn đóng gói đúng.
+
+Chỉ Index dùng bundle; các trang khác giữ các stylesheet riêng. Bundle có content hash qua `asp-append-version` và các marker để loader không nạp lại CSS đã gộp. CSS nguồn riêng vẫn giữ để chỉnh sửa và rollback. Font public WOFF2 giữ nguyên cmap/metrics của font cũ, có fingerprint khớp preload/CSS. Lõi form booking nạp ở DOM ready trên trang có form, không chờ ảnh/window load. Không đổi booking, availability, cache HTML hoặc authorization. Xem [quyết định build](ADR-PUBLIC-ASSET-BUILD.md).
+
 ## Kho chung và tiền mặt (1.8.15, 27/10/2026)
 
 Cập nhật 1.8.16: mã hàng tự cấp dưới khóa transaction; import catalog/tồn đầu dùng preview ký theo tài khoản/kho, kiểm tra state trước commit và `inventory_imports` lưu receipt chống lặp. Cả batch ghi một transaction. Danh mục so trùng NFC/case/space; không tự gộp tên trùng khác ĐVT, không nhập đè tồn đã phát sinh. Xem [import và layout compact](INVENTORY-IMPORT-COMPACT-2026-10-28.md).
@@ -194,3 +200,8 @@ Booking/calendar money fields use the locally vendored RobinHerbots Inputmask 5.
 - Ưu tiên việc cùng giờ ít linh hoạt hơn, tránh trùng người và cùng phòng, đảm bảo đủ thời lượng trước nhận khách. Nếu không xếp được: giữ giờ gốc, báo cần phân công thủ công trên lịch và văn bản sao chép. Các việc ngoài giờ làm vẫn giữ và báo; không tự xóa việc ban đêm.
 - Migration `20261013013412_AddHousekeepingStaggerSettings` chỉ thêm cấu hình vào `properties`; không cập nhật booking/payment/khoảng khóa. Áp dụng migration trước deploy; bật tính năng sau khi xác nhận giờ làm việc.
 - Nghiệm thu: phòng khóa kết thúc 10:00 có thể dọn 10:00; kết thúc 10:30 không được chuyển sớm; khách còn ở, hết giờ làm, deadline ngắn, hai lao công, qua ngày, cấu hình tắt, không mất/trùng công việc và sao chép cảnh báo.
+
+
+## Nơi nhận phiếu kho — 1.8.23
+
+Phiếu xuất cho phép RecipientPropertyId hoặc RecipientName tự do; tên chụp lại trên phiếu, chi nhánh liên kết do server xác minh. Không biến nơi nhận ngoài hệ thống thành chi nhánh hay quyền truy cập. Migration AddInventoryRecipientNames chỉ thêm dữ liệu nullable và cập nhật check constraint. Xem [bàn giao](INVENTORY-RECIPIENTS-CASH-2026-10-29.md).

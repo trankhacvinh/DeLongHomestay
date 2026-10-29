@@ -13,6 +13,7 @@ public sealed class InventoryDocument : EntityBase
     public InventoryDocumentType Type { get; set; }
     public DateTime OccurredAtUtc { get; set; }
     public Guid? RecipientPropertyId { get; set; }
+    public string? RecipientName { get; set; }
     public Property? RecipientProperty { get; set; }
     public string? Note { get; set; }
     public Guid? RecordedByUserId { get; set; }
