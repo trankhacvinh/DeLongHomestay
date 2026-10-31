@@ -116,13 +116,14 @@
             // Keep transparency for logos and other PNG assets.
             const type = sourceType === 'image/png' && !settings.opaque ? 'image/png' : 'image/jpeg';
             let blob = await new Promise(resolve => canvas.toBlob(resolve, type, settings.quality));
-            if (settings.opaque && blob?.size > 400 * 1024) {
+            if (settings.opaque && blob?.type === 'image/jpeg' && blob.size > 400 * 1024) {
                 // Encode from the same canvas: keep all 2000px of document detail.
-                for (const quality of [0.86, 0.82]) {
-                    const candidate = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', quality));
+                // Stay on JPEG: Chrome's WebP encoder is ~5-20x slower than JPEG on phones
+                // (seconds per photo), and the server re-encodes identity images to WebP anyway.
+                for (const quality of [0.84, 0.78]) {
+                    const candidate = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
                     check(job);
-                    // Safari versions without a WebP encoder may return PNG instead.
-                    if (candidate?.type !== 'image/webp') break;
+                    if (candidate?.type !== 'image/jpeg') break;
                     if (candidate.size < blob.size) blob = candidate;
                     if (blob.size <= 400 * 1024) break;
                 }
