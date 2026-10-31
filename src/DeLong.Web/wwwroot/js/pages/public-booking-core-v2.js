@@ -514,7 +514,7 @@
 
     const uploadedIdentityFiles = new Map();
 
-    async function uploadIdentity(bookingId, side, file, requestKey) {
+    async function uploadIdentity(bookingId, side, file, requestKey, reportProgress = setProgress) {
         const uploaded = uploadedIdentityFiles.get(bookingId) || new Map();
         uploadedIdentityFiles.set(bookingId, uploaded);
         if (uploaded.get(side) === file) return;
@@ -532,8 +532,8 @@
                 xhr.open('POST', `/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`);
                 xhr.withCredentials = true; xhr.timeout = 90000;
                 xhr.setRequestHeader('Accept','application/json');xhr.setRequestHeader('X-CSRF-TOKEN',csrf);xhr.setRequestHeader('Idempotency-Key',requestKey);
-                xhr.upload.onprogress = event => { touch();setProgress(event.lengthComputable && event.total>0 ? `Đang tải CCCD ${label}… ${Math.round(event.loaded/event.total*100)}%` : `Đang tải CCCD ${label}…`); };
-                xhr.upload.onload = () => {touch();setProgress(`Đang lưu CCCD ${label} bảo mật…`);};
+                xhr.upload.onprogress = event => { touch();reportProgress(event.lengthComputable && event.total>0 ? `Đang tải CCCD ${label}… ${Math.round(event.loaded/event.total*100)}%` : `Đang tải CCCD ${label}…`); };
+                xhr.upload.onload = () => {touch();reportProgress(`Đang lưu CCCD ${label} bảo mật…`);};
                 xhr.onload = () => {
                     let payload;try{payload=JSON.parse(xhr.responseText);}catch{}
                     if(xhr.status>=200 && xhr.status<300 && payload?.side===side){done();return;}
@@ -542,10 +542,52 @@
                 xhr.onerror=()=>done(new Error('Mất kết nối khi tải ảnh CCCD.'));
                 xhr.ontimeout=()=>done(new Error('Tải ảnh mất quá nhiều thời gian. Kiểm tra kết nối và bấm gửi lại.'));
                 xhr.onabort=()=>done(new Error('Tải ảnh bị gián đoạn.'));
-                setProgress(`Đang tải CCCD ${label}…`);touch();xhr.send(form);
+                reportProgress(`Đang tải CCCD ${label}…`);touch();xhr.send(form);
             });
             uploaded.set(side, file);
         } catch(error){error.identityUploadFailed=true;throw error;}
+    }
+
+    let paymentWarmupImage;
+    async function warmPaymentQr(result) {
+        if (!result.paymentOrderId || !result.paymentUrl) return;
+        const target = new URL(result.paymentUrl, window.location.origin);
+        if (target.origin !== window.location.origin || target.pathname !== '/payment/sepay') return;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        try {
+            const payment = await DeLongApi.get(`/api/public/payments/sepay/${encodeURIComponent(result.paymentOrderId)}`, {signal:controller.signal});
+            if (!payment?.qrUrl) return;
+            const qr = new URL(payment.qrUrl);
+            if (qr.protocol !== 'https:' || qr.hostname !== 'vietqr.app') return;
+            paymentWarmupImage = new Image();
+            paymentWarmupImage.referrerPolicy = 'no-referrer';
+            paymentWarmupImage.src = qr.href;
+        } catch { /* Warming is optional; checkout retains its normal QR retry flow. */ }
+        finally { clearTimeout(timer); }
+    }
+
+    function showPaymentStage(documents, hasPayment) {
+        root.querySelector('[data-booking-payment-stage]')?.remove();
+        const stage = document.createElement('section');
+        stage.dataset.bookingPaymentStage = '';
+        stage.className = 'booking-payment-stage';
+        stage.tabIndex = -1;
+        stage.setAttribute('aria-live','polite');
+        stage.innerHTML = '<h2>Chuẩn bị thanh toán</h2><p>Đang lưu giấy tờ để chuyển sang quét mã QR. Vui lòng giữ màn hình này.</p><ul data-upload-status></ul><p data-payment-stage-status role="status"></p>';
+        if (!hasPayment) { stage.querySelector('h2').textContent='Hoàn tất đặt phòng';stage.querySelector('p').textContent='Đang lưu giấy tờ để hoàn tất lượt đặt. Vui lòng giữ màn hình này.'; }
+        const labels = {front:'Mặt trước',back:'Mặt sau','second-front':'Mặt trước người thứ hai','second-back':'Mặt sau người thứ hai'};
+        for (const [side] of documents) {
+            const row = document.createElement('li');
+            row.dataset.uploadSide = side;
+            row.textContent = `${labels[side]}: đang chờ`;
+            stage.querySelector('ul').appendChild(row);
+        }
+        root.appendChild(stage);
+        root.classList.add('booking-is-preparing-payment');
+        stage.focus({preventScroll:true});
+        stage.scrollIntoView({block:'nearest'});
+        return stage;
     }
 
     function wrapBookingPost() {
@@ -584,10 +626,21 @@
                 const result = await withBookingTimeout(signal => originalPost(url, payload, headers, { signal }));
                 const requestKey = headers?.['Idempotency-Key'] || headers?.['idempotency-key'] || '';
                 if (result?.bookingId && requestKey) {
+                    const stage = showPaymentStage(selectedDocuments, Boolean(result.paymentUrl));
+                    void warmPaymentQr(result).catch(()=>{});
                     const documents = selectedDocuments;
                     setProgress('Đang tải và lưu CCCD bảo mật…');
-                    for (const [side,file] of documents) await uploadIdentity(result.bookingId,side,file,requestKey);
+                    for (let start=0;start<documents.length;start+=2) {
+                        const results = await Promise.allSettled(documents.slice(start,start+2).map(async ([side,file]) => {
+                            const row = stage.querySelector(`[data-upload-side="${side}"]`);
+                            await uploadIdentity(result.bookingId,side,file,requestKey,message => {if(row)row.textContent=message;});
+                            if(row)row.textContent='Đã lưu '+({'front':'mặt trước','back':'mặt sau','second-front':'mặt trước người thứ hai','second-back':'mặt sau người thứ hai'}[side]);
+                        }));
+                        const failure=results.find(item=>item.status==='rejected');
+                        if(failure)throw failure.reason;
+                    }
                     setProgress('Đang kiểm tra hoàn tất…');
+                    stage.querySelector('[data-payment-stage-status]').textContent='Đang kiểm tra đủ giấy tờ để hoàn tất…';
                     try {
                         await withBookingTimeout(signal => originalPost(`/api/public/booking-requests/${encodeURIComponent(result.bookingId)}/complete${siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : ''}`, {}, headers, { signal }));
                     } catch (error) {
@@ -597,7 +650,7 @@
                     }
                 }
                 return result;
-            } finally { for(const item of controls)if(item.element.isConnected)item.element.disabled=item.disabled;setProgress(''); }
+            } finally { root.classList.remove('booking-is-preparing-payment');root.querySelector('[data-booking-payment-stage]')?.remove();for(const item of controls)if(item.element.isConnected)item.element.disabled=item.disabled;setProgress(''); }
         };
         window.DeLongApi.__bookingCoreV2Wrapped = true;
     }

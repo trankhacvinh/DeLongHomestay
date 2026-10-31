@@ -223,6 +223,53 @@ public sealed class IdentityDocumentStorageTests
         }
     }
 
+    [Fact]
+    public async Task Browser_webp_upload_is_validated_encrypted_and_read_back_at_document_resolution()
+    {
+        var root = TempRoot();
+        try
+        {
+            using var image = SKImage.FromEncodedData(CreatePng(2000, 1200));
+            using var encoded = image.Encode(SKEncodedImageFormat.Webp, 86);
+            var file = FormImage("camera.webp", encoded.ToArray());
+            file.ContentType = "image/webp";
+            var storage = new IdentityDocumentStorage(Paths(root), new ConfigurationBuilder().Build());
+            var property = Guid.NewGuid(); var booking = Guid.NewGuid();
+            var (saved, error) = await storage.SaveAsync(property, booking, "front", file);
+            Assert.Null(error); Assert.NotNull(saved);
+            var read = await storage.ReadAsync(property, booking, "front");
+            Assert.NotNull(read); Assert.Equal("image/webp", read.ContentType);
+            using var decoded = SKBitmap.Decode(read.Bytes);
+            Assert.Equal(2000, decoded.Width); Assert.Equal(1200, decoded.Height);
+            Assert.Null(await storage.ReadAsync(Guid.NewGuid(), booking, "front"));
+            var envelope = await File.ReadAllBytesAsync(Path.Combine(root, "private", "identity-documents", property.ToString("N"), booking.ToString("N"), "front.dlid"));
+            Assert.False(envelope.SequenceEqual(read.Bytes));
+        }
+        finally { Cleanup(root); }
+    }
+
+    [Fact]
+    public async Task Parallel_sides_saved_by_separate_requests_remain_readable_and_complete()
+    {
+        var root = TempRoot();
+        try
+        {
+            var config = new ConfigurationBuilder().Build();
+            var front = new IdentityDocumentStorage(Paths(root), config);
+            var back = new IdentityDocumentStorage(Paths(root), config);
+            var property = Guid.NewGuid(); var booking = Guid.NewGuid();
+            var results = await Task.WhenAll(
+                front.SaveAsync(property, booking, "front", FormImage("front.png")),
+                back.SaveAsync(property, booking, "back", FormImage("back.png")));
+            Assert.All(results, result => { Assert.Null(result.Item2); Assert.NotNull(result.Item1); });
+            Assert.NotNull(await front.ReadAsync(property, booking, "front"));
+            Assert.NotNull(await back.ReadAsync(property, booking, "back"));
+            Assert.Null(await BookingCompletionValidation.ValidateAsync(front, property, booking,
+                new BookingGuestDetailsDto(2, true, 1, DateTime.UtcNow)));
+        }
+        finally { Cleanup(root); }
+    }
+
     private static FormFile FormImage(string fileName, byte[]? bytes = null)
     {
         bytes ??= TinyPng;

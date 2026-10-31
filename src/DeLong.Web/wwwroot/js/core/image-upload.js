@@ -115,12 +115,23 @@
             context.drawImage(image, 0, 0, canvas.width, canvas.height);
             // Keep transparency for logos and other PNG assets.
             const type = sourceType === 'image/png' && !settings.opaque ? 'image/png' : 'image/jpeg';
-            const blob = await new Promise(resolve => canvas.toBlob(resolve, type, settings.quality));
+            let blob = await new Promise(resolve => canvas.toBlob(resolve, type, settings.quality));
+            if (settings.opaque && blob?.size > 400 * 1024) {
+                // Encode from the same canvas: keep all 2000px of document detail.
+                for (const quality of [0.86, 0.82]) {
+                    const candidate = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', quality));
+                    check(job);
+                    // Safari versions without a WebP encoder may return PNG instead.
+                    if (candidate?.type !== 'image/webp') break;
+                    if (candidate.size < blob.size) blob = candidate;
+                    if (blob.size <= 400 * 1024) break;
+                }
+            }
             check(job);
             if (!blob) throw new Error('Không thể nén ảnh. Vui lòng thử ảnh khác.');
             const originalFits = !sourceSize || Math.max(sourceSize.width, sourceSize.height) <= settings.maxEdge;
             if (originalFits && scale === 1 && blob.size >= file.size && type === file.type) return file;
-            const name = file.name.replace(/\.[^.]+$/, '') + (blob.type === 'image/png' ? '.png' : '.jpg');
+            const name = file.name.replace(/\.[^.]+$/, '') + (blob.type === 'image/png' ? '.png' : blob.type === 'image/webp' ? '.webp' : '.jpg');
             return new File([blob], name, { type: blob.type, lastModified: file.lastModified });
         } finally {
             job.cleanup.delete(cleanup); cleanup();

@@ -39,7 +39,8 @@ const wrapper = source.slice(source.indexOf('    function wrapBookingPost()'), s
 function submitHarness({ uploadFailure = false, completionFailure = false, preparationFailure = false } = {}) {
     const calls = [], progress = [];
     const sandbox = {
-        root: { querySelectorAll: () => [] },
+        root: { querySelectorAll: () => [], querySelector:()=>null, classList:{remove(){}} },
+        showPaymentStage:()=>({querySelector:()=>({textContent:''})}),warmPaymentQr:async()=>{},
         window: { DeLongImageUpload: { prepareFile: async (_,file) => { if(preparationFailure)throw new Error('preparation failed');return file; } }, DeLongApi: { post: async url => {
             calls.push(url);
             if (url.includes('/complete')) {

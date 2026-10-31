@@ -17,14 +17,14 @@ async function mount(browser, mode = 'normal') {
         window.setTimeout = (fn, delay, ...args) => nativeTimer(fn, mode === 'decode-stall' && delay === 20000 ? 80 : mode === 'network-stall' && delay === 30000 ? 100 : delay, ...args);
         window.realBitmap = window.createImageBitmap.bind(window);
         if (mode === 'decode-stall') window.createImageBitmap = () => new Promise(() => {});
-        window.creates = 0; window.completes = 0; window.results = []; window.requestKeys = []; window.progress = [];
+        window.creates = 0; window.completes = 0; window.qrWarmups = 0; window.results = []; window.requestKeys = []; window.progress = [];
         const bookings = new Map();
         window.DeLongApi = {
-            get: async url => url.includes('/booking-policy') ? { requireIdentityDocuments: true, includedGuests: 2, policyVersion: 1 } : {},
+            get: async url => url.includes('/api/public/payments/sepay/') ? (window.qrWarmups++, {qrUrl:'https://vietqr.app/synthetic-test.png'}) : url.includes('/booking-policy') ? { requireIdentityDocuments: true, includedGuests: 2, policyVersion: 1 } : {},
             post: async (url, body, headers) => {
                 if (url.includes('/complete')) { window.completes++; return { complete: true }; }
                 window.creates++; window.requestKeys.push(headers['Idempotency-Key']);
-                if (!bookings.has(headers['Idempotency-Key'])) bookings.set(headers['Idempotency-Key'], { bookingId: 'synthetic-booking', code: 'BK-TEST' });
+                if (!bookings.has(headers['Idempotency-Key'])) bookings.set(headers['Idempotency-Key'], { bookingId: 'synthetic-booking', code: 'BK-TEST', ...(mode==='no-payment'?{}:{paymentUrl:'/payment/sepay?orderId=synthetic-order',paymentOrderId:'synthetic-order'}) });
                 return bookings.get(headers['Idempotency-Key']);
             }
         };
@@ -74,7 +74,8 @@ async function photos(page) {
             await perf.addScriptTag({path:version==='before'?process.env.IMAGE_UPLOAD_BASELINE_PATH:base+'js/core/image-upload.js'});
             timings[version]=await perf.evaluate(async()=>{window.decodePixels=[];const start=performance.now();const file=await DeLongImageUpload.prepareFile('/api/public/booking-requests/b/identity-documents/front',window.photo);return {ms:Math.round(performance.now()-start),sourceBytes:window.photo.size,uploadBytes:file.size,decodedPixels:Math.max(...window.decodePixels)};});
         }
-        if(timings.before)assert.equal(timings.before.decodedPixels,24000000);assert.ok(timings.after.decodedPixels<=4000000);
+        if(timings.before){assert.ok(timings.after.decodedPixels<=timings.before.decodedPixels);assert.ok(timings.after.uploadBytes<timings.before.uploadBytes,'identity upload must transfer fewer bytes');}
+        assert.ok(timings.after.decodedPixels<=4000000);
         const rotated = await perf.evaluate(async()=>{
             const data=new Uint8Array(await window.photo.arrayBuffer());const exif=new Uint8Array(36);const view=new DataView(exif.buffer);
             view.setUint16(0,0xffe1);view.setUint16(2,34);view.setUint32(4,0x45786966);view.setUint16(10,0x4949);view.setUint16(12,42,true);view.setUint32(14,8,true);view.setUint16(18,1,true);view.setUint16(20,0x0112,true);view.setUint16(22,3,true);view.setUint32(24,1,true);view.setUint16(28,6,true);
@@ -85,6 +86,29 @@ async function photos(page) {
         assert.equal(rotated.height,2000);assert.equal(rotated.width,1333);
         fs.writeFileSync(out+(timings.before?'/benchmark.json':'/benchmark-current.json'),JSON.stringify(timings,null,2)); console.log('Native benchmark',JSON.stringify(timings));await perf.close();
 
+        for (const mode of ['normal','no-payment']) {
+            const {page,errors}=await mount(browser,mode);const pending=[];
+            await page.evaluate(()=>window.uploadStarts=[]);
+            await page.route('https://vietqr.app/**',route=>route.fulfill({contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64')}));
+            await page.route('**/identity-documents/*',async route=>{
+                const side=route.request().url().split('/').at(-1);pending.push({route,side});
+                await page.evaluate(side=>window.uploadStarts.push(side),side);
+            });
+            await photos(page);await page.locator('#submit').click();
+            await page.waitForFunction(mode=>window.uploadStarts.length===2 && window.qrWarmups===(mode==='normal'?1:0),mode);
+            assert.equal(await page.locator('[data-booking-payment-stage] h2').innerText(),mode==='normal'?'Chuẩn bị thanh toán':'Hoàn tất đặt phòng');
+            await page.locator('[data-booking-payment-stage]').waitFor({state:'visible'});
+            assert.equal(await page.evaluate(()=>window.completes),0);
+            assert.equal(new URL(page.url()).pathname,'/booking');
+            assert.equal(await page.locator('img[src*="vietqr.app"]').count(),0,'QR remains off-screen until documents complete');
+            await page.screenshot({path:out+`/parallel-${mode}-stage-390.png`,animations:'disabled',fullPage:true});
+            await pending[0].route.fulfill({contentType:'application/json',body:JSON.stringify({side:pending[0].side})});
+            await page.getByText(/^Đã lưu /).first().waitFor();
+            assert.equal(await page.evaluate(()=>window.completes),0,'one saved side is insufficient');
+            await pending[1].route.fulfill({contentType:'application/json',body:JSON.stringify({side:pending[1].side})});
+            await page.waitForFunction(()=>window.completes===1 && window.results.length===1);
+            assert.deepEqual(errors,[]);await page.close();console.log('PASS both uploads start together; QR warms invisibly; complete waits for both sides');
+        }
         {
             const {page,errors}=await mount(browser); const calls=[];let failBack=true;
             await page.route('**/identity-documents/*', async route=>{const side=route.request().url().split('/').at(-1);calls.push(side);await route.fulfill({status:side==='back'&&failBack?503:200,contentType:'application/json',body:JSON.stringify(side==='back'&&failBack?{detail:'Lỗi thử nghiệm'}:{side})});if(side==='back')failBack=false;});

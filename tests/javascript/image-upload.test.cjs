@@ -90,3 +90,24 @@ test('Preparing the same File twice reuses its compressed result', async () => {
     await Promise.all([env.prepare(url, form), env.prepare(url, form)]);
     assert.equal(env.draws.length, 2);
 });
+
+
+test('identity upload chooses smaller WebP without reducing image dimensions', async () => {
+    const encodes=[];
+    const window={location:{origin:'https://delonghomestay.com'},createImageBitmap:async()=>({width:2000,height:1300,close(){}})};
+    const document={createElement:()=>({getContext:()=>({fillRect(){},drawImage(){}}),toBlob(callback,type,quality){encodes.push({type,quality});callback(new Blob([new Uint8Array(type==='image/webp'?220000:900000)],{type}));}})};
+    vm.runInNewContext(source,{window,document,URL,File,FormData,setTimeout,clearTimeout});
+    const input=new File([new Uint8Array(1200000)],'camera.jpg',{type:'image/jpeg'});
+    const output=await window.DeLongImageUpload.prepareFile('/api/public/booking-requests/b/identity-documents/front',input);
+    assert.equal(output.type,'image/webp');assert.equal(output.size,220000);assert.match(output.name,/\.webp$/);
+    assert.equal(encodes[0].quality,0.9);
+});
+
+
+test('unsupported WebP encoding keeps the valid JPEG rather than uploading fallback PNG',async()=>{
+    const window={location:{origin:'https://delonghomestay.com'},createImageBitmap:async()=>({width:2000,height:1300,close(){}})};
+    const document={createElement:()=>({getContext:()=>({fillRect(){},drawImage(){}}),toBlob(callback,type){callback(new Blob([new Uint8Array(type==='image/webp'?100000:700000)],{type:type==='image/webp'?'image/png':type}));}})};
+    vm.runInNewContext(source,{window,document,URL,File,FormData,setTimeout,clearTimeout});
+    const output=await window.DeLongImageUpload.prepareFile('/api/public/booking-requests/b/identity-documents/back',new File([new Uint8Array(1000000)],'camera.jpg',{type:'image/jpeg'}));
+    assert.equal(output.type,'image/jpeg');assert.equal(output.size,700000);assert.match(output.name,/\.jpg$/);
+});
