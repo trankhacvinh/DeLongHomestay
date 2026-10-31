@@ -77,7 +77,8 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
                 x.DiscountAmount,
                 CustomerName = x.Customer.Name,
                 RoomName = x.Room.Name,
-                x.Room.GuestGuideHtml,
+                // Room guides may contain door/wifi codes: only reveal them once staff/payment confirmed the stay.
+                GuestGuideHtml = x.Status == BookingStatus.Confirmed || x.Status == BookingStatus.CheckedIn ? x.Room.GuestGuideHtml : null,
                 PropertyName = x.Property.Name,
                 x.Property.TimeZoneId,
                 Payments = x.Payments.Where(p => !p.IsVoided).Select(p => new { p.Type, p.Amount }).ToList()
@@ -126,7 +127,8 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
         if (code.Length is < 8 or > 50) return null;
         return await db.Bookings.AsNoTracking()
             .Where(x => x.PropertyId == property.Id && x.Code == code &&
-                        x.Status != BookingStatus.Completed && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
+                        x.Status != BookingStatus.Completed && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow &&
+                        (x.Status == BookingStatus.Confirmed || x.Status == BookingStatus.CheckedIn))
             .Select(x => new PublicBookingGuideDto(x.Code, x.Room.Name, x.Room.GuestGuideHtml))
             .SingleOrDefaultAsync(ct);
     }
@@ -148,7 +150,7 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
             .Select(x => new PublicBookingSuccessDto(
                 x.Code,
                 x.Room.Name,
-                x.Room.GuestGuideHtml,
+                x.Status == BookingStatus.Confirmed || x.Status == BookingStatus.CheckedIn ? x.Room.GuestGuideHtml : null,
                 x.Payments.Any(p => !p.IsVoided && p.Type == PaymentType.Receipt && (p.Method == PaymentMethod.Pay2S || p.Method == PaymentMethod.SePay)),
                 x.Payments.Where(p => !p.IsVoided)
                     .Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),

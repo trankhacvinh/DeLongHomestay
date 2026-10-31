@@ -252,11 +252,22 @@ builder.Services.AddResponseCompression(options =>
 
 builder.Services.AddProblemDetails();
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+// Public limits stay generous during the beta. Every budget (requests per IP per 10 minutes)
+// can be changed without a redeploy, e.g. RateLimiting__PublicBooking=20 in /etc/delong/delong.env.
+int PublicLimit(string name, int fallback) =>
+    Math.Clamp(builder.Configuration.GetValue<int?>($"RateLimiting:{name}") ?? fallback, 1, 100_000);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.OnRejected = async (context, cancellationToken) =>
     {
+        // Many rejections from one proxy/Cloudflare address means the real client IP is not
+        // forwarded and all guests share one bucket (see docs/UBUNTU-VPS-DEPLOYMENT.md).
+        context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("RateLimit")
+            .LogWarning("Rate limit rejected {Method} {Path} from {RemoteIp}",
+                context.HttpContext.Request.Method,
+                context.HttpContext.Request.Path.Value,
+                context.HttpContext.Connection.RemoteIpAddress?.ToString());
         var retryAfter = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var value)
             ? Math.Max(1, (int)Math.Ceiling(value.TotalSeconds))
             : 60;
@@ -269,12 +280,12 @@ builder.Services.AddRateLimiter(options =>
             detail = $"Vui lòng chờ khoảng {Math.Max(1, (int)Math.Ceiling(retryAfter / 60d))} phút rồi thử lại."
         }, cancellationToken);
     };
-    options.AddPolicy("public-booking", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.BookingPermitLimit));
-    options.AddPolicy("public-booking-identity", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.IdentityPermitLimit));
-    options.AddPolicy("public-booking-completion", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.CompletionPermitLimit));
-    options.AddPolicy("public-voucher", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.VoucherPermitLimit));
-    options.AddPolicy("public-lookup", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.LookupPermitLimit));
-    options.AddPolicy("account-status", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.AccountStatusPermitLimit));
+    options.AddPolicy("public-booking", new PublicBookingRateLimitPolicy(PublicLimit("PublicBooking", PublicBookingRateLimitPolicy.BookingPermitLimit)));
+    options.AddPolicy("public-booking-identity", new PublicBookingRateLimitPolicy(PublicLimit("PublicBookingIdentity", PublicBookingRateLimitPolicy.IdentityPermitLimit)));
+    options.AddPolicy("public-booking-completion", new PublicBookingRateLimitPolicy(PublicLimit("PublicBookingCompletion", PublicBookingRateLimitPolicy.CompletionPermitLimit)));
+    options.AddPolicy("public-voucher", new PublicBookingRateLimitPolicy(PublicLimit("PublicVoucher", PublicBookingRateLimitPolicy.VoucherPermitLimit)));
+    options.AddPolicy("public-lookup", new PublicBookingRateLimitPolicy(PublicLimit("PublicLookup", PublicBookingRateLimitPolicy.LookupPermitLimit)));
+    options.AddPolicy("account-status", new PublicBookingRateLimitPolicy(PublicLimit("AccountStatus", PublicBookingRateLimitPolicy.AccountStatusPermitLimit)));
     options.AddPolicy("pay2s-status", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             $"{httpContext.Connection.RemoteIpAddress}:{httpContext.Request.RouteValues["orderId"]}",
@@ -315,10 +326,11 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
-    options.AddPolicy("account-login", new PublicBookingRateLimitPolicy(PublicBookingRateLimitPolicy.AccountLoginPermitLimit));
+    options.AddPolicy("account-login", new PublicBookingRateLimitPolicy(PublicLimit("AccountLogin", PublicBookingRateLimitPolicy.AccountLoginPermitLimit)));
 });
 
 builder.Services.AddScoped<ApiAntiforgeryFilter>();
+builder.Services.AddSingleton<IdentityDocumentStorage>();
 builder.Services.AddScoped<InitialSetupService>();
 builder.Services.AddScoped<PropertyAccessService>();
 builder.Services.AddScoped<PropertyAccessFilter>();
@@ -427,6 +439,7 @@ app.Use(async (context, next) =>
         headers.TryAdd("X-Frame-Options", "SAMEORIGIN");
         headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
         headers.TryAdd("Permissions-Policy", "camera=(self), microphone=(self), geolocation=()");
+        headers.TryAdd("Content-Security-Policy", SecurityHeaders.ContentSecurityPolicyFor(context.Request.Path));
         return Task.CompletedTask;
     });
     await next();
@@ -500,14 +513,21 @@ if (!string.Equals(defaultSiteRoot, storagePaths.SitePublicRoot, StringCompariso
 
 app.UseRouting();
 // Route the first visit to setup only after the deployment has migrated the schema.
+// Once an admin exists setup can never be required again, so stop querying the database
+// on every homepage request after the first negative answer.
+var initialSetupCompleted = false;
 app.Use(async (context, next) =>
 {
-    if ((HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method)) &&
-        context.Request.Path == "/" &&
-        await context.RequestServices.GetRequiredService<InitialSetupService>().IsRequiredAsync(context.RequestAborted))
+    if (!initialSetupCompleted &&
+        (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method)) &&
+        context.Request.Path == "/")
     {
-        context.Response.Redirect("/setup");
-        return;
+        if (await context.RequestServices.GetRequiredService<InitialSetupService>().IsRequiredAsync(context.RequestAborted))
+        {
+            context.Response.Redirect("/setup");
+            return;
+        }
+        initialSetupCompleted = true;
     }
     await next(context);
 });

@@ -270,6 +270,59 @@ public sealed class IdentityDocumentStorageTests
         finally { Cleanup(root); }
     }
 
+    [Fact]
+    public async Task ListAsync_reports_saved_sides_without_decrypting_them()
+    {
+        var root = TempRoot();
+        try
+        {
+            var storage = new IdentityDocumentStorage(Paths(root), new ConfigurationBuilder().Build());
+            var property = Guid.NewGuid(); var booking = Guid.NewGuid();
+            await storage.SaveAsync(property, booking, "front", FormImage("front.png"));
+            await storage.SaveAsync(property, booking, "back", FormImage("back.png"));
+
+            // A corrupted envelope still lists (no decryption), while reading it fails.
+            var back = storage.GetEncryptedPathForDiagnostics(property, booking, "back");
+            var bytes = await File.ReadAllBytesAsync(back);
+            bytes[^1] ^= 0xFF;
+            await File.WriteAllBytesAsync(back, bytes);
+
+            var listed = await storage.ListAsync(property, booking);
+            Assert.Equal(new[] { "back", "front" }, listed.Select(x => x.Side).OrderBy(x => x, StringComparer.Ordinal));
+            Assert.All(listed, x => Assert.True(x.Bytes > 0));
+            Assert.Empty(await storage.ListAsync(property, Guid.NewGuid()));
+            await Assert.ThrowsAnyAsync<CryptographicException>(() => storage.ReadAsync(property, booking, "back"));
+        }
+        finally { Cleanup(root); }
+    }
+
+    [Fact]
+    public async Task Large_jpeg_is_downscaled_while_decoding_and_keeps_its_aspect_ratio()
+    {
+        var root = TempRoot();
+        try
+        {
+            using var source = SKImage.FromEncodedData(CreatePng(4000, 3000));
+            using var jpeg = source.Encode(SKEncodedImageFormat.Jpeg, 90);
+            var file = FormImage("camera.jpg", jpeg.ToArray());
+            file.ContentType = "image/jpeg";
+            var storage = new IdentityDocumentStorage(Paths(root), new ConfigurationBuilder().Build());
+            var property = Guid.NewGuid(); var booking = Guid.NewGuid();
+
+            var (saved, error) = await storage.SaveAsync(property, booking, "front", file);
+
+            Assert.Null(error); Assert.NotNull(saved);
+            var read = await storage.ReadAsync(property, booking, "front");
+            Assert.NotNull(read);
+            using var decoded = SKBitmap.Decode(read.Bytes);
+            Assert.NotNull(decoded);
+            Assert.InRange(decoded.Width, 1500, 3000);
+            Assert.InRange(decoded.Height, 1125, 2250);
+            Assert.InRange(decoded.Width * 3.0 / decoded.Height, 3.9, 4.1);
+        }
+        finally { Cleanup(root); }
+    }
+
     private static FormFile FormImage(string fileName, byte[]? bytes = null)
     {
         bytes ??= TinyPng;

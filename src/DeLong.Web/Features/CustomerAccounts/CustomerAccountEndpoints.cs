@@ -118,6 +118,7 @@ public static class CustomerAccountEndpoints
         }).AllowAnonymous().AddEndpointFilter<ApiAntiforgeryFilter>().RequireRateLimiting("account-login").WithTags("Customer Accounts");
 
         app.MapGet("/api/customer/account/profile", async (
+            IdentityDocumentStorage identityStorage,
             ClaimsPrincipal principal,
             CustomerAccountService service,
             StoragePaths paths,
@@ -128,7 +129,7 @@ public static class CustomerAccountEndpoints
             if (!Guid.TryParse(id, out var userId)) return Results.Unauthorized();
             var profile = await service.GetProfileAsync(userId, ct);
             if (profile is null) return Results.NotFound();
-            var storage = new IdentityDocumentStorage(paths, configuration);
+            var storage = identityStorage;
             var propertyIds = await service.GetLinkedPropertyIdsAsync(userId, ct);
             var hasDocuments = false;
             foreach (var propertyId in propertyIds)
@@ -148,6 +149,7 @@ public static class CustomerAccountEndpoints
             .WithTags("Customer Accounts");
 
         customer.MapPost("/identity-documents/{side}", async (
+            IdentityDocumentStorage identityStorage,
             string side,
             string? siteSlug,
             ClaimsPrincipal principal,
@@ -166,7 +168,7 @@ public static class CustomerAccountEndpoints
             var form = await httpRequest.ReadFormAsync(ct);
             var file = form.Files.GetFile("file");
             if (file is null) return Results.BadRequest(new { message = "Vui lòng chọn ảnh CCCD." });
-            var storage = new IdentityDocumentStorage(paths, configuration);
+            var storage = identityStorage;
             var (document, error) = await storage.SaveAsync(property.Id, userId, side, file, ct);
             return error is null ? Results.Ok(document) : Results.Problem(title: "Không thể lưu CCCD", detail: error, statusCode: 400);
         }).AddEndpointFilter<ApiAntiforgeryFilter>();

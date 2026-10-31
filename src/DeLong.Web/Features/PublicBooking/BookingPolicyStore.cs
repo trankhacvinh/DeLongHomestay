@@ -39,25 +39,44 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> Gates = new();
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private static readonly HtmlSanitizer PolicySanitizer = CreatePolicySanitizer();
+    // The policy is read on every public booking page view and submit. Parsing JSON, sanitizing
+    // the policy HTML and probing the CCCD key each time is wasted work, so the normalized policy
+    // is cached per file and reused while the file is unchanged (short TTL keeps the CCCD
+    // readiness flag fresh).
+    private static readonly ConcurrentDictionary<string, CachedPolicy> Cache = new(StringComparer.Ordinal);
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(30);
     private readonly string root = Path.Combine(paths.DataRoot, "booking-settings");
 
     public async Task<BookingPolicyDto> GetAsync(Guid propertyId, CancellationToken cancellationToken = default)
     {
-        Directory.CreateDirectory(root);
         var path = PathFor(propertyId);
-        if (!File.Exists(path)) return Defaults();
+        var file = new FileInfo(path);
+        var stamp = file.Exists ? (file.LastWriteTimeUtc.Ticks, file.Length) : (0L, -1L);
+        var now = DateTime.UtcNow;
+        if (Cache.TryGetValue(path, out var cached) && cached.Stamp == stamp && now - cached.LoadedAtUtc < CacheTtl)
+            return cached.Policy;
 
+        var policy = await LoadAsync(path, file.Exists, cancellationToken);
+        Cache[path] = new CachedPolicy(stamp, now, policy);
+        return policy;
+    }
+
+    private async Task<BookingPolicyDto> LoadAsync(string path, bool exists, CancellationToken cancellationToken)
+    {
+        if (!exists) return Defaults();
         try
         {
             await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
             var stored = await JsonSerializer.DeserializeAsync<StoredBookingPolicy>(stream, JsonOptions, cancellationToken);
             return Normalize(stored);
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or FileNotFoundException or DirectoryNotFoundException)
         {
             return Defaults();
         }
     }
+
+    private sealed record CachedPolicy((long Ticks, long Length) Stamp, DateTime LoadedAtUtc, BookingPolicyDto Policy);
 
     public async Task<(BookingPolicyDto? Policy, string? Error)> SaveAsync(Guid propertyId, UpdateBookingPolicyRequest request, CancellationToken cancellationToken = default)
     {
@@ -106,6 +125,7 @@ public sealed class BookingPolicyStore(StoragePaths paths, IConfiguration config
             finally
             {
                 if (File.Exists(temp)) File.Delete(temp);
+                Cache.TryRemove(path, out _);
             }
 
             return (Normalize(stored), null);

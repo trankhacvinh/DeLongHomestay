@@ -35,6 +35,7 @@ public static class BookingCoreV2Endpoints
         }).AllowAnonymous().WithTags("Public Booking");
 
         app.MapPost("/api/public/booking-requests/{bookingId:guid}/identity-documents/{side}", async (
+            IdentityDocumentStorage identityStorage,
             Guid bookingId,
             string side,
             string? siteSlug,
@@ -67,7 +68,7 @@ public static class BookingCoreV2Endpoints
             var file = form.Files.GetFile("file");
             if (file is null) return Problem("invalid_upload", "Vui lòng chọn ảnh CCCD.", StatusCodes.Status400BadRequest);
 
-            var storage = new IdentityDocumentStorage(paths, configuration);
+            var storage = identityStorage;
             if (!storage.IsConfigured)
                 return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
             var saveWatch = System.Diagnostics.Stopwatch.StartNew();
@@ -96,6 +97,7 @@ public static class BookingCoreV2Endpoints
         .WithTags("Public Booking");
 
         app.MapPost("/api/public/booking-requests/{bookingId:guid}/complete", async (
+            IdentityDocumentStorage identityStorage,
             Guid bookingId,
             string? siteSlug,
             HttpRequest request,
@@ -119,7 +121,7 @@ public static class BookingCoreV2Endpoints
                 return Problem("booking_locked", "Lượt đặt đã kết thúc. Vui lòng kiểm tra lại.", StatusCodes.Status409Conflict);
             var details = await new BookingGuestDetailsStore(paths).GetAsync(property.Id, bookingId, cancellationToken);
             var error = await BookingCompletionValidation.ValidateAsync(
-                new IdentityDocumentStorage(paths, configuration), property.Id, bookingId, details, cancellationToken);
+                identityStorage, property.Id, bookingId, details, cancellationToken);
             if (error is not null)
                 return Problem("booking_incomplete", error, StatusCodes.Status409Conflict);
             if (booking.Status == BookingStatus.Confirmed)
@@ -177,6 +179,7 @@ public static class BookingCoreV2Endpoints
             .WithTags("Booking Guest Details");
 
         bookingDetailsGroup.MapGet("/", async (
+            IdentityDocumentStorage identityStorage,
             Guid propertyId,
             Guid bookingId,
             AppDbContext db,
@@ -192,7 +195,7 @@ public static class BookingCoreV2Endpoints
             if (booking is null) return Results.NotFound();
 
             var (details, cleanNote) = await LoadOrMigrateGuestDetailsAsync(db, paths, booking, cancellationToken);
-            var storage = new IdentityDocumentStorage(paths, configuration);
+            var storage = identityStorage;
             IReadOnlyList<IdentityDocumentInfo> documents = [];
             if (storage.IsConfigured)
             {
@@ -293,6 +296,7 @@ public static class BookingCoreV2Endpoints
             .WithTags("Booking Identity Documents");
 
         identityGroup.MapGet("/", async (
+            IdentityDocumentStorage identityStorage,
             Guid propertyId,
             Guid bookingId,
             AppDbContext db,
@@ -302,7 +306,7 @@ public static class BookingCoreV2Endpoints
         {
             if (!await db.Bookings.AsNoTracking().AnyAsync(x => x.PropertyId == propertyId && x.Id == bookingId, cancellationToken))
                 return Results.NotFound();
-            var storage = new IdentityDocumentStorage(paths, configuration);
+            var storage = identityStorage;
             if (!storage.IsConfigured)
                 return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
             try
@@ -317,6 +321,7 @@ public static class BookingCoreV2Endpoints
         });
 
         identityGroup.MapGet("/{side}", async (
+            IdentityDocumentStorage identityStorage,
             Guid propertyId,
             Guid bookingId,
             string side,
@@ -328,7 +333,7 @@ public static class BookingCoreV2Endpoints
         {
             if (!await db.Bookings.AsNoTracking().AnyAsync(x => x.PropertyId == propertyId && x.Id == bookingId, cancellationToken))
                 return Results.NotFound();
-            var storage = new IdentityDocumentStorage(paths, configuration);
+            var storage = identityStorage;
             if (!storage.IsConfigured)
                 return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
             IdentityDocumentReadResult? document;
@@ -347,6 +352,7 @@ public static class BookingCoreV2Endpoints
         });
 
         identityGroup.MapPost("/{side}", async (
+            IdentityDocumentStorage identityStorage,
             Guid propertyId,
             Guid bookingId,
             string side,
@@ -365,7 +371,7 @@ public static class BookingCoreV2Endpoints
             var file = form.Files.GetFile("file");
             if (file is null) return Problem("invalid_upload", "Vui lòng chọn ảnh CCCD.", StatusCodes.Status400BadRequest);
 
-            var storage = new IdentityDocumentStorage(paths, configuration);
+            var storage = identityStorage;
             if (!storage.IsConfigured)
                 return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
             var (document, error) = await storage.SaveAsync(propertyId, bookingId, side, file, cancellationToken);
@@ -381,6 +387,7 @@ public static class BookingCoreV2Endpoints
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
         identityGroup.MapDelete("/{side}", async (
+            IdentityDocumentStorage identityStorage,
             Guid propertyId,
             Guid bookingId,
             string side,
@@ -393,7 +400,7 @@ public static class BookingCoreV2Endpoints
         {
             if (!await db.Bookings.AsNoTracking().AnyAsync(x => x.PropertyId == propertyId && x.Id == bookingId, cancellationToken))
                 return Results.NotFound();
-            var storage = new IdentityDocumentStorage(paths, configuration);
+            var storage = identityStorage;
             if (!storage.IsConfigured)
                 return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
             try

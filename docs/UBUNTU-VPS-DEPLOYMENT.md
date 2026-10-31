@@ -289,6 +289,22 @@ proxy_set_header X-Forwarded-For $delong_client_ip;
 
 Ứng dụng chỉ tin proxy Nginx loopback qua `ReverseProxy__KnownProxies__0=127.0.0.1`. Không tin trực tiếp `CF-Connecting-IP` khi origin vẫn mở công khai vì client có thể tự giả header này.
 
+### Giới hạn tần suất (rate limit)
+
+Mỗi giới hạn public tính theo IP khách trong 10 phút. Giai đoạn beta giữ mức thoáng mặc định; muốn siết hoặc nới thì thêm vào `/etc/delong/delong.env` rồi restart service, không cần build lại:
+
+| Biến môi trường | Mặc định | Áp dụng cho |
+| --- | --- | --- |
+| `RateLimiting__PublicBooking` | 120 | Gửi booking |
+| `RateLimiting__PublicBookingIdentity` | 240 | Tải ảnh CCCD |
+| `RateLimiting__PublicBookingCompletion` | 120 | Hoàn tất booking |
+| `RateLimiting__PublicLookup` | 120 | Tra cứu booking, PDF hướng dẫn |
+| `RateLimiting__PublicVoucher` | 120 | Kiểm tra voucher |
+| `RateLimiting__AccountStatus` | 300 | Kiểm tra số điện thoại tài khoản khách |
+| `RateLimiting__AccountLogin` | 60 | Đăng nhập/đăng ký tài khoản khách |
+
+Mỗi lần chặn, log có dòng `Rate limit rejected ... from <IP>`. Nếu IP trong các dòng này luôn là IP của Cloudflare hoặc `127.0.0.1` thì Nginx chưa chuyển IP khách thật (xem cấu hình phía trên), nghĩa là mọi khách đang dùng chung một giới hạn.
+
 Kích hoạt:
 
 ```bash

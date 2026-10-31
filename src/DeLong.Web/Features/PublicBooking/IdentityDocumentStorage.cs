@@ -26,29 +26,58 @@ public sealed class IdentityDocumentStorage
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
     private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase) { "image/jpeg", "image/png", "image/webp" };
 
+    private static readonly TimeSpan KeyRetryInterval = TimeSpan.FromSeconds(30);
+    private static readonly string[] Sides = ["front", "back", "second-front", "second-back"];
+
     private readonly string root;
     private readonly string masterKeyPath;
-    private readonly byte[]? key;
+    private readonly IConfiguration configuration;
+    private readonly object keyGate = new();
+    private volatile byte[]? key;
+    private long nextKeyAttemptTicks;
 
+    // Registered as a singleton: the master key is loaded once instead of on every request.
     public IdentityDocumentStorage(StoragePaths paths, IConfiguration configuration)
     {
         root = Path.Combine(paths.DataRoot, "private", "identity-documents");
         masterKeyPath = Path.Combine(paths.DataRoot, "security", "identity-master.key");
-        try
-        {
-            Directory.CreateDirectory(root);
-            key = LoadOrCreateMasterKey(
-                masterKeyPath,
-                root,
-                configuration["Security:IdentityDocumentEncryptionKeyBase64"]);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
-        {
-            key = null;
-        }
+        this.configuration = configuration;
+        TryLoadKey();
     }
 
-    public bool IsConfigured => key is { Length: MasterKeyBytes };
+    public bool IsConfigured => key is { Length: MasterKeyBytes } || TryLoadKey();
+
+    // A missing or unreadable key is retried at most every 30 seconds, so restoring DataRoot
+    // does not need an application restart while the hot path stays free of file I/O.
+    private bool TryLoadKey()
+    {
+        if (DateTime.UtcNow.Ticks < Interlocked.Read(ref nextKeyAttemptTicks)) return false;
+        lock (keyGate)
+        {
+            if (key is { Length: MasterKeyBytes }) return true;
+            if (DateTime.UtcNow.Ticks < Interlocked.Read(ref nextKeyAttemptTicks)) return false;
+            byte[]? loaded;
+            try
+            {
+                Directory.CreateDirectory(root);
+                loaded = LoadOrCreateMasterKey(
+                    masterKeyPath,
+                    root,
+                    configuration["Security:IdentityDocumentEncryptionKeyBase64"]);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
+            {
+                loaded = null;
+            }
+            if (loaded is { Length: MasterKeyBytes })
+            {
+                key = loaded;
+                return true;
+            }
+            Interlocked.Exchange(ref nextKeyAttemptTicks, DateTime.UtcNow.Add(KeyRetryInterval).Ticks);
+            return false;
+        }
+    }
 
     public async Task<(IdentityDocumentInfo? Document, string? Error)> SaveAsync(
         Guid propertyId,
@@ -169,19 +198,30 @@ public sealed class IdentityDocumentStorage
         }
     }
 
-    public async Task<IReadOnlyList<IdentityDocumentInfo>> ListAsync(
+    /// <summary>
+    /// Lists which sides are stored without decrypting them. Callers only need the side list
+    /// (admin booking detail, customer profile counts); decrypting every photo here made each
+    /// poll read and decrypt up to four full images. Use <see cref="ReadAsync"/> to verify or
+    /// download a document.
+    /// </summary>
+    public Task<IReadOnlyList<IdentityDocumentInfo>> ListAsync(
         Guid propertyId,
         Guid bookingId,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var result = new List<IdentityDocumentInfo>(4);
-        foreach (var side in new[] { "front", "back", "second-front", "second-back" })
+        if (!IsConfigured) return Task.FromResult<IReadOnlyList<IdentityDocumentInfo>>(result);
+        var directory = DirectoryFor(propertyId, bookingId);
+        if (!Directory.Exists(directory)) return Task.FromResult<IReadOnlyList<IdentityDocumentInfo>>(result);
+        foreach (var side in Sides)
         {
-            var document = await ReadAsync(propertyId, bookingId, side, cancellationToken);
-            if (document is not null)
-                result.Add(new IdentityDocumentInfo(side, document.ContentType, document.OriginalFileName, document.Bytes.LongLength));
+            var file = new FileInfo(Path.Combine(directory, side + ".dlid"));
+            if (!file.Exists || file.Length <= Magic.Length + NonceSize + TagSize) continue;
+            var payloadBytes = Math.Max(0, file.Length - Magic.Length - NonceSize - TagSize);
+            result.Add(new IdentityDocumentInfo(side, "image/webp", side + ".webp", payloadBytes));
         }
-        return result;
+        return Task.FromResult<IReadOnlyList<IdentityDocumentInfo>>(result);
     }
 
     public Task DeleteAsync(Guid propertyId, Guid bookingId, CancellationToken cancellationToken = default)
@@ -328,24 +368,48 @@ public sealed class IdentityDocumentStorage
         return new IdentityDocumentReadResult(bytes, contentType, fileName);
     }
 
+    private const int StoredWebpQuality = 82;
+
     private static byte[]? OptimizeImage(byte[] bytes)
     {
         using var data = SKData.CreateCopy(bytes);
         using var codec = SKCodec.Create(data);
         if (codec is null || codec.Info.Width <= 0 || codec.Info.Height <= 0) return null;
         if ((long)codec.Info.Width * codec.Info.Height > ImageUploadPolicy.MaxPixels) return null;
-        using var decoded = SKBitmap.Decode(codec);
+        using var decoded = DecodeNearMax(codec, MaxStoredDimension);
         if (decoded is null) return null;
-        using var normalized = NormalizeOrientation(decoded, codec.EncodedOrigin);
-        using var resized = ResizeMax(normalized, MaxStoredDimension);
-        using var image = SKImage.FromBitmap(resized);
-        using var encoded = image.Encode(SKEncodedImageFormat.Webp, 90);
+        using var resized = ResizeMax(decoded, MaxStoredDimension);
+        using var normalized = NormalizeOrientation(resized ?? decoded, codec.EncodedOrigin);
+        using var image = SKImage.FromBitmap(normalized ?? resized ?? decoded);
+        using var encoded = image.Encode(SKEncodedImageFormat.Webp, StoredWebpQuality);
         return encoded?.ToArray();
     }
 
-    private static SKBitmap ResizeMax(SKBitmap source, int maxSize)
+    // Let the codec downscale while decoding (JPEG can decode at 1/2, 1/4, 1/8) so a 12MP phone
+    // photo never materialises as a full-resolution bitmap. Falls back to a full decode.
+    private static SKBitmap? DecodeNearMax(SKCodec codec, int maxSize)
     {
-        if (source.Width <= maxSize && source.Height <= maxSize) return source.Copy();
+        var info = codec.Info;
+        var longest = Math.Max(info.Width, info.Height);
+        if (longest > maxSize)
+        {
+            var scaled = codec.GetScaledDimensions((float)maxSize / longest);
+            if (scaled.Width > 0 && scaled.Height > 0 && (scaled.Width < info.Width || scaled.Height < info.Height) &&
+                Math.Max(scaled.Width, scaled.Height) >= maxSize / 2)
+            {
+                var target = new SKBitmap(new SKImageInfo(scaled.Width, scaled.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+                var result = codec.GetPixels(target.Info, target.GetPixels());
+                if (result is SKCodecResult.Success or SKCodecResult.IncompleteInput) return target;
+                target.Dispose();
+            }
+        }
+        return SKBitmap.Decode(codec, new SKImageInfo(info.Width, info.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+    }
+
+    /// <summary>Returns a resized copy, or null when the source already fits.</summary>
+    private static SKBitmap? ResizeMax(SKBitmap source, int maxSize)
+    {
+        if (source.Width <= maxSize && source.Height <= maxSize) return null;
         var scale = Math.Min((float)maxSize / source.Width, (float)maxSize / source.Height);
         var width = Math.Max(1, (int)Math.Round(source.Width * scale));
         var height = Math.Max(1, (int)Math.Round(source.Height * scale));
@@ -357,9 +421,10 @@ public sealed class IdentityDocumentStorage
         return target;
     }
 
-    private static SKBitmap NormalizeOrientation(SKBitmap source, SKEncodedOrigin origin)
+    /// <summary>Returns a rotated copy, or null when no rotation is needed.</summary>
+    private static SKBitmap? NormalizeOrientation(SKBitmap source, SKEncodedOrigin origin)
     {
-        if (origin is SKEncodedOrigin.Default or SKEncodedOrigin.TopLeft) return source.Copy();
+        if (origin is SKEncodedOrigin.Default or SKEncodedOrigin.TopLeft) return null;
         var swap = origin is SKEncodedOrigin.LeftTop or SKEncodedOrigin.RightTop or SKEncodedOrigin.RightBottom or SKEncodedOrigin.LeftBottom;
         var target = new SKBitmap(new SKImageInfo(swap ? source.Height : source.Width, swap ? source.Width : source.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
         using var canvas = new SKCanvas(target);
