@@ -50,7 +50,7 @@ function submitHarness({ uploadFailure = false, completionFailure = false, prepa
             return { bookingId: 'booking-1', totalAmount: 250000 };
         } } },
         state: { policy: {}, front: {}, back: {}, guestCount: 2 }, siteSlug: 'demo',
-        validateExtraFields: () => null, createPendingCustomerAccount: async () => {},
+        validateExtraFields: () => null, createPendingCustomerAccount: async () => {}, claimStagedIdentity: async () => {},
         setProgress: message => progress.push(message), withBookingTimeout: action => action(undefined),
         uploadIdentity: async () => { if (uploadFailure) throw new Error('upload failed'); }
     };

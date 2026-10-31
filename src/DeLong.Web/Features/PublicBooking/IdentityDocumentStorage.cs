@@ -30,6 +30,7 @@ public sealed class IdentityDocumentStorage
     private static readonly string[] Sides = ["front", "back", "second-front", "second-back"];
 
     private readonly string root;
+    private readonly string stagingRoot;
     private readonly string masterKeyPath;
     private readonly IConfiguration configuration;
     private readonly object keyGate = new();
@@ -40,6 +41,7 @@ public sealed class IdentityDocumentStorage
     public IdentityDocumentStorage(StoragePaths paths, IConfiguration configuration)
     {
         root = Path.Combine(paths.DataRoot, "private", "identity-documents");
+        stagingRoot = Path.Combine(paths.DataRoot, "private", "identity-staging");
         masterKeyPath = Path.Combine(paths.DataRoot, "security", "identity-master.key");
         this.configuration = configuration;
         TryLoadKey();
@@ -79,12 +81,99 @@ public sealed class IdentityDocumentStorage
         }
     }
 
-    public async Task<(IdentityDocumentInfo? Document, string? Error)> SaveAsync(
+    public Task<(IdentityDocumentInfo? Document, string? Error)> SaveAsync(
         Guid propertyId,
         Guid bookingId,
         string side,
         IFormFile file,
+        CancellationToken cancellationToken = default) =>
+        SaveCoreAsync(propertyId, bookingId, side, file, staged: false, cancellationToken);
+
+    /// <summary>
+    /// How long a photo uploaded before the booking exists is kept. The guest uploads while filling
+    /// the form and submits within minutes; unclaimed photos are purged after this.
+    /// </summary>
+    public static readonly TimeSpan StagingLifetime = TimeSpan.FromHours(2);
+
+    public static bool IsValidStagingKey(string? value) =>
+        value is { Length: >= 32 and <= 100 } && value.All(c => char.IsAsciiLetterOrDigit(c) || c == '-');
+
+    private static Guid StagingOwnerId(Guid propertyId, string stagingKey)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"identity-staging|{propertyId:N}|{stagingKey}"));
+        return new Guid(hash.AsSpan(0, 16));
+    }
+
+    /// <summary>
+    /// Stores a photo the guest picked before the booking is created, so the upload runs while
+    /// they fill in the rest of the form instead of after they press submit.
+    /// </summary>
+    public Task<(IdentityDocumentInfo? Document, string? Error)> SaveStagedAsync(
+        Guid propertyId,
+        string stagingKey,
+        string side,
+        IFormFile file,
         CancellationToken cancellationToken = default)
+    {
+        if (!IsValidStagingKey(stagingKey))
+            return Task.FromResult<(IdentityDocumentInfo?, string?)>((null, "Khóa tải ảnh không hợp lệ."));
+        PurgeStaleStaging(propertyId);
+        return SaveCoreAsync(propertyId, StagingOwnerId(propertyId, stagingKey), side, file, staged: true, cancellationToken);
+    }
+
+    /// <summary>
+    /// Copies staged photos into the booking. Staged copies are left for <see cref="StagingLifetime"/>
+    /// so a retried submit (new booking after a conflict) can claim them again.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ClaimStagedAsync(
+        Guid propertyId,
+        string stagingKey,
+        Guid bookingId,
+        IEnumerable<string> sides,
+        CancellationToken cancellationToken = default)
+    {
+        var claimed = new List<string>(4);
+        if (!IsConfigured || !IsValidStagingKey(stagingKey)) return claimed;
+        var ownerId = StagingOwnerId(propertyId, stagingKey);
+        foreach (var side in sides.Select(NormalizeSide).OfType<string>().Distinct())
+        {
+            IdentityDocumentReadResult? document;
+            try { document = await ReadCoreAsync(propertyId, ownerId, side, staged: true, cancellationToken); }
+            catch (CryptographicException) { document = null; }
+            if (document is null) continue;
+            try
+            {
+                await WriteEncryptedAsync(propertyId, bookingId, side, document.ContentType,
+                    document.OriginalFileName, document.Bytes, cancellationToken);
+                claimed.Add(side);
+            }
+            finally { CryptographicOperations.ZeroMemory(document.Bytes); }
+        }
+        return claimed;
+    }
+
+    private void PurgeStaleStaging(Guid propertyId)
+    {
+        var directory = Path.Combine(stagingRoot, propertyId.ToString("N"));
+        if (!Directory.Exists(directory)) return;
+        var cutoff = DateTime.UtcNow - StagingLifetime;
+        foreach (var owner in Directory.EnumerateDirectories(directory))
+        {
+            try
+            {
+                if (Directory.GetLastWriteTimeUtc(owner) < cutoff) Directory.Delete(owner, true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+    }
+
+    private async Task<(IdentityDocumentInfo? Document, string? Error)> SaveCoreAsync(
+        Guid propertyId,
+        Guid bookingId,
+        string side,
+        IFormFile file,
+        bool staged,
+        CancellationToken cancellationToken)
     {
         if (!IsConfigured) return (null, "Kho CCCD không thể khởi tạo khóa mã hóa. Hãy kiểm tra quyền ghi DataRoot hoặc khôi phục DataRoot đầy đủ từ bản sao lưu.");
         var normalizedSide = NormalizeSide(side);
@@ -106,7 +195,7 @@ public sealed class IdentityDocumentStorage
 
         const string optimizedContentType = "image/webp";
         var originalFileName = SafeFileName(file.FileName, ".webp");
-        return (await WriteEncryptedAsync(propertyId, bookingId, normalizedSide, optimizedContentType, originalFileName, imageBytes, cancellationToken), null);
+        return (await WriteEncryptedAsync(propertyId, bookingId, normalizedSide, optimizedContentType, originalFileName, imageBytes, cancellationToken, staged), null);
     }
 
     public async Task<IdentityDocumentInfo?> CopyAsync(
@@ -127,7 +216,7 @@ public sealed class IdentityDocumentStorage
 
     private async Task<IdentityDocumentInfo> WriteEncryptedAsync(
         Guid propertyId, Guid bookingId, string side, string contentType, string originalFileName,
-        byte[] imageBytes, CancellationToken cancellationToken)
+        byte[] imageBytes, CancellationToken cancellationToken, bool staged = false)
     {
         var plaintext = BuildPlaintext(contentType, originalFileName, imageBytes);
         var nonce = RandomNumberGenerator.GetBytes(NonceSize);
@@ -145,7 +234,7 @@ public sealed class IdentityDocumentStorage
         Buffer.BlockCopy(tag, 0, envelope, offset, TagSize); offset += TagSize;
         Buffer.BlockCopy(ciphertext, 0, envelope, offset, ciphertext.Length);
 
-        var directory = DirectoryFor(propertyId, bookingId);
+        var directory = DirectoryFor(propertyId, bookingId, staged);
         Directory.CreateDirectory(directory);
         var path = Path.Combine(directory, side + ".dlid");
         var temp = path + ".tmp-" + Guid.NewGuid().ToString("N");
@@ -163,16 +252,24 @@ public sealed class IdentityDocumentStorage
         return new IdentityDocumentInfo(side, contentType, originalFileName, imageBytes.LongLength);
     }
 
-    public async Task<IdentityDocumentReadResult?> ReadAsync(
+    public Task<IdentityDocumentReadResult?> ReadAsync(
         Guid propertyId,
         Guid bookingId,
         string side,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ReadCoreAsync(propertyId, bookingId, side, staged: false, cancellationToken);
+
+    private async Task<IdentityDocumentReadResult?> ReadCoreAsync(
+        Guid propertyId,
+        Guid bookingId,
+        string side,
+        bool staged,
+        CancellationToken cancellationToken)
     {
         if (!IsConfigured) return null;
         var normalizedSide = NormalizeSide(side);
         if (normalizedSide is null) return null;
-        var path = Path.Combine(DirectoryFor(propertyId, bookingId), normalizedSide + ".dlid");
+        var path = Path.Combine(DirectoryFor(propertyId, bookingId, staged), normalizedSide + ".dlid");
         if (!File.Exists(path)) return null;
 
         var envelope = await File.ReadAllBytesAsync(path, cancellationToken);
@@ -239,8 +336,8 @@ public sealed class IdentityDocumentStorage
 
     public string GetMasterKeyPathForDiagnostics() => masterKeyPath;
 
-    private string DirectoryFor(Guid propertyId, Guid bookingId) =>
-        Path.Combine(root, propertyId.ToString("N"), bookingId.ToString("N"));
+    private string DirectoryFor(Guid propertyId, Guid bookingId, bool staged = false) =>
+        Path.Combine(staged ? stagingRoot : root, propertyId.ToString("N"), bookingId.ToString("N"));
 
     private static byte[]? LoadOrCreateMasterKey(string path, string identityRoot, string? legacyConfiguredKey)
     {

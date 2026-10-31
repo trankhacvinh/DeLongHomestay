@@ -233,10 +233,58 @@
         state[key] = '';
     }
 
+    // Background upload: each photo goes to the server as soon as it is picked, while the guest is
+    // still filling in the form. On submit the booking just claims the staged photos, so a slow
+    // mobile uplink no longer makes the guest wait after pressing submit. Uploads run one at a time
+    // so they never split the uplink; anything not staged in time falls back to the normal upload.
+    const stagingKey = (() => {
+        if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+        const bytes = new Uint8Array(24); window.crypto.getRandomValues(bytes);
+        return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+    })();
+    const stagedUploads = new Map();
+    let stagingQueue = Promise.resolve();
+
+    function cancelStagedUpload(uploadSide) {
+        const entry = stagedUploads.get(uploadSide);
+        if (!entry) return;
+        entry.cancelled = true; entry.xhr?.abort();
+        stagedUploads.delete(uploadSide);
+    }
+
+    function stageIdentity(uploadSide, file, prepared, onStaged) {
+        cancelStagedUpload(uploadSide);
+        const entry = { file, cancelled: false, xhr: null, onProgress: null };
+        const query = siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : '';
+        entry.promise = stagingQueue.then(() => new Promise((resolve, reject) => {
+            if (entry.cancelled) { reject(new Error('cancelled')); return; }
+            const form = new FormData();
+            form.append('file', prepared, prepared.name || `${uploadSide}.jpg`);
+            const xhr = new XMLHttpRequest(); entry.xhr = xhr;
+            xhr.open('POST', `/api/public/identity-staging/${uploadSide}${query}`);
+            xhr.withCredentials = true; xhr.timeout = 180000;
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]')?.content || '');
+            xhr.setRequestHeader('X-Identity-Staging-Key', stagingKey);
+            xhr.upload.onprogress = event => entry.onProgress?.(event.lengthComputable && event.total > 0 ? Math.round(event.loaded / event.total * 100) : null);
+            xhr.onload = () => {
+                let payload; try { payload = JSON.parse(xhr.responseText); } catch { }
+                if (xhr.status >= 200 && xhr.status < 300 && payload?.side === uploadSide) resolve(); else reject(new Error('staging failed'));
+            };
+            xhr.onerror = xhr.ontimeout = xhr.onabort = () => reject(new Error('staging failed'));
+            xhr.send(form);
+        }));
+        stagingQueue = entry.promise.catch(() => {});
+        entry.promise.then(() => { entry.done = true; if (!entry.cancelled) onStaged?.(); }, () => {});
+        entry.promise.catch(() => {});
+        stagedUploads.set(uploadSide, entry);
+    }
+
     function setDocument(side, file, card) {
         const oldFile=state[side];
         if(oldFile&&oldFile!==file&&!['front','back','secondFront','secondBack'].some(key=>key!==side&&state[key]===oldFile))window.DeLongImageUpload.discardFile?.(oldFile);
         revokePreview(side);
+        cancelStagedUpload(side.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`));
         state[side] = file || null;
         const preview = card.querySelector('img');
         const empty = card.querySelector('.booking-id-empty');
@@ -255,6 +303,10 @@
                 const key = `${side}Url`; state[key] = URL.createObjectURL(prepared);
                 preview.src = state[key]; preview.hidden = false; empty.hidden = true;
                 message.hidden = true; card.classList.add('has-image');
+                stageIdentity(uploadSide, file, prepared, () => {
+                    if (card.dataset.fileVersion !== version || state[side] !== file) return;
+                    message.hidden = false; message.textContent = 'Đã tải lên'; message.classList.remove('is-error');
+                });
             }).catch(error => {
                 if (card.dataset.fileVersion !== version) return;
                 message.hidden = false; message.textContent = error.message || 'Không thể xử lý ảnh. Vui lòng chọn lại.'; message.classList.add('is-error');
@@ -567,6 +619,42 @@
         finally { clearTimeout(timer); }
     }
 
+    async function claimStagedIdentity(bookingId, documents, stage, headers, originalPost) {
+        const labels = {'front':'mặt trước','back':'mặt sau','second-front':'mặt trước người thứ hai','second-back':'mặt sau người thứ hai'};
+        const ready = [];
+        for (const [side, file] of documents) {
+            const entry = stagedUploads.get(side);
+            if (!entry || entry.file !== file) continue;
+            const row = stage.querySelector(`[data-upload-side="${side}"]`);
+            // A staged upload that stops progressing for 30s is dropped; the normal upload retries it.
+            let stall;
+            const touch = () => { clearTimeout(stall); stall = setTimeout(() => entry.xhr?.abort(), 30000); };
+            if (!entry.done) {
+                if (row) row.textContent = `Đang tải CCCD ${labels[side]}…`;
+                entry.onProgress = percent => { touch(); if (row) row.textContent = percent === null ? `Đang tải CCCD ${labels[side]}…` : `Đang tải CCCD ${labels[side]}… ${percent}%`; };
+                touch();
+            }
+            try { await entry.promise; ready.push(side); }
+            catch { /* Not staged: the normal upload below sends this side. */ }
+            finally { entry.onProgress = null; clearTimeout(stall); }
+        }
+        if (!ready.length) return;
+        const query = siteSlug ? `?siteSlug=${encodeURIComponent(siteSlug)}` : '';
+        let claimed = [];
+        try {
+            const response = await originalPost(`/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-staging/claim${query}`, { stagingKey, sides: ready }, headers);
+            claimed = Array.isArray(response?.sides) ? response.sides : [];
+        } catch { return; }
+        const uploaded = uploadedIdentityFiles.get(bookingId) || new Map();
+        uploadedIdentityFiles.set(bookingId, uploaded);
+        for (const [side, file] of documents) {
+            if (!claimed.includes(side)) continue;
+            uploaded.set(side, file);
+            const row = stage.querySelector(`[data-upload-side="${side}"]`);
+            if (row) row.textContent = 'Đã lưu ' + labels[side];
+        }
+    }
+
     function showPaymentStage(documents, hasPayment) {
         root.querySelector('[data-booking-payment-stage]')?.remove();
         const stage = document.createElement('section');
@@ -633,6 +721,7 @@
                     // One upload at a time: on a slow mobile uplink two parallel uploads share the same
                     // bandwidth (WebKit may even send them one after another), so the waiting upload got
                     // no progress for 30s and was aborted as "stalled" although the network was working.
+                    await claimStagedIdentity(result.bookingId, documents, stage, headers, originalPost);
                     for (const [side,file] of documents) {
                         const row = stage.querySelector(`[data-upload-side="${side}"]`);
                         await uploadIdentity(result.bookingId,side,file,requestKey,message => {if(row)row.textContent=message;});

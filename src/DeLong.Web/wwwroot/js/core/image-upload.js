@@ -1,7 +1,7 @@
 (function (global) {
     function profile(url) {
         const path = new URL(url, global.location.origin).pathname;
-        if (/\/identity-documents\/(front|back|second-front|second-back)$/.test(path)) return { maxEdge: 2000, quality: 0.9, opaque: true };
+        if (/\/identity-documents\/(front|back|second-front|second-back)$/.test(path)) return { maxEdge: 1600, quality: 0.9, opaque: true, targetBytes: 250 * 1024 };
         if (/\/assets\/[^/]+$|\/content\/images$|\/media\/upload$/.test(path)) return { maxEdge: 2560, quality: 0.85 };
         return null;
     }
@@ -116,8 +116,8 @@
             // Keep transparency for logos and other PNG assets.
             const type = sourceType === 'image/png' && !settings.opaque ? 'image/png' : 'image/jpeg';
             let blob = await new Promise(resolve => canvas.toBlob(resolve, type, settings.quality));
-            if (settings.opaque && blob?.type === 'image/jpeg' && blob.size > 400 * 1024) {
-                // Encode from the same canvas: keep all 2000px of document detail.
+            if (settings.targetBytes && blob?.type === 'image/jpeg' && blob.size > settings.targetBytes) {
+                // Encode from the same canvas: keep every pixel of document detail (1600px reads a CCCD clearly).
                 // Stay on JPEG: Chrome's WebP encoder is ~5-20x slower than JPEG on phones
                 // (seconds per photo), and the server re-encodes identity images to WebP anyway.
                 for (const quality of [0.84, 0.78]) {
@@ -125,7 +125,7 @@
                     check(job);
                     if (candidate?.type !== 'image/jpeg') break;
                     if (candidate.size < blob.size) blob = candidate;
-                    if (blob.size <= 400 * 1024) break;
+                    if (blob.size <= settings.targetBytes) break;
                 }
             }
             check(job);

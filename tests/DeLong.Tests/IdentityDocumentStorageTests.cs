@@ -44,6 +44,36 @@ public sealed class IdentityDocumentStorageTests
     }
 
     [Fact]
+    public async Task Staged_photos_are_claimed_into_the_booking_only_with_the_same_key_and_property()
+    {
+        var root = TempRoot();
+        try
+        {
+            var storage = new IdentityDocumentStorage(Paths(root), new ConfigurationBuilder().Build());
+            var property = Guid.NewGuid(); var booking = Guid.NewGuid();
+            var key = Guid.NewGuid().ToString();
+            var (_, invalid) = await storage.SaveStagedAsync(property, "short", "front", FormImage("synthetic.png", TinyPng));
+            Assert.NotNull(invalid);
+            foreach (var side in new[] { "front", "back" })
+            {
+                var (document, error) = await storage.SaveStagedAsync(property, key, side, FormImage("synthetic.png", TinyPng));
+                Assert.Null(error); Assert.NotNull(document);
+            }
+            Assert.Empty(await storage.ListAsync(property, booking));
+            Assert.Empty(await storage.ClaimStagedAsync(property, Guid.NewGuid().ToString(), booking, ["front", "back"]));
+            Assert.Empty(await storage.ClaimStagedAsync(Guid.NewGuid(), key, booking, ["front", "back"]));
+
+            var claimed = await storage.ClaimStagedAsync(property, key, booking, ["front", "back", "second-front", "bogus"]);
+            Assert.Equal(new[] { "front", "back" }, claimed);
+            Assert.Equal(new[] { "front", "back" }, (await storage.ListAsync(property, booking)).Select(x => x.Side));
+            Assert.NotNull(await storage.ReadAsync(property, booking, "front"));
+            // Staged copies stay claimable so a retried submit with a new booking still works.
+            Assert.Equal(new[] { "front" }, await storage.ClaimStagedAsync(property, key, Guid.NewGuid(), ["front"]));
+        }
+        finally { Cleanup(root); }
+    }
+
+    [Fact]
     public async Task Saved_identity_copy_preserves_encoded_bytes_without_a_second_lossy_encode()
     {
         var root = TempRoot();

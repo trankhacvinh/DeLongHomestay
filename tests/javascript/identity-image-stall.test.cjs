@@ -38,7 +38,7 @@ test('large camera JPEG is downsampled in the decoder and EXIF rotation keeps po
     const document = { createElement: () => ({ getContext: () => ({ drawImage() {}, fillRect() {} }), toBlob: callback => callback(new Blob(['small'], { type: 'image/jpeg' })) }) };
     vm.runInNewContext(source, { window, document, URL, File, Blob, FormData, setTimeout, clearTimeout });
     await window.DeLongImageUpload.prepareFile('/api/public/booking-requests/b/identity-documents/front', new File([jpegHeader(8000, 6000, 6)], 'camera.jpg', { type: 'image/jpeg' }));
-    assert.equal(options.resizeWidth, 1500); assert.equal(options.resizeHeight, 2000); assert.equal(options.imageOrientation, 'from-image');
+    assert.equal(options.resizeWidth, 1200); assert.equal(options.resizeHeight, 1600); assert.equal(options.imageOrientation, 'from-image');
 });
 
 test('decoder resize never falls back to the high-resolution original even if it was already highly compressed',async()=>{
