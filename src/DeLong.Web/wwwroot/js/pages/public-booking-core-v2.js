@@ -530,7 +530,7 @@
                 const done = (error) => { if(finished)return;finished=true;clearTimeout(idle);xhr.upload.onprogress=null;error?reject(error):resolve(); };
                 const touch = () => { clearTimeout(idle);idle=setTimeout(()=>{done(new Error('Tải ảnh không có tiến triển. Kiểm tra kết nối và bấm gửi lại.'));xhr.abort();},30000); };
                 xhr.open('POST', `/api/public/booking-requests/${encodeURIComponent(bookingId)}/identity-documents/${side}${query}`);
-                xhr.withCredentials = true; xhr.timeout = 90000;
+                xhr.withCredentials = true; xhr.timeout = 180000;
                 xhr.setRequestHeader('Accept','application/json');xhr.setRequestHeader('X-CSRF-TOKEN',csrf);xhr.setRequestHeader('Idempotency-Key',requestKey);
                 xhr.upload.onprogress = event => { touch();reportProgress(event.lengthComputable && event.total>0 ? `Đang tải CCCD ${label}… ${Math.round(event.loaded/event.total*100)}%` : `Đang tải CCCD ${label}…`); };
                 xhr.upload.onload = () => {touch();reportProgress(`Đang lưu CCCD ${label} bảo mật…`);};
@@ -630,14 +630,13 @@
                     void warmPaymentQr(result).catch(()=>{});
                     const documents = selectedDocuments;
                     setProgress('Đang tải và lưu CCCD bảo mật…');
-                    for (let start=0;start<documents.length;start+=2) {
-                        const results = await Promise.allSettled(documents.slice(start,start+2).map(async ([side,file]) => {
-                            const row = stage.querySelector(`[data-upload-side="${side}"]`);
-                            await uploadIdentity(result.bookingId,side,file,requestKey,message => {if(row)row.textContent=message;});
-                            if(row)row.textContent='Đã lưu '+({'front':'mặt trước','back':'mặt sau','second-front':'mặt trước người thứ hai','second-back':'mặt sau người thứ hai'}[side]);
-                        }));
-                        const failure=results.find(item=>item.status==='rejected');
-                        if(failure)throw failure.reason;
+                    // One upload at a time: on a slow mobile uplink two parallel uploads share the same
+                    // bandwidth (WebKit may even send them one after another), so the waiting upload got
+                    // no progress for 30s and was aborted as "stalled" although the network was working.
+                    for (const [side,file] of documents) {
+                        const row = stage.querySelector(`[data-upload-side="${side}"]`);
+                        await uploadIdentity(result.bookingId,side,file,requestKey,message => {if(row)row.textContent=message;});
+                        if(row)row.textContent='Đã lưu '+({'front':'mặt trước','back':'mặt sau','second-front':'mặt trước người thứ hai','second-back':'mặt sau người thứ hai'}[side]);
                     }
                     setProgress('Đang kiểm tra hoàn tất…');
                     stage.querySelector('[data-payment-stage-status]').textContent='Đang kiểm tra đủ giấy tờ để hoàn tất…';

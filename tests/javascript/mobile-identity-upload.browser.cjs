@@ -95,19 +95,21 @@ async function photos(page) {
                 await page.evaluate(side=>window.uploadStarts.push(side),side);
             });
             await photos(page);await page.locator('#submit').click();
-            await page.waitForFunction(mode=>window.uploadStarts.length===2 && window.qrWarmups===(mode==='normal'?1:0),mode);
+            await page.waitForFunction(mode=>window.uploadStarts.length===1 && window.qrWarmups===(mode==='normal'?1:0),mode);
             assert.equal(await page.locator('[data-booking-payment-stage] h2').innerText(),mode==='normal'?'Chuẩn bị thanh toán':'Hoàn tất đặt phòng');
             await page.locator('[data-booking-payment-stage]').waitFor({state:'visible'});
             assert.equal(await page.evaluate(()=>window.completes),0);
             assert.equal(new URL(page.url()).pathname,'/booking');
             assert.equal(await page.locator('img[src*="vietqr.app"]').count(),0,'QR remains off-screen until documents complete');
-            await page.screenshot({path:out+`/parallel-${mode}-stage-390.png`,animations:'disabled',fullPage:true});
+            await page.screenshot({path:out+`/sequential-${mode}-stage-390.png`,animations:'disabled',fullPage:true});
             await pending[0].route.fulfill({contentType:'application/json',body:JSON.stringify({side:pending[0].side})});
             await page.getByText(/^Đã lưu /).first().waitFor();
             assert.equal(await page.evaluate(()=>window.completes),0,'one saved side is insufficient');
+            await page.waitForFunction(()=>window.uploadStarts.length===2);
+            assert.deepEqual(await page.evaluate(()=>window.uploadStarts),['front','back'],'the second side starts only after the first is saved');
             await pending[1].route.fulfill({contentType:'application/json',body:JSON.stringify({side:pending[1].side})});
             await page.waitForFunction(()=>window.completes===1 && window.results.length===1);
-            assert.deepEqual(errors,[]);await page.close();console.log('PASS both uploads start together; QR warms invisibly; complete waits for both sides');
+            assert.deepEqual(errors,[]);await page.close();console.log('PASS uploads run one at a time; QR warms invisibly; complete waits for both sides');
         }
         {
             const {page,errors}=await mount(browser); const calls=[];let failBack=true;
