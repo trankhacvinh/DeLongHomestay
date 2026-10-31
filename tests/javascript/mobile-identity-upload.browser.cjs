@@ -17,12 +17,13 @@ async function mount(browser, mode = 'normal') {
         window.setTimeout = (fn, delay, ...args) => nativeTimer(fn, mode === 'decode-stall' && delay === 20000 ? 80 : mode === 'network-stall' && delay === 30000 ? 100 : delay, ...args);
         window.realBitmap = window.createImageBitmap.bind(window);
         if (mode === 'decode-stall') window.createImageBitmap = () => new Promise(() => {});
-        window.creates = 0; window.completes = 0; window.qrWarmups = 0; window.results = []; window.requestKeys = []; window.progress = [];
+        window.creates = 0; window.completes = 0; window.qrWarmups = 0; window.results = []; window.requestKeys = []; window.progress = []; window.claims = [];
         const bookings = new Map();
         window.DeLongApi = {
             get: async url => url.includes('/api/public/payments/sepay/') ? (window.qrWarmups++, {qrUrl:'https://vietqr.app/synthetic-test.png'}) : url.includes('/booking-policy') ? { requireIdentityDocuments: true, includedGuests: 2, policyVersion: 1 } : {},
             post: async (url, body, headers) => {
                 if (url.includes('/complete')) { window.completes++; return { complete: true }; }
+                if (url.includes('/identity-staging/claim')) { window.claims.push(body); return { sides: body.sides }; }
                 window.creates++; window.requestKeys.push(headers['Idempotency-Key']);
                 if (!bookings.has(headers['Idempotency-Key'])) bookings.set(headers['Idempotency-Key'], { bookingId: 'synthetic-booking', code: 'BK-TEST', ...(mode==='no-payment'?{}:{paymentUrl:'/payment/sepay?orderId=synthetic-order',paymentOrderId:'synthetic-order'}) });
                 return bookings.get(headers['Idempotency-Key']);
@@ -83,7 +84,7 @@ async function photos(page) {
             const prepared=await DeLongImageUpload.prepareFile('/api/public/booking-requests/b/identity-documents/front',file);
             const bitmap=await window.nativeBitmap(prepared);const size={width:bitmap.width,height:bitmap.height};bitmap.close();return size;
         });
-        assert.equal(rotated.height,2000);assert.equal(rotated.width,1333);
+        assert.equal(rotated.height,1600);assert.equal(rotated.width,1067);
         fs.writeFileSync(out+(timings.before?'/benchmark.json':'/benchmark-current.json'),JSON.stringify(timings,null,2)); console.log('Native benchmark',JSON.stringify(timings));await perf.close();
 
         for (const mode of ['normal','no-payment']) {
@@ -95,19 +96,48 @@ async function photos(page) {
                 await page.evaluate(side=>window.uploadStarts.push(side),side);
             });
             await photos(page);await page.locator('#submit').click();
-            await page.waitForFunction(mode=>window.uploadStarts.length===2 && window.qrWarmups===(mode==='normal'?1:0),mode);
+            await page.waitForFunction(mode=>window.uploadStarts.length===1 && window.qrWarmups===(mode==='normal'?1:0),mode);
             assert.equal(await page.locator('[data-booking-payment-stage] h2').innerText(),mode==='normal'?'Chuẩn bị thanh toán':'Hoàn tất đặt phòng');
             await page.locator('[data-booking-payment-stage]').waitFor({state:'visible'});
             assert.equal(await page.evaluate(()=>window.completes),0);
             assert.equal(new URL(page.url()).pathname,'/booking');
             assert.equal(await page.locator('img[src*="vietqr.app"]').count(),0,'QR remains off-screen until documents complete');
-            await page.screenshot({path:out+`/parallel-${mode}-stage-390.png`,animations:'disabled',fullPage:true});
+            await page.screenshot({path:out+`/sequential-${mode}-stage-390.png`,animations:'disabled',fullPage:true});
             await pending[0].route.fulfill({contentType:'application/json',body:JSON.stringify({side:pending[0].side})});
             await page.getByText(/^Đã lưu /).first().waitFor();
             assert.equal(await page.evaluate(()=>window.completes),0,'one saved side is insufficient');
+            await page.waitForFunction(()=>window.uploadStarts.length===2);
+            assert.deepEqual(await page.evaluate(()=>window.uploadStarts),['front','back'],'the second side starts only after the first is saved');
             await pending[1].route.fulfill({contentType:'application/json',body:JSON.stringify({side:pending[1].side})});
             await page.waitForFunction(()=>window.completes===1 && window.results.length===1);
-            assert.deepEqual(errors,[]);await page.close();console.log('PASS both uploads start together; QR warms invisibly; complete waits for both sides');
+            assert.deepEqual(errors,[]);await page.close();console.log('PASS uploads run one at a time; QR warms invisibly; complete waits for both sides');
+        }
+        {
+            const {page,errors}=await mount(browser); const staged=[], direct=[];
+            await page.route('**/identity-staging/*',async route=>{const side=route.request().url().split('/').at(-1).split('?')[0];staged.push({side,key:route.request().headers()['x-identity-staging-key']});await route.fulfill({contentType:'application/json',body:JSON.stringify({side})});});
+            await page.route('**/identity-documents/*',async route=>{direct.push(route.request().url());await route.fulfill({contentType:'application/json',body:JSON.stringify({side:route.request().url().split('/').at(-1)})});});
+            await photos(page);
+            await page.waitForFunction(()=>[...document.querySelectorAll('[data-id-message]')].filter(item=>item.textContent==='Đã tải lên').length===2);
+            assert.deepEqual(staged.map(item=>item.side),['front','back'],'photos upload in the background, one at a time, before submit');
+            assert.ok(staged.every(item=>item.key&&item.key.length>=32&&item.key===staged[0].key));
+            await page.locator('#submit').click();await page.waitForFunction(()=>window.completes===1);
+            assert.deepEqual(direct,[],'staged photos are not uploaded again after submit');
+            assert.deepEqual(await page.evaluate(()=>window.claims.map(item=>item.sides)),[['front','back']]);
+            assert.equal(await page.evaluate(()=>window.claims[0].stagingKey),staged[0].key);
+            assert.deepEqual(errors,[]);await page.close();console.log('PASS photos staged while filling the form are claimed on submit without re-uploading');
+        }
+        {
+            const {page,errors}=await mount(browser); const pending=[], direct=[];
+            await page.route('**/identity-staging/*',route=>{pending.push(route);});
+            await page.route('**/identity-documents/*',async route=>{direct.push(route.request().url());await route.fulfill({contentType:'application/json',body:JSON.stringify({side:route.request().url().split('/').at(-1)})});});
+            await photos(page);await page.waitForFunction(()=>document.querySelectorAll('[data-identity-side].has-image').length===2);
+            await page.locator('#submit').click();
+            await page.locator('[data-booking-payment-stage]').waitFor({state:'visible'});
+            while(pending.length<2){const route=await new Promise(resolve=>{const check=()=>pending.length?resolve(pending.shift()):setTimeout(check,20);check();});const side=route.request().url().split('/').at(-1);await route.fulfill({contentType:'application/json',body:JSON.stringify({side})});if(side==='back')break;}
+            await page.waitForFunction(()=>window.completes===1);
+            assert.deepEqual(direct,[],'in-flight background uploads are awaited, not restarted');
+            assert.deepEqual(await page.evaluate(()=>window.claims.map(item=>item.sides)),[['front','back']]);
+            assert.deepEqual(errors,[]);await page.close();console.log('PASS submit during a background upload waits for it and claims it');
         }
         {
             const {page,errors}=await mount(browser); const calls=[];let failBack=true;

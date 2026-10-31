@@ -96,6 +96,86 @@ public static class BookingCoreV2Endpoints
         .RequireRateLimiting("public-booking-identity")
         .WithTags("Public Booking");
 
+        // Photos uploaded while the guest is still filling the form (before the booking exists).
+        app.MapPost("/api/public/identity-staging/{side}", async (
+            IdentityDocumentStorage identityStorage,
+            string side,
+            string? siteSlug,
+            HttpRequest httpRequest,
+            PublicPropertyResolver resolver,
+            ILoggerFactory loggerFactory,
+            CancellationToken cancellationToken) =>
+        {
+            var totalWatch = System.Diagnostics.Stopwatch.StartNew();
+            var property = await resolver.ResolveAsync(siteSlug, cancellationToken);
+            if (property is null) return Results.NotFound();
+            var stagingKey = httpRequest.Headers["X-Identity-Staging-Key"].FirstOrDefault()?.Trim();
+            if (!IdentityDocumentStorage.IsValidStagingKey(stagingKey))
+                return Problem("staging_key_required", "Thiếu khóa tải ảnh tạm.", StatusCodes.Status400BadRequest);
+            if (!httpRequest.HasFormContentType)
+                return Problem("invalid_upload", "Yêu cầu tải ảnh không hợp lệ.", StatusCodes.Status400BadRequest);
+            if (!identityStorage.IsConfigured)
+                return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
+
+            var form = await httpRequest.ReadFormAsync(cancellationToken);
+            var file = form.Files.GetFile("file");
+            if (file is null) return Problem("invalid_upload", "Vui lòng chọn ảnh CCCD.", StatusCodes.Status400BadRequest);
+            var (document, error) = await identityStorage.SaveStagedAsync(property.Id, stagingKey!, side, file, cancellationToken);
+            loggerFactory.CreateLogger("BookingIdentityUpload").LogInformation(
+                "Identity staged upload: bytes={SourceBytes}, totalMs={TotalMs}, success={Success}, trace={TraceId}",
+                file.Length, totalWatch.ElapsedMilliseconds, error is null, httpRequest.HttpContext.TraceIdentifier);
+            return error is null
+                ? Results.Ok(document)
+                : Problem("invalid_identity_document", error, StatusCodes.Status400BadRequest);
+        })
+        .AllowAnonymous()
+        .AddEndpointFilter<ApiAntiforgeryFilter>()
+        .RequireRateLimiting("public-booking-identity")
+        .WithTags("Public Booking");
+
+        app.MapPost("/api/public/booking-requests/{bookingId:guid}/identity-staging/claim", async (
+            IdentityDocumentStorage identityStorage,
+            Guid bookingId,
+            string? siteSlug,
+            ClaimStagedIdentityRequest body,
+            HttpRequest httpRequest,
+            AppDbContext db,
+            PublicPropertyResolver resolver,
+            CancellationToken cancellationToken) =>
+        {
+            var property = await resolver.ResolveAsync(siteSlug, cancellationToken);
+            if (property is null) return Results.NotFound();
+            var requestKey = httpRequest.Headers["Idempotency-Key"].FirstOrDefault()?.Trim();
+            if (string.IsNullOrWhiteSpace(requestKey) || requestKey.Length > 100)
+                return Problem("request_key_required", "Thiếu khóa xác nhận của lượt đặt.", StatusCodes.Status400BadRequest);
+            var booking = await db.Bookings.AsNoTracking().SingleOrDefaultAsync(
+                x => x.PropertyId == property.Id && x.Id == bookingId &&
+                     x.Source == "Website" && x.PublicRequestKey == requestKey,
+                cancellationToken);
+            if (booking is null) return Results.NotFound();
+            if (booking.Status is BookingStatus.Completed or BookingStatus.Cancelled or BookingStatus.NoShow)
+                return Problem("booking_locked", "Lượt đặt đã kết thúc nên không thể cập nhật CCCD.", StatusCodes.Status409Conflict);
+            if (!identityStorage.IsConfigured)
+                return Problem("identity_storage_unavailable", IdentityStorageUnavailable, StatusCodes.Status503ServiceUnavailable);
+
+            var claimed = await identityStorage.ClaimStagedAsync(
+                property.Id, body.StagingKey ?? string.Empty, bookingId, body.Sides ?? [], cancellationToken);
+            var userIdValue = httpRequest.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (Guid.TryParse(userIdValue, out var userId) && httpRequest.HttpContext.User.IsInRole(CustomerAccountService.CustomerRole))
+            {
+                foreach (var side in claimed.Where(side => side is "front" or "back"))
+                {
+                    if (await identityStorage.CopyAsync(property.Id, bookingId, userId, side, cancellationToken) is null)
+                        return Problem("identity_account_copy_failed", "Không thể lưu CCCD vào hồ sơ tài khoản.", StatusCodes.Status500InternalServerError);
+                }
+            }
+            return Results.Ok(new { sides = claimed });
+        })
+        .AllowAnonymous()
+        .AddEndpointFilter<ApiAntiforgeryFilter>()
+        .RequireRateLimiting("public-booking-identity")
+        .WithTags("Public Booking");
+
         app.MapPost("/api/public/booking-requests/{bookingId:guid}/complete", async (
             IdentityDocumentStorage identityStorage,
             Guid bookingId,
@@ -494,5 +574,7 @@ public static class BookingCoreV2Endpoints
 
     private sealed record LegacyWebNote(int GuestCount, bool PolicyAccepted, int? PolicyVersion, string? CleanNote);
 }
+
+public sealed record ClaimStagedIdentityRequest(string? StagingKey, string[]? Sides);
 
 public sealed record PublicCalendarLayoutRequest(bool AllRoomsOnMobile, int? MinimumRemainingMinutes = null);
