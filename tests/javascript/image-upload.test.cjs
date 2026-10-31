@@ -92,22 +92,27 @@ test('Preparing the same File twice reuses its compressed result', async () => {
 });
 
 
-test('identity upload chooses smaller WebP without reducing image dimensions', async () => {
+test('identity upload lowers JPEG quality instead of slow WebP encoding, keeping dimensions', async () => {
     const encodes=[];
     const window={location:{origin:'https://delonghomestay.com'},createImageBitmap:async()=>({width:2000,height:1300,close(){}})};
-    const document={createElement:()=>({getContext:()=>({fillRect(){},drawImage(){}}),toBlob(callback,type,quality){encodes.push({type,quality});callback(new Blob([new Uint8Array(type==='image/webp'?220000:900000)],{type}));}})};
+    const sizes={0.9:900000,0.84:600000,0.78:380000};
+    const document={createElement:()=>({getContext:()=>({fillRect(){},drawImage(){}}),toBlob(callback,type,quality){encodes.push({type,quality});callback(new Blob([new Uint8Array(sizes[quality]||900000)],{type}));}})};
     vm.runInNewContext(source,{window,document,URL,File,FormData,setTimeout,clearTimeout});
     const input=new File([new Uint8Array(1200000)],'camera.jpg',{type:'image/jpeg'});
     const output=await window.DeLongImageUpload.prepareFile('/api/public/booking-requests/b/identity-documents/front',input);
-    assert.equal(output.type,'image/webp');assert.equal(output.size,220000);assert.match(output.name,/\.webp$/);
+    assert.equal(output.type,'image/jpeg');assert.equal(output.size,380000);assert.match(output.name,/\.jpg$/);
     assert.equal(encodes[0].quality,0.9);
+    assert.ok(encodes.every(item=>item.type==='image/jpeg'),'must never invoke the WebP encoder');
+    assert.deepEqual(encodes.map(item=>item.quality),[0.9,0.84,0.78]);
 });
 
 
-test('unsupported WebP encoding keeps the valid JPEG rather than uploading fallback PNG',async()=>{
+test('identity JPEG that already fits under 400 KB is encoded once',async()=>{
+    const encodes=[];
     const window={location:{origin:'https://delonghomestay.com'},createImageBitmap:async()=>({width:2000,height:1300,close(){}})};
-    const document={createElement:()=>({getContext:()=>({fillRect(){},drawImage(){}}),toBlob(callback,type){callback(new Blob([new Uint8Array(type==='image/webp'?100000:700000)],{type:type==='image/webp'?'image/png':type}));}})};
+    const document={createElement:()=>({getContext:()=>({fillRect(){},drawImage(){}}),toBlob(callback,type,quality){encodes.push({type,quality});callback(new Blob([new Uint8Array(300000)],{type}));}})};
     vm.runInNewContext(source,{window,document,URL,File,FormData,setTimeout,clearTimeout});
     const output=await window.DeLongImageUpload.prepareFile('/api/public/booking-requests/b/identity-documents/back',new File([new Uint8Array(1000000)],'camera.jpg',{type:'image/jpeg'}));
-    assert.equal(output.type,'image/jpeg');assert.equal(output.size,700000);assert.match(output.name,/\.jpg$/);
+    assert.equal(output.type,'image/jpeg');assert.equal(output.size,300000);assert.match(output.name,/\.jpg$/);
+    assert.equal(encodes.length,1);
 });

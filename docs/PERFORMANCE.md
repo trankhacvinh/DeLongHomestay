@@ -32,3 +32,8 @@ Brotli/Gzip response compression is enabled for HTTPS text/JSON/SVG responses. V
 ## What to measure
 
 Use the existing slow-request warning (`Operations:SlowRequestThresholdMs`) before adding more infrastructure. Watch homepage/rooms/blog DB query frequency, p95 request duration, generated image response bytes and process memory. If multiple app instances are introduced, add FusionCache L2 + backplane together so invalidation remains coherent across nodes.
+
+## Public booking on mobile
+
+- Vue 3 is self-hosted at `wwwroot/vendor/vue/vue.global.prod.js` (versioned, immutable cache) instead of `cdn.jsdelivr.net`. A slow or unreachable third-party CDN blocked the booking page from becoming interactive, intermittently and mostly on mobile networks.
+- Client-side CCCD compression stays on JPEG (quality 0.9 → 0.84 → 0.78 until ≤400 KB). Do not reintroduce `canvas.toBlob('image/webp')` here: Chrome's WebP encoder takes seconds per 2000px photo on phones, while Safari has no WebP encoder and skipped that work, which made booking slow only on Chrome. The server already re-encodes identity images to WebP (`IdentityDocumentStorage.OptimizeImage`).
