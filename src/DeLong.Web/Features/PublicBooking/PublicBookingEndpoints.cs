@@ -57,6 +57,7 @@ public static class PublicBookingEndpoints
             return error is not null ? Results.ValidationProblem(new Dictionary<string, string[]> { ["dates"] = [error.Message] }) : availability is null ? Results.NotFound() : Results.Ok(availability);
         });
         group.MapPost("/booking-requests", async (
+            IdentityDocumentStorage identityStorage,
             HttpContext http,
             [FromQuery] string? siteSlug,
             PublicBookingRequest request,
@@ -84,19 +85,16 @@ public static class PublicBookingEndpoints
             logger.LogInformation("Booking submit: phase=create elapsedMs={ElapsedMs} success={Success} trace={TraceId}", watch.ElapsedMilliseconds, result is not null, http.TraceIdentifier);
             if (result is not null)
             {
-                if (customerUserId.HasValue)
-                {
-                    var property = await resolver.ResolveAsync(siteSlug, ct);
-                    if (property is not null)
-                    {
-                        await customerAccountService.LinkBookingCustomerAsync(customerUserId.Value, property.Id, result.BookingId, ct);
-                        await customerAccountService.CopySavedIdentityDocumentsToBookingAsync(
-                            customerUserId.Value, property.Id, result.BookingId, new IdentityDocumentStorage(paths, configuration), ct);
-                    }
-                }
-                logger.LogInformation("Booking submit: phase=account elapsedMs={ElapsedMs} trace={TraceId}", watch.ElapsedMilliseconds, http.TraceIdentifier);
+                // Resolve the property once for the account link and payment steps.
                 var paymentProperty = await resolver.ResolveAsync(siteSlug, ct);
                 if (paymentProperty is null) return Results.NotFound();
+                if (customerUserId.HasValue)
+                {
+                    await customerAccountService.LinkBookingCustomerAsync(customerUserId.Value, paymentProperty.Id, result.BookingId, ct);
+                    await customerAccountService.CopySavedIdentityDocumentsToBookingAsync(
+                        customerUserId.Value, paymentProperty.Id, result.BookingId, identityStorage, ct);
+                }
+                logger.LogInformation("Booking submit: phase=account elapsedMs={ElapsedMs} trace={TraceId}", watch.ElapsedMilliseconds, http.TraceIdentifier);
                 var prefix = PublicPropertyResolver.ScopePrefix(siteSlug);
                 if (!result.PaymentRequired)
                 {

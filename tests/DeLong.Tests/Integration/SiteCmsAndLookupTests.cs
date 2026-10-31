@@ -278,6 +278,17 @@ public sealed class SiteCmsAndLookupTests
         Assert.Null(await service.LookupAsync(booking.Code, "0900000000"));
         Assert.Null(await service.LookupAsync("BK-NOT-FOUND", customer.Phone));
 
+        // Unconfirmed (unpaid) bookings keep their lookup/success page but never reveal the room guide.
+        booking.Status = BookingStatus.Held;
+        await db.SaveChangesAsync();
+        var held = await service.LookupAsync(booking.Code, customer.Phone);
+        Assert.NotNull(held);
+        Assert.Null(held!.GuestGuideHtml);
+        Assert.Null(await service.GetSuccessGuideAsync(null, booking.Code));
+        var heldSuccess = await service.GetSuccessAsync(null, booking.Code);
+        Assert.NotNull(heldSuccess);
+        Assert.Null(heldSuccess!.GuestGuideHtml);
+
         booking.Status = BookingStatus.Completed;
         await db.SaveChangesAsync();
         Assert.Null(await service.LookupAsync(booking.Code, customer.Phone));

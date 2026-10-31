@@ -46,6 +46,8 @@ public static class PublicBookingLookupEndpoints
         {
             var booking = await service.LookupAsync(siteSlug, request.Code, request.Phone, ct);
             if (booking is null) return Results.NotFound(new { message = "Không tìm thấy lượt đặt còn hiệu lực." });
+            if (string.IsNullOrWhiteSpace(booking.GuestGuideHtml))
+                return Results.NotFound(new { message = "Hướng dẫn nhận phòng sẽ có sau khi lượt đặt được xác nhận." });
             var guide = new PublicBookingGuideDto(booking.Code, booking.RoomName, booking.GuestGuideHtml);
             return Results.File(BookingGuestGuidePdf.Create(guide), "application/pdf", $"huong-dan-{booking.Code}.pdf");
         })

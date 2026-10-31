@@ -45,6 +45,7 @@ public static class CustomerEndpoints
         });
 
         group.MapGet("/{customerId:guid}/profile", async (
+            IdentityDocumentStorage identityStorage,
             Guid propertyId,
             Guid customerId,
             CustomerService service,
@@ -54,7 +55,7 @@ public static class CustomerEndpoints
         {
             var profile = await service.GetProfileAsync(propertyId, customerId, cancellationToken);
             if (profile is null) return Results.NotFound();
-            var storage = new IdentityDocumentStorage(paths, configuration);
+            var storage = identityStorage;
             var documentBookings = 0;
             foreach (var booking in profile.Bookings)
             {
