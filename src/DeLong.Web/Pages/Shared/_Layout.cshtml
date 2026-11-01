@@ -362,7 +362,6 @@
                             <span>Lịch phòng</span></a>
                         @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                         {
-                            <a class="@NavClass("/Admin/DataQuality")" asp-page="/Admin/DataQuality" asp-route-propertyId="@propertyId"><svg><use href="#i-grid" /></svg><span>Kiểm tra dữ liệu</span></a>
                             <a class="@NavClass("/Admin/RoomBlocks")" asp-page="/Admin/RoomBlocks" asp-route-propertyId="@propertyId"><svg><use href="#i-calendar" /></svg><span>Lịch khóa phòng</span></a>
                         }
                         <a class="@NavClass("/Admin/Bookings")" asp-page="/Admin/Bookings/Index"
@@ -396,6 +395,30 @@
                         <svg><use href="#i-image"/></svg>
                         <span>Tình trạng phòng</span></a>
                 </div>
+                @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Viewer"))
+                {
+                    <div class="nav-group">
+                        <div class="nav-label">Tài chính</div>
+                        <a class="@NavClass("/Admin/Inventory")" asp-page="/Admin/Inventory/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-grid"/></svg><span>Kho chung</span></a>
+                        <a class="@NavClass("/Admin/Cash")" asp-page="/Admin/Cash/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-wallet"/></svg><span>Tiền mặt</span></a>
+                        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                        {
+                            <a class="@NavClass("/Admin/Payroll")" asp-page="/Admin/Payroll/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-users"/></svg><span>Chấm công &amp; Lương</span></a>
+                        }
+                        <a class="@NavClass("/Admin/Finance")" asp-page="/Admin/Finance/Index"
+                           asp-route-propertyId="@propertyId">
+                            <svg>
+                                <use href="#i-wallet"/>
+                            </svg>
+                            <span>Thu chi</span></a>
+                        <a class="@NavClass("/Admin/Reports")" asp-page="/Admin/Reports/Index"
+                           asp-route-propertyId="@propertyId">
+                            <svg>
+                                <use href="#i-chart"/>
+                            </svg>
+                            <span>Báo cáo</span></a>
+                    </div>
+                }
                 @if (canViewRooms || canManageSettings || canManageStaff || canManageProperties || canManageSite)
                 {
                     <div class="nav-group">
@@ -450,30 +473,6 @@
                         }
                     </div>
                 }
-                @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Viewer"))
-                {
-                    <div class="nav-group">
-                        <div class="nav-label">Tài chính</div>
-                        <a class="@NavClass("/Admin/Inventory")" asp-page="/Admin/Inventory/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-grid"/></svg><span>Kho chung</span></a>
-                        <a class="@NavClass("/Admin/Cash")" asp-page="/Admin/Cash/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-wallet"/></svg><span>Tiền mặt</span></a>
-                        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
-                        {
-                            <a class="@NavClass("/Admin/Payroll")" asp-page="/Admin/Payroll/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-users"/></svg><span>Chấm công &amp; Lương</span></a>
-                        }
-                        <a class="@NavClass("/Admin/Finance")" asp-page="/Admin/Finance/Index"
-                           asp-route-propertyId="@propertyId">
-                            <svg>
-                                <use href="#i-wallet"/>
-                            </svg>
-                            <span>Thu chi</span></a>
-                        <a class="@NavClass("/Admin/Reports")" asp-page="/Admin/Reports/Index"
-                           asp-route-propertyId="@propertyId">
-                            <svg>
-                                <use href="#i-chart"/>
-                            </svg>
-                            <span>Báo cáo</span></a>
-                    </div>
-                }
                 @if (canManageMedia)
                 {
                     <div class="nav-group">
@@ -518,6 +517,13 @@
                                 <use href="#i-external"/>
                             </svg>
                             <span>Xem website</span></a>
+                    </div>
+                }
+                @if (canViewOperations && (User.IsInRole("Admin") || User.IsInRole("Manager")))
+                {
+                    <div class="nav-group">
+                        <div class="nav-label">Hệ thống</div>
+                        <a class="@NavClass("/Admin/DataQuality")" asp-page="/Admin/DataQuality" asp-route-propertyId="@propertyId"><svg><use href="#i-grid" /></svg><span>Kiểm tra dữ liệu</span></a>
                     </div>
                 }
             </nav>

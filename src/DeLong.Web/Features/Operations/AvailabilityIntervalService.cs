@@ -187,12 +187,57 @@ public sealed class AvailabilityIntervalService(
         days = Math.Clamp(days, 1, 31);
         await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, propertyId, cancellationToken);
 
-        var property = await db.Properties.AsNoTracking()
+        var timeZoneId = await db.Properties.AsNoTracking()
             .Where(x => x.Id == propertyId && x.IsActive)
-            .Select(x => new { x.Id, x.TimeZoneId })
+            .Select(x => x.TimeZoneId)
             .SingleOrDefaultAsync(cancellationToken);
-        if (property is null) return null;
+        if (timeZoneId is null) return null;
+        return await BuildAdminRoomAsync(propertyId, timeZoneId, roomId, from, days, cancellationToken);
+    }
 
+    /// <summary>
+    /// Availability for every active room of one property (admin multi-room overview).
+    /// Expired holds are released once per property and rooms are built sequentially on one DbContext.
+    /// </summary>
+    public async Task<IReadOnlyList<AdminRoomAvailabilityDto>> GetAdminManyAsync(
+        Guid propertyId,
+        DateOnly from,
+        int days,
+        int maxRooms,
+        CancellationToken cancellationToken = default)
+    {
+        days = Math.Clamp(days, 1, 31);
+        var timeZoneId = await db.Properties.AsNoTracking()
+            .Where(x => x.Id == propertyId && x.IsActive)
+            .Select(x => x.TimeZoneId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (timeZoneId is null || maxRooms <= 0) return [];
+
+        await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, propertyId, cancellationToken);
+        var roomIds = await db.Rooms.AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.IsActive)
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.Name).ThenBy(x => x.Id)
+            .Select(x => x.Id)
+            .Take(maxRooms)
+            .ToListAsync(cancellationToken);
+        var result = new List<AdminRoomAvailabilityDto>(roomIds.Count);
+        foreach (var roomId in roomIds)
+        {
+            var room = await BuildAdminRoomAsync(propertyId, timeZoneId, roomId, from, days, cancellationToken);
+            if (room is not null) result.Add(room);
+        }
+        return result;
+    }
+
+    private async Task<AdminRoomAvailabilityDto?> BuildAdminRoomAsync(
+        Guid propertyId,
+        string timeZoneId,
+        Guid roomId,
+        DateOnly from,
+        int days,
+        CancellationToken cancellationToken)
+    {
+        var property = new { Id = propertyId, TimeZoneId = timeZoneId };
         var room = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == propertyId && x.Id == roomId && x.IsActive)
             .Select(x => new { x.Id, x.Code, x.Name, x.IsBookingLocked, x.BookingLockReason, x.BookingLockedAtUtc,
