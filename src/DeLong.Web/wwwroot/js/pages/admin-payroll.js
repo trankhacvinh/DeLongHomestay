@@ -15,6 +15,9 @@
     ];
     const CODE_BY_STATUS = Object.fromEntries(CODES.map(c => [c.status, c]));
     const KEY_TO_STATUS = { x: 0, X: 0, k: 1, K: 1, p: 2, P: 2, l: 3, L: 3, b: 4, B: 4 };
+    // Bộ gõ tiếng Việt (Telex/VNI) có thể trả ev.key = 'Process' hoặc ký tự khác; ev.code là phím vật lý nên luôn đúng.
+    const CODE_TO_STATUS = { KeyX: 0, KeyK: 1, KeyP: 2, KeyL: 3, KeyB: 4 };
+    const EDITABLE = 'input,select,textarea,[contenteditable="true"],[contenteditable=""]';
     const NEGATIVE_TYPES = ['phạt', 'trừ khác', 'truy thu', 'bồi thường'];
     const DOW = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
     const SLOT_NAMES = { 1: ['Ca 1'], 2: ['Sáng', 'Chiều'], 3: ['Ca 1', 'Ca 2', 'Ca 3'] };
@@ -23,6 +26,58 @@
     function pad(n) { return String(n).padStart(2, '0'); }
     function slotName(shifts, slot) { return (SLOT_NAMES[shifts] || [])[slot] || ('Ca ' + (slot + 1)); }
     function cellKey(empId, date, slot) { return empId + '|' + date + '|' + slot; }
+    function fold(value) {
+        return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim();
+    }
+    function matchEmployee(e, query) {
+        const q = fold(query); if (!q) return true;
+        const hay = fold([e.code, e.fullName, e.position, e.phone].filter(Boolean).join(' '));
+        return q.split(/\s+/).every(part => hay.includes(part));
+    }
+
+    // Ô chọn nhân viên có tìm kiếm (gõ mã, tên, chức vụ hoặc SĐT; không cần dấu).
+    const EmpPicker = {
+        props: { modelValue: { type: String, default: '' }, employees: { type: Array, default: () => [] }, disabled: Boolean, placeholder: { type: String, default: 'Tìm nhân viên…' } },
+        emits: ['update:modelValue', 'change'],
+        data: () => ({ open: false, q: '', hi: 0, pos: {} }),
+        computed: {
+            current() { return this.employees.find(e => e.id === this.modelValue) || null; },
+            label() { return this.current ? this.current.code + ' · ' + this.current.fullName : ''; },
+            filtered() { return this.employees.filter(e => matchEmployee(e, this.q)).slice(0, 100); }
+        },
+        methods: {
+            show() {
+                if (this.disabled) return;
+                const r = this.$refs.input.getBoundingClientRect();
+                const below = window.innerHeight - r.bottom;
+                this.pos = below < 260 && r.top > below
+                    ? { left: r.left + 'px', bottom: (window.innerHeight - r.top + 2) + 'px', minWidth: Math.max(r.width, 240) + 'px' }
+                    : { left: r.left + 'px', top: (r.bottom + 2) + 'px', minWidth: Math.max(r.width, 240) + 'px' };
+                this.q = ''; this.hi = Math.max(0, this.filtered.findIndex(e => e.id === this.modelValue)); this.open = true;
+                this.$nextTick(() => this.$refs.input?.select());
+            },
+            hide() { this.open = false; this.q = ''; },
+            type(ev) { this.q = ev.target.value; this.hi = 0; if (!this.open) this.show(); },
+            move(step) { if (!this.open) { this.show(); return; } const n = this.filtered.length; if (n) this.hi = (this.hi + step + n) % n; this.$nextTick(() => this.$refs.list?.querySelector('.hi')?.scrollIntoView({ block: 'nearest' })); },
+            choose(e) {
+                if (!e) return;
+                const changed = e.id !== this.modelValue;
+                this.$emit('update:modelValue', e.id); this.hide(); this.$refs.input?.blur();
+                if (changed) this.$nextTick(() => this.$emit('change', e.id));
+            }
+        },
+        template: `<div class="pr-pick">
+            <input ref="input" type="text" autocomplete="off" spellcheck="false" :disabled="disabled" :placeholder="current ? label : placeholder"
+                :value="open ? q : label" @focus="show" @click="open || show()" @input="type" @blur="hide"
+                @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)" @keydown.enter.prevent="choose(filtered[hi])" @keydown.esc.prevent="hide(); $refs.input.blur()" />
+            <ul v-if="open" ref="list" class="pr-pick-list" :style="pos" role="listbox">
+                <li v-for="(e, i) in filtered" :key="e.id" :class="{ hi: i === hi, cur: e.id === modelValue }" role="option" @mousedown.prevent="choose(e)" @mouseenter="hi = i">
+                    <b>{{ e.code }}</b> {{ e.fullName }}<small v-if="e.position"> · {{ e.position }}</small>
+                </li>
+                <li v-if="!filtered.length" class="none">Không tìm thấy nhân viên</li>
+            </ul>
+        </div>`
+    };
     function localNow(zone) {
         const parts = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
             .formatToParts(new Date()).reduce((a, p) => (a[p.type] = p.value, a), {});
@@ -44,7 +99,7 @@
             ...initial,
             sheet: null, loading: false, busy: false, error: '', message: '',
             tab: 'att', cells: {}, pending: {}, inflight: false, saveState: '',
-            sel: null, dragging: false,
+            sel: null, dragging: false, empQuery: '',
             formula: { ref: 'A1', value: 'Chọn một ô để xem nội dung và cách tính' },
             drawer: null, dialog: null,
             adjRows: [], newAdj: { employeeId: '', type: 'Thưởng', amount: 0, reason: '' },
@@ -83,9 +138,15 @@
                 const first = this.month + '-01', last = this.days.length ? this.days[this.days.length - 1].date : first;
                 return this.sheet.employees.filter(e => e.startDate <= last && (!e.endDate || e.endDate >= first));
             },
+            filteredEmployees() { return this.monthEmployees.filter(e => matchEmployee(e, this.empQuery)); },
+            visibleLines() {
+                if (!this.empQuery) return this.lines;
+                const ids = new Set(this.sheet ? this.sheet.employees.filter(e => matchEmployee(e, this.empQuery)).map(e => e.id) : []);
+                return this.lines.filter(l => ids.has(l.employeeId));
+            },
             attRows() {
                 const rows = [];
-                this.monthEmployees.forEach(emp => {
+                this.filteredEmployees.forEach(emp => {
                     for (let s = 0; s < emp.shiftsPerDay; s++) rows.push({ key: emp.id + '-' + s, emp, slot: s, slotName: slotName(emp.shiftsPerDay, s) });
                 });
                 return rows;
@@ -215,6 +276,9 @@
             cellDown(ev) {
                 const td = ev.target.closest('td.d'); if (!td) return;
                 ev.preventDefault();
+                // preventDefault giữ focus ở phần tử cũ (ô tháng, nút…), khiến phím tắt bị bỏ qua: nhả focus ra.
+                const active = document.activeElement;
+                if (active && active !== document.body && !root.querySelector('.pr-att')?.contains(active)) active.blur();
                 const r = Number(td.dataset.r), d = Number(td.dataset.d);
                 if (ev.shiftKey && this.sel) { this.sel.r2 = r; this.sel.d2 = d; } else this.sel = { r1: r, d1: d, r2: r, d2: d };
                 this.dragging = true; this.describeSel();
@@ -286,10 +350,13 @@
             },
             onKey(ev) {
                 if (this.tab !== 'att' || !this.sel || this.dialog) return;
-                if (ev.target.closest && ev.target.closest('input,select,textarea,button')) return;
+                if (ev.target.closest && ev.target.closest(EDITABLE)) return;
                 if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
                 const k = ev.key;
-                if (k in KEY_TO_STATUS) { ev.preventDefault(); this.applyCode(KEY_TO_STATUS[k]); return; }
+                const status = k in KEY_TO_STATUS ? KEY_TO_STATUS[k] : CODE_TO_STATUS[ev.code];
+                if (status !== undefined) { ev.preventDefault(); this.applyCode(status); return; }
+                // Enter/Tab trên nút đang focus vẫn là bấm nút, không phải di chuyển ô.
+                if ((k === 'Enter' || k === ' ') && ev.target.closest && ev.target.closest('button,a')) return;
                 if (k === 'Delete' || k === 'Backspace') { ev.preventDefault(); this.applyCode(null); return; }
                 const moves = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1], Enter: [1, 0], Tab: [0, ev.shiftKey ? -1 : 1] };
                 if (!moves[k]) return;
@@ -434,7 +501,11 @@
                 catch (e) { this.error = e.message; await this.load({ quiet: true }); return false; }
                 finally { this.busy = false; }
             },
+            clearEmpQuery() { this.empQuery = ''; },
             flash(text) { this.message = text; clearTimeout(this._flashTimer); this._flashTimer = setTimeout(() => { this.message = ''; }, 3500); }
+        },
+        watch: {
+            empQuery() { this.sel = null; this.dragging = false; }
         },
         mounted() {
             this._onKey = ev => this.onKey(ev);
@@ -451,5 +522,5 @@
             window.removeEventListener('beforeunload', this._onLeave);
             activeLoad?.abort();
         }
-    }).mount(root);
+    }).component('emp-picker', EmpPicker).mount(root);
 })();

@@ -23,15 +23,17 @@
     <div class="pr-fbar"><div class="ref">{{ formula.ref }}</div><div class="fx">fx</div><div class="val">{{ formula.value }}</div></div>
 
     <div class="pr-toolbar" v-if="tab==='att'">
+        <label class="pr-search"><input type="search" v-model.trim="empQuery" placeholder="Tìm nhân viên (mã, tên, chức vụ…)" aria-label="Tìm nhân viên" /></label>
         <span class="lbl">Đặt cho ô đang chọn:</span>
-        <button class="code-btn" type="button" v-for="c in codeButtons" v-bind:key="c.key" v-bind:disabled="locked" v-on:click="applyCode(c.status)"><b v-bind:class="c.cls">{{ c.key }}</b>{{ c.short }}</button>
-        <button class="code-btn" type="button" v-bind:disabled="locked" v-on:click="applyCode(null)"><b>⌫</b>Xoá</button>
+        <button class="code-btn" type="button" v-for="c in codeButtons" v-bind:key="c.key" v-bind:disabled="locked" v-on:mousedown.prevent v-on:click="applyCode(c.status)" v-bind:title="'Phím tắt: ' + c.key"><b v-bind:class="c.cls">{{ c.key }}</b>{{ c.short }}</button>
+        <button class="code-btn" type="button" v-bind:disabled="locked" v-on:mousedown.prevent v-on:click="applyCode(null)" title="Phím tắt: Delete"><b>⌫</b>Xoá</button>
         <button class="code-btn" type="button" v-bind:disabled="locked" v-on:click="fillBlanks">Điền x vào ô trống {{ fillUntilText }}</button>
         <label class="pr-note-input" v-if="singleCell">Ghi chú ô <input type="text" maxlength="500" v-bind:value="singleCellNote" v-bind:disabled="locked || !singleCellStatusSet" v-on:change="setNote($event.target.value)" placeholder="VD: làm bù 22/09 6h–12h" /></label>
         <span class="pr-warn" v-bind:class="blankTotal ? 'warn' : 'ok'">{{ blankTotal ? 'Còn ' + blankTotal + ' ô chưa chấm' : 'Đã chấm đủ' }}</span>
     </div>
     <div class="pr-toolbar" v-else-if="tab==='pay'">
-        <span class="lbl">{{ monthLabel }} · {{ sheet ? sheet.daysInMonth : '' }} ngày · {{ lines.length }} nhân viên</span>
+        <label class="pr-search"><input type="search" v-model.trim="empQuery" placeholder="Tìm nhân viên (mã, tên, chức vụ…)" aria-label="Tìm nhân viên" /></label>
+        <span class="lbl">{{ monthLabel }} · {{ sheet ? sheet.daysInMonth : '' }} ngày · {{ empQuery ? visibleLines.length + '/' : '' }}{{ lines.length }} nhân viên</span>
         <span class="pr-warn" v-bind:class="locked ? 'ok' : 'warn'">{{ locked ? 'Đã chốt' + (sheet.period.lockedByName ? ' bởi ' + sheet.period.lockedByName : '') + ', có thể trả lương' : 'Bảng nháp, tự tính lại khi chấm công thay đổi' }}</span>
     </div>
 
@@ -40,7 +42,8 @@
 
         <!-- Chấm công -->
         <template v-if="sheet && tab==='att'">
-            <p class="pr-empty" v-if="!attRows.length">Chưa có nhân viên làm việc trong tháng này. <span v-if="canManagePayroll">Thêm ở trang <a href="#" v-on:click.prevent="tab='emp'">Nhân viên</a>.</span></p>
+            <p class="pr-empty" v-if="!attRows.length && empQuery">Không có nhân viên khớp "{{ empQuery }}". <a href="#" v-on:click.prevent="empQuery=''">Xoá tìm kiếm</a></p>
+            <p class="pr-empty" v-else-if="!attRows.length">Chưa có nhân viên làm việc trong tháng này. <span v-if="canManagePayroll">Thêm ở trang <a href="#" v-on:click.prevent="tab='emp'">Nhân viên</a>.</span></p>
             <table class="pr-grid pr-att" v-else v-on:mousedown="cellDown" v-on:mouseover="cellOver">
                 <thead>
                     <tr>
@@ -77,7 +80,7 @@
                     <tr><th class="rn">1</th><th>STT</th><th class="stk-name">Nhân viên</th><th class="num">Lương tháng</th><th class="num">Đơn giá ngày</th><th class="num">Đơn giá ca</th><th class="num">Ca chuẩn</th><th class="num">Lương cơ bản</th><th class="num">Ca nghỉ KL</th><th class="num">Trừ ca nghỉ</th><th class="num">Ca làm lễ</th><th class="num">Phụ trội lễ/Tết</th><th class="num">Chuyên cần</th><th class="num">Khoản tăng</th><th class="num">Khoản giảm</th><th class="num">Được hưởng</th><th class="num">Đã ứng</th><th class="num">Đã trả</th><th class="num">Còn phải trả</th><th>Trạng thái</th></tr>
                 </thead>
                 <tbody>
-                    <tr v-for="(l, i) in lines" v-bind:key="l.employeeId" v-bind:data-emp="l.employeeId">
+                    <tr v-for="(l, i) in visibleLines" v-bind:key="l.employeeId" v-bind:data-emp="l.employeeId">
                         <td class="rn">{{ i + 2 }}</td><td class="ctr">{{ i + 1 }}</td>
                         <td class="stk-name name" data-f="open">{{ empLabel(l.employeeId) }}</td>
                         <td class="num" data-f="salary">{{ money(l.monthlySalary) }}</td>
@@ -116,7 +119,7 @@
                 <tbody>
                     <tr v-for="(a, i) in adjRows" v-bind:key="a.id">
                         <td class="rn">{{ i + 2 }}</td>
-                        <td class="in"><select v-model="a.employeeId" v-bind:disabled="locked" v-on:change="saveAdj(a)"><option v-for="e in monthEmployees" v-bind:value="e.id">{{ e.code }} · {{ e.fullName }}</option></select></td>
+                        <td class="in"><emp-picker v-model="a.employeeId" v-bind:employees="monthEmployees" v-bind:disabled="locked" v-on:change="saveAdj(a)"></emp-picker></td>
                         <td class="in"><input list="pr-adj-types" maxlength="50" v-model.trim="a.type" v-bind:disabled="locked" v-on:change="normalizeSign(a); saveAdj(a)" /></td>
                         <td class="in"><input class="num" inputmode="numeric" v-bind:class="a.amount < 0 ? 'neg' : 'pos'" v-bind:value="moneyInput(a.amount)" v-bind:disabled="locked" v-on:change="a.amount = parseMoney($event.target.value); normalizeSign(a); saveAdj(a)" /></td>
                         <td class="in"><input maxlength="500" v-model.trim="a.reason" v-bind:disabled="locked" v-on:change="saveAdj(a)" /></td>
@@ -124,7 +127,7 @@
                     </tr>
                     <tr class="newrow" v-if="!locked">
                         <td class="rn">+</td>
-                        <td class="in"><select v-model="newAdj.employeeId"><option value="">Chọn nhân viên</option><option v-for="e in monthEmployees" v-bind:value="e.id">{{ e.code }} · {{ e.fullName }}</option></select></td>
+                        <td class="in"><emp-picker v-model="newAdj.employeeId" v-bind:employees="monthEmployees"></emp-picker></td>
                         <td class="in"><input list="pr-adj-types" maxlength="50" v-model.trim="newAdj.type" placeholder="Thưởng, Tăng ca, Phạt…" v-on:change="normalizeSign(newAdj)" /></td>
                         <td class="in"><input class="num" inputmode="numeric" v-bind:value="moneyInput(newAdj.amount)" v-on:change="newAdj.amount = parseMoney($event.target.value); normalizeSign(newAdj)" placeholder="0" /></td>
                         <td class="in"><input maxlength="500" v-model.trim="newAdj.reason" placeholder="Nhập lý do" v-on:keydown.enter.prevent="addAdj" /></td>
@@ -152,7 +155,7 @@
                     <tr class="newrow">
                         <td class="rn">+</td>
                         <td class="in"><input type="datetime-local" v-model="newTxn.localAt" /></td>
-                        <td class="in"><select v-model="newTxn.employeeId"><option value="">Chọn nhân viên</option><option v-for="e in monthEmployees" v-bind:value="e.id">{{ e.code }} · {{ e.fullName }}</option></select></td>
+                        <td class="in"><emp-picker v-model="newTxn.employeeId" v-bind:employees="monthEmployees"></emp-picker></td>
                         <td class="in"><select v-model.number="newTxn.kind"><option v-bind:value="0" v-bind:disabled="locked">Ứng lương</option><option v-bind:value="1" v-bind:disabled="!locked">Trả lương</option></select></td>
                         <td class="in"><input class="num" inputmode="numeric" v-bind:value="moneyInput(newTxn.amount)" v-on:change="newTxn.amount = Math.abs(parseMoney($event.target.value))" placeholder="0" /></td>
                         <td class="in"><select v-model.number="newTxn.method"><option v-bind:value="0">Tiền mặt</option><option v-bind:value="1">Chuyển khoản</option></select></td>

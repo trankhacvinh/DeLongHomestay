@@ -41,6 +41,14 @@ public sealed class PayrollSourceContractTests
         Assert.Contains("pr-tabs", page, StringComparison.Ordinal);
         Assert.Contains("v-on:mousedown=\"cellDown\"", page, StringComparison.Ordinal);
         Assert.Contains("KEY_TO_STATUS", script, StringComparison.Ordinal);
+        // Phím tắt vẫn chạy khi bộ gõ tiếng Việt bật hoặc focus còn ở ô tháng.
+        Assert.Contains("CODE_TO_STATUS[ev.code]", script, StringComparison.Ordinal);
+        Assert.Contains("active.blur()", script, StringComparison.Ordinal);
+        // Chọn nhân viên có tìm kiếm, và lọc nhân viên trên bảng chấm công / bảng lương.
+        Assert.Contains(".component('emp-picker', EmpPicker)", script, StringComparison.Ordinal);
+        Assert.Contains("<emp-picker v-model=\"newTxn.employeeId\"", page, StringComparison.Ordinal);
+        Assert.Contains("v-model.trim=\"empQuery\"", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("<option value=\"\">Chọn nhân viên</option>", page, StringComparison.Ordinal);
         Assert.Contains("/payroll/attendance", script, StringComparison.Ordinal);
         Assert.Contains("crypto.randomUUID()", script, StringComparison.Ordinal);
         Assert.Contains("asp-page=\"/Admin/Payroll/Index\"", layout, StringComparison.Ordinal);
