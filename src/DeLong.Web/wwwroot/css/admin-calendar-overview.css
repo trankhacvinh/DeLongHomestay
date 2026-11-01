@@ -1,0 +1,108 @@
+/* Calendar V2: view switch, desktop quick room picker and the multi-room overview grid. */
+.calendar-v2-modebar{display:inline-grid;grid-template-columns:1fr 1fr;gap:4px;justify-self:start;padding:4px;border:1px solid #d7e3e0;border-radius:14px;background:#f3f8f7}
+.calendar-v2-modebar button{min-height:40px;padding:8px 16px;border:0;border-radius:10px;background:transparent;color:#28504f;font-weight:700;font-size:13px;cursor:pointer}
+.calendar-v2-modebar button[aria-pressed="true"]{background:#15585c;color:#fff;box-shadow:0 2px 8px rgba(21,88,92,.25)}
+
+/* In overview mode only the switch, the overview and the colour legend stay visible. */
+.calendar-v2-panel.is-overview>:not(.calendar-v2-modebar):not(.calendar-v2-overview-host):not(.calendar-v2-legend){display:none!important}
+.calendar-v2-overview-host[hidden]{display:none!important}
+
+/* Quick room picker (single-room view) */
+.calendar-v2-roompicker{display:grid;grid-template-columns:minmax(180px,240px) minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e0e8e6;border-radius:16px;background:#fff}
+.calendar-v2-roomsearch input{width:100%;min-height:40px;padding:8px 12px;border:1px solid #d7e3e0;border-radius:10px;font-size:14px}
+.calendar-v2-roomchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;padding:2px 0}
+.calendar-v2-roomchip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border:1px solid #d7e3e0;border-radius:999px;background:#fff;color:#1d4a4b;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer}
+.calendar-v2-roomchip:hover{border-color:#9cc4bd;background:#f6fbfa}
+.calendar-v2-roomchip[aria-pressed="true"]{background:#15585c;border-color:#15585c;color:#fff}
+.calendar-v2-roomchip i{width:8px;height:8px;border-radius:50%;background:#c9d6d3}
+.calendar-v2-roomchip[data-status="free"] i{background:#3aa676}
+.calendar-v2-roomchip[data-status="partial"] i{background:#e0a43a}
+.calendar-v2-roomchip[data-status="full"] i{background:#c94b4b}
+.calendar-v2-roomchip[data-status="locked"] i{background:#64748b}
+.calendar-v2-roomchips-empty{font-size:13px;color:#7a8b88;padding:6px}
+.calendar-v2-roomhint{font-size:11px;color:#7a8b88;white-space:nowrap}
+@media(max-width:760px){
+    .calendar-v2-modebar{justify-self:stretch}
+    .calendar-v2-roompicker{grid-template-columns:1fr;gap:8px;padding:8px}
+    .calendar-v2-roomhint{display:none}
+    #calendar-page[data-calendar-v2-page="true"]:has(.calendar-v2-panel.is-overview){padding-bottom:12px}
+}
+
+/* Overview toolbar */
+.calendar-v2-overview-host{display:grid;gap:10px;min-width:0}
+.calendar-v2-overview-host.loading .cal-ov-viewport{opacity:.75}
+.cal-ov-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:10px 12px;border:1px solid #e0e8e6;border-radius:16px;background:#fff}
+.cal-ov-toolbar button{min-height:40px;min-width:40px;padding:6px 12px;border:1px solid #d7e3e0;border-radius:10px;background:#fff;color:#153d3e;font-weight:700;font-size:13px;cursor:pointer}
+.cal-ov-toolbar button:disabled{opacity:.4;cursor:default}
+.cal-ov-toolbar button[aria-pressed="true"]{background:#15585c;border-color:#15585c;color:#fff}
+.cal-ov-range,.cal-ov-period,.cal-ov-zoom{display:flex;align-items:center;gap:6px}
+.cal-ov-range strong{margin-left:4px;font-size:14px;color:#153d3e;white-space:nowrap}
+.cal-ov-zoom output{min-width:44px;text-align:center;font-size:12px;color:#405956}
+.cal-ov-scope,.cal-ov-jump{display:flex;align-items:center;gap:6px;font-size:12px;color:#5f716e}
+.cal-ov-scope select,.cal-ov-jump select{min-height:40px;max-width:220px;padding:6px 10px;border:1px solid #d7e3e0;border-radius:10px;background:#fff;font-size:14px;color:#153d3e}
+.cal-ov-status{display:none;padding:10px 12px;border-radius:12px;background:#f5f8f7;color:#5f716e;font-size:13px}
+.cal-ov-status.show{display:block}
+.cal-ov-status.error{background:#fff1f0;color:#a83c36}
+.cal-ov-status.warn{background:#fff8e8;color:#8a5a12}
+.cal-ov-hint{margin:0;font-size:11px;color:#7a8b88}
+
+/* Overview grid. --ov-s is the zoom factor; every size below scales with it. */
+.cal-ov-viewport{--ov-s:.8;position:relative;max-height:min(76vh,900px);overflow:auto;overscroll-behavior:contain;touch-action:pan-x pan-y;border:1px solid #cfdcd9;border-radius:14px;background:#fff;-webkit-overflow-scrolling:touch;outline:none}
+.cal-ov-viewport:focus-visible{box-shadow:0 0 0 3px rgba(21,88,92,.25)}
+.cal-ov-stage{width:max-content;min-width:100%}
+.cal-ov-table{border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:calc(12px * var(--ov-s))}
+.cal-ov-table th,.cal-ov-table td{border-right:1px solid #e3eae8;border-bottom:1px solid #e3eae8;padding:0}
+.cal-ov-table thead th{position:sticky;z-index:3;background:#eef2f1;color:#1d3a3a;text-align:center}
+.cal-ov-h1 th{top:0;height:calc(46px * var(--ov-s))}
+.cal-ov-h2 th{top:calc(46px * var(--ov-s));height:calc(40px * var(--ov-s))}
+.cal-ov-corner{left:0;z-index:5!important;width:calc(96px * var(--ov-s));min-width:calc(96px * var(--ov-s));background:#e4ebe9!important;font-size:calc(13px * var(--ov-s))}
+.cal-ov-corner b,.cal-ov-corner small{display:block}
+.cal-ov-corner small{font-size:calc(11px * var(--ov-s));color:#5f716e}
+.cal-ov-room{padding:0 calc(6px * var(--ov-s))!important;background:var(--room-color,#2f5d6b)!important;color:#fff!important;border-right:2px solid #fff!important;overflow:hidden;line-height:1.15}
+.cal-ov-room-name{display:block;font-weight:800;font-size:calc(14px * var(--ov-s));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-ov-room small{display:block;font-size:calc(10px * var(--ov-s));opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-ov-room-lock{font-weight:700}
+.cal-ov-room.flash{animation:cal-ov-flash 1.2s ease-out}
+@keyframes cal-ov-flash{0%,40%{box-shadow:inset 0 0 0 4px #ffd166}100%{box-shadow:inset 0 0 0 0 transparent}}
+.cal-ov-slot{width:calc(96px * var(--ov-s));min-width:calc(96px * var(--ov-s));max-width:calc(96px * var(--ov-s));line-height:1.2}
+.cal-ov-slot b{display:block;font-size:calc(11px * var(--ov-s));white-space:nowrap}
+.cal-ov-slot small{display:block;font-size:calc(10px * var(--ov-s));color:#5f716e}
+.cal-ov-day{position:sticky;left:0;z-index:2;width:calc(96px * var(--ov-s));min-width:calc(96px * var(--ov-s));height:calc(38px * var(--ov-s));background:#f3f6f5;color:#8a2f2f;text-align:center;line-height:1.15;border-right:2px solid #cfdcd9!important}
+.cal-ov-day b{display:block;font-size:calc(12px * var(--ov-s))}
+.cal-ov-day small{display:block;font-size:calc(11px * var(--ov-s));color:#4f6461}
+tr.weekend .cal-ov-day{background:#fbf1ef}
+tr.today .cal-ov-day{background:#15585c;color:#fff}
+tr.today .cal-ov-day small{color:#d9eeea}
+tr.today .cal-ov-cell{background-color:#f4fbf9}
+.room-start{border-left:3px solid #cfdcd9}
+.group-start{border-left:6px solid #9fb5b0!important}
+.cal-ov-cell{position:relative;height:calc(38px * var(--ov-s));background:#fff;cursor:pointer;overflow:hidden}
+.cal-ov-cell:hover{background:#f1f8f6}
+.cal-ov-cell.missing{background:repeating-linear-gradient(135deg,#f6f8f7 0 6px,#eef2f1 6px 12px);cursor:default}
+.cal-ov-cell.room-locked{background:repeating-linear-gradient(135deg,#fff 0 8px,#f0f2f5 8px 16px)}
+.cal-ov-cell.state-occupied{cursor:pointer}
+.cal-ov-booking{position:absolute;top:1px;bottom:1px;display:flex;align-items:center;min-width:0;padding:0 calc(5px * var(--ov-s));border-radius:2px;color:#fff;overflow:hidden}
+.cal-ov-guest{display:block;width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:calc(11px * var(--ov-s));font-weight:700;text-shadow:0 1px 1px rgba(0,0,0,.2);pointer-events:none}
+/* Zoomed far out: colour blocks only, like looking at the whole Excel sheet. */
+.cal-ov-viewport.is-compact .cal-ov-guest,.cal-ov-viewport.is-compact .cal-ov-slot small,.cal-ov-viewport.is-compact .cal-ov-room small{display:none}
+.cal-ov-viewport.is-compact .cal-ov-slot b{display:none}
+.cal-ov-viewport.is-compact .cal-ov-h2 th{height:6px}
+.cal-ov-viewport.is-compact .cal-ov-room-name{font-size:calc(14px * var(--ov-s) + 2px)}
+
+@media(max-width:760px){
+    .cal-ov-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px}
+    .cal-ov-toolbar button{min-height:36px;padding:4px 10px;white-space:nowrap}
+    .cal-ov-range{grid-column:1 / -1}
+    .cal-ov-range strong{margin-left:auto}
+    .cal-ov-period button{flex:1}
+    .cal-ov-scope,.cal-ov-jump{min-width:0}
+    .cal-ov-scope[hidden]{display:none}
+    .cal-ov-scope span,.cal-ov-jump span{display:none}
+    .cal-ov-scope select,.cal-ov-jump select{width:100%;max-width:none;min-height:36px;font-size:14px}
+    .cal-ov-jump{grid-column:1 / -1}
+    .cal-ov-scope:not([hidden])+.cal-ov-jump{grid-column:auto}
+    .cal-ov-zoom{justify-content:flex-end}
+    .cal-ov-zoom [data-ov-zoom-out],.cal-ov-zoom [data-ov-zoom-in]{display:none}
+    .cal-ov-viewport{max-height:calc(100dvh - 120px);border-radius:12px}
+    .cal-ov-hint{font-size:10px}
+}

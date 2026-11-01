@@ -122,6 +122,44 @@ public sealed class CalendarV2SourceContractTests
         Assert.Contains("[BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed]", availability, StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Calendar_v2_has_quick_room_picker_and_multi_room_overview()
+    {
+        var page = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/CalendarV2.cshtml");
+        var script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar-v2.js");
+        var overview = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar-overview.js");
+        var endpoint = ReadRepositoryFile("src/DeLong.Web/Features/Operations/CalendarOverviewEndpoints.cs");
+
+        Assert.True(page.IndexOf("admin-calendar-overview.js", StringComparison.Ordinal) < page.IndexOf("admin-calendar-v2.js\"", StringComparison.Ordinal));
+        Assert.Contains("data-v2-room-search", script, StringComparison.Ordinal);
+        Assert.Contains("url.searchParams.set('roomId', room.id)", script, StringComparison.Ordinal);
+        Assert.Contains("event.key === 'ArrowLeft'", script, StringComparison.Ordinal);
+        Assert.Contains("matchMedia('(max-width: 760px)').matches ? 'overview' : 'room'", script, StringComparison.Ordinal);
+        Assert.Contains("/api/admin/calendar/overview", overview, StringComparison.Ordinal);
+        Assert.Contains("touch-action", ReadRepositoryFile("src/DeLong.Web/wwwroot/css/admin-calendar-overview.css"), StringComparison.Ordinal);
+        Assert.Contains("GetAccessibleAsync", endpoint, StringComparison.Ordinal);
+        Assert.Contains("CustomerPhone = \"\"", endpoint, StringComparison.Ordinal);
+        Assert.Contains(".RequireAuthorization(\"ViewOperations\")", endpoint, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Sidebar_puts_finance_before_management_and_data_quality_last_under_system()
+    {
+        var layout = ReadRepositoryFile("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var finance = layout.IndexOf("<div class=\"nav-label\">Tài chính</div>", StringComparison.Ordinal);
+        var management = layout.IndexOf("<div class=\"nav-label\">Quản lý</div>", StringComparison.Ordinal);
+        var website = layout.IndexOf("<div class=\"nav-label\">Website</div>", StringComparison.Ordinal);
+        var system = layout.IndexOf("<div class=\"nav-label\">Hệ thống</div>", StringComparison.Ordinal);
+        var dataQuality = layout.IndexOf("asp-page=\"/Admin/DataQuality\"", StringComparison.Ordinal);
+
+        Assert.True(finance > 0 && finance < management);
+        Assert.True(website < system && system < dataQuality);
+        Assert.Equal(dataQuality, layout.LastIndexOf("asp-page=\"/Admin/DataQuality\"", StringComparison.Ordinal));
+        Assert.True(dataQuality < layout.IndexOf("</nav>", StringComparison.Ordinal));
+    }
+
     private static string ReadRepositoryFile(string relativePath)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

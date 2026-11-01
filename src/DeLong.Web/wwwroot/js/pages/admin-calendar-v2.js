@@ -79,6 +79,10 @@
 
     const state = {
         roomIndex: 0,
+        pendingRoomId: pageQuery.get('roomId') || '',
+        roomStatus: new Map(),
+        roomStatusTimer: null,
+        mode: 'room',
         from: startDate,
         days: Math.max(1, Math.min(31, queryRangeDays > 0 ? queryRangeDays : Number(root.dataset.rangeDays || initial.rangeDays || 10))),
         loading: false,
@@ -99,11 +103,14 @@
     panel.className = 'calendar-v2-panel';
     panel.dataset.calendarV2Panel = 'true';
     panel.innerHTML = [
+        '<div class="calendar-v2-modebar" role="group" aria-label="Kiểu xem lịch"><button type="button" data-v2-mode="room" aria-pressed="true">Từng phòng</button><button type="button" data-v2-mode="overview" aria-pressed="false">Tổng quan tất cả phòng</button></div>',
+        '<div class="calendar-v2-overview-host" data-v2-overview hidden></div>',
         '<div class="calendar-v2-roombar">',
         '  <button class="calendar-v2-nav" type="button" data-v2-room-prev aria-label="Phòng trước">‹</button>',
         '  <div class="calendar-v2-roomtitle"><small>PHÒNG</small><strong data-v2-room-name>—</strong><span data-v2-room-meta></span><span data-v2-room-lock-details></span><button class="btn btn-light btn-sm" type="button" data-v2-room-lock hidden>Khóa phòng</button></div>',
         '  <button class="calendar-v2-nav" type="button" data-v2-room-next aria-label="Phòng sau">›</button>',
         '</div>',
+        '<div class="calendar-v2-roompicker" data-v2-roompicker><label class="calendar-v2-roomsearch"><input type="search" data-v2-room-search placeholder="Tìm phòng… (phím /)" autocomplete="off" aria-label="Tìm phòng theo tên hoặc mã"></label><div class="calendar-v2-roomchips" data-v2-room-chips role="group" aria-label="Chọn nhanh phòng"></div><small class="calendar-v2-roomhint">Phím ← → để đổi phòng</small></div>',
         '<div class="calendar-v2-datebar">',
         '  <div><strong data-v2-range>—</strong><span>Cuộn dọc để xem ngày · bấm phần trống để tạo booking · bấm phần đã đặt để mở chi tiết</span></div>',
         '  <div class="calendar-v2-date-tools"><label class="calendar-date-range"><span>Khoảng ngày</span><input type="text" data-v2-date-range aria-label="Chọn ngày bắt đầu và ngày kết thúc" placeholder="Chọn khoảng ngày"></label><div class="calendar-v2-date-actions"><button type="button" data-v2-date-prev>‹ 7 ngày</button><button type="button" data-v2-today>Hôm nay</button><button type="button" data-v2-date-next>7 ngày ›</button></div></div>',
@@ -219,6 +226,11 @@
     function currentRoom() {
         const rows = rooms();
         if (!rows.length) return null;
+        if (state.pendingRoomId) {
+            const wanted = rows.findIndex(item => item.id === state.pendingRoomId);
+            if (wanted >= 0) state.roomIndex = wanted;
+            state.pendingRoomId = '';
+        }
         state.roomIndex = Math.max(0, Math.min(state.roomIndex, rows.length - 1));
         return rows[state.roomIndex];
     }
@@ -558,6 +570,7 @@
     }
 
     async function refresh(reason) {
+        if (state.mode === 'overview') return;
         if (state.loading) {
             state.queued = true;
             state.queuedReason = reason || 'queued';
@@ -592,6 +605,7 @@
                 if (view !== state.renderedView || signature !== state.renderedSignature) {
                     updateLegendColors();
                     render(data);
+                    renderRoomChips();
                     state.renderedView = view;
                     state.renderedSignature = signature;
                 } else if (statusBox.classList.contains('error')) {
@@ -617,8 +631,116 @@
     function moveRoom(amount) {
         const rows = rooms();
         if (!rows.length) return;
-        state.roomIndex = (state.roomIndex + amount + rows.length) % rows.length;
+        selectRoom((state.roomIndex + amount + rows.length) % rows.length);
+    }
+
+    function selectRoom(index) {
+        const rows = rooms();
+        if (!rows.length) return;
+        state.roomIndex = Math.max(0, Math.min(index, rows.length - 1));
+        updateRangeUrl();
+        renderRoomChips();
         refresh('room');
+    }
+
+    function selectRoomById(roomId) {
+        const index = rooms().findIndex(item => item.id === roomId);
+        if (index >= 0) selectRoom(index);
+        return index >= 0;
+    }
+
+    function normalizeSearch(value) {
+        return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase().trim();
+    }
+
+    const roomSearch = panel.querySelector('[data-v2-room-search]');
+    const roomChips = panel.querySelector('[data-v2-room-chips]');
+    function filteredRooms() {
+        const term = normalizeSearch(roomSearch.value);
+        return rooms()
+            .map((room, index) => ({ room, index }))
+            .filter(item => !term || normalizeSearch(`${item.room.name} ${item.room.code || ''}`).includes(term));
+    }
+
+    function renderRoomChips() {
+        const current = currentRoom();
+        const items = filteredRooms();
+        const fragment = document.createDocumentFragment();
+        items.forEach(({ room, index }) => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'calendar-v2-roomchip';
+            chip.dataset.roomIndex = String(index);
+            const status = room.isBookingLocked ? 'locked' : (state.roomStatus.get(room.id) || '');
+            if (status) chip.dataset.status = status;
+            const active = current?.id === room.id;
+            chip.setAttribute('aria-pressed', String(active));
+            const dot = document.createElement('i');
+            dot.setAttribute('aria-hidden', 'true');
+            const label = document.createElement('span');
+            label.textContent = room.name;
+            chip.append(dot, label);
+            chip.title = `${room.name}${room.code ? ` · ${room.code}` : ''}${status === 'full' ? ' · hôm nay đã kín' : status === 'partial' ? ' · hôm nay còn trống một phần' : status === 'free' ? ' · hôm nay còn trống' : status === 'locked' ? ' · đang khóa' : ''}`;
+            fragment.appendChild(chip);
+        });
+        if (!items.length) {
+            const empty = document.createElement('span');
+            empty.className = 'calendar-v2-roomchips-empty';
+            empty.textContent = 'Không có phòng khớp';
+            fragment.appendChild(empty);
+        }
+        roomChips.replaceChildren(fragment);
+        roomChips.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    roomChips.addEventListener('click', event => {
+        const chip = event.target.closest('[data-room-index]');
+        if (chip) selectRoom(Number(chip.dataset.roomIndex));
+    });
+    roomSearch.addEventListener('input', renderRoomChips);
+    roomSearch.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const first = filteredRooms()[0];
+            if (first) selectRoom(first.index);
+            roomSearch.blur();
+        } else if (event.key === 'Escape') {
+            roomSearch.value = '';
+            renderRoomChips();
+            roomSearch.blur();
+        }
+    });
+    document.addEventListener('keydown', event => {
+        if (state.mode !== 'room' || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+        const target = event.target;
+        if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [role="dialog"], [role="alertdialog"], .modal-backdrop'))) return;
+        if (document.querySelector('.modal-backdrop')) return;
+        if (event.key === 'ArrowLeft') { event.preventDefault(); moveRoom(-1); }
+        else if (event.key === 'ArrowRight') { event.preventDefault(); moveRoom(1); }
+        else if (event.key === '/') { event.preventDefault(); roomSearch.focus(); roomSearch.select(); }
+    });
+
+    // Today's occupancy per room colours the quick-pick chips (free / partial / full).
+    async function refreshRoomStatus() {
+        if (!propertyId || !today) return;
+        try {
+            const query = new URLSearchParams({ from: today, days: '1', propertyId });
+            const data = await DeLongApi.get(`/api/admin/calendar/overview?${query}`);
+            const next = new Map();
+            (data?.properties || []).forEach(property => (property.rooms || []).forEach(room => {
+                const slots = visibleSlots(room.calendar?.[0]?.slots);
+                if (!slots.length) return;
+                const occupied = slots.filter(slot => slot.state === 'occupied').length;
+                const touched = slots.filter(slot => slot.state !== 'available').length;
+                next.set(room.roomId, occupied === slots.length ? 'full' : touched ? 'partial' : 'free');
+            }));
+            state.roomStatus = next;
+            renderRoomChips();
+        } catch { /* chips still work without status dots */ }
+    }
+    function scheduleRoomStatus(delay) {
+        clearTimeout(state.roomStatusTimer);
+        state.roomStatusTimer = setTimeout(refreshRoomStatus, delay);
     }
 
     function updateRangeUrl() {
@@ -626,6 +748,8 @@
         url.searchParams.set('propertyId', propertyId);
         url.searchParams.set('from', state.from);
         url.searchParams.set('to', addDays(state.from, state.days - 1));
+        const room = currentRoom();
+        if (room) url.searchParams.set('roomId', room.id); else url.searchParams.delete('roomId');
         window.history.replaceState(null, '', url);
     }
 
@@ -661,6 +785,7 @@
 
     document.addEventListener('delong:operations-change', event => {
         if (event.detail?.propertyId && event.detail.propertyId !== propertyId) return;
+        scheduleRoomStatus(800);
         const changedRoomId = event.detail?.roomId;
         if (changedRoomId && changedRoomId !== currentRoom()?.id) return;
         refresh('realtime');
@@ -674,7 +799,89 @@
         dateRangePicker?.destroy();
     }, { once: true });
 
+    // ---- "Tổng quan tất cả phòng": every room of the user's branches on one pinch/pan grid ----
+    const overviewHost = panel.querySelector('[data-v2-overview]');
+    const modeStorageKey = 'delong.calendar.v2.mode';
+    let overview = null;
+
+    function calendarUrl(targetPropertyId, roomId, date) {
+        const url = new URL('/Admin/CalendarV2', window.location.origin);
+        url.searchParams.set('propertyId', targetPropertyId);
+        if (roomId) url.searchParams.set('roomId', roomId);
+        if (date) url.searchParams.set('from', addDays(date, -1));
+        url.searchParams.set('view', 'room');
+        return `${url.pathname}${url.search}`;
+    }
+
+    function useRoomFromOverview(context) {
+        // Rooms of another branch are opened in that branch's calendar, where booking rights are checked again.
+        if (context.propertyId !== propertyId) {
+            window.location.href = calendarUrl(context.propertyId, context.roomId, context.day?.date);
+            return null;
+        }
+        const index = rooms().findIndex(item => item.id === context.roomId);
+        if (index < 0) return null;
+        state.roomIndex = index;
+        return rooms()[index];
+    }
+
+    function createOverview() {
+        if (overview || !window.DeLongCalendarOverview) return overview;
+        overview = window.DeLongCalendarOverview.create(overviewHost, {
+            today,
+            onOpenBooking: context => {
+                if (context.propertyId !== propertyId) { useRoomFromOverview(context); return; }
+                openBooking(context.bookingId);
+            },
+            onOpenFree: context => {
+                if (!useRoomFromOverview(context)) return;
+                openFreeRange(context.slot, context.range, context.day);
+            },
+            onOpenBlock: context => {
+                const room = useRoomFromOverview(context);
+                if (!room) return;
+                if (root.dataset.canLockRooms === 'true') vm()?.openRoomSlotUnlock(room, context.range);
+                else vm()?.notify(context.range.blockReason || 'Phòng tạm khóa trong thời gian này.', 'info');
+            }
+        });
+        return overview;
+    }
+
+    function setMode(mode, persist) {
+        state.mode = mode === 'overview' && window.DeLongCalendarOverview ? 'overview' : 'room';
+        panel.classList.toggle('is-overview', state.mode === 'overview');
+        overviewHost.hidden = state.mode !== 'overview';
+        panel.querySelectorAll('[data-v2-mode]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.v2Mode === state.mode)));
+        if (persist) { try { localStorage.setItem(modeStorageKey, state.mode); } catch { } }
+        const url = new URL(window.location.href);
+        url.searchParams.set('view', state.mode);
+        window.history.replaceState(null, '', url);
+        if (state.mode === 'overview') {
+            createOverview()?.activate();
+        } else {
+            overview?.deactivate();
+            state.renderedView = '';
+            refresh('mode');
+            scheduleRoomStatus(200);
+        }
+    }
+
+    function initialMode() {
+        const requested = pageQuery.get('view');
+        if (requested === 'overview' || requested === 'room') return requested;
+        try {
+            const saved = localStorage.getItem(modeStorageKey);
+            if (saved === 'overview' || saved === 'room') return saved;
+        } catch { }
+        // Phones open on the overview, desktops on the single-room view with the quick picker.
+        return window.matchMedia('(max-width: 760px)').matches ? 'overview' : 'room';
+    }
+
+    panel.querySelectorAll('[data-v2-mode]').forEach(button => button.addEventListener('click', () => {
+        if (button.dataset.v2Mode !== state.mode) setMode(button.dataset.v2Mode, true);
+    }));
+
     document.documentElement.dataset.calendarV2Property = propertyId;
     document.documentElement.dataset.calendarV2 = 'initializing';
-    refresh('initial');
+    setMode(initialMode(), false);
 })();
