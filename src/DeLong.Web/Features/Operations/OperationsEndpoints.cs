@@ -187,6 +187,7 @@ public static class OperationsEndpoints
                 cancellationToken);
         }).AllowAnonymous().WithTags("Public Availability");
 
+        app.MapCalendarOverviewEndpoints();
         return app;
     }
 
