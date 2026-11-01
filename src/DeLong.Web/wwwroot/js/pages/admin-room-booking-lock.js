@@ -3,7 +3,7 @@ window.DeLongRoomBookingLock = {
     methods: {
         roomLockDetails(room) {
             if (!room?.isBookingLocked) return '';
-            const when = room.bookingLockedAtUtc ? new Date(room.bookingLockedAtUtc + (room.bookingLockedAtUtc.endsWith('Z') ? '' : 'Z')).toLocaleString('vi-VN', { timeZone: this.timeZoneId || 'Asia/Ho_Chi_Minh' }) : '';
+            const when = room.bookingLockedAtUtc ? new Date(room.bookingLockedAtUtc + (room.bookingLockedAtUtc.endsWith('Z') ? '' : 'Z')).toLocaleString('vi-VN', { timeZone: this.timeZoneId || 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
             return [room.bookingLockReason, room.bookingLockedByName, when].filter(Boolean).join(' · ');
         },
         async openRoomBookingLock(room) {
@@ -23,7 +23,7 @@ window.DeLongRoomBookingLock = {
         },
         roomLockRangeText(range) {
             if(!range)return '';
-            const format=value=>new Intl.DateTimeFormat('vi-VN',{timeZone:this.timeZoneId||this.timeZone||'Asia/Ho_Chi_Minh',dateStyle:'short',timeStyle:'short'}).format(new Date(value));
+            const format=value=>new Intl.DateTimeFormat('vi-VN',{timeZone:this.timeZoneId||this.timeZone||'Asia/Ho_Chi_Minh',day: '2-digit', month: '2-digit', year: 'numeric',timeStyle:'short'}).format(new Date(value));
             return `${format(range.startUtc)} → ${format(range.endUtc)}`;
         },
         async saveRoomBookingLock() {

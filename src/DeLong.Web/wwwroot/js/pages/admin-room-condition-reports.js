@@ -91,7 +91,7 @@
             },
             toggle(id) { this.expandedId = this.expandedId === id ? null : id; },
             async changeStatus(report,status) { try { const updated = await DeLongApi.post(`/api/admin/properties/${this.propertyId}/housekeeping/reports/${report.id}/status`, {status}); this.reports.splice(this.reports.findIndex(x => x.id === report.id), 1, updated); this.notify('Đã cập nhật trạng thái.', 'success'); } catch(error) { this.notify(error.message || 'Không thể cập nhật trạng thái.', 'error'); } },
-            dateText(value) { return new Intl.DateTimeFormat('vi-VN', { timeZone:this.timeZone, dateStyle:'short', timeStyle:'short' }).format(new Date(value)); },
+            dateText(value) { return new Intl.DateTimeFormat('vi-VN', { timeZone:this.timeZone, day: '2-digit', month: '2-digit', year: 'numeric', timeStyle:'short' }).format(new Date(value)); },
             inspectionText(v) { return ({0:'Trước nhận phòng',1:'Sau trả phòng',2:'Định kỳ',3:'Sự cố'})[v] || 'Kiểm tra'; },
             severityText(v) { return ({0:'Bình thường',1:'Theo dõi',2:'Khẩn cấp'})[v] || 'Bình thường'; },
             severityClass(v) { return v === 2 ? 'danger' : (v === 1 ? 'warning' : 'success'); },

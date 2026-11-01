@@ -38,8 +38,9 @@ public sealed class VoucherSourceContractTests
         var admin = File.ReadAllText(Path.Combine(Root, "src/DeLong.Web/Pages/Admin/Vouchers/Index.cshtml"));
         var script = File.ReadAllText(Path.Combine(Root, "src/DeLong.Web/wwwroot/js/pages/admin-vouchers.js"));
         var styles = File.ReadAllText(Path.Combine(Root, "src/DeLong.Web/wwwroot/css/admin-vouchers.css"));
+        var layout = File.ReadAllText(Path.Combine(Root, "src/DeLong.Web/Pages/Shared/_Layout.cshtml"));
 
-        Assert.Contains("dist/l10n/vn.js", admin, StringComparison.Ordinal);
+        Assert.Contains("~/vendor/flatpickr/vn.js", layout, StringComparison.Ordinal);
         Assert.Contains("placeholder=\"dd/MM/yyyy HH:mm\"", admin, StringComparison.Ordinal);
         Assert.Contains("Tìm theo tên hoặc số điện thoại", admin, StringComparison.Ordinal);
         Assert.Contains("Chọn tất cả kết quả", admin, StringComparison.Ordinal);

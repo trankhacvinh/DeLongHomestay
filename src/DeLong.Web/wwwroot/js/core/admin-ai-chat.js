@@ -70,7 +70,7 @@
             rows.forEach(row => {
                 const button = document.createElement('button'); button.type = 'button'; button.className = 'ai-history-item';
                 const title = document.createElement('strong'); title.textContent = row.title;
-                const time = document.createElement('small'); time.textContent = new Date(row.updatedAtUtc).toLocaleString('vi-VN'); button.append(title, time);
+                const time = document.createElement('small'); time.textContent = new Date(row.updatedAtUtc).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }); button.append(title, time);
                 button.addEventListener('click', async () => {
                     conversationId = row.id; pendingAttachments = []; renderAttachments(); resetMessages();
                     const [history, files] = await Promise.all([
@@ -130,7 +130,7 @@
         if (key === 'discountPercent' || key === 'surchargePercent') return `${value}%`;
         if (key === 'appliesTo') return Number(value) === 7 ? 'Tất cả loại đặt' : ({ 1: 'Theo khung giờ', 2: 'Qua đêm', 4: 'Cả ngày' }[Number(value)] || String(value));
         if ((key.endsWith('Utc') || key.toLowerCase().includes('date')) && typeof value === 'string') {
-            const date = new Date(value); if (!Number.isNaN(date.getTime())) return date.toLocaleString('vi-VN');
+            const date = new Date(value); if (!Number.isNaN(date.getTime())) return date.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
         }
         if (typeof value === 'object') return JSON.stringify(value);
         return ({Confirmed:'Đã xác nhận', Held:'Giữ phòng', Active:'Hoạt động', Paused:'Tạm dừng', Draft:'Nháp', FullDayOnly:'Chỉ combo cả ngày',

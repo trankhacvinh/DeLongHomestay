@@ -227,6 +227,13 @@
                     status: Number(this.form.status)
                 };
             },
+            resetFiltersAfterSave(status) {
+                this.filters.q = '';
+                this.filters.status = ({ 0: 'Draft', 1: 'Active', 2: 'Paused', 3: 'Archived' })[Number(status)] || '';
+                this.filters.from = '';
+                this.filters.to = '';
+                filterPickers.forEach(picker => picker.clear(false));
+            },
             async save() {
                 this.editor.error = '';
                 if (!this.form.code || !this.form.startsAtLocal || !this.form.endsAtLocal) { this.editor.error = 'Vui lòng nhập mã và thời gian hiệu lực.'; return; }
@@ -236,9 +243,10 @@
                     if (this.editor.mode === 'create' && this.form.customerIds.length > 1) {
                         const customerIds = [...this.form.customerIds];
                         let created = 0;
+                        let savedVoucher;
                         try {
                             for (let index = 0; index < customerIds.length; index++) {
-                                await DeLongApi.post(this.api('/'), this.payload(customerIds[index], this.batchCode(this.form.code, index, customerIds.length)));
+                                savedVoucher = await DeLongApi.post(this.api('/'), this.payload(customerIds[index], this.batchCode(this.form.code, index, customerIds.length)));
                                 created++;
                             }
                         } catch (error) {
@@ -246,6 +254,7 @@
                                 ? `Đã tạo ${created}/${customerIds.length} voucher. Các voucher còn lại chưa tạo: ${error.message || 'có lỗi xảy ra'}`
                                 : (error.message || 'Không thể tạo voucher hàng loạt.'));
                         }
+                        this.resetFiltersAfterSave(savedVoucher.status);
                         this.editor.open = false;
                         await this.load();
                         this.notify(`Đã tạo ${created} voucher cho ${created} khách.`);
@@ -253,8 +262,10 @@
                     }
 
                     const customerId = this.form.customerIds[0] || null;
-                    if (this.editor.mode === 'create') await DeLongApi.post(this.api('/'), this.payload(customerId));
-                    else await DeLongApi.put(this.api(`/${this.editor.voucherId}`), this.payload(customerId));
+                    const savedVoucher = this.editor.mode === 'create'
+                        ? await DeLongApi.post(this.api('/'), this.payload(customerId))
+                        : await DeLongApi.put(this.api(`/${this.editor.voucherId}`), this.payload(customerId));
+                    this.resetFiltersAfterSave(savedVoucher.status);
                     this.editor.open = false;
                     await this.load();
                     this.notify('Đã lưu voucher.');

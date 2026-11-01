@@ -1,0 +1,7 @@
+.flatpickr-calendar { z-index: 100100 !important; font-family: inherit; }
+.flatpickr-calendar .flatpickr-current-month { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months { width: auto; max-width: 175px; min-height: 0; padding: 0 4px; border: 0; border-radius: 0; background: transparent; font: inherit; }
+.flatpickr-calendar .flatpickr-current-month .numInputWrapper { flex: 0 0 72px; width: 72px; }
+.flatpickr-calendar .flatpickr-current-month input.cur-year { width: 72px; min-height: 0; padding: 0 18px 0 4px; border: 0; border-radius: 0; background: transparent; font: inherit; box-shadow: none; }
+.flatpickr-calendar .flatpickr-time input { min-height: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+input[data-date-display] { min-width: 0; }

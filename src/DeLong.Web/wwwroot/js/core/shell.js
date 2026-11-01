@@ -283,7 +283,7 @@
                             const targetSlug = button.dataset.siteSlug;
                             if (!targetSlug || targetSlug === data.siteSlug) return;
 
-                            const dateInput = bookingRoot.querySelector('input[type="date"]');
+                            const dateInput = bookingRoot.querySelector('input[type="date"], input[data-date-input="date"]');
                             const currentDate = dateInput?.value || data.date || '';
                             const query = new URLSearchParams();
                             if (currentDate) query.set('date', currentDate);

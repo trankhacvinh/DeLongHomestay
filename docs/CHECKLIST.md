@@ -1,5 +1,12 @@
 # Checklist nghiệm thu
 
+## Ngày tháng và voucher (01/11/2026)
+
+- [x] Ngày nhập hiển thị dd/MM/yyyy, ngày giờ dd/MM/yyyy HH:mm, tháng MM/yyyy trong Chrome locale en-US.
+- [x] Browser fixture xác nhận giá trị ISO, Vue cập nhật, min/max, disabled/required, modal động, form tải muộn và reset.
+- [x] Padding modal voucher đã kiểm tra tại 390px và 1280px; 161 test JavaScript đã qua.
+- [ ] UAT trên thiết bị và môi trường production sau publish.
+
 ## Pricing V2
 
 - [x] Pricing được tính lại phía server khi tạo booking.

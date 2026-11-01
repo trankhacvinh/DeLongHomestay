@@ -94,7 +94,7 @@ public sealed class BookingNotificationService(
                 BookingId = booking.Id,
                 Type = inAppEnabled ? BookingRequestedType : BookingEmailOnlyType,
                 Title = $"Yêu cầu đặt phòng mới · {booking.Code}",
-                Message = $"{booking.CustomerName} · {booking.RoomName} · {localTimes.CheckIn:dd/MM HH:mm}",
+                Message = $"{booking.CustomerName} · {booking.RoomName} · {localTimes.CheckIn:dd/MM/yyyy HH:mm}",
                 ActionUrl = $"/Admin/Bookings?propertyId={propertyId}&bookingId={booking.Id}"
             };
             db.Add(notification);

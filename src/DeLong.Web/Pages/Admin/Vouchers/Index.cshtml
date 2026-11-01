@@ -5,7 +5,6 @@
 }
 @section Head {
     <link rel="stylesheet" href="~/css/entities.css" asp-append-version="true" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="~/css/admin-vouchers.css" asp-append-version="true" />
 }
 
@@ -103,12 +102,14 @@
     <div class="modal-backdrop" v-if="detail.open" v-on:click.self="closeDetail">
         <section class="modal-card voucher-detail" role="dialog" aria-modal="true">
             <div class="modal-head"><div><div class="page-eyebrow">Lịch sử sử dụng</div><h2>{{ detail.voucher?.code }}</h2><p>{{ detail.voucher?.customerName || 'Voucher dùng chung' }}</p></div><button class="icon-btn" type="button" v-on:click="closeDetail">×</button></div>
+            <div class="voucher-modal-body">
             <div class="voucher-detail-metrics" v-if="detail.voucher"><div><span>Giảm</span><strong>{{ number(detail.voucher.discountPercent) }}%</strong></div><div><span>Đang giữ</span><strong>{{ detail.voucher.reservedCount }}</strong></div><div><span>Đã dùng</span><strong>{{ detail.voucher.redeemedCount }}</strong></div><div><span>Còn lại</span><strong>{{ detail.voucher.remainingCount ?? '∞' }}</strong></div></div>
             <div v-if="detail.loading" class="empty-state"><strong>Đang tải lịch sử…</strong></div>
             <template v-else>
                 <div class="table-wrap voucher-history-wrap"><table class="data-table"><thead><tr><th>Booking / khách</th><th>Tiền phòng</th><th>Giảm</th><th>Phạm vi</th><th>Thời điểm</th><th>Trạng thái</th><th></th></tr></thead><tbody><tr v-for="item in detail.history" v-bind:key="item.id"><td><strong>{{ item.bookingCode }}</strong><div class="tiny muted">{{ item.customerName }} · {{ item.customerPhone }}</div></td><td>{{ money(item.eligibleRoomAmount) }}</td><td><strong>-{{ money(item.discountAmount) }}</strong><div class="tiny muted">{{ number(item.discountPercent) }}%</div></td><td>{{ applicabilityText(item.bookingScope) }}</td><td>{{ dateTimeText(item.reservedAtUtc) }}</td><td><span class="pill" v-bind:class="redemptionClass(item.status)">{{ redemptionText(item.status) }}</span><div v-if="item.resolutionReason" class="tiny muted">{{ item.resolutionReason }}</div></td><td><button v-if="canManage && item.status === 1 && item.bookingStatus === 5" class="btn btn-light btn-sm" type="button" v-on:click="restore(item)">Hoàn lượt</button></td></tr><tr v-if="detail.history.length === 0"><td colspan="7" class="empty-state"><strong>Voucher chưa có lịch sử sử dụng</strong></td></tr></tbody></table></div>
                 <div class="voucher-email-history"><h3>Lịch sử gửi email</h3><div v-if="detail.emails.length" class="voucher-email-history-list"><div v-for="email in detail.emails" v-bind:key="email.id"><span><strong>{{ email.recipientEmail }}</strong><small>{{ dateTimeText(email.requestedAtUtc) }}</small></span><span class="pill" v-bind:class="email.sentAtUtc ? 'success' : (email.lastError ? 'danger' : 'warning')">{{ email.sentAtUtc ? 'Đã gửi' : (email.lastError ? 'Gửi lỗi' : 'Đang chờ') }}</span><small v-if="email.lastError" class="voucher-email-error">{{ email.lastError }}</small></div></div><p v-else class="small muted">Chưa gửi email voucher này.</p></div>
             </template>
+            </div>
             <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closeDetail">Đóng</button><button class="btn btn-primary" type="button" v-on:click="openEmail(detail.voucher)">Gửi voucher</button></div>
         </section>
     </div>
@@ -127,7 +128,5 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/vn.js"></script>
     <script src="~/js/pages/admin-vouchers.js" asp-append-version="true"></script>
 }

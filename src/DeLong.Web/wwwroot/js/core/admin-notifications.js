@@ -88,7 +88,7 @@
         if (diffSeconds < 60) return 'Vừa xong';
         if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)} phút trước`;
         if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)} giờ trước`;
-        return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(date);
+        return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date);
     }
 
     function render() {

@@ -134,7 +134,7 @@ public sealed class StaffAiService(AppDbContext db, AiAccessGateway gateway)
         text.Contains("tiền", StringComparison.OrdinalIgnoreCase);
 
     private static string FormatLocal(DateTime utc, TimeZoneInfo timeZone) =>
-        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), timeZone).ToString("dd/MM HH:mm");
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), timeZone).ToString("dd/MM/yyyy HH:mm");
     private static string StatusLabel(BookingStatus status) => status switch
     {
         BookingStatus.Requested => "Chờ xác nhận", BookingStatus.Held => "Đang giữ", BookingStatus.Confirmed => "Đã xác nhận",

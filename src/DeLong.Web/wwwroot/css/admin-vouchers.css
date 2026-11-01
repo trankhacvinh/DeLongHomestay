@@ -16,6 +16,8 @@
 .voucher-scope label { display: inline-flex; align-items: center; gap: 7px; margin-right: 24px; font-weight: 600; }
 .voucher-archive { margin-right: auto; }
 .voucher-detail { width: min(1120px, calc(100vw - 28px)); }
+.voucher-modal-body { padding: 20px; }
+.voucher-mailer > p, .voucher-mailer > .notice, .voucher-editor > .notice { margin-left: 20px; margin-right: 20px; }
 .voucher-detail-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
 .voucher-detail-metrics > div { background: #f2f7f5; border-radius: 13px; padding: 13px 15px; display: flex; flex-direction: column; gap: 3px; }
 .voucher-detail-metrics span { color: #71827f; font-size: 12px; }
@@ -57,6 +59,7 @@
 }
 
 @media (max-width: 640px) {
+    .voucher-modal-body { padding: 16px; }
     .voucher-title-row { align-items: stretch; }
     .voucher-title-row .btn { width: 100%; }
     .voucher-filters { grid-template-columns: 1fr; }

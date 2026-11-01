@@ -33,7 +33,7 @@
         return `${(n / 1024 / 1024).toFixed(1)} MB`;
     };
     const dateText = value => {
-        try { return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short' }).format(new Date(value)); }
+        try { return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value)); }
         catch { return ''; }
     };
 

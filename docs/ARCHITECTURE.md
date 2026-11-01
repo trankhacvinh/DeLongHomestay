@@ -1,5 +1,9 @@
 # Kiến trúc DeLongHomestay
 
+## Ngày tháng giao diện (01/11/2026)
+
+Ngày đầy đủ hiển thị `dd/MM/yyyy`; ô nhập có giờ dùng `dd/MM/yyyy HH:mm`, bộ lọc tháng dùng `MM/yyyy`. Layout nạp Flatpickr 4.6.13 tiếng Việt từ `wwwroot/vendor/flatpickr`, dùng chung cho public và Admin. `date-presentation.js` tăng cường các input date/datetime-local/month sau khi Vue mount, đồng bộ model/giới hạn ngày/disabled và dọn instance khi tháo modal. Giá trị form/API tiếp tục là ISO; chuyển đổi timezone giữ tại feature hiện có. Calendar range, Pricing và Voucher dùng cùng bản thư viện thay vì nạp CDN riêng.
+
 ## Chấm công và tính lương (01/11/2026)
 
 `Features/Payroll`: nhân viên không phải tài khoản; tính lương bằng hàm thuần `PayrollCalculator` (lương ÷ 30 × ngày thực, trừ ca K, lễ ×2/Tết ×3, chuyên cần). Manager chỉ chấm công, mọi dữ liệu tiền chỉ Admin. Chốt tháng lưu snapshot; ứng/trả sinh `Expense` liên kết `source_type/source_id`, không hủy được từ màn Chi phí. Audit lương ẩn khỏi API audit chung. Xem [PAYROLL.md](PAYROLL.md).

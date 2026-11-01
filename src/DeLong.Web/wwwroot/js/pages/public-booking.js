@@ -471,10 +471,11 @@
                 document.getElementById('booking-conflict-notice')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             },
             focusDateInput() {
-                const selector = this.bookingType === 1 ? 'input[type="date"][v-model="checkInDate"]' : 'input[type="date"][v-model="date"]';
-                const input = root.querySelector(selector) || root.querySelector('input[type="date"]');
-                input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                input?.focus();
+                const selector = this.bookingType === 1 ? 'input[v-model="checkInDate"]' : 'input[v-model="date"]';
+                const input = root.querySelector(selector) || root.querySelector('input[type="date"], input[data-date-input="date"]');
+                const display = input?._flatpickr?.altInput || input;
+                display?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                display?.focus();
             },
             clearFieldError(field) {
                 if (this.fieldErrors[field]) this.fieldErrors[field] = '';

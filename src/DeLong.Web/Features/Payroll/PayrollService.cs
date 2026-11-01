@@ -174,7 +174,7 @@ public sealed class PayrollService(AppDbContext db, AuditService audit)
             if (cell.Date < month || cell.Date > last) return new("validation", "Ngày chấm công nằm ngoài tháng đang chọn.");
             if (cell.Slot < 0 || cell.Slot >= e.ShiftsPerDay) return new("validation", $"{e.Code} chỉ có {e.ShiftsPerDay} ca/ngày.");
             if (cell.Date < e.StartDate || (e.EndDate.HasValue && cell.Date > e.EndDate.Value))
-                return new("validation", $"Ngày {cell.Date:dd/MM} nằm ngoài thời gian làm việc của {e.Code}.");
+                return new("validation", $"Ngày {cell.Date:dd/MM/yyyy} nằm ngoài thời gian làm việc của {e.Code}.");
             if (cell.Status.HasValue && !Enum.IsDefined(cell.Status.Value)) return new("validation", "Trạng thái chấm công không hợp lệ.");
             if (cell.Note?.Length > 500) return new("validation", "Ghi chú tối đa 500 ký tự.");
         }

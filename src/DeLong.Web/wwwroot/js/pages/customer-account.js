@@ -36,7 +36,7 @@
         },
         methods: {
             money(value) { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0); },
-            dateText(value) { return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)); },
+            dateText(value) { return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeStyle: 'short' }).format(new Date(value)); },
             statusText(value) { return ({ Requested: 'Yêu cầu', Held: 'Giữ phòng', Confirmed: 'Đã xác nhận', CheckedIn: 'Đang ở', Completed: 'Hoàn tất', Cancelled: 'Đã hủy', NoShow: 'Không đến' })[value] || value; },
             async loadProfile() {
                 try {

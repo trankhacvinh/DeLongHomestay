@@ -1,5 +1,11 @@
 # Roadmap
 
+## Ngày tháng Việt Nam và modal voucher (01/11/2026)
+
+- [x] Thống nhất ô nhập ngày/ngày giờ/tháng, thư viện tiếng Việt đóng gói cục bộ và hiển thị năm đầy đủ ở các nhãn ngày.
+- [x] Giãn nội dung modal lịch sử voucher; browser fixture 390px/1280px, form ISO/Vue, giới hạn ngày, form tải muộn và reset đã qua.
+- [ ] Publish và UAT trên dữ liệu thực sau triển khai.
+
 ## Đã triển khai — Pricing V2
 
 - [x] Giá ngày thường/cuối tuần theo phòng và ca.

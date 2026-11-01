@@ -28,7 +28,7 @@
             },
             evidence(x) { return JSON.parse(x.evidenceJson); },
             money(x) { return `${Number(x || 0).toLocaleString('vi-VN')}đ`; },
-            date(x) { return x ? new Date(x).toLocaleString('vi-VN', { timeZone: this.timeZoneId }) : '—'; },
+            date(x) { return x ? new Date(x).toLocaleString('vi-VN', { timeZone: this.timeZoneId, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '—'; },
             status(x) { return ({Open:'Cần xử lý',InProgress:'Đang xử lý',Resolved:'Đã xử lý',Accepted:'Đã kiểm tra hợp lệ'})[x] || x; },
             action(x) { return ({Detected:'Phát hiện',EvidenceChanged:'Dữ liệu thay đổi, cần kiểm tra lại',NoLongerDetected:'Không còn phát hiện',Reviewed:'Ghi nhận xử lý'})[x] || x; },
             historyNote(x) { const after = x.afterJson ? JSON.parse(x.afterJson) : {}; return after.note || ''; },

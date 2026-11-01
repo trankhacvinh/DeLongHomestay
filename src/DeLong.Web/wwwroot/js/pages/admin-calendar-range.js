@@ -23,6 +23,7 @@
                 defaultDate: currentDates,
                 disableMobile: true,
                 locale: {
+                    ...(window.flatpickr.l10ns.vn || window.flatpickr.l10ns.default),
                     firstDayOfWeek: 1,
                     rangeSeparator: ' đến '
                 },

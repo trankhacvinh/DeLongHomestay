@@ -3,7 +3,6 @@
 @{ ViewData["Title"] = "Giá & ngày đặc biệt"; }
 @section Head {
     <link rel="stylesheet" href="~/css/entities.css" asp-append-version="true" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="~/css/admin-pricing.css" asp-append-version="true" />
 }
 
@@ -35,7 +34,5 @@
     <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
 </div>
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/vn.js"></script>
     <script src="~/js/pages/admin-pricing.js" asp-append-version="true"></script>
 }

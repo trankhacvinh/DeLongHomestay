@@ -1,5 +1,11 @@
 # Mapping Demo → Production Razor Pages
 
+## Ngày tháng Việt Nam (01/11/2026)
+
+- Layout dùng Flatpickr 4.6.13 và locale Việt Nam đã đóng gói tại `wwwroot/vendor/flatpickr`. Publish đồng bộ thư mục này, `js/core/date-presentation.js` và `css/date-presentation.css`.
+- Giữ `v-model` và giá trị ISO của input; lớp hiển thị dùng `dd/MM/yyyy`, `dd/MM/yyyy HH:mm` hoặc `MM/yyyy`. Helper chờ root bỏ `v-cloak`/mount Vue trước khi tạo input hiển thị và dọn instance khi modal bị tháo.
+- Đây là thay đổi hiển thị, không cần migration database.
+
 ## Public assets — 1.8.22
 
 - Build/publish bằng .NET SDK tự sinh CSS bundle trang chủ qua `Build/PublicHomeCss.targets`; không sửa trực tiếp file sinh và không cần npm trên Ubuntu. Publish phải sao chép đủ `wwwroot`, gồm bundle và 4 font WOFF2.

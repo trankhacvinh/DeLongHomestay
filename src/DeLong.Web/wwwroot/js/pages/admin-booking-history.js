@@ -35,7 +35,7 @@ window.DeLongBookingHistory = {
             const data = document.getElementById('calendar-page-data') || document.getElementById('bookings-page-data');
             let zone = 'Asia/Ho_Chi_Minh';
             try { zone = JSON.parse(data?.textContent || '{}').timeZoneId || zone; } catch {}
-            return new Intl.DateTimeFormat('vi-VN', { timeZone: zone, dateStyle: 'short', timeStyle: 'medium' }).format(new Date(value));
+            return new Intl.DateTimeFormat('vi-VN', { timeZone: zone, day: '2-digit', month: '2-digit', year: 'numeric', timeStyle: 'medium' }).format(new Date(value));
         },
         bookingHistoryAction(action) {
             return ({ Created:'Tạo đặt phòng', Updated:'Sửa đặt phòng', StatusChanged:'Đổi trạng thái', Moved:'Chuyển phòng / thời gian',

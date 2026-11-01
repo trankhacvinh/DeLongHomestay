@@ -36,7 +36,7 @@
         const status = $('[data-ai-knowledge-status]');
         try {
             const snapshot = await DeLongApi.get(`/api/admin/properties/${id}/ai/knowledge`);
-            status.textContent = `Phiên bản ${snapshot.version} · ${snapshot.isDirty ? 'Cần cập nhật' : 'Đã cập nhật'} · ${new Date(snapshot.builtAtUtc).toLocaleString('vi-VN')}`;
+            status.textContent = `Phiên bản ${snapshot.version} · ${snapshot.isDirty ? 'Cần cập nhật' : 'Đã cập nhật'} · ${new Date(snapshot.builtAtUtc).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}`;
             $('[data-ai-knowledge-preview]').textContent = JSON.stringify(snapshot.content, null, 2);
         } catch (error) {
             status.textContent = error.status === 404 ? 'Chưa tạo dữ liệu kiến thức.' : error.message;

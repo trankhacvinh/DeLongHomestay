@@ -150,7 +150,7 @@ public sealed class IndexModel(
                     x.CustomerPhone,
                     x.RoomName,
                     property.Name,
-                    local.ToString("dd/MM · HH:mm"),
+                    local.ToString("dd/MM/yyyy · HH:mm"),
                     x.TotalAmount);
             }));
 

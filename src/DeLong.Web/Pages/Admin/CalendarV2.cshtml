@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="~/vendor/tom-select/tom-select.default.min.css" asp-append-version="true" />
     <style>.ts-wrapper{width:100%}.ts-dropdown{z-index:1100}.ts-control{min-height:44px}.ts-dropdown .option{white-space:normal;overflow-wrap:anywhere}</style>
     <link rel="stylesheet" href="~/css/room-booking-lock.css" asp-append-version="true" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="~/css/calendar-v2-polish.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-booking-guest-details.css" asp-append-version="true" />
     <link data-admin-calendar-v2 rel="stylesheet" href="~/css/admin-calendar-v2.css" asp-append-version="true" />
@@ -225,7 +224,6 @@
     <script src="~/js/core/money-input.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-room-booking-lock.js" asp-append-version="true"></script>
     <script>window.DeLongCalendarCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") ? "true" : "false"); try { localStorage.setItem('delong.calendar.view.@Model.PropertyId', 'v2'); } catch { }</script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script src="~/js/pages/admin-calendar-range.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-calendar-nightly.js" asp-append-version="true"></script>
     <script src="~/vendor/tom-select/tom-select.complete.min.js" asp-append-version="true"></script>
