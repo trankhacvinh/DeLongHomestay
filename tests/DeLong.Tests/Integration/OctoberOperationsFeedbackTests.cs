@@ -32,7 +32,7 @@ public sealed class OctoberOperationsFeedbackTests
         var booking = new Booking {Property=property,Room=room,Customer=customer,Code="SYNTHETIC",CheckInUtc=DateTime.UtcNow.AddDays(10),CheckOutUtc=DateTime.UtcNow.AddDays(10).AddHours(3),Status=BookingStatus.Held,RoomAmount=210000};
         db.Bookings.Add(booking);return booking;
     }
-    [Fact] public async Task Mobile_layout_round_trips_through_database_and_public_catalog()
+    [RoomLockPostgresFact, Trait("Category", "Integration")] public async Task Mobile_layout_round_trips_through_database_and_public_catalog()
     {
         await using var db=await Database();var booking=Seed(db);await db.SaveChangesAsync();
         Assert.True((await new PublicRoomContentService(db).GetCatalogAsync(booking.PropertyId)).Rooms.Single().PublicCalendarMobileAllRooms);
@@ -40,7 +40,7 @@ public sealed class OctoberOperationsFeedbackTests
         Assert.False((await new PublicRoomContentService(db).GetCatalogAsync(booking.PropertyId)).Rooms.Single().PublicCalendarMobileAllRooms);
         Assert.Equal(210000,await db.Bookings.Where(x=>x.Id==booking.Id).Select(x=>x.RoomAmount).SingleAsync());
     }
-    [Fact] public async Task Telegram_filters_event_outbox_and_does_not_duplicate_status_notification()
+    [RoomLockPostgresFact, Trait("Category", "Integration")] public async Task Telegram_filters_event_outbox_and_does_not_duplicate_status_notification()
     {
         await using var db=await Database();var booking=Seed(db);
         var settings=new PropertyNotificationSettings {Property=booking.Property,InAppBookingEnabled=true,TelegramBookingEnabled=true,TelegramBotTokenProtected="synthetic-protected-token",TelegramChatIds="synthetic-chat",TelegramEventTypes="booking-confirmed"};
@@ -56,7 +56,7 @@ public sealed class OctoberOperationsFeedbackTests
         await service.NotifyBookingStatusChangedAsync(booking.PropertyId,booking.Id,BookingStatus.Confirmed,BookingStatus.Cancelled);
         Assert.Equal(1,await db.NotificationTelegramOutbox.CountAsync(x=>x.PropertyId==booking.PropertyId));
     }
-    [Fact] public async Task Audit_pages_and_activity_are_scoped_and_record_payment_changes_without_secrets()
+    [RoomLockPostgresFact, Trait("Category", "Integration")] public async Task Audit_pages_and_activity_are_scoped_and_record_payment_changes_without_secrets()
     {
         await using var db=await Database();var booking=Seed(db);
         var user=new ApplicationUser{Id=Guid.NewGuid(),UserName=Guid.NewGuid().ToString("N"),DisplayName="Synthetic operator"};db.Users.Add(user);await db.SaveChangesAsync();

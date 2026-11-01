@@ -108,7 +108,10 @@ public sealed class PublicBookingContactLayoutSourceContractTests
 
         Assert.Contains("data-sepay-download", page, StringComparison.Ordinal);
         Assert.Contains("Tải ảnh QR về máy", page, StringComparison.Ordinal);
-        Assert.Contains("qrDownload.hidden = !state.qrUrl", script, StringComparison.Ordinal);
+        // Nút tải chỉ hiện khi ảnh QR còn hạn đã tải xong; mọi trạng thái khác đều ẩn nút.
+        Assert.Contains("if (!state?.qrUrl || !qrUrl || Date.parse(state.expiresAtUtc) <= Date.now()) return;", script, StringComparison.Ordinal);
+        Assert.Contains("qrDownload.hidden = false;", script, StringComparison.Ordinal);
+        Assert.Contains("qrDownload.hidden = true;", script, StringComparison.Ordinal);
         Assert.Contains("/api/public/payments/sepay/{orderId}/qr", endpoints, StringComparison.Ordinal);
         Assert.Contains("qrUri.Host.Equals(\"vietqr.app\"", endpoints, StringComparison.Ordinal);
         Assert.Contains("Results.File(image, contentType", endpoints, StringComparison.Ordinal);

@@ -23,6 +23,17 @@ public sealed class BookingLifecycleAutomationIntegrationTests
             new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString).Options);
         await db.Database.MigrateAsync();
 
+        // The automation is global by design; drain bookings left due by other tests sharing this
+        // database so the counts below only reflect the bookings seeded here.
+        var drainService = new BookingLifecycleAutomationService(db,
+            new BookingService(db, new CustomerService(db), new AuditService(db)));
+        for (var i = 0; i < 50; i++)
+        {
+            var drained = await drainService.ProcessDueAsync(DateTime.UtcNow);
+            if (drained.CheckedIn + drained.CheckedOut == 0) break;
+        }
+        db.ChangeTracker.Clear();
+
         var suffix = Guid.NewGuid().ToString("N")[..10];
         var automatic = new Property { Code = $"AUTO-{suffix}", Name = "Automatic lifecycle" };
         var manual = new Property

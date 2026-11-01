@@ -25,7 +25,7 @@ public sealed class SettingsTabsSourceContractTests
         var policyScript = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-booking-policy.js");
         Assert.Contains("data-booking-policy-tab", policyScript, StringComparison.Ordinal);
         Assert.Contains("window.DeLongRichEditor?.enhance", policyScript, StringComparison.Ordinal);
-        Assert.Contains("allowImages: false", policyScript, StringComparison.Ordinal);
+        Assert.Contains("allowImages: true", policyScript, StringComparison.Ordinal);
     }
 
     private static string ReadRepositoryFile(string relativePath)
