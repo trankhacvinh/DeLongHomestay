@@ -36,9 +36,11 @@
 .cal-ov-toolbar button:disabled{opacity:.4;cursor:default}
 .cal-ov-toolbar button[aria-pressed="true"]{background:#15585c;border-color:#15585c;color:#fff}
 .cal-ov-range,.cal-ov-period,.cal-ov-zoom{display:flex;align-items:center;gap:6px}
-.cal-ov-range strong{margin-left:4px;font-size:14px;color:#153d3e;white-space:nowrap}
+.cal-ov-range strong{min-width:116px;text-align:center;font-size:14px;color:#153d3e;white-space:nowrap}
+.cal-ov-pickers{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;min-width:0}
+.cal-ov-scope[hidden]{display:none}
 .cal-ov-zoom output{min-width:44px;text-align:center;font-size:12px;color:#405956}
-.cal-ov-scope,.cal-ov-jump{display:flex;align-items:center;gap:6px;font-size:12px;color:#5f716e}
+.cal-ov-scope,.cal-ov-jump{display:flex;align-items:center;gap:6px;font-size:12px;color:#5f716e;white-space:nowrap}
 .cal-ov-scope select,.cal-ov-jump select{min-height:40px;max-width:220px;padding:6px 10px;border:1px solid #d7e3e0;border-radius:10px;background:#fff;font-size:14px;color:#153d3e}
 .cal-ov-status{display:none;padding:10px 12px;border-radius:12px;background:#f5f8f7;color:#5f716e;font-size:13px}
 .cal-ov-status.show{display:block}
@@ -47,7 +49,7 @@
 .cal-ov-hint{margin:0;font-size:11px;color:#7a8b88}
 
 /* Overview grid. --ov-s is the zoom factor; every size below scales with it. */
-.cal-ov-viewport{--ov-s:.8;position:relative;max-height:min(76vh,900px);overflow:auto;overscroll-behavior:contain;touch-action:pan-x pan-y;border:1px solid #cfdcd9;border-radius:14px;background:#fff;-webkit-overflow-scrolling:touch;outline:none}
+.cal-ov-viewport{--ov-s:.8;--ov-day:96px;position:relative;max-height:min(76vh,900px);overflow:auto;overscroll-behavior:contain;touch-action:pan-x pan-y;border:1px solid #cfdcd9;border-radius:14px;background:#fff;-webkit-overflow-scrolling:touch;outline:none}
 .cal-ov-viewport:focus-visible{box-shadow:0 0 0 3px rgba(21,88,92,.25)}
 .cal-ov-stage{width:max-content;min-width:100%}
 .cal-ov-table{border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:calc(12px * var(--ov-s))}
@@ -55,11 +57,11 @@
 .cal-ov-table thead th{position:sticky;z-index:3;background:#eef2f1;color:#1d3a3a;text-align:center}
 .cal-ov-h1 th{top:0;height:calc(46px * var(--ov-s))}
 .cal-ov-h2 th{top:calc(46px * var(--ov-s));height:calc(40px * var(--ov-s))}
-.cal-ov-corner{left:0;z-index:5!important;width:calc(96px * var(--ov-s));min-width:calc(96px * var(--ov-s));background:#e4ebe9!important;font-size:calc(13px * var(--ov-s))}
+.cal-ov-corner{left:0;z-index:5!important;width:max(44px, calc(var(--ov-day) * var(--ov-s)));min-width:max(44px, calc(var(--ov-day) * var(--ov-s)));background:#e4ebe9!important;font-size:calc(13px * var(--ov-s))}
 .cal-ov-corner b,.cal-ov-corner small{display:block}
 .cal-ov-corner small{font-size:calc(11px * var(--ov-s));color:#5f716e}
 .cal-ov-room{padding:0 calc(6px * var(--ov-s))!important;background:var(--room-color,#2f5d6b)!important;color:#fff!important;border-right:2px solid #fff!important;overflow:hidden;line-height:1.15}
-.cal-ov-room-name{display:block;font-weight:800;font-size:calc(14px * var(--ov-s));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-ov-room-name{display:block;font-weight:800;font-size:max(10px, calc(14px * var(--ov-s)));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cal-ov-room small{display:block;font-size:calc(10px * var(--ov-s));opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cal-ov-room-lock{font-weight:700}
 .cal-ov-room.flash{animation:cal-ov-flash 1.2s ease-out}
@@ -67,9 +69,10 @@
 .cal-ov-slot{width:calc(96px * var(--ov-s));min-width:calc(96px * var(--ov-s));max-width:calc(96px * var(--ov-s));line-height:1.2}
 .cal-ov-slot b{display:block;font-size:calc(11px * var(--ov-s));white-space:nowrap}
 .cal-ov-slot small{display:block;font-size:calc(10px * var(--ov-s));color:#5f716e}
-.cal-ov-day{position:sticky;left:0;z-index:2;width:calc(96px * var(--ov-s));min-width:calc(96px * var(--ov-s));height:calc(38px * var(--ov-s));background:#f3f6f5;color:#8a2f2f;text-align:center;line-height:1.15;border-right:2px solid #cfdcd9!important}
-.cal-ov-day b{display:block;font-size:calc(12px * var(--ov-s))}
-.cal-ov-day small{display:block;font-size:calc(11px * var(--ov-s));color:#4f6461}
+.cal-ov-day{position:sticky;left:0;z-index:2;width:max(44px, calc(var(--ov-day) * var(--ov-s)));min-width:max(44px, calc(var(--ov-day) * var(--ov-s)));height:calc(38px * var(--ov-s));background:#f3f6f5;color:#8a2f2f;text-align:center;line-height:1.15;border-right:2px solid #cfdcd9!important}
+.cal-ov-day b{display:block;font-size:max(8px, calc(12px * var(--ov-s)))}
+.cal-ov-day .wd-short{display:none}
+.cal-ov-day small{display:block;font-size:max(9px, calc(11px * var(--ov-s)));font-weight:700;color:#4f6461}
 tr.weekend .cal-ov-day{background:#fbf1ef}
 tr.today .cal-ov-day{background:#15585c;color:#fff}
 tr.today .cal-ov-day small{color:#d9eeea}
@@ -87,22 +90,57 @@ tr.today .cal-ov-cell{background-color:#f4fbf9}
 .cal-ov-viewport.is-compact .cal-ov-guest,.cal-ov-viewport.is-compact .cal-ov-slot small,.cal-ov-viewport.is-compact .cal-ov-room small{display:none}
 .cal-ov-viewport.is-compact .cal-ov-slot b{display:none}
 .cal-ov-viewport.is-compact .cal-ov-h2 th{height:6px}
-.cal-ov-viewport.is-compact .cal-ov-room-name{font-size:calc(14px * var(--ov-s) + 2px)}
+.cal-ov-viewport.is-compact .cal-ov-day b,.cal-ov-viewport.is-compact .cal-ov-corner small{display:none}
+.cal-ov-viewport.is-compact .cal-ov-corner b{font-size:9px}
+
+/* Never let the wide grid push the page sideways: only the grid itself scrolls. */
+.calendar-v2-panel{grid-template-columns:minmax(0,1fr);min-width:0;max-width:100%}
+.calendar-v2-panel>*{min-width:0}
+#calendar-page.calendar-v2-overview-mode{min-width:0;max-width:100%;overflow-x:clip}
 
 @media(max-width:760px){
-    .cal-ov-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px}
-    .cal-ov-toolbar button{min-height:36px;padding:4px 10px;white-space:nowrap}
-    .cal-ov-range{grid-column:1 / -1}
-    .cal-ov-range strong{margin-left:auto}
-    .cal-ov-period button{flex:1}
-    .cal-ov-scope,.cal-ov-jump{min-width:0}
-    .cal-ov-scope[hidden]{display:none}
-    .cal-ov-scope span,.cal-ov-jump span{display:none}
-    .cal-ov-scope select,.cal-ov-jump select{width:100%;max-width:none;min-height:36px;font-size:14px}
-    .cal-ov-jump{grid-column:1 / -1}
-    .cal-ov-scope:not([hidden])+.cal-ov-jump{grid-column:auto}
-    .cal-ov-zoom{justify-content:flex-end}
+    /* Compact page header while the overview is open: the grid gets the screen. */
+    #calendar-page.calendar-v2-overview-mode{padding-bottom:8px}
+    #calendar-page.calendar-v2-overview-mode .calendar-page-head{margin-bottom:8px}
+    #calendar-page.calendar-v2-overview-mode .page-title-row{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:10px;margin:0}
+    #calendar-page.calendar-v2-overview-mode .page-eyebrow,
+    #calendar-page.calendar-v2-overview-mode .page-title-row p{display:none}
+    #calendar-page.calendar-v2-overview-mode .page-title-row h1{margin:0;font-size:20px;line-height:1.2}
+    #calendar-page.calendar-v2-overview-mode .calendar-controls{width:auto;flex:0 0 auto}
+    #calendar-page.calendar-v2-overview-mode .calendar-controls .btn{width:auto;min-height:38px;padding:6px 14px;font-size:13px;border-radius:10px}
+    .calendar-v2-panel.is-overview{gap:8px}
+    .calendar-v2-mode-long{display:none}
+    .calendar-v2-modebar{padding:3px;border-radius:12px}
+    .calendar-v2-modebar button{min-height:34px;padding:6px 10px;font-size:13px}
+
+    /* Toolbar: two tight rows instead of a tall card. */
+    .cal-ov-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;padding:0;border:0;background:transparent}
+    .cal-ov-toolbar button{min-height:34px;min-width:34px;padding:4px 10px;font-size:13px;white-space:nowrap}
+    .cal-ov-range{grid-column:1 / -1;display:grid;grid-template-columns:34px minmax(0,1fr) 34px auto;gap:6px;padding:3px;border:1px solid #d7e3e0;border-radius:12px;background:#fff}
+    .cal-ov-range .cal-ov-arrow{border:0;background:#f1f6f5;font-size:20px;line-height:1;padding:0}
+    .cal-ov-range strong{min-width:0;align-self:center;font-size:14px}
+    .cal-ov-range [data-ov-today]{border-color:#c6dad6;color:#15585c}
+    .cal-ov-period{gap:0;padding:2px;border:1px solid #d7e3e0;border-radius:10px;background:#f3f8f7;justify-self:start;grid-row:2;grid-column:1}
+    .cal-ov-period button{border:0;background:transparent;min-height:30px;padding:4px 12px}
+    .cal-ov-period button[aria-pressed="true"]{background:#15585c;color:#fff}
+    .cal-ov-zoom{gap:6px;grid-row:2;grid-column:2}
     .cal-ov-zoom [data-ov-zoom-out],.cal-ov-zoom [data-ov-zoom-in]{display:none}
-    .cal-ov-viewport{max-height:calc(100dvh - 120px);border-radius:12px}
-    .cal-ov-hint{font-size:10px}
+    .cal-ov-zoom output{min-width:0;font-size:11px}
+    .cal-ov-zoom [data-ov-fit]{min-height:34px}
+    .cal-ov-pickers{grid-row:3;grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:6px}
+    .cal-ov-scope span,.cal-ov-jump span{display:none}
+    .cal-ov-scope select,.cal-ov-jump select{width:100%;max-width:none;min-height:36px;padding:4px 8px;font-size:14px;border-radius:10px}
+    .cal-ov-status{padding:8px 10px;font-size:12px}
+    .cal-ov-hint{display:none}
+
+    /* Grid: narrower day column with short weekday names, fills the rest of the screen. */
+    .cal-ov-viewport{--ov-day:64px;max-height:calc(100dvh - 210px);border-radius:12px}
+    .cal-ov-day .wd-long{display:none}
+    .cal-ov-day .wd-short{display:inline}
+    .cal-ov-corner b{font-size:max(9px, calc(12px * var(--ov-s)))}
+
+    /* Legend: one swipeable line under the grid. */
+    .calendar-v2-panel.is-overview .calendar-v2-legend{order:3;flex-wrap:nowrap;gap:12px;overflow-x:auto;padding:2px 2px 4px;font-size:11px;white-space:nowrap;scrollbar-width:none}
+    .calendar-v2-panel.is-overview .calendar-v2-legend::-webkit-scrollbar{display:none}
+    .calendar-v2-panel.is-overview .calendar-v2-legend span{flex:0 0 auto}
 }

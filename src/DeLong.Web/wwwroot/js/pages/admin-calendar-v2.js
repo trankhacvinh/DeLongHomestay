@@ -103,7 +103,7 @@
     panel.className = 'calendar-v2-panel';
     panel.dataset.calendarV2Panel = 'true';
     panel.innerHTML = [
-        '<div class="calendar-v2-modebar" role="group" aria-label="Kiểu xem lịch"><button type="button" data-v2-mode="room" aria-pressed="true">Từng phòng</button><button type="button" data-v2-mode="overview" aria-pressed="false">Tổng quan tất cả phòng</button></div>',
+        '<div class="calendar-v2-modebar" role="group" aria-label="Kiểu xem lịch"><button type="button" data-v2-mode="room" aria-pressed="true">Từng phòng</button><button type="button" data-v2-mode="overview" aria-pressed="false">Tổng quan<span class="calendar-v2-mode-long"> tất cả phòng</span></button></div>',
         '<div class="calendar-v2-overview-host" data-v2-overview hidden></div>',
         '<div class="calendar-v2-roombar">',
         '  <button class="calendar-v2-nav" type="button" data-v2-room-prev aria-label="Phòng trước">‹</button>',
@@ -850,6 +850,7 @@
     function setMode(mode, persist) {
         state.mode = mode === 'overview' && window.DeLongCalendarOverview ? 'overview' : 'room';
         panel.classList.toggle('is-overview', state.mode === 'overview');
+        root.classList.toggle('calendar-v2-overview-mode', state.mode === 'overview');
         overviewHost.hidden = state.mode !== 'overview';
         panel.querySelectorAll('[data-v2-mode]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.v2Mode === state.mode)));
         if (persist) { try { localStorage.setItem(modeStorageKey, state.mode); } catch { } }
