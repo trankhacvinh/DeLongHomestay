@@ -1,5 +1,9 @@
 # Kiến trúc DeLongHomestay
 
+## Chấm công và tính lương (01/11/2026)
+
+`Features/Payroll`: nhân viên không phải tài khoản; tính lương bằng hàm thuần `PayrollCalculator` (lương ÷ 30 × ngày thực, trừ ca K, lễ ×2/Tết ×3, chuyên cần). Manager chỉ chấm công, mọi dữ liệu tiền chỉ Admin. Chốt tháng lưu snapshot; ứng/trả sinh `Expense` liên kết `source_type/source_id`, không hủy được từ màn Chi phí. Audit lương ẩn khỏi API audit chung. Xem [PAYROLL.md](PAYROLL.md).
+
 ## Tài nguyên trang chủ public — 1.8.22
 
 `Build/PublicHomeCss.targets` dùng MSBuild/Roslyn có trong .NET SDK để sinh `wwwroot/css/public-home.bundle.css` trước build. Danh sách CSS cố định theo đúng thứ tự cascade; import CSS cùng thư mục được mở rộng tại build, import không hỗ trợ/cycle làm build lỗi. Không thêm project, dependency runtime, endpoint ghép CSS hay yêu cầu Node trên production. File sinh không commit; được khai báo Content để build/publish sạch vẫn đóng gói đúng.

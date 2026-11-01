@@ -19,6 +19,8 @@ public static class AuditEndpoints
             int? skip,
             CancellationToken cancellationToken) =>
         {
+            // Lịch sử của dữ liệu lương chứa số tiền; API audit chung mở cho cả Staff/Viewer nên không trả các loại này.
+            if (PayrollAuditTypes.IsRestricted(entityType)) return Results.NotFound();
             var history = await service.GetEntityHistoryAsync(
                 propertyId, entityType.Trim(), entityId, cancellationToken, skip ?? 0);
             return Results.Ok(history);
@@ -29,4 +31,23 @@ public static class AuditEndpoints
 
         return app;
     }
+}
+
+public static class PayrollAuditTypes
+{
+    public const string Employee = "Employee";
+    public const string Attendance = "Attendance";
+    public const string PayrollAdjustment = "PayrollAdjustment";
+    public const string PayrollPeriod = "PayrollPeriod";
+    public const string PayrollPolicy = "PayrollPolicy";
+    public const string PayrollHoliday = "PayrollHoliday";
+    public const string PayrollTransaction = "PayrollTransaction";
+
+    private static readonly HashSet<string> Restricted = new(StringComparer.OrdinalIgnoreCase)
+    {
+        Employee, Attendance, PayrollAdjustment, PayrollPeriod, PayrollPolicy, PayrollHoliday, PayrollTransaction
+    };
+
+    public static bool IsRestricted(string? entityType) =>
+        !string.IsNullOrWhiteSpace(entityType) && Restricted.Contains(entityType.Trim());
 }

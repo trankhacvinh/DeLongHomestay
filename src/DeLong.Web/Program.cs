@@ -10,6 +10,7 @@ using DeLong.Web.Data.Seed;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Expenses;
+using DeLong.Web.Features.Payroll;
 using DeLong.Web.Features.Finance;
 using DeLong.Web.Features.Inventory;
 using DeLong.Web.Features.Cash;
@@ -181,6 +182,8 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ViewRooms", policy => policy.RequireRole("Admin", "Manager", "Staff", "Media", "Viewer"));
     options.AddPolicy("ViewHousekeeping", policy => policy.RequireRole("Admin", "Manager", "Staff", "Housekeeping", "Viewer"));
     options.AddPolicy("ManageStaff", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("ManageAttendance", policy => policy.RequireRole("Admin", "Manager"));
+    options.AddPolicy("ManagePayroll", policy => policy.RequireRole("Admin"));
     options.AddPolicy("ManageProperties", policy => policy.RequireRole("Admin"));
     options.AddPolicy("ManageSiteContent", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageSiteCode", policy => policy.RequireRole("Admin"));
@@ -224,6 +227,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Admin/Vouchers", "ViewVouchers");
     options.Conventions.AuthorizeFolder("/Admin/Ai", "UseAdminAi");
     options.Conventions.AuthorizeFolder("/Admin/Staff", "ManageStaff");
+    options.Conventions.AuthorizeFolder("/Admin/Payroll", "ManageAttendance");
     options.Conventions.AllowAnonymousToPage("/Account/Login");
 
     // Public multi-property routes. Legacy root routes remain available for DELONG.
@@ -373,6 +377,7 @@ builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<InventoryImportService>();
 builder.Services.AddScoped<CashService>();
 builder.Services.AddScoped<ExpenseService>();
+builder.Services.AddScoped<PayrollService>();
 builder.Services.AddScoped<FinanceService>();
 builder.Services.AddScoped<FinanceExcelExportService>();
 builder.Services.AddScoped<ReportService>();
@@ -594,6 +599,7 @@ app.MapHousekeepingEndpoints();
 app.MapInventoryEndpoints();
 app.MapCashEndpoints();
 app.MapExpenseEndpoints();
+app.MapPayrollEndpoints();
 app.MapAuditEndpoints();
 app.MapStaffAccountEndpoints();
 app.MapCustomerAccountEndpoints();

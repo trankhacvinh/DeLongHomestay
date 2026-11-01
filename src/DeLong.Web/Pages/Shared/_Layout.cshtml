@@ -456,6 +456,10 @@
                         <div class="nav-label">Tài chính</div>
                         <a class="@NavClass("/Admin/Inventory")" asp-page="/Admin/Inventory/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-grid"/></svg><span>Kho chung</span></a>
                         <a class="@NavClass("/Admin/Cash")" asp-page="/Admin/Cash/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-wallet"/></svg><span>Tiền mặt</span></a>
+                        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                        {
+                            <a class="@NavClass("/Admin/Payroll")" asp-page="/Admin/Payroll/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-users"/></svg><span>Chấm công &amp; Lương</span></a>
+                        }
                         <a class="@NavClass("/Admin/Finance")" asp-page="/Admin/Finance/Index"
                            asp-route-propertyId="@propertyId">
                             <svg>

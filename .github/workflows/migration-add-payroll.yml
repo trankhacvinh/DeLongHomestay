@@ -1,0 +1,60 @@
+name: Add Payroll Migration
+
+# Máy phát triển của agent không có .NET, nên migration được sinh ở đây rồi commit ngược lại nhánh.
+# Sau khi migration đã có trong nhánh, workflow chỉ còn build + test để kiểm tra.
+on:
+  push:
+    branches: [ "claude/project-thread-74i02m" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    env:
+      ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=delong_dev;Username=postgres;Password=postgres"
+      DELONG_TEST_CONNECTION: "Host=localhost;Port=5432;Database=delong_test;Username=delong_test;Password=delong_test"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check migration
+        id: migration
+        shell: bash
+        run: |
+          if compgen -G "src/DeLong.Web/Data/Migrations/*_AddPayroll.cs" > /dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Install dotnet-ef
+        if: steps.migration.outputs.exists == 'false'
+        run: dotnet tool install --global dotnet-ef --version 10.0.10
+      - name: Restore
+        run: dotnet restore DeLongHomestay.sln
+      - name: Generate migration
+        if: steps.migration.outputs.exists == 'false'
+        run: dotnet ef migrations add AddPayroll --project src/DeLong.Web --startup-project src/DeLong.Web --output-dir Data/Migrations
+      - name: Build
+        run: dotnet build DeLongHomestay.sln --configuration Release --no-restore
+      - name: Start PostgreSQL
+        shell: bash
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='delong_test'" | grep -q 1 || sudo -u postgres psql -c "CREATE ROLE delong_test LOGIN PASSWORD 'delong_test' CREATEDB;"
+          sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='delong_test'" | grep -q 1 || sudo -u postgres createdb -O delong_test delong_test
+      - name: Test (unit + PostgreSQL integration)
+        run: dotnet test DeLongHomestay.sln --configuration Release --no-build --verbosity normal
+      - name: Commit migration
+        if: github.event_name == 'push' && steps.migration.outputs.exists == 'false'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/DeLong.Web/Data/Migrations
+          git commit -m "db: add payroll migration"
+          git push origin HEAD:claude/project-thread-74i02m

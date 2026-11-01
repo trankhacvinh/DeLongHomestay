@@ -25,4 +25,8 @@ public sealed class Expense : EntityBase
     public DateTime? VoidedAtUtc { get; set; }
     public Guid? VoidedByUserId { get; set; }
     public string? VoidReason { get; set; }
+
+    /// <summary>Nguồn sinh phiếu chi tự động (ví dụ "Payroll"). Null = chi phí nhập tay.</summary>
+    public string? SourceType { get; set; }
+    public Guid? SourceId { get; set; }
 }
