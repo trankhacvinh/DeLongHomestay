@@ -33,10 +33,10 @@ public sealed class IndexModel(
 
     public async Task<IActionResult> OnGetAsync(string? siteSlug, CancellationToken cancellationToken)
     {
-        Theme = await siteContentService.GetPublicThemeAsync(cancellationToken);
-        ThemeStandard = Theme.IsStandard;
         if (!string.IsNullOrWhiteSpace(siteSlug))
             return RedirectPermanent(PublicUrlBuilder.Home());
+        Theme = await siteContentService.GetPublicThemeAsync(cancellationToken);
+        ThemeStandard = Theme.IsStandard;
 
         if (string.IsNullOrWhiteSpace(siteSlug))
         {

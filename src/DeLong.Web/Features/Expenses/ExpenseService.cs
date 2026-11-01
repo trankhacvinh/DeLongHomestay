@@ -95,6 +95,8 @@ public sealed class ExpenseService(AppDbContext db, AuditService? audit = null)
             cancellationToken);
         if (expense is null) return (null, new("not_found", "Không tìm thấy khoản chi."));
         if (expense.IsVoided) return (null, new("already_voided", "Khoản chi đã được void trước đó."));
+        if (expense.SourceType is not null)
+            return (null, new("linked_source", "Phiếu chi này được tạo từ bảng lương. Hãy huỷ tại trang Chấm công & Lương để cập nhật trạng thái trả lương."));
 
         expense.IsVoided = true;
         expense.VoidedAtUtc = DateTime.UtcNow;

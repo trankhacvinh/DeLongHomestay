@@ -18,7 +18,7 @@ namespace DeLong.Tests.Integration;
 [Collection("PostgreSQL integration")]
 public sealed class PublicBookingCustomerTests
 {
-    [Theory]
+    [RemainingWindowPostgresTheory, Trait("Category", "Integration")]
     [InlineData("new")]
     [InlineData("existing")]
     [InlineData("inactive")]

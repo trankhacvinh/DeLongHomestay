@@ -1,0 +1,276 @@
+@page "/Admin/Payroll"
+@model DeLong.Web.Pages.Admin.Payroll.IndexModel
+@{ ViewData["Title"] = "Chấm công & Lương"; }
+@section Head { <link rel="stylesheet" href="~/css/admin-payroll.css" asp-append-version="true" /> }
+<script id="payroll-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+<div id="payroll-page" class="pr" v-cloak>
+    <header class="pr-top">
+        <div class="pr-title"><div class="page-eyebrow">Nhân sự · {{ propertyName }}</div><h1>Chấm công &amp; Lương</h1></div>
+        <label class="pr-month">Tháng <input type="month" v-model="month" v-on:change="changeMonth" /></label>
+        <span class="pr-chip" v-bind:class="locked ? 'locked' : 'draft'">{{ locked ? 'Đã chốt' : 'Nháp' }}</span>
+        <span class="pr-save" v-bind:class="saveState" v-if="saveState">{{ saveStateText }}</span>
+        <span class="pr-spacer"></span>
+        <button class="btn btn-light" type="button" v-bind:disabled="loading" v-on:click="load">{{ loading ? 'Đang tải…' : 'Tải lại' }}</button>
+        <template v-if="canManagePayroll && sheet">
+            <button class="btn btn-primary" type="button" v-if="!locked" v-bind:disabled="busy || blankTotal > 0 || pendingCount > 0" v-bind:title="blankTotal > 0 ? 'Còn ô chưa chấm' : ''" v-on:click="lockMonth">Chốt bảng lương</button>
+            <button class="btn btn-light" type="button" v-else v-bind:disabled="busy" v-on:click="openUnlock">Mở chốt</button>
+        </template>
+    </header>
+
+    <div class="pr-alert error" v-if="error" role="alert">{{ error }} <button type="button" class="pr-x" v-on:click="error=''" aria-label="Đóng">×</button></div>
+    <div class="pr-alert ok" v-if="message" role="status">{{ message }}</div>
+
+    <div class="pr-fbar"><div class="ref">{{ formula.ref }}</div><div class="fx">fx</div><div class="val">{{ formula.value }}</div></div>
+
+    <div class="pr-toolbar" v-if="tab==='att'">
+        <span class="lbl">Đặt cho ô đang chọn:</span>
+        <button class="code-btn" type="button" v-for="c in codeButtons" v-bind:key="c.key" v-bind:disabled="locked" v-on:click="applyCode(c.status)"><b v-bind:class="c.cls">{{ c.key }}</b>{{ c.short }}</button>
+        <button class="code-btn" type="button" v-bind:disabled="locked" v-on:click="applyCode(null)"><b>⌫</b>Xoá</button>
+        <button class="code-btn" type="button" v-bind:disabled="locked" v-on:click="fillBlanks">Điền x vào ô trống {{ fillUntilText }}</button>
+        <label class="pr-note-input" v-if="singleCell">Ghi chú ô <input type="text" maxlength="500" v-bind:value="singleCellNote" v-bind:disabled="locked || !singleCellStatusSet" v-on:change="setNote($event.target.value)" placeholder="VD: làm bù 22/09 6h–12h" /></label>
+        <span class="pr-warn" v-bind:class="blankTotal ? 'warn' : 'ok'">{{ blankTotal ? 'Còn ' + blankTotal + ' ô chưa chấm' : 'Đã chấm đủ' }}</span>
+    </div>
+    <div class="pr-toolbar" v-else-if="tab==='pay'">
+        <span class="lbl">{{ monthLabel }} · {{ sheet ? sheet.daysInMonth : '' }} ngày · {{ lines.length }} nhân viên</span>
+        <span class="pr-warn" v-bind:class="locked ? 'ok' : 'warn'">{{ locked ? 'Đã chốt' + (sheet.period.lockedByName ? ' bởi ' + sheet.period.lockedByName : '') + ', có thể trả lương' : 'Bảng nháp, tự tính lại khi chấm công thay đổi' }}</span>
+    </div>
+
+    <div class="pr-sheet" ref="sheetEl">
+        <p class="pr-empty" v-if="!sheet && loading">Đang tải…</p>
+
+        <!-- Chấm công -->
+        <template v-if="sheet && tab==='att'">
+            <p class="pr-empty" v-if="!attRows.length">Chưa có nhân viên làm việc trong tháng này. <span v-if="canManagePayroll">Thêm ở trang <a href="#" v-on:click.prevent="tab='emp'">Nhân viên</a>.</span></p>
+            <table class="pr-grid pr-att" v-else v-on:mousedown="cellDown" v-on:mouseover="cellOver">
+                <thead>
+                    <tr>
+                        <th class="rn"></th><th class="stk c-name">Nhân viên</th><th class="stk c-ca">Ca</th>
+                        <th class="d" v-for="d in days" v-bind:key="d.date" v-bind:class="{ sun: d.dow === 0, hol: d.holiday, tet: d.holiday && d.holiday.kind === 1 }" v-bind:title="d.holiday ? d.holiday.name : ''">{{ d.day }}<small>{{ d.dowText }}</small></th>
+                        <th class="sum sum-first">Đi làm</th><th class="sum">Nghỉ KL</th><th class="sum">Nghỉ CL</th><th class="sum">Đã bù</th><th class="sum">Làm lễ</th><th class="sum">Chưa chấm</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(row, ri) in attRows" v-bind:key="row.key" v-bind:class="{ first: row.slot === 0 }">
+                        <td class="rn">{{ ri + 2 }}</td>
+                        <td class="stk c-name" v-if="row.slot === 0" v-bind:rowspan="row.emp.shiftsPerDay"><span class="empname">{{ row.emp.code }} · {{ row.emp.fullName }}</span><span class="emprole">{{ row.emp.position || 'Nhân viên' }} · {{ row.emp.shiftsPerDay }} ca/ngày</span></td>
+                        <td class="stk c-ca">{{ row.slotName }}</td>
+                        <td class="d" v-for="d in days" v-bind:key="d.date" v-bind:class="cellClass(ri, row, d)" v-bind:data-r="ri" v-bind:data-d="d.day" v-bind:title="cellTitle(row, d)">{{ cellText(row, d) }}</td>
+                        <template v-if="row.slot === 0">
+                            <td class="sum sum-first" v-bind:rowspan="row.emp.shiftsPerDay">{{ stats[row.emp.id].present }}</td>
+                            <td class="sum" v-bind:class="{ neg: stats[row.emp.id].unpaid }" v-bind:rowspan="row.emp.shiftsPerDay">{{ stats[row.emp.id].unpaid || '–' }}</td>
+                            <td class="sum" v-bind:rowspan="row.emp.shiftsPerDay">{{ stats[row.emp.id].paid || '–' }}</td>
+                            <td class="sum" v-bind:rowspan="row.emp.shiftsPerDay">{{ stats[row.emp.id].madeUp || '–' }}</td>
+                            <td class="sum" v-bind:rowspan="row.emp.shiftsPerDay">{{ stats[row.emp.id].holidayWorked || '–' }}</td>
+                            <td class="sum" v-bind:class="{ neg: stats[row.emp.id].blank }" v-bind:rowspan="row.emp.shiftsPerDay">{{ stats[row.emp.id].blank || '–' }}</td>
+                        </template>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="pr-legend"><b>Cách nhập như Excel:</b> bấm một ô hoặc kéo chuột chọn nhiều ô (giữ Shift để mở rộng), rồi gõ <b>x</b> đi làm, <b>K</b> nghỉ không lương (trừ tiền), <b>P</b> nghỉ có lương, <b>L</b> nghỉ lễ, <b>B</b> nghỉ đã làm bù; <b>Delete</b> để xoá; phím mũi tên để di chuyển. Trên điện thoại: chạm ô rồi bấm nút trên thanh công cụ. Ô kẻ sọc là chưa chấm, không tự tính là nghỉ. Cột tô cam là ngày lễ, đỏ là Tết. Thay đổi tự lưu.</p>
+        </template>
+
+        <!-- Bảng lương -->
+        <template v-if="sheet && tab==='pay' && canManagePayroll">
+            <table class="pr-grid pr-pay" v-on:click="payClick">
+                <thead>
+                    <tr class="grp"><th class="rn"></th><th colspan="2" class="g-in stk-name">Nhân viên</th><th colspan="4" class="g-in">Mức lương</th><th class="g-in">Cơ bản</th><th colspan="2" class="g-minus">Nghỉ</th><th colspan="5" class="g-plus">Cộng / trừ</th><th class="g-out">Kết quả</th><th colspan="3" class="g-out">Chi trả</th><th class="g-out"></th></tr>
+                    <tr><th class="rn">1</th><th>STT</th><th class="stk-name">Nhân viên</th><th class="num">Lương tháng</th><th class="num">Đơn giá ngày</th><th class="num">Đơn giá ca</th><th class="num">Ca chuẩn</th><th class="num">Lương cơ bản</th><th class="num">Ca nghỉ KL</th><th class="num">Trừ ca nghỉ</th><th class="num">Ca làm lễ</th><th class="num">Phụ trội lễ/Tết</th><th class="num">Chuyên cần</th><th class="num">Khoản tăng</th><th class="num">Khoản giảm</th><th class="num">Được hưởng</th><th class="num">Đã ứng</th><th class="num">Đã trả</th><th class="num">Còn phải trả</th><th>Trạng thái</th></tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(l, i) in lines" v-bind:key="l.employeeId" v-bind:data-emp="l.employeeId">
+                        <td class="rn">{{ i + 2 }}</td><td class="ctr">{{ i + 1 }}</td>
+                        <td class="stk-name name" data-f="open">{{ empLabel(l.employeeId) }}</td>
+                        <td class="num" data-f="salary">{{ money(l.monthlySalary) }}</td>
+                        <td class="num calc" data-f="perDay">{{ money(l.salaryPerDay) }}</td>
+                        <td class="num calc" data-f="perShift">{{ money(l.salaryPerShift) }}</td>
+                        <td class="num calc" data-f="sched">{{ l.scheduledShifts }}</td>
+                        <td class="num calc" data-f="base">{{ money(l.basePay) }}</td>
+                        <td class="num" v-bind:class="{ neg: l.unpaidShifts }" data-f="unpaid">{{ l.unpaidShifts || '–' }}</td>
+                        <td class="num calc" v-bind:class="{ neg: l.unpaidDeduction }" data-f="deduct">{{ l.unpaidDeduction ? '−' + money(l.unpaidDeduction) : '–' }}</td>
+                        <td class="num" data-f="hol">{{ l.holidayWorkedShifts || '–' }}</td>
+                        <td class="num calc" v-bind:class="{ pos: l.holidayPremium }" data-f="premium">{{ dash(l.holidayPremium) }}</td>
+                        <td class="num calc" v-bind:class="l.attendanceBonus ? 'pos' : 'muted'" data-f="bonus">{{ money(l.attendanceBonus) }}</td>
+                        <td class="num calc" v-bind:class="{ pos: l.additions }" data-f="plus">{{ dash(l.additions) }}</td>
+                        <td class="num calc" v-bind:class="{ neg: l.deductions }" data-f="minus">{{ l.deductions ? '−' + money(l.deductions) : '–' }}</td>
+                        <td class="num calc strong" data-f="gross">{{ money(l.gross) }}</td>
+                        <td class="num calc" data-f="adv">{{ dash(l.advances) }}</td>
+                        <td class="num calc" data-f="paid">{{ dash(l.paid) }}</td>
+                        <td class="num calc strong" v-bind:class="{ neg: l.remaining < 0 }" data-f="remain">{{ money(l.remaining) }}</td>
+                        <td><span class="st" v-bind:class="lineState(l).cls">{{ lineState(l).text }}</span></td>
+                    </tr>
+                    <tr class="total" v-if="lines.length">
+                        <td class="rn">{{ lines.length + 2 }}</td><td></td><td class="stk-name">Tổng cộng</td><td colspan="4"></td>
+                        <td class="num">{{ money(totals.basePay) }}</td><td></td><td class="num neg">−{{ money(totals.unpaidDeduction) }}</td><td></td>
+                        <td class="num">{{ money(totals.holidayPremium) }}</td><td class="num">{{ money(totals.attendanceBonus) }}</td><td class="num">{{ money(totals.additions) }}</td><td class="num neg">−{{ money(totals.deductions) }}</td>
+                        <td class="num">{{ money(totals.gross) }}</td><td class="num">{{ money(totals.advances) }}</td><td class="num">{{ money(totals.paid) }}</td><td class="num">{{ money(totals.remaining) }}</td><td></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="pr-legend"><b>Cách tính:</b> đơn giá ngày = lương tháng ÷ {{ policy.salaryDaysBase }}; đơn giá ca = đơn giá ngày ÷ số ca/ngày; lương cơ bản = đơn giá ca × số ca chuẩn thực có trong tháng. Ca làm ngày lễ được trả tổng ×{{ policy.holidayMultiplier }}, Tết tổng ×{{ policy.tetMultiplier }}. Chuyên cần {{ money(policy.attendanceBonus) }} đ khi cả tháng không nghỉ ca nào. Bấm tên để xem phiếu lương; bấm ô số để xem cách tính trên thanh công thức.</p>
+        </template>
+
+        <!-- Tăng / giảm -->
+        <template v-if="sheet && tab==='adj' && canManagePayroll">
+            <table class="pr-grid pr-form">
+                <thead><tr><th class="rn">1</th><th>Nhân viên</th><th>Loại</th><th class="num">Số tiền (+ tăng / − giảm)</th><th>Lý do (bắt buộc)</th><th></th></tr></thead>
+                <tbody>
+                    <tr v-for="(a, i) in adjRows" v-bind:key="a.id">
+                        <td class="rn">{{ i + 2 }}</td>
+                        <td class="in"><select v-model="a.employeeId" v-bind:disabled="locked" v-on:change="saveAdj(a)"><option v-for="e in monthEmployees" v-bind:value="e.id">{{ e.code }} · {{ e.fullName }}</option></select></td>
+                        <td class="in"><input list="pr-adj-types" maxlength="50" v-model.trim="a.type" v-bind:disabled="locked" v-on:change="normalizeSign(a); saveAdj(a)" /></td>
+                        <td class="in"><input class="num" inputmode="numeric" v-bind:class="a.amount < 0 ? 'neg' : 'pos'" v-bind:value="moneyInput(a.amount)" v-bind:disabled="locked" v-on:change="a.amount = parseMoney($event.target.value); normalizeSign(a); saveAdj(a)" /></td>
+                        <td class="in"><input maxlength="500" v-model.trim="a.reason" v-bind:disabled="locked" v-on:change="saveAdj(a)" /></td>
+                        <td class="ctr"><button class="btn btn-light btn-sm" type="button" v-bind:disabled="locked || busy" v-on:click="deleteAdj(a)">Xoá</button></td>
+                    </tr>
+                    <tr class="newrow" v-if="!locked">
+                        <td class="rn">+</td>
+                        <td class="in"><select v-model="newAdj.employeeId"><option value="">Chọn nhân viên</option><option v-for="e in monthEmployees" v-bind:value="e.id">{{ e.code }} · {{ e.fullName }}</option></select></td>
+                        <td class="in"><input list="pr-adj-types" maxlength="50" v-model.trim="newAdj.type" placeholder="Thưởng, Tăng ca, Phạt…" v-on:change="normalizeSign(newAdj)" /></td>
+                        <td class="in"><input class="num" inputmode="numeric" v-bind:value="moneyInput(newAdj.amount)" v-on:change="newAdj.amount = parseMoney($event.target.value); normalizeSign(newAdj)" placeholder="0" /></td>
+                        <td class="in"><input maxlength="500" v-model.trim="newAdj.reason" placeholder="Nhập lý do" v-on:keydown.enter.prevent="addAdj" /></td>
+                        <td class="ctr"><button class="btn btn-primary btn-sm" type="button" v-bind:disabled="busy" v-on:click="addAdj">Thêm</button></td>
+                    </tr>
+                    <tr class="total"><td class="rn"></td><td>Tổng</td><td></td><td class="num">{{ money(adjRows.reduce((s, a) => s + Number(a.amount || 0), 0)) }}</td><td></td><td></td></tr>
+                </tbody>
+            </table>
+            <datalist id="pr-adj-types"><option v-for="t in adjTypes" v-bind:value="t"></option></datalist>
+            <p class="pr-legend">Mỗi dòng là một khoản cộng (số dương) hoặc trừ (số âm) vào lương tháng {{ monthLabel }}, kèm lý do. Tăng ca nhập ở đây. Loại Phạt, Trừ khác, Truy thu tự đổi thành số âm. Sửa ô nào tự lưu ô đó.</p>
+        </template>
+
+        <!-- Ứng & trả lương -->
+        <template v-if="sheet && tab==='txn' && canManagePayroll">
+            <table class="pr-grid pr-form">
+                <thead><tr><th class="rn">1</th><th>Ngày</th><th>Nhân viên</th><th>Loại</th><th class="num">Số tiền</th><th>Hình thức</th><th>Ghi chú</th><th>Trạng thái</th><th></th></tr></thead>
+                <tbody>
+                    <tr v-for="(t, i) in transactions" v-bind:key="t.id" v-bind:class="{ voided: t.isVoided }">
+                        <td class="rn">{{ i + 2 }}</td><td>{{ dateTime(t.occurredAtUtc) }}</td><td>{{ empLabel(t.employeeId) }}</td>
+                        <td><span class="st" v-bind:class="t.kind === 0 ? 'draft' : 'done'">{{ t.kind === 0 ? 'Ứng lương' : 'Trả lương' }}</span></td>
+                        <td class="num">{{ money(t.amount) }}</td><td>{{ methodText(t.method) }}</td><td>{{ t.note }}<small v-if="t.isVoided" class="muted"> · Đã huỷ: {{ t.voidReason }}</small></td>
+                        <td>{{ t.isVoided ? 'Đã huỷ' : 'Đã tạo phiếu chi' }}</td>
+                        <td class="ctr"><button class="btn btn-light btn-sm" type="button" v-if="!t.isVoided" v-bind:disabled="busy" v-on:click="openVoid(t)">Huỷ</button></td>
+                    </tr>
+                    <tr class="newrow">
+                        <td class="rn">+</td>
+                        <td class="in"><input type="datetime-local" v-model="newTxn.localAt" /></td>
+                        <td class="in"><select v-model="newTxn.employeeId"><option value="">Chọn nhân viên</option><option v-for="e in monthEmployees" v-bind:value="e.id">{{ e.code }} · {{ e.fullName }}</option></select></td>
+                        <td class="in"><select v-model.number="newTxn.kind"><option v-bind:value="0" v-bind:disabled="locked">Ứng lương</option><option v-bind:value="1" v-bind:disabled="!locked">Trả lương</option></select></td>
+                        <td class="in"><input class="num" inputmode="numeric" v-bind:value="moneyInput(newTxn.amount)" v-on:change="newTxn.amount = Math.abs(parseMoney($event.target.value))" placeholder="0" /></td>
+                        <td class="in"><select v-model.number="newTxn.method"><option v-bind:value="0">Tiền mặt</option><option v-bind:value="1">Chuyển khoản</option></select></td>
+                        <td class="in"><input maxlength="500" v-model.trim="newTxn.note" placeholder="Ghi chú" /></td>
+                        <td colspan="2" class="ctr"><button class="btn btn-primary btn-sm" type="button" v-bind:disabled="busy" v-on:click="addTxn">Ghi nhận</button></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="pr-legend">Mỗi lần ứng hoặc trả lương tự tạo một phiếu chi (danh mục "Ứng lương" / "Lương nhân viên"), nên báo cáo thu chi tính đúng theo ngày tiền ra. Phiếu chi không ghi tên nhân viên. Huỷ ở đây sẽ huỷ luôn phiếu chi; màn Thu chi không huỷ được phiếu chi lương. Ứng lương chỉ ghi khi tháng chưa chốt; trả lương chỉ khi đã chốt và không vượt số còn phải trả.</p>
+        </template>
+
+        <!-- Nhân viên -->
+        <template v-if="sheet && tab==='emp'">
+            <table class="pr-grid pr-form">
+                <thead><tr><th class="rn">1</th><th>Mã</th><th>Họ tên</th><th>Vị trí</th><th>Điện thoại</th><th class="num">Ca/ngày</th><th>Ngày vào làm</th><th>Ngày nghỉ việc</th><th class="num" v-if="canManagePayroll">Lương tháng</th><th v-if="canManagePayroll">Lương áp dụng từ</th><th v-if="canManagePayroll">Chuyên cần</th><th>Đang làm</th><th class="num">Thứ tự</th><th v-if="canManagePayroll"></th></tr></thead>
+                <tbody>
+                    <tr v-for="(e, i) in empRows" v-bind:key="e.key" v-bind:class="{ dirty: e.dirty, inactive: !e.isActive }">
+                        <td class="rn">{{ i + 2 }}</td>
+                        <template v-if="canManagePayroll">
+                            <td class="in"><input maxlength="20" v-model.trim="e.code" v-on:input="e.dirty = true" /></td>
+                            <td class="in"><input maxlength="200" v-model.trim="e.fullName" v-on:input="e.dirty = true" /></td>
+                            <td class="in"><input maxlength="100" v-model.trim="e.position" v-on:input="e.dirty = true" /></td>
+                            <td class="in"><input maxlength="30" v-model.trim="e.phone" v-on:input="e.dirty = true" /></td>
+                            <td class="in"><select v-model.number="e.shiftsPerDay" v-on:change="e.dirty = true"><option v-for="n in [1,2,3,4,5,6]" v-bind:value="n">{{ n }}</option></select></td>
+                            <td class="in"><input type="date" v-model="e.startDate" v-on:input="e.dirty = true" /></td>
+                            <td class="in"><input type="date" v-model="e.endDate" v-on:input="e.dirty = true" /></td>
+                            <td class="in"><input class="num" inputmode="numeric" v-bind:value="moneyInput(e.monthlySalary)" v-on:change="e.monthlySalary = Math.abs(parseMoney($event.target.value)); e.dirty = true" /></td>
+                            <td class="in"><input type="date" v-model="e.salaryEffectiveFrom" v-bind:disabled="!e.id || e.monthlySalary === e.originalSalary" v-on:input="e.dirty = true" v-bind:title="'Chỉ cần khi đổi lương'" /></td>
+                            <td class="ctr"><input type="checkbox" v-model="e.attendanceBonusEligible" v-on:change="e.dirty = true" /></td>
+                            <td class="ctr"><input type="checkbox" v-model="e.isActive" v-on:change="e.dirty = true" /></td>
+                            <td class="in"><input class="num" type="number" min="0" max="999" v-model.number="e.sortOrder" v-on:input="e.dirty = true" /></td>
+                            <td class="ctr"><button class="btn btn-sm" type="button" v-bind:class="e.dirty ? 'btn-primary' : 'btn-light'" v-bind:disabled="busy || !e.dirty" v-on:click="saveEmp(e)">{{ e.id ? 'Lưu' : 'Thêm' }}</button></td>
+                        </template>
+                        <template v-else>
+                            <td>{{ e.code }}</td><td>{{ e.fullName }}</td><td>{{ e.position }}</td><td>{{ e.phone }}</td><td class="num">{{ e.shiftsPerDay }}</td><td>{{ dateText(e.startDate) }}</td><td>{{ dateText(e.endDate) }}</td><td class="ctr">{{ e.isActive ? '✓' : '' }}</td><td class="num">{{ e.sortOrder }}</td>
+                        </template>
+                    </tr>
+                </tbody>
+            </table>
+            <button class="btn btn-light pr-addrow" type="button" v-if="canManagePayroll" v-on:click="addEmpRow">+ Thêm nhân viên</button>
+            <p class="pr-legend">Nhân viên là hồ sơ riêng, không phải tài khoản đăng nhập. Khi đổi lương, chọn ngày áp dụng; ca trước ngày đó vẫn tính theo lương cũ, tháng đã chốt không bị ảnh hưởng. Đổi số ca/ngày sẽ đổi số dòng ở trang Chấm công.</p>
+        </template>
+
+        <!-- Cài đặt -->
+        <template v-if="sheet && tab==='set' && canManagePayroll">
+            <div class="pr-settings">
+                <h2>Chính sách lương của cơ sở</h2>
+                <table class="pr-grid pr-form">
+                    <tbody>
+                        <tr><th>Số ngày chia lương</th><td class="in"><input class="num" type="number" min="1" max="31" v-model.number="policyForm.salaryDaysBase" /></td><td class="muted">Đơn giá ngày = lương tháng ÷ số này (mặc định 30). Tháng 31 ngày được 31 ngày lương, tháng 2 theo ngày thực.</td></tr>
+                        <tr><th>Chuyên cần (đ/tháng)</th><td class="in"><input class="num" inputmode="numeric" v-bind:value="moneyInput(policyForm.attendanceBonus)" v-on:change="policyForm.attendanceBonus = Math.abs(parseMoney($event.target.value))" /></td><td class="muted">Được khi cả tháng không nghỉ ca nào (nghỉ lễ không tính).</td></tr>
+                        <tr><th>Hệ số ngày lễ (tổng)</th><td class="in"><input class="num" type="number" min="1" max="10" step="0.5" v-model.number="policyForm.holidayMultiplier" /></td><td class="muted">Ca làm ngày lễ được trả tổng × hệ số.</td></tr>
+                        <tr><th>Hệ số Tết (tổng)</th><td class="in"><input class="num" type="number" min="1" max="10" step="0.5" v-model.number="policyForm.tetMultiplier" /></td><td class="muted">Ca làm ngày Tết được trả tổng × hệ số.</td></tr>
+                    </tbody>
+                </table>
+                <button class="btn btn-primary pr-addrow" type="button" v-bind:disabled="busy" v-on:click="savePolicy">Lưu chính sách</button>
+                <h2>Ngày lễ / Tết năm {{ month.slice(0, 4) }}</h2>
+                <table class="pr-grid pr-form">
+                    <thead><tr><th>Ngày</th><th>Tên</th><th>Loại</th><th></th></tr></thead>
+                    <tbody>
+                        <tr v-for="h in sheet.holidays" v-bind:key="h.id"><td>{{ dateText(h.date) }}</td><td>{{ h.name }}</td><td>{{ h.kind === 1 ? 'Tết' : 'Lễ' }}</td><td class="ctr"><button class="btn btn-light btn-sm" type="button" v-bind:disabled="busy" v-on:click="deleteHoliday(h)">Xoá</button></td></tr>
+                        <tr class="newrow"><td class="in"><input type="date" v-model="newHoliday.date" /></td><td class="in"><input maxlength="120" v-model.trim="newHoliday.name" placeholder="VD: Quốc khánh" /></td><td class="in"><select v-model.number="newHoliday.kind"><option v-bind:value="0">Lễ</option><option v-bind:value="1">Tết</option></select></td><td class="ctr"><button class="btn btn-primary btn-sm" type="button" v-bind:disabled="busy" v-on:click="addHoliday">Thêm</button></td></tr>
+                    </tbody>
+                </table>
+                <p class="pr-legend">Ngày lễ nhập theo từng năm (Tết âm lịch đổi mỗi năm). Không thêm/xoá được ngày thuộc tháng đã chốt.</p>
+            </div>
+        </template>
+    </div>
+
+    <div class="pr-status"><span v-for="s in statusItems">{{ s }}</span><span class="r">{{ blankTotal ? 'Còn ' + blankTotal + ' ô chưa chấm' : 'Đã chấm đủ' }}</span></div>
+    <nav class="pr-tabs" aria-label="Các trang">
+        <button type="button" v-for="t in visibleTabs" v-bind:key="t.key" v-bind:class="{ on: tab === t.key }" v-on:click="switchTab(t.key)">{{ t.name }}</button>
+    </nav>
+
+    <div class="pr-scrim" v-if="drawer" v-on:click="drawer = null"></div>
+    <aside class="pr-drawer" v-if="drawer" aria-label="Phiếu lương">
+        <header><div><h2>{{ drawer.emp.fullName }}</h2><div class="muted">{{ drawer.emp.code }} · {{ drawer.emp.position || 'Nhân viên' }} · {{ monthLabel }}</div></div><button type="button" class="pr-x" v-on:click="drawer = null" aria-label="Đóng">×</button></header>
+        <div class="body">
+            <h3>Mức lương</h3>
+            <table class="kv">
+                <tr><td>Lương tháng</td><td>{{ money(drawer.line.monthlySalary) }}</td></tr>
+                <tr><td>Đơn giá ngày <small>(÷ {{ policy.salaryDaysBase }})</small></td><td>{{ money(drawer.line.salaryPerDay) }}</td></tr>
+                <tr><td>Đơn giá ca <small>(÷ {{ drawer.emp.shiftsPerDay }} ca)</small></td><td>{{ money(drawer.line.salaryPerShift) }}</td></tr>
+                <tr><td>Ca chuẩn trong tháng</td><td>{{ drawer.line.scheduledShifts }}</td></tr>
+            </table>
+            <h3>Thu nhập</h3>
+            <table class="kv">
+                <tr><td>Lương cơ bản</td><td>{{ money(drawer.line.basePay) }}</td></tr>
+                <tr><td>Trừ {{ drawer.line.unpaidShifts }} ca nghỉ không lương<br /><small>{{ slotList(drawer.line.unpaidSlots, drawer.emp) }}</small></td><td class="neg">{{ drawer.line.unpaidDeduction ? '−' + money(drawer.line.unpaidDeduction) : '0' }}</td></tr>
+                <tr><td>Phụ trội {{ drawer.line.holidayWorkedShifts }} ca lễ/Tết<br /><small>{{ slotList(drawer.line.holidayWorkedSlots, drawer.emp) }}</small></td><td>{{ money(drawer.line.holidayPremium) }}</td></tr>
+                <tr><td>Chuyên cần<br /><small v-if="drawer.line.attendanceBonusLostReason">Không được: {{ drawer.line.attendanceBonusLostReason }}</small></td><td>{{ money(drawer.line.attendanceBonus) }}</td></tr>
+                <tr v-for="a in drawer.adjustments" v-bind:key="a.id"><td>{{ a.type }}<br /><small>{{ a.reason }}</small></td><td v-bind:class="{ neg: a.amount < 0 }">{{ money(a.amount) }}</td></tr>
+                <tr class="big"><td>Được hưởng</td><td>{{ money(drawer.line.gross) }}</td></tr>
+            </table>
+            <h3>Chi trả</h3>
+            <table class="kv">
+                <tr v-for="t in drawer.transactions" v-bind:key="t.id"><td>{{ t.kind === 0 ? 'Ứng' : 'Trả lương' }} {{ dateTime(t.occurredAtUtc) }}<br /><small>{{ methodText(t.method) }}{{ t.note ? ' · ' + t.note : '' }}</small></td><td>−{{ money(t.amount) }}</td></tr>
+                <tr class="big"><td>Còn phải trả</td><td>{{ money(drawer.line.remaining) }}</td></tr>
+            </table>
+            <template v-if="drawer.notes.length"><h3>Ghi chú chấm công</h3><p class="muted" v-for="n in drawer.notes">{{ n }}</p></template>
+        </div>
+        <footer>
+            <button class="btn btn-light" type="button" v-if="!locked" v-on:click="startAdj(drawer.emp)">+ Tăng/giảm</button>
+            <button class="btn btn-light" type="button" v-if="!locked" v-on:click="startTxn(drawer.emp, 0)">+ Ứng lương</button>
+            <button class="btn btn-primary" type="button" v-if="locked && drawer.line.remaining > 0" v-on:click="startTxn(drawer.emp, 1, drawer.line.remaining)">Trả lương</button>
+            <button class="btn btn-light" type="button" v-on:click="copyPayslip">Sao chép phiếu lương</button>
+        </footer>
+    </aside>
+
+    <div class="modal-backdrop" v-if="dialog" v-on:click.self="dialog = null">
+        <section class="modal pr-dialog" role="dialog" aria-modal="true" v-bind:aria-label="dialog.title">
+            <h2>{{ dialog.title }}</h2>
+            <p class="muted" v-if="dialog.text">{{ dialog.text }}</p>
+            <label>{{ dialog.label }}<textarea maxlength="1000" v-model.trim="dialog.value"></textarea></label>
+            <div class="pr-dialog-actions"><button class="btn btn-light" type="button" v-on:click="dialog = null">Thôi</button><button class="btn btn-danger" type="button" v-bind:disabled="busy || !dialog.value" v-on:click="dialog.confirm()">{{ dialog.action }}</button></div>
+        </section>
+    </div>
+</div>
+@section Scripts {
+    <script src="~/js/pages/admin-payroll.js" asp-append-version="true"></script>
+}

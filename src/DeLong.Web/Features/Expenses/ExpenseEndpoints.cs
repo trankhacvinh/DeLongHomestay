@@ -64,6 +64,7 @@ public static class ExpenseEndpoints
         {
             "not_found" => 404,
             "already_voided" => 409,
+            "linked_source" => 409,
             _ => 400
         };
         return Results.Problem(

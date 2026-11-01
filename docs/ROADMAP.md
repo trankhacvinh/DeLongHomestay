@@ -316,3 +316,8 @@
 ## Kho và tiền mặt — 1.8.23
 
 Đã làm trong source: nơi nhận tự do/gợi ý lại, thống kê kho, màu nhập/xuất/hết hàng, ẩn mã, cột mobile gọn và timeout/hủy request tiền mặt. Còn triển khai migration/publish mới, xác minh VPS và UAT điện thoại thật. Xem [bàn giao](INVENTORY-RECIPIENTS-CASH-2026-10-29.md).
+
+## Chấm công và tính lương (01/11/2026)
+
+- [x] Bảng chấm công kiểu Excel, bảng lương, tăng/giảm, ứng/trả liên kết chi phí, chốt tháng. Xem [PAYROLL.md](PAYROLL.md).
+- [ ] Áp migration `AddPayroll`, deploy, nhập nhân viên/lương thật và UAT một tháng với chủ cơ sở.

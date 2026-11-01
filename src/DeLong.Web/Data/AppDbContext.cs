@@ -36,6 +36,14 @@ public sealed class AppDbContext
     public DbSet<PropertyPay2SSettings> PropertyPay2SSettings => Set<PropertyPay2SSettings>();
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<CashReceipt> CashReceipts => Set<CashReceipt>();
+    public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<EmployeeSalaryRate> EmployeeSalaryRates => Set<EmployeeSalaryRate>();
+    public DbSet<AttendanceEntry> AttendanceEntries => Set<AttendanceEntry>();
+    public DbSet<PayrollAdjustment> PayrollAdjustments => Set<PayrollAdjustment>();
+    public DbSet<PayrollHoliday> PayrollHolidays => Set<PayrollHoliday>();
+    public DbSet<PayrollPolicy> PayrollPolicies => Set<PayrollPolicy>();
+    public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
+    public DbSet<PayrollTransaction> PayrollTransactions => Set<PayrollTransaction>();
     public DbSet<InventoryWarehouse> InventoryWarehouses => Set<InventoryWarehouse>();
     public DbSet<InventoryUnit> InventoryUnits => Set<InventoryUnit>();
     public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
@@ -610,6 +618,8 @@ public sealed class AppDbContext
             entity.Property(x => x.Reference).HasMaxLength(200);
             entity.Property(x => x.Note).HasMaxLength(2000);
             entity.Property(x => x.VoidReason).HasMaxLength(1000);
+            entity.Property(x => x.SourceType).HasMaxLength(30);
+            entity.HasIndex(x => new { x.SourceType, x.SourceId });
             entity.HasOne(x => x.Property).WithMany().HasForeignKey(x => x.PropertyId).OnDelete(DeleteBehavior.Restrict);
         });
 
