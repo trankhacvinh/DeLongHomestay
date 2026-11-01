@@ -9,6 +9,7 @@
     const MAX_SCALE = 1.6;
     const COMPACT_SCALE = 0.6;
     const WEEKDAYS = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    const WEEKDAYS_SHORT = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
     const ROOM_COLORS = ['#C97B6B', '#2F5D6B', '#7A8F3C', '#8A5A9E', '#B8873A', '#3D7F8F', '#A35468', '#4F6FA8', '#6B7F5C', '#9A6B3F'];
 
     function parseKey(key) {
@@ -114,10 +115,10 @@
 
         host.innerHTML = [
             '<div class="cal-ov-toolbar">',
-            '  <div class="cal-ov-range"><button type="button" data-ov-prev aria-label="Khoảng trước">‹</button><button type="button" data-ov-today>Hôm nay</button><button type="button" data-ov-next aria-label="Khoảng sau">›</button><strong data-ov-range-label>—</strong></div>',
+            '  <div class="cal-ov-range"><button type="button" class="cal-ov-arrow" data-ov-prev aria-label="Khoảng trước">‹</button><strong data-ov-range-label>—</strong><button type="button" class="cal-ov-arrow" data-ov-next aria-label="Khoảng sau">›</button><button type="button" data-ov-today>Hôm nay</button></div>',
             '  <div class="cal-ov-period" role="group" aria-label="Số ngày hiển thị"><button type="button" data-ov-period="14">14 ngày</button><button type="button" data-ov-period="month">Cả tháng</button></div>',
-            '  <label class="cal-ov-scope" data-ov-scope-wrap hidden><span>Chi nhánh</span><select data-ov-scope aria-label="Chi nhánh"></select></label>',
-            '  <label class="cal-ov-jump"><span>Đến phòng</span><select data-ov-jump aria-label="Đến phòng"><option value="">Chọn phòng…</option></select></label>',
+            '  <div class="cal-ov-pickers"><label class="cal-ov-scope" data-ov-scope-wrap hidden><span>Chi nhánh</span><select data-ov-scope aria-label="Chi nhánh"></select></label>',
+            '  <label class="cal-ov-jump"><span>Đến phòng</span><select data-ov-jump aria-label="Đến phòng"><option value="">Đến phòng…</option></select></label></div>',
             '  <div class="cal-ov-zoom" role="group" aria-label="Thu phóng"><button type="button" data-ov-zoom-out aria-label="Thu nhỏ">−</button><output data-ov-zoom-label>80%</output><button type="button" data-ov-zoom-in aria-label="Phóng to">+</button><button type="button" data-ov-fit>Toàn cảnh</button></div>',
             '</div>',
             '<div class="cal-ov-status" data-ov-status role="status">Đang tải tổng quan…</div>',
@@ -277,7 +278,7 @@
             const fragment = document.createDocumentFragment();
             const placeholder = document.createElement('option');
             placeholder.value = '';
-            placeholder.textContent = 'Chọn phòng…';
+            placeholder.textContent = 'Đến phòng…';
             fragment.appendChild(placeholder);
             const multi = (state.data?.properties || []).length > 1;
             let group = null;
@@ -358,7 +359,9 @@
                 if (dateKey === today) tr.classList.add('today');
                 if (weekday === 0 || weekday === 6) tr.classList.add('weekend');
                 const th = el('th', 'cal-ov-day');
-                th.append(el('b', '', WEEKDAYS[weekday]), el('small', '', `${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}`));
+                const weekdayLabel = el('b');
+                weekdayLabel.append(el('span', 'wd-long', WEEKDAYS[weekday]), el('span', 'wd-short', WEEKDAYS_SHORT[weekday]));
+                th.append(weekdayLabel, el('small', '', `${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}`));
                 tr.appendChild(th);
                 state.model.forEach((item, roomIndex) => {
                     const day = item.days.find(entry => entry.date === dateKey);
