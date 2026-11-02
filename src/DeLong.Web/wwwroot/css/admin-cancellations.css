@@ -1,18 +1,54 @@
+/* Trang Hủy & hoàn tiền: gọn hơn và chữ đậm hơn để dễ đọc. */
+.cancellations-page{gap:12px;font-size:13px;color:#1c2f2c}
+.cancellations-page h1{font-size:22px;margin:0}
+.cancellations-page .ops-note,.cancel-modal .ops-note{color:#34484a;font-size:12.5px;line-height:1.5}
+.cancellations-page .ops-panel{padding:12px}
+.cancellations-page .ops-toolbar{gap:8px 10px}
+.cancellations-page .ops-toolbar label{gap:3px;min-width:120px;font-size:12px;font-weight:600;color:#1c2f2c}
 .cancellations-page .ops-toolbar .cancel-search{flex:1 1 220px}
-.cancellations-page .cancel-table{min-width:980px}
-.cancellations-page .cancel-table td small{display:block}
-.cancellations-page .cancel-owed{color:#a12c25;font-weight:600}
+.cancellations-page .ops-toolbar input,.cancellations-page .ops-toolbar select{min-height:34px;padding:4px 8px;font-size:13px;color:#102421;border-radius:8px}
+.cancellations-page .ops-toolbar .btn,.cancellations-page .btn-sm{min-height:34px;padding:4px 12px;font-size:13px;border-radius:8px}
+.cancellations-page .ops-kpis{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.cancellations-page .ops-kpis article{padding:8px 12px;border-radius:10px}
+.cancellations-page .ops-kpis span{font-size:12px;color:#34484a;font-weight:600}
+.cancellations-page .ops-kpis strong{margin-top:2px;font-size:17px;color:#102421}
 .cancellations-page .cancel-kpi-warn.active{border-color:#eab7b2;background:#fff5f4}
 .cancellations-page .cancel-kpi-warn.active strong{color:#a12c25}
-.cancel-badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;background:#eef3f2;color:#3f5551}
-.cancel-badge.is-pending{background:#fff1e0;color:#9a5a00}
-.cancel-badge.is-partial{background:#fff7d6;color:#7a6200}
-.cancel-badge.is-refunded{background:#e4f5ec;color:#16613e}
-.cancel-badge.is-kept{background:#ede9fb;color:#4b3a9a}
-.cancel-pager{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:12px;font-size:13px;color:#556f6a}
-.cancel-modal h3{margin:18px 0 8px;font-size:15px}
-.cancel-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:12px 0}
-.cancel-summary div{padding:10px 12px;border:1px solid #dce7e4;border-radius:10px;background:#f8fbfa}
-.cancel-summary span{display:block;font-size:12px;color:#607370}
-.cancel-summary strong{display:block;margin-top:4px}
-@media(max-width:650px){.cancellations-page .ops-toolbar label{flex:1 1 100%}}
+.cancellations-page .cancel-table{min-width:900px}
+.cancellations-page .ops-scroll th{padding:6px 8px;font-size:12px;color:#2c4440}
+.cancellations-page .ops-scroll td{padding:6px 8px;font-size:13px;line-height:1.35;color:#1c2f2c}
+.cancellations-page .ops-scroll td small{margin-top:1px;font-size:12px;color:#34484a}
+.cancellations-page .cancel-owed{color:#a12c25;font-weight:700}
+.cancellations-page .muted{color:#34484a!important}
+.cancel-badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;background:#e3ebe9;color:#26403c}
+.cancel-badge.is-pending{background:#ffe9cc;color:#7d4600}
+.cancel-badge.is-partial{background:#fff0b8;color:#5f4c00}
+.cancel-badge.is-refunded{background:#d5f0e1;color:#0f5133}
+.cancel-badge.is-kept{background:#e4defa;color:#3b2c86}
+.cancel-pager{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;font-size:12.5px;color:#34484a}
+
+/* Cửa sổ chi tiết hoàn tiền */
+.cancel-modal{padding:14px 16px;font-size:13px;color:#1c2f2c;max-width:760px}
+.cancel-modal h2{margin:0 0 4px;font-size:17px}
+.cancel-modal h3{margin:12px 0 6px;font-size:13.5px;color:#102421}
+.cancel-modal label{gap:3px;font-size:12px;font-weight:600;color:#1c2f2c}
+.cancel-modal input,.cancel-modal select{min-height:34px;padding:4px 8px;font-size:13px;color:#102421;border-radius:8px}
+.cancel-modal .btn{min-height:32px;padding:4px 12px;font-size:13px;border-radius:8px}
+.cancel-modal .ops-form{gap:8px 10px;grid-template-columns:repeat(4,minmax(0,1fr))}
+.cancel-modal .ops-form label.wide{grid-column:span 2}
+.cancel-modal .ops-form input,.cancel-modal .ops-form select{min-width:0;max-width:100%;width:100%;box-sizing:border-box;font-size:13px}
+.cancel-modal .ops-actions{margin-top:6px;gap:6px}
+.cancel-modal .ops-fieldset{margin-top:2px}
+.cancel-modal .ops-details{gap:0}
+.cancel-modal .ops-details article{padding:6px 0;display:flex;flex-wrap:wrap;align-items:center;gap:2px 12px}
+.cancel-modal .ops-details article>strong{font-size:13.5px}
+.cancel-modal .ops-details article>p{margin:0;font-size:12.5px;color:#34484a}
+.cancel-modal .ops-details article>.ops-actions{margin:0 0 0 auto}
+.cancel-modal .ops-details article>fieldset{width:100%}
+.cancel-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:8px 0}
+.cancel-summary div{padding:6px 8px;border:1px solid #c5d6d2;border-radius:8px;background:#f4f8f7}
+.cancel-summary span{display:block;font-size:11.5px;color:#34484a;font-weight:600}
+.cancel-summary strong{display:block;margin-top:1px;font-size:13.5px;color:#102421}
+@media(max-width:760px){.cancel-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.cancel-modal .ops-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.cancellations-page .ops-toolbar label{flex:1 1 140px}}
+@media(max-width:520px){.cancel-modal .ops-form{grid-template-columns:1fr}.cancel-modal .ops-form label.wide{grid-column:auto}}
