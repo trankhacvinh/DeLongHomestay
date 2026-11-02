@@ -162,6 +162,20 @@ public sealed class PublicRedesignSourceContractTests
         Assert.Contains("app.MapGet(\"/api/public/rooms-availability\"", endpoints, StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Footer_maps_load_near_viewport_and_calendar_heads_use_room_thumbs()
+    {
+        var layout = ReadRepositoryFile("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var shell = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/core/shell.js");
+        var calendar = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/public-availability-calendar.js");
+
+        Assert.Contains("<iframe data-map-src=\"@mapEmbed\"", layout, StringComparison.Ordinal);
+        Assert.DoesNotContain("<iframe src=\"@mapEmbed\"", layout, StringComparison.Ordinal);
+        Assert.Contains("iframe[data-map-src]", shell, StringComparison.Ordinal);
+        Assert.Contains("image.src = headThumbUrl(coverUrl);", calendar, StringComparison.Ordinal);
+    }
+
     private static string ReadRepositoryFile(string relativePath) => File.ReadAllText(RepositoryPath(relativePath));
 
     private static string RepositoryPath(string relativePath)

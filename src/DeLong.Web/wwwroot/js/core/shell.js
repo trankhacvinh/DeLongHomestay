@@ -309,3 +309,28 @@
         if (event.matches) setOpen(false);
     });
 })();
+
+// Footer Google Maps embeds are heavy (each pulls several hundred KB of Google scripts).
+// loading="lazy" still fetched them right away on desktop, so attach the src only when a
+// map is about to scroll into view.
+(function () {
+    const maps = document.querySelectorAll('iframe[data-map-src]');
+    if (maps.length === 0) return;
+    const show = frame => {
+        if (!frame.dataset.mapSrc) return;
+        frame.src = frame.dataset.mapSrc;
+        delete frame.dataset.mapSrc;
+    };
+    if (!('IntersectionObserver' in window)) {
+        maps.forEach(show);
+        return;
+    }
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            observer.unobserve(entry.target);
+            show(entry.target);
+        });
+    }, { rootMargin: '400px 0px' });
+    maps.forEach(frame => observer.observe(frame));
+})();

@@ -30,6 +30,9 @@
     // Formatters are created once: building an Intl formatter per slot made large calendars freeze.
     const moneyFormat = new Intl.NumberFormat('vi-VN');
     const money = value => `${moneyFormat.format(Number(value || 0))}đ`;
+    // Calendar column heads show the room photo at ~30-48px; the 480px thumb variant saved next to
+    // every room card is plenty and much lighter than the 900px card image.
+    const headThumbUrl = url => /\/uploads\/rooms\/.+\/card\.webp(\?|$)/.test(url) ? url.replace(/\/card\.webp(?=\?|$)/, '/thumb.webp') : url;
     const timeFormats = new Map();
     const element = (tag, className, text) => {
         const node = document.createElement(tag);
@@ -381,9 +384,11 @@
                     const coverUrl = room.coverImageUrl?.trim();
                     if (coverUrl) {
                         const image = element('img');
-                        image.src = coverUrl;
+                        image.src = headThumbUrl(coverUrl);
+                        if (image.src !== new URL(coverUrl, location.href).href) image.addEventListener('error', () => { image.src = coverUrl; }, { once: true });
                         image.alt = '';
                         image.loading = 'lazy';
+                        image.decoding = 'async';
                         cell.appendChild(image);
                     }
                     const label = element('span');

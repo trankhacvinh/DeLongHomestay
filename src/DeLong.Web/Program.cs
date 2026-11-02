@@ -82,7 +82,11 @@ builder.Services
 
 var publicCacheEnabled = builder.Configuration.GetValue<bool?>("Performance:PublicCacheEnabled")
     ?? !builder.Environment.IsDevelopment();
-var publicCacheSeconds = Math.Clamp(builder.Configuration.GetValue<int?>("Performance:PublicCacheSeconds") ?? 30, 1, 3600);
+// Admin edits invalidate the public-content tag immediately, so the TTL only bounds how stale
+// data can get if a write bypasses EF SaveChanges. A short TTL made most guest visits on this
+// low-traffic site reload everything from the database (~2 s TTFB on the home page).
+var publicCacheSeconds = Math.Clamp(builder.Configuration.GetValue<int?>("Performance:PublicCacheSeconds") ?? 900, 1, 3600);
+var publicCacheWarmupSeconds = Math.Clamp(builder.Configuration.GetValue<int?>("Performance:PublicCacheWarmupSeconds") ?? 15, 0, 3600);
 builder.Services.AddScoped<AiDataInvalidationInterceptor>();
 if (publicCacheEnabled)
 {
@@ -90,7 +94,12 @@ if (publicCacheEnabled)
     builder.Services.AddFusionCache()
         .WithDefaultEntryOptions(new FusionCacheEntryOptions()
             .SetDuration(TimeSpan.FromSeconds(publicCacheSeconds))
-            .SetFailSafe(true, TimeSpan.FromMinutes(2)));
+            .SetFailSafe(true, TimeSpan.FromHours(2)));
+    if (publicCacheWarmupSeconds > 0)
+        builder.Services.AddHostedService(services => new PublicCacheWarmupWorker(
+            services.GetRequiredService<IServiceScopeFactory>(),
+            TimeSpan.FromSeconds(publicCacheWarmupSeconds),
+            services.GetRequiredService<ILogger<PublicCacheWarmupWorker>>()));
     builder.Services.AddDbContext<AppDbContext>((services, options) =>
         options.UseNpgsql(connectionString)
             .AddInterceptors(services.GetRequiredService<PublicCacheInvalidationInterceptor>(), services.GetRequiredService<AiDataInvalidationInterceptor>()));

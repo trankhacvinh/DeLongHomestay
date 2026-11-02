@@ -771,7 +771,7 @@ else
                                 <div class="public-footer-contact-map@(string.IsNullOrWhiteSpace(mapEmbed) ? " is-link-only" : string.Empty)">
                                     @if (!string.IsNullOrWhiteSpace(mapEmbed))
                                     {
-                                        <iframe src="@mapEmbed" title="Bản đồ @contact.Name" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+                                        <iframe data-map-src="@mapEmbed" title="Bản đồ @contact.Name" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
                                     }
                                     else
                                     {
