@@ -527,3 +527,42 @@ html body.public-body .public-main:has(> .public-hero:first-child),
 html body.public-body .public-main:has(> .lux-page-hero:first-child),
 html body.public-body .public-main:has(> .lookup-page:first-child){padding-top:0!important}
 .lux-faq-search .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* Spacing fixes (owner feedback 2026-11-02): the room marquee is the top edge of the rooms band with
+   real room before the heading; blog copy must not inherit the standard theme's 560px flex-basis
+   (in a column it became an empty 560px block) and the cover fills the card width. */
+html body.public-body .public-main .public-cms-room-grid:has(> .public-room-marquee){padding-top:0!important}
+html body.public-body .public-main .public-cms-room-grid > .public-room-marquee{margin:0 0 clamp(56px,7vw,104px)!important}
+html body.public-body .public-main .public-editorial-blog .public-blog-copy{flex:none!important}
+html body.public-body .public-main .public-editorial-blog .public-blog-media{width:100%!important;height:auto!important;min-height:0!important;padding:0!important}
+html body.public-body .public-main .public-editorial-blog .public-blog-media span{padding:22px}
+
+/* Policy text keeps a reading size even when it is not split into sections (e.g. while an admin is
+   signed in and the inline editor needs the raw HTML): headings inside the card are small sans titles. */
+html body.public-body .lux-policy-card .public-cms-rich-inner h1,
+html body.public-body .lux-policy-card .public-cms-rich-inner h2,
+html body.public-body .lux-policy-card .public-cms-rich-inner h3,
+html body.public-body .lux-policy-card .public-cms-rich-inner h4{
+    margin:28px 0 8px!important;font-family:var(--dl-sans)!important;font-weight:600!important;
+    font-size:18px!important;line-height:1.4!important;letter-spacing:0!important;text-transform:none!important;color:var(--dl-ink)!important;
+}
+html body.public-body .lux-policy-card .public-cms-rich-inner h3,
+html body.public-body .lux-policy-card .public-cms-rich-inner h4{font-size:16px!important}
+html body.public-body .lux-policy-card .public-cms-rich-inner p{margin:0 0 10px}
+html body.public-body .lux-policy-card .public-cms-rich-inner h2.lux-policy-section-title{margin:0 0 8px!important}
+
+/* AI assistant launcher: a small dark pill with a gold mark instead of the plain teal disc. */
+html body.public-body .public-ai-launch{
+    width:auto;height:48px;padding:0 18px 0 14px;border:1px solid rgba(226,196,142,.55);border-radius:999px;
+    background:rgba(13,43,46,.94);color:var(--lux-cream);font-size:0;
+    display:inline-flex;align-items:center;gap:8px;
+    box-shadow:0 14px 34px -12px rgba(10,35,38,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    transition:transform .3s var(--lux-ease),border-color .3s;
+}
+html body.public-body .public-ai-launch::before{content:"✦";font-size:15px;line-height:1;color:var(--lux-gold)}
+html body.public-body .public-ai-launch::after{content:"Hỏi trợ lý";font-family:var(--dl-sans);font-size:14px;font-weight:500;letter-spacing:.01em}
+html body.public-body .public-ai-launch:hover{transform:translateY(-2px);border-color:var(--lux-gold)}
+@media(max-width:560px){
+    html body.public-body .public-ai-launch{height:44px;padding:0 14px 0 12px;right:14px;bottom:14px}
+}
+html body.public-body .public-ai-launch[hidden]{display:none!important}
