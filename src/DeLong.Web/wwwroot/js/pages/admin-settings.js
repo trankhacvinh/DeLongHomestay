@@ -216,7 +216,7 @@
             },
             notificationDate(value) {
                 if (!value) return '';
-                return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeStyle: 'short' }).format(new Date(value));
+                return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
             },
             async saveHousekeepingSettings() {
                 const before = Number(this.housekeeping.beforeCheckInMinutes);
