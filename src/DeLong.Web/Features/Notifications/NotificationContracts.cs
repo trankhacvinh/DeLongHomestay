@@ -44,7 +44,8 @@ public sealed record NotificationSettingsDto(
     DateTime? LastTelegramSentAtUtc,
     string? LastTelegramError,
     DateTime? LastTelegramErrorAtUtc,
-    IReadOnlyList<string>? TelegramEventTypes = null);
+    IReadOnlyList<string>? TelegramEventTypes = null,
+    bool ManagerCancellationEmailEnabled = true);
 
 public sealed class UpdateNotificationSettingsRequest
 {
@@ -52,6 +53,7 @@ public sealed class UpdateNotificationSettingsRequest
     public bool EmailBookingEnabled { get; set; }
     public bool GuestCheckInEmailEnabled { get; set; }
     public bool GuestCancellationEmailEnabled { get; set; } = true;
+    public bool ManagerCancellationEmailEnabled { get; set; } = true;
     public string? InternalBookingEmailSubjectTemplate { get; set; }
     public string? InternalBookingEmailBodyTemplate { get; set; }
     public string? GuestCheckInEmailSubjectTemplate { get; set; }

@@ -1,4 +1,5 @@
 using DeLong.Web.Data;
+using DeLong.Web.Features.Cancellations;
 using DeLong.Web.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,7 +42,9 @@ public sealed record ReportSnapshotDto(
     IReadOnlyList<ReportOutstandingBucketDto> OutstandingBuckets,
     IReadOnlyList<ReportDailyDto> Daily,
     IReadOnlyList<ReportWeeklyDto> Weekly,
-    IReadOnlyList<ReportTrendDto> Trend);
+    IReadOnlyList<ReportTrendDto> Trend,
+    decimal RefundsOwed = 0,
+    decimal CancellationKept = 0);
 
 public sealed class ReportService(AppDbContext db)
 {
@@ -256,6 +259,7 @@ public sealed class ReportService(AppDbContext db)
             BuildOutstandingBucket("overdue31", "Quá trên 30 ngày", outstandingRows.Where(x => DaysSinceCheckIn(x.CheckInUtc, today, timeZone) > 30))
         };
 
+        var cancellationMetrics = await CancellationMetrics.GetAsync(db, propertyId, fromUtc, toUtc, cancellationToken);
         return new ReportSnapshotDto(
             bookingRows.Count,
             cancelledBookingCount,
@@ -281,7 +285,9 @@ public sealed class ReportService(AppDbContext db)
             outstandingBuckets,
             daily,
             weekly,
-            trend);
+            trend,
+            cancellationMetrics.RefundsOwed,
+            cancellationMetrics.KeptInPeriod);
     }
 
     private static decimal SignedAmount(PaymentRow row) => row.Type == PaymentType.Receipt ? row.Amount : -row.Amount;

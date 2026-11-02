@@ -80,6 +80,8 @@ public sealed class PaymentService(
         await db.SaveChangesAsync(cancellationToken);
         if (payment.Type == PaymentType.Receipt)
             await TryNotifyReceiptAsync(propertyId, bookingId, payment, cancellationToken);
+        else
+            await TryNotifyRefundAsync(propertyId, bookingId, payment, recordedByUserId, cancellationToken);
         return (ToDto(payment), null);
     }
 
@@ -117,6 +119,24 @@ public sealed class PaymentService(
         await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, payment.BookingId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return (ToDto(payment), null);
+    }
+
+    public async Task TryNotifyRefundAsync(Guid propertyId, Guid bookingId, Payment payment, Guid? actorUserId, CancellationToken cancellationToken)
+    {
+        if (notificationService is null) return;
+        try
+        {
+            var netPaid = await GetNetPaidAsync(propertyId, bookingId, cancellationToken);
+            var actorName = actorUserId.HasValue
+                ? await db.Users.AsNoTracking().Where(x => x.Id == actorUserId.Value)
+                    .Select(x => x.DisplayName != "" ? x.DisplayName : (x.Email ?? x.UserName)).SingleOrDefaultAsync(cancellationToken)
+                : null;
+            await notificationService.NotifyRefundRecordedAsync(propertyId, bookingId, payment.Id, payment.Amount, payment.Method, actorName, netPaid, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Could not notify refund {PaymentId} for booking {BookingId}.", payment.Id, bookingId);
+        }
     }
 
     private async Task TryNotifyReceiptAsync(Guid propertyId, Guid bookingId, Payment payment, CancellationToken cancellationToken)

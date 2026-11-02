@@ -1,0 +1,207 @@
+@page "/Admin/Cancellations"
+@model DeLong.Web.Pages.Admin.Cancellations.IndexModel
+@{ ViewData["Title"] = "Hủy phòng & hoàn tiền"; }
+@section Head {
+    <link rel="stylesheet" href="~/css/admin-operations-ledger.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-cancellations.css" asp-append-version="true" />
+}
+<script id="cancellations-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+<div id="cancellations-page" class="operations-ledger cancellations-page" v-cloak>
+    <header>
+        <div class="page-eyebrow">Booking đã hủy</div>
+        <h1>Hủy phòng &amp; hoàn tiền</h1>
+        <p class="ops-note">Danh sách các booking nhân viên đã đánh dấu hủy, số tiền khách đã trả và tình trạng hoàn tiền. Số đã hoàn lấy từ các khoản hoàn ghi trên booking nên khớp với trang Thu chi và Báo cáo.</p>
+    </header>
+
+    <div class="ops-error" v-if="error" role="alert">{{ error }}</div>
+    <div class="ops-success" v-if="message" role="status">{{ message }}</div>
+
+    <section class="ops-panel ops-toolbar">
+        <label v-if="properties.length>1">Chi nhánh
+            <select v-model="scope" v-on:change="reload(true)">
+                <option value="all">Tất cả chi nhánh</option>
+                <option v-for="p in properties" v-bind:value="p.id">{{ p.name }}</option>
+            </select>
+        </label>
+        <label>Lọc theo
+            <select v-model="dateField" v-on:change="reload(true)">
+                <option value="cancelled">Ngày hủy</option>
+                <option value="checkin">Ngày nhận phòng</option>
+                <option value="refund">Ngày hoàn tiền</option>
+            </select>
+        </label>
+        <label>Từ ngày<input type="date" v-model="from" v-bind:max="to" v-on:change="reload(true)" /></label>
+        <label>Đến ngày<input type="date" v-model="to" v-bind:min="from" v-on:change="reload(true)" /></label>
+        <label>Hoàn tiền
+            <select v-model="status" v-on:change="reload(true)">
+                <option value="">Tất cả</option>
+                <option value="Open">Cần xử lý (chờ hoàn + hoàn một phần)</option>
+                <option value="Pending">Chờ hoàn</option>
+                <option value="Partial">Hoàn một phần</option>
+                <option value="Refunded">Đã hoàn</option>
+                <option value="Kept">Không hoàn (giữ cọc)</option>
+                <option value="NotRequired">Không cần hoàn</option>
+            </select>
+        </label>
+        <label>Nhân viên hủy
+            <select v-model="staffId" v-on:change="reload(true)">
+                <option value="">Tất cả</option>
+                <option v-for="a in actors" v-bind:value="a.id">{{ a.name }}</option>
+            </select>
+        </label>
+        <label class="cancel-search">Tìm kiếm<input type="search" v-model.trim="search" v-on:input="searchChanged" placeholder="Mã booking, tên, SĐT, phòng" maxlength="100" /></label>
+        <button class="btn btn-light" v-bind:disabled="loading" v-on:click="reload(false)">{{ loading ? 'Đang tải…' : 'Tải lại' }}</button>
+        <a class="btn btn-light" v-bind:href="exportUrl">Xuất Excel</a>
+    </section>
+
+    <section class="ops-kpis" aria-label="Tổng hợp theo bộ lọc">
+        <article><span>Booking hủy</span><strong>{{ totals.count }}</strong></article>
+        <article><span>Tổng giá trị booking</span><strong>{{ money(totals.totalAmount) }}</strong></article>
+        <article><span>Khách đã thanh toán</span><strong>{{ money(totals.paidAmount) }}</strong></article>
+        <article><span>Đã hoàn</span><strong>{{ money(totals.refundedAmount) }}</strong></article>
+        <article class="cancel-kpi-warn" v-bind:class="{ active: totals.remainingRefundAmount > 0 }"><span>Còn phải hoàn ({{ totals.pendingCount }} booking)</span><strong>{{ money(totals.remainingRefundAmount) }}</strong></article>
+        <article><span>Giữ lại (không hoàn)</span><strong>{{ money(totals.keptAmount) }}</strong></article>
+    </section>
+
+    <section class="ops-panel">
+        <div class="ops-scroll">
+            <table class="cancel-table">
+                <thead>
+                    <tr>
+                        <th>Khách / booking</th>
+                        <th>Thời gian hủy</th>
+                        <th>Nhân viên hủy / lý do</th>
+                        <th class="number">Tiền booking</th>
+                        <th class="number">Đã thanh toán</th>
+                        <th>Hoàn tiền</th>
+                        <th>Hoàn lúc / nhập lúc</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="row in rows" v-bind:key="row.id">
+                        <td>
+                            <strong>{{ row.customerName }}</strong>
+                            <small>{{ row.customerPhone }}</small>
+                            <small>{{ row.bookingCode }} · {{ row.roomName }}<template v-if="properties.length>1"> · {{ row.propertyName }}</template></small>
+                            <small>Nhận phòng {{ dateText(row, row.checkInUtc) }}</small>
+                        </td>
+                        <td>{{ dateText(row, row.cancelledAtUtc) }}</td>
+                        <td>
+                            <strong>{{ row.cancelledByName || 'Không rõ' }}</strong>
+                            <small v-if="row.reason">{{ row.reason }}</small>
+                            <small v-else-if="row.isBackfilled">Hủy trước khi có ô lý do</small>
+                        </td>
+                        <td class="number">{{ money(row.totalAmount) }}</td>
+                        <td class="number">{{ money(row.paidAmount) }}</td>
+                        <td>
+                            <span class="cancel-badge" v-bind:class="'is-' + row.refundStatus.toLowerCase()">{{ statusText(row.refundStatus) }}</span>
+                            <small v-if="row.refundStatus!=='NotRequired'">Đã hoàn {{ money(row.refundedAmount) }} / cần hoàn {{ money(row.refundDueAmount) }}</small>
+                            <small v-if="row.remainingRefundAmount>0" class="cancel-owed">Còn phải hoàn {{ money(row.remainingRefundAmount) }}</small>
+                            <small v-if="row.keptAmount>0">Giữ lại {{ money(row.keptAmount) }}</small>
+                        </td>
+                        <td>
+                            <template v-if="row.lastRefundEnteredAtUtc">
+                                <span>{{ dateText(row, row.lastRefundOccurredAtUtc) }}</span>
+                                <small>Nhập {{ dateText(row, row.lastRefundEnteredAtUtc) }}<template v-if="row.lastRefundByName"> · {{ row.lastRefundByName }}</template></small>
+                            </template>
+                            <span v-else class="muted">—</span>
+                        </td>
+                        <td><button class="btn btn-light btn-sm" v-on:click="openRow(row)">{{ canManage && row.paidAmount>0 ? 'Hoàn tiền' : 'Chi tiết' }}</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="ops-empty" v-if="!rows.length && !loading">Không có booking hủy nào trong bộ lọc này.</p>
+        <div class="cancel-pager" v-if="totalRows>pageSize">
+            <button class="btn btn-light btn-sm" v-bind:disabled="page<=1 || loading" v-on:click="goPage(page-1)">‹ Trước</button>
+            <span>Trang {{ page }} / {{ pageCount }} · {{ totalRows }} booking</span>
+            <button class="btn btn-light btn-sm" v-bind:disabled="page>=pageCount || loading" v-on:click="goPage(page+1)">Sau ›</button>
+        </div>
+    </section>
+
+    <div class="modal-backdrop" v-if="detail" v-on:click.self="closeDetail">
+        <section class="modal ops-modal cancel-modal" role="dialog" aria-modal="true" aria-labelledby="cancel-detail-title">
+            <h2 id="cancel-detail-title">{{ detail.bookingCode }} · {{ detail.customerName }}</h2>
+            <p class="ops-note">{{ detail.roomName }} · hủy lúc {{ dateText(detail, detail.cancelledAtUtc) }} bởi {{ detail.cancelledByName || 'không rõ' }}<template v-if="detail.reason"> · Lý do: {{ detail.reason }}</template></p>
+            <div class="cancel-summary">
+                <div><span>Tiền booking</span><strong>{{ money(detail.totalAmount) }}</strong></div>
+                <div><span>Khách đã thanh toán</span><strong>{{ money(detail.paidAmount) }}</strong></div>
+                <div><span>Cần hoàn</span><strong>{{ money(detail.refundDueAmount) }}</strong></div>
+                <div><span>Đã hoàn</span><strong>{{ money(detail.refundedAmount) }}</strong></div>
+                <div><span>Còn phải hoàn</span><strong>{{ money(detail.remainingRefundAmount) }}</strong></div>
+                <div><span>Giữ lại</span><strong>{{ money(detail.keptAmount) }}</strong></div>
+            </div>
+
+            <div class="ops-error" v-if="formError" role="alert">{{ formError }}</div>
+
+            <fieldset class="ops-fieldset" v-bind:disabled="saving || !canManage">
+                <h3>Số tiền cần hoàn cho khách</h3>
+                <div class="ops-form">
+                    <label>Số tiền cần hoàn<input type="number" v-model.number="dueForm.amount" min="0" step="1000" /></label>
+                    <label>Ghi chú<input v-model.trim="dueForm.note" maxlength="1000" placeholder="Ví dụ: giữ lại 200.000đ phí hủy" /></label>
+                </div>
+                <p class="ops-note">Nhập 0 nếu không hoàn (giữ cọc). Tối đa bằng số khách đã thanh toán.</p>
+                <div class="ops-actions"><button class="btn btn-light" type="button" v-on:click="saveDue">Lưu số tiền cần hoàn</button></div>
+            </fieldset>
+
+            <h3>Các khoản đã hoàn</h3>
+            <p class="ops-note" v-if="!detail.refunds.length">Chưa ghi nhận khoản hoàn nào.</p>
+            <div class="ops-details">
+                <article v-for="r in detail.refunds" v-bind:key="r.paymentId">
+                    <template v-if="editingId!==r.paymentId">
+                        <strong>{{ money(r.amount) }} · {{ methodText(r.method) }}</strong>
+                        <p>Hoàn lúc {{ dateText(detail, r.occurredAtUtc) }} · nhập lúc {{ dateText(detail, r.enteredAtUtc) }}<template v-if="r.recordedByName"> · {{ r.recordedByName }}</template></p>
+                        <p v-if="r.note || r.reference">{{ r.note }}<template v-if="r.reference"> · Mã tham chiếu {{ r.reference }}</template></p>
+                        <div class="ops-actions" v-if="canManage">
+                            <button class="btn btn-light btn-sm" v-on:click="startEdit(r)">Sửa số tiền</button>
+                            <button class="btn btn-light btn-sm" v-on:click="startVoid(r)">Hủy khoản này</button>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <fieldset class="ops-fieldset" v-bind:disabled="saving">
+                            <div class="ops-form">
+                                <label>Số tiền<input type="number" v-model.number="editForm.amount" min="1" step="1000" /></label>
+                                <label>Phương thức<select v-model.number="editForm.method"><option v-for="m in methods" v-bind:value="m.value">{{ m.label }}</option></select></label>
+                                <label>Hoàn lúc<input type="datetime-local" v-model="editForm.localAt" /></label>
+                                <label>Mã tham chiếu<input v-model.trim="editForm.reference" maxlength="200" /></label>
+                                <label class="wide">Ghi chú<input v-model.trim="editForm.note" maxlength="1000" /></label>
+                            </div>
+                            <div class="ops-actions">
+                                <button class="btn btn-light" type="button" v-on:click="editingId=null">Bỏ qua</button>
+                                <button class="btn btn-primary" type="button" v-on:click="saveEdit(r)">Lưu thay đổi</button>
+                            </div>
+                        </fieldset>
+                    </template>
+                </article>
+            </div>
+
+            <fieldset class="ops-fieldset" v-if="canManage && voidTarget" v-bind:disabled="saving">
+                <h3>Hủy khoản hoàn {{ money(voidTarget.amount) }}</h3>
+                <label>Lý do hủy khoản hoàn<input v-model.trim="voidReason" maxlength="1000" /></label>
+                <div class="ops-actions">
+                    <button class="btn btn-light" type="button" v-on:click="voidTarget=null">Bỏ qua</button>
+                    <button class="btn btn-danger" type="button" v-bind:disabled="!voidReason" v-on:click="confirmVoid">Xác nhận hủy khoản hoàn</button>
+                </div>
+            </fieldset>
+
+            <fieldset class="ops-fieldset" v-if="canManage" v-bind:disabled="saving">
+                <h3>Ghi nhận khoản hoàn mới</h3>
+                <div class="ops-form">
+                    <label>Số tiền hoàn<input type="number" v-model.number="addForm.amount" min="1" step="1000" /></label>
+                    <label>Phương thức<select v-model.number="addForm.method"><option v-for="m in methods" v-bind:value="m.value">{{ m.label }}</option></select></label>
+                    <label>Hoàn lúc<input type="datetime-local" v-model="addForm.localAt" /></label>
+                    <label>Mã tham chiếu<input v-model.trim="addForm.reference" maxlength="200" /></label>
+                    <label class="wide">Ghi chú<input v-model.trim="addForm.note" maxlength="1000" /></label>
+                </div>
+                <div class="ops-actions"><button class="btn btn-primary" type="button" v-bind:disabled="!(addForm.amount>0)" v-on:click="addRefund">Ghi nhận hoàn tiền</button></div>
+            </fieldset>
+
+            <div class="ops-actions"><a class="btn btn-light" v-bind:href="bookingUrl(detail)">Mở booking</a><button class="btn btn-light" v-on:click="closeDetail">Đóng</button></div>
+        </section>
+    </div>
+</div>
+@section Scripts {
+    <script src="~/js/pages/operational-forms.js" asp-append-version="true"></script>
+    <script src="~/js/pages/admin-cancellations.js" asp-append-version="true"></script>
+}

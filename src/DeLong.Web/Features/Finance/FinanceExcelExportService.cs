@@ -50,7 +50,9 @@ public sealed class FinanceExcelExportService
             ("Thực thu", summary.NetReceipts, "Tổng tiền thu − hoàn tiền"),
             ("Chi phí", summary.Expenses, "Chi phí vận hành hợp lệ trong kỳ"),
             ("Dòng tiền ròng", summary.NetCashFlow, "Thực thu − chi phí"),
-            ("Công nợ hiện tại", summary.Outstanding, "Tất cả booking hoạt động chưa tất toán")
+            ("Công nợ hiện tại", summary.Outstanding, "Tất cả booking hoạt động chưa tất toán"),
+            ("Còn phải hoàn cho khách", summary.RefundsOwed, "Tiền khách đã trả cho booking hủy mà chưa hoàn xong (tính đến hiện tại)"),
+            ("Giữ lại từ booking hủy", summary.CancellationKept, "Tiền không hoàn của booking hủy trong kỳ, đã nằm trong thực thu")
         };
         var row = 5;
         foreach (var item in rows)

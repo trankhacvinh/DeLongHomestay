@@ -4,7 +4,7 @@ using DeLong.Web.Domain.Enums;
 namespace DeLong.Web.Features.DataQuality;
 
 public sealed record BookingQualityFact(Guid Id, Guid RoomId, Guid CustomerId, string Code, string RoomName,
-    DateTime CheckInUtc, DateTime CheckOutUtc, BookingStatus Status, decimal Total, decimal Paid);
+    DateTime CheckInUtc, DateTime CheckOutUtc, BookingStatus Status, decimal Total, decimal Paid, bool CancellationRefundDecided = false);
 public sealed record QualityFinding(string Fingerprint, string Rule, string Severity, Guid BookingId,
     Guid? RelatedBookingId, string Title, string EvidenceJson);
 
@@ -19,8 +19,8 @@ public static class DataQualityRules
                 findings.Add(Finding("invalid_booking", "High", b, null, "Thời gian hoặc số tiền cần đối soát"));
             if (b.Status == BookingStatus.Completed && b.Total > b.Paid)
                 findings.Add(Finding("completed_balance", "Medium", b, null, "Đã hoàn tất nhưng còn công nợ trên hệ thống"));
-            if (b.Status is BookingStatus.Cancelled or BookingStatus.NoShow && b.Paid > 0)
-                findings.Add(Finding("cancelled_receipt", "Medium", b, null, "Đơn hủy/vắng mặt còn tiền đã thu; kiểm tra phí hủy hoặc hoàn tiền"));
+            if (b.Status is BookingStatus.Cancelled or BookingStatus.NoShow && b.Paid > 0 && !b.CancellationRefundDecided)
+                findings.Add(Finding("cancelled_receipt", "Medium", b, null, "Đơn hủy/vắng mặt còn tiền đã thu; hãy hoàn tiền hoặc ghi nhận giữ cọc tại trang Hủy & hoàn tiền"));
         }
         foreach (var room in bookings.Where(b => b.Status is BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn or BookingStatus.Completed)
                      .GroupBy(b => b.RoomId))

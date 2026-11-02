@@ -6,6 +6,7 @@
 @section Head {
     <link rel="stylesheet" href="~/css/booking-debt-filters.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-booking-history.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-booking-cancel.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/entities.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/booking-v2-polish.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-booking-guest-details.css" asp-append-version="true" />
@@ -293,12 +294,14 @@
 
     <div class="toast booking-toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
 <partial name="_BookingHistoryDialog" />
+<partial name="_BookingCancelDialog" />
 </div>
 @section Scripts {
     <script src="~/vendor/inputmask/inputmask.min.js" asp-append-version="true"></script>
     <script src="~/js/core/money-input.js" asp-append-version="true"></script>
     <script>window.DeLongBookingsCanManage = @(User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") ? "true" : "false");</script>
     <script src="~/js/pages/admin-booking-history.js" asp-append-version="true"></script>
+    <script src="~/js/pages/admin-booking-cancel.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-bookings.js" asp-append-version="true"></script>
     <script src="~/js/core/admin-booking-live-v2.js" asp-append-version="true" data-admin-booking-live-v2></script>
 }

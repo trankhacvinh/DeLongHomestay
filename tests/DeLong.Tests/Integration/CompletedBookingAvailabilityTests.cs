@@ -180,7 +180,7 @@ public sealed class CompletedBookingAvailabilityTests
             var service = Bookings(db);
             var created = await service.CreateAsync(property.Id, Order(room.Id, Start, Start.AddHours(3)));
             Assert.Null(created.Error);
-            Assert.Null((await service.ChangeStatusAsync(property.Id, created.Booking!.Id, status)).Error);
+            Assert.Null((await service.ChangeStatusAsync(property.Id, created.Booking!.Id, status, cancel: new DeLong.Web.Features.Cancellations.CancelDetails("Khách báo bận"))).Error);
             var slot = Assert.Single((await Availability(db).GetPublicAsync(property.SiteSlug, room.Id, Date, 1))!.Calendar[0].Slots);
             Assert.Empty(slot.Occupied);
             Assert.Equal(Start.UtcDateTime, slot.BookableStartUtc);

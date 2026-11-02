@@ -109,7 +109,9 @@ public sealed class IndexModel(
             snapshots.Sum(x => x.Summary.NetReceipts),
             snapshots.Sum(x => x.Summary.Expenses),
             snapshots.Sum(x => x.Summary.NetCashFlow),
-            snapshots.Sum(x => x.Summary.Outstanding));
+            snapshots.Sum(x => x.Summary.Outstanding),
+            snapshots.Sum(x => x.Summary.RefundsOwed),
+            snapshots.Sum(x => x.Summary.CancellationKept));
         var payments = snapshots.SelectMany(x => x.Payments).OrderByDescending(x => x.OccurredAtUtc).ToList();
         var expenses = snapshots.SelectMany(x => x.Expenses).OrderByDescending(x => x.OccurredAtUtc).ToList();
         var scopeKey = allScope ? "all" : selectedProperty.Id.ToString();

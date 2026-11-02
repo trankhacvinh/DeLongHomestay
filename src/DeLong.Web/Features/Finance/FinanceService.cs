@@ -1,5 +1,6 @@
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Enums;
+using DeLong.Web.Features.Cancellations;
 using DeLong.Web.Features.Expenses;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,7 +25,9 @@ public sealed record FinanceSummaryDto(
     decimal NetReceipts,
     decimal Expenses,
     decimal NetCashFlow,
-    decimal Outstanding);
+    decimal Outstanding,
+    decimal RefundsOwed = 0,
+    decimal CancellationKept = 0);
 
 public sealed record FinanceSnapshotDto(
     FinanceSummaryDto Summary,
@@ -75,6 +78,7 @@ public sealed class FinanceService(AppDbContext db)
             .Where(balance => balance > 0)
             .SumAsync(cancellationToken);
 
+        var cancellation = await CancellationMetrics.GetAsync(db, propertyId, fromUtc, toUtc, cancellationToken);
         var receipts = payments.Where(x => !x.IsVoided && x.Type == PaymentType.Receipt).Sum(x => x.Amount);
         var refunds = payments.Where(x => !x.IsVoided && x.Type == PaymentType.Refund).Sum(x => x.Amount);
         var expenseTotal = expenses.Where(x => !x.IsVoided).Sum(x => x.Amount);
@@ -87,7 +91,9 @@ public sealed class FinanceService(AppDbContext db)
                 netReceipts,
                 expenseTotal,
                 netReceipts - expenseTotal,
-                outstanding),
+                outstanding,
+                cancellation.RefundsOwed,
+                cancellation.KeptInPeriod),
             payments,
             expenses);
     }

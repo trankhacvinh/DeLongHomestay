@@ -12,14 +12,14 @@
                 activeTab: 'rooms',
                 telegramEvents: [
                     {key:'booking-requested',label:'Đặt phòng mới'}, {key:'booking-confirmed',label:'Xác nhận đặt phòng'},
-                    {key:'booking-cancelled',label:'Hủy đặt phòng'}, {key:'booking-checked-in',label:'Nhận phòng'},
+                    {key:'booking-cancelled',label:'Hủy đặt phòng'}, {key:'booking-refunded',label:'Hoàn tiền'}, {key:'booking-checked-in',label:'Nhận phòng'},
                     {key:'booking-completed',label:'Hoàn tất / trả phòng'}, {key:'payment-receipt',label:'Ghi nhận thanh toán'},
                     {key:'pay2s-failed',label:'Thanh toán thất bại'}, {key:'pay2s-paid-after-expiry',label:'Nhận tiền sau hết hạn'}
                 ],
                 rooms: initial.rooms || [],
                 showArchivedRates: false,
                 housekeeping: { staggerEnabled: false, cleaningMinutes: 30, workerCount: 1, maxAdvanceMinutes: 30, workStart: null, workEnd: null, beforeCheckInMinutes: 0, afterCheckOutMinutes: 0, automaticCheckInEnabled: true, automaticCheckOutEnabled: true, ...(initial.housekeepingSettings || {}) },
-                notification: { guestCheckInEmailEnabled: false, guestCancellationEmailEnabled: true, telegramBookingEnabled: false, telegramBotTokenConfigured: false, telegramChatIds: '', ...(initial.notificationSettings || {}), telegramEventTypes: initial.notificationSettings?.telegramEventTypes ?? ['booking-requested','booking-confirmed','booking-cancelled','booking-checked-in','booking-completed','payment-receipt','pay2s-failed','pay2s-paid-after-expiry'], smtpPassword: '', clearSmtpPassword: false, telegramBotToken: '', clearTelegramBotToken: false },
+                notification: { guestCheckInEmailEnabled: false, guestCancellationEmailEnabled: true, managerCancellationEmailEnabled: true, telegramBookingEnabled: false, telegramBotTokenConfigured: false, telegramChatIds: '', ...(initial.notificationSettings || {}), telegramEventTypes: initial.notificationSettings?.telegramEventTypes ?? ['booking-requested','booking-confirmed','booking-cancelled','booking-checked-in','booking-completed','payment-receipt','pay2s-failed','pay2s-paid-after-expiry'], smtpPassword: '', clearSmtpPassword: false, telegramBotToken: '', clearTelegramBotToken: false },
                 emailVariables: [
                     { code: '{{PropertyName}}', meaning: 'Tên cơ sở' },
                     { code: '{{BookingCode}}', meaning: 'Mã booking' },
@@ -262,6 +262,7 @@
                         emailBookingEnabled: this.notification.emailBookingEnabled === true,
                         guestCheckInEmailEnabled: this.notification.guestCheckInEmailEnabled === true,
                         guestCancellationEmailEnabled: this.notification.guestCancellationEmailEnabled === true,
+                        managerCancellationEmailEnabled: this.notification.managerCancellationEmailEnabled !== false,
                         internalBookingEmailSubjectTemplate: this.notification.internalBookingEmailSubjectTemplate || null,
                         internalBookingEmailBodyTemplate: this.notification.internalBookingEmailBodyTemplate || null,
                         guestCheckInEmailSubjectTemplate: this.notification.guestCheckInEmailSubjectTemplate || null,

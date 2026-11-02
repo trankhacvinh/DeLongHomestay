@@ -107,7 +107,8 @@ public static class BookingEndpoints
             CancellationToken cancellationToken) =>
         {
             var (booking, error) = await service.ChangeStatusAsync(
-                propertyId, bookingId, request.Status, GetUserId(user), cancellationToken);
+                propertyId, bookingId, request.Status, GetUserId(user), cancellationToken,
+                request.Status == Domain.Enums.BookingStatus.Cancelled ? new Cancellations.CancelDetails(request.Reason, request.Refund) : null);
             if (error is not null) return ToProblem(error);
             Publish(propertyId, OperationsEventTypes.BookingStatusChanged, booking!);
             return Results.Ok(booking);
@@ -140,6 +141,7 @@ public static class BookingEndpoints
             "booking_conflict" => 409,
             "invalid_transition" => 409,
             "booking_locked" => 409,
+            "already_cancelled" => 409,
             "booking_move_not_allowed" => 409,
             _ => 400
         };

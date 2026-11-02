@@ -72,6 +72,15 @@
         <a class="btn btn-light btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Mở booking cơ sở đang làm việc</a>
     </div>
 
+    <div class="finance-debt-strip" v-bind:class="{ 'has-debt': refundsOwed > 0 }">
+        <div>
+            <span>Còn phải hoàn cho khách (booking đã hủy)</span>
+            <strong>{{ money(refundsOwed) }}</strong>
+        </div>
+        <p>Tiền khách đã trả cho booking hủy mà chưa hoàn xong. Giữ lại từ booking hủy trong {{ periodName }} đang xem: <strong>{{ money(cancellationKept) }}</strong> (đã nằm trong khoản thu ròng, không phải doanh thu booking).</p>
+        <a class="btn btn-light btn-sm" asp-page="/Admin/Cancellations/Index" asp-route-propertyId="@Model.PropertyId">Mở danh sách hủy &amp; hoàn tiền</a>
+    </div>
+
     <section class="panel finance-combined-ledger">
         <div class="panel-head finance-panel-head finance-ledger-head">
             <div><h2>Sổ thu chi chi tiết</h2><span>Hợp nhất tiền thu, hoàn tiền và chi phí theo thời gian phát sinh</span></div>

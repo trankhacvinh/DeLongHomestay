@@ -58,6 +58,8 @@ public sealed class ReportExcelExportService
             ("Dòng tiền", "Chi phí", (double)report.Expenses, CurrencyFormat),
             ("Dòng tiền", "Dòng tiền ròng", (double)report.NetCashFlow, CurrencyFormat),
             ("Công nợ", "Công nợ hiện tại", (double)report.Outstanding, CurrencyFormat),
+            ("Hoàn tiền", "Còn phải hoàn cho khách (booking hủy)", (double)report.RefundsOwed, CurrencyFormat),
+            ("Hoàn tiền", "Giữ lại từ booking hủy trong tháng", (double)report.CancellationKept, CurrencyFormat),
             ("So sánh", "Thực thu hôm nay", (double)report.PeriodReceipts.Today, CurrencyFormat),
             ("So sánh", "Thực thu tuần này", (double)report.PeriodReceipts.ThisWeek, CurrencyFormat),
             ("So sánh", "Thực thu tháng trước", (double)report.PeriodReceipts.PreviousMonth, CurrencyFormat)

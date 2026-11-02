@@ -5,6 +5,7 @@
 }
 @section Head {
     <link rel="stylesheet" href="~/css/admin-booking-history.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-booking-cancel.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/vendor/tom-select/tom-select.default.min.css" asp-append-version="true" />
     <style>.ts-wrapper{width:100%}.ts-dropdown{z-index:1100}.ts-control{min-height:44px}.ts-dropdown .option{white-space:normal;overflow-wrap:anywhere}</style>
     <link rel="stylesheet" href="~/css/room-booking-lock.css" asp-append-version="true" />
@@ -334,6 +335,7 @@
     <partial name="_RoomBookingLockDialog" />
     <div class="toast" v-if="toast.show" v-bind:class="toast.type">{{ toast.message }}</div>
 <partial name="_BookingHistoryDialog" />
+<partial name="_BookingCancelDialog" />
 </div>
 
 @section Scripts {
@@ -346,5 +348,6 @@
     <script src="~/vendor/tom-select/tom-select.complete.min.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-customer-autocomplete.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-booking-history.js" asp-append-version="true"></script>
+    <script src="~/js/pages/admin-booking-cancel.js" asp-append-version="true"></script>
     <script src="~/js/pages/admin-calendar.js" asp-append-version="true"></script>
 }
