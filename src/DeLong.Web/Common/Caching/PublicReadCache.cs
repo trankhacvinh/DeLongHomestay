@@ -87,5 +87,15 @@ public sealed class PublicCacheInvalidationInterceptor(IFusionCache cache) : Sav
         if (!invalidateAfterSave) return;
         invalidateAfterSave = false;
         cache.RemoveByTag(PublicCacheKeys.Tag);
+        // A public read that started before this save can finish after it and store pre-edit data
+        // (its entry is newer than the tag removal). Public entries now live for minutes, so remove
+        // the tag once more after any such in-flight load has had time to finish.
+        _ = Task.Delay(SecondInvalidationDelay).ContinueWith(
+            _ => cache.RemoveByTag(PublicCacheKeys.Tag),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
+
+    private static readonly TimeSpan SecondInvalidationDelay = TimeSpan.FromSeconds(5);
 }

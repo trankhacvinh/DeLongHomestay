@@ -9,7 +9,8 @@ Cache behavior is controlled through application configuration:
 ```json
 "Performance": {
   "PublicCacheEnabled": true,
-  "PublicCacheSeconds": 30
+  "PublicCacheSeconds": 900,
+  "PublicCacheWarmupSeconds": 15
 }
 ```
 
@@ -19,7 +20,9 @@ Cache behavior is controlled through application configuration:
 Performance__PublicCacheEnabled=false
 ```
 
-`PublicCacheSeconds` controls the L1 TTL while cache is enabled and is clamped to 1–3600 seconds.
+`PublicCacheSeconds` controls the L1 TTL while cache is enabled and is clamped to 1–3600 seconds. It used to be 30 s: on this low-traffic site most guests arrived after the entries had expired, and measured home page TTFB was ~2 s on a cold cache versus ~150 ms warm (2026-11-02). Admin edits invalidate the tag immediately (and once more 5 s later, so a public load that was in flight during the save cannot keep pre-edit data), so a long TTL does not delay edits.
+
+`PublicCacheWarmupSeconds` (default 15, 0 disables) runs `PublicCacheWarmupWorker`, which reads the theme, global sections, contacts, active properties, global room catalog and editorial showcase at startup and on that interval. Fresh entries cost a memory lookup; expired or invalidated ones are reloaded by the worker instead of by a guest.
 
 An EF Core `SaveChangesInterceptor` watches public-facing content entities (properties, site sections/settings, gallery/blog and room/rate/media content). After a successful write it calls `RemoveByTag("public-content")`, so admin changes invalidate public cache immediately instead of waiting for TTL expiration. The coarse tag is intentional: edits are rare, correctness is more important than preserving individual entries, and warming the small public catalog is cheap.
 

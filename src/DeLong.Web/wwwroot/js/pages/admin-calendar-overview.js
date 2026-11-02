@@ -8,6 +8,8 @@
     const MIN_SCALE = 0.35;
     const MAX_SCALE = 1.6;
     const COMPACT_SCALE = 0.6;
+    // Below this even an 8px name no longer fits a cell; show colour blocks only.
+    const TINY_SCALE = 0.42;
     const WEEKDAYS = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
     const WEEKDAYS_SHORT = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
     const ROOM_COLORS = ['#C97B6B', '#2F5D6B', '#7A8F3C', '#8A5A9E', '#B8873A', '#3D7F8F', '#A35468', '#4F6FA8', '#6B7F5C', '#9A6B3F'];
@@ -65,6 +67,21 @@
         return (slots || []).filter(slot => Number(slot.rateType) !== 2);
     }
     function roomColor(index) { return ROOM_COLORS[index % ROOM_COLORS.length]; }
+
+    // White text vanishes on light booking colours (yellow "Giờ linh động", light oranges).
+    // Pick dark or white text from the background's relative luminance.
+    function readableText(color) {
+        const hex = String(color || '').trim().replace(/^#/, '');
+        const full = hex.length === 3 ? hex.split('').map(c => c + c).join('') : hex.slice(0, 6);
+        if (!/^[0-9a-f]{6}$/i.test(full)) return null;
+        const channel = index => {
+            const value = parseInt(full.slice(index, index + 2), 16) / 255;
+            return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+        };
+        const luminance = 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+        // Contrast with black beats contrast with white above ~0.18 luminance.
+        return luminance > 0.18 ? 'dark' : 'light';
+    }
 
     function bookingVisual(range, colors) {
         colors = colors || {};
@@ -324,6 +341,7 @@
                 th.colSpan = span;
                 th.dataset.roomKey = item.key;
                 th.style.setProperty('--room-color', item.color);
+                if (readableText(item.color) === 'dark') th.classList.add('on-light');
                 if (item.firstOfProperty) th.classList.add('group-start');
                 const name = el('span', 'cal-ov-room-name', item.room.roomName);
                 th.appendChild(name);
@@ -391,6 +409,7 @@
                             segment.style.left = `${position.left}%`;
                             segment.style.width = `${position.width}%`;
                             segment.style.backgroundColor = visual.color;
+                            if (readableText(visual.color) === 'dark') segment.classList.add('on-light');
                             const continues = !!range.bookingId && !!previous && (previous.occupied || []).some(other => other.bookingId === range.bookingId);
                             const name = range.isRoomBlock ? (range.blockReason || 'Khóa') : (range.customerName || '');
                             segment.title = `${visual.label}${name ? ` · ${name}` : ''} · ${timeText(range.startUtc, item.property.timeZoneId)}–${timeText(range.endUtc, item.property.timeZoneId)}`;
@@ -423,6 +442,7 @@
         function applyScale() {
             viewport.style.setProperty('--ov-s', String(state.scale));
             viewport.classList.toggle('is-compact', state.scale < COMPACT_SCALE);
+            viewport.classList.toggle('is-tiny', state.scale < TINY_SCALE);
             syncToolbar();
         }
 

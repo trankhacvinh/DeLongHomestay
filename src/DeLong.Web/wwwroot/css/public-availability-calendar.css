@@ -117,8 +117,17 @@
 
 @media(max-width:760px){
  .public-v2-viewport{overflow-x:auto;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch}
- .public-v2-grid-head>.public-v2-head-slot{box-sizing:border-box;padding:8px 10px;text-align:center;overflow:visible}
- .public-v2-grid-head>.public-v2-head-slot>strong{font-size:12px;line-height:1.35;letter-spacing:0;white-space:nowrap;overflow:visible;text-overflow:clip}
+ /* Slot columns are sized in JS so one room's four slots fill the screen width (see fitMobileSlotWidth). */
+ .public-v2-grid-head>.public-v2-head-slot{box-sizing:border-box;padding:6px 2px;text-align:center;overflow:visible}
+ .public-v2-grid-head>.public-v2-head-slot>strong{font-size:clamp(9px,2.6vw,11px);line-height:1.35;letter-spacing:-.02em;white-space:nowrap;overflow:visible;text-overflow:clip}
+ .public-v2-grid-head>.public-v2-date-column{padding-inline:2px;font-size:9px!important;letter-spacing:.04em!important}
+ .public-v2-grid-row>.public-v2-date-column{padding-inline:4px!important}
+ .public-v2-grid-row>.public-v2-date-column strong{font-size:clamp(9px,2.6vw,11px);white-space:normal;line-height:1.15}
+ .public-v2-grid-head>.public-v2-head-room{gap:6px;padding:6px 8px}
+ .public-v2-head-room img{width:26px;height:26px;border-radius:7px}
+ .public-v2-grid-head>.public-v2-head-branch{padding:6px 8px}
+ .public-v2-grid-head>.public-v2-head-branch strong{left:68px;font-size:10px}
+ .public-v2-slot-bar,.public-v2-slot-empty{margin-inline:3px;border-radius:8px}
  .public-v2-viewport.is-multi{overflow-x:auto;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch}
  .public-v2-viewport.is-multi .public-v2-grid-head,.public-v2-viewport.is-multi .public-v2-grid-row{width:100%;min-width:100%}
  .public-v2-viewport.is-multi .public-v2-date-column{position:sticky;left:0;z-index:3;background:#fff}

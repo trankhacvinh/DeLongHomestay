@@ -30,6 +30,9 @@
     // Formatters are created once: building an Intl formatter per slot made large calendars freeze.
     const moneyFormat = new Intl.NumberFormat('vi-VN');
     const money = value => `${moneyFormat.format(Number(value || 0))}đ`;
+    // Calendar column heads show the room photo at ~30-48px; the 480px thumb variant saved next to
+    // every room card is plenty and much lighter than the 900px card image.
+    const headThumbUrl = url => /\/uploads\/rooms\/.+\/card\.webp(\?|$)/.test(url) ? url.replace(/\/card\.webp(?=\?|$)/, '/thumb.webp') : url;
     const timeFormats = new Map();
     const element = (tag, className, text) => {
         const node = document.createElement(tag);
@@ -90,8 +93,11 @@
         const maxRoomsPerRequest = 24;
         const multiColumnWidth = 92;
         const dateColumnWidth = 104;
-        const mobileColumnWidth = 128;
-        const mobileDateColumnWidth = 76;
+        // Phones: size slot columns so one room's first four slots fit the screen without
+        // sideways scrolling (more rooms or slots still scroll horizontally).
+        const mobileMinColumnWidth = 60;
+        const mobileSlotsPerScreen = 4;
+        const mobileDateColumnWidth = 60;
         const useMultiRoomLayout = () => (wideQuery.matches || groupRooms().every(room => room.mobileAllRooms !== false)) && groupRooms().length > 1;
         const branchStorageKey = 'delong.publicCalendar.branches';
         const wideQuery = window.matchMedia('(min-width: 761px)');
@@ -169,12 +175,19 @@
         const currentRoom = () => (state.selectedRoomId ? roomById(state.selectedRoomId) : null) || visibleRooms()[0];
         const visibleSlots = day => (day?.slots || []).filter(slot => Number(slot.rateType) !== 2);
         const slotCountOf = room => visibleSlots(daysOf(room)[0]).length;
+        const fitMobileSlotWidth = () => {
+            const perRoom = Math.max(1, ...visibleRooms().map(slotCountOf));
+            const available = viewport.clientWidth - mobileDateColumnWidth;
+            if (available <= 0) return 96;
+            return Math.max(mobileMinColumnWidth, Math.floor(available / Math.min(mobileSlotsPerScreen, perRoom)));
+        };
+        const mobileColumnWidth = () => state.mobileSlotWidth || (state.mobileSlotWidth = fitMobileSlotWidth());
         const gridTemplate = count => !wideQuery.matches
-            ? `${mobileDateColumnWidth}px repeat(${Math.max(1, count)}, minmax(${mobileColumnWidth}px, 1fr))`
+            ? `${mobileDateColumnWidth}px repeat(${Math.max(1, count)}, minmax(${mobileColumnWidth()}px, 1fr))`
             : state.multi ? `${dateColumnWidth}px repeat(${Math.max(1, count)}, minmax(${multiColumnWidth}px, 1fr))`
             : `clamp(74px, 18%, 104px) repeat(${Math.max(1, count)}, minmax(0, 1fr))`;
         const gridMinWidth = count => !wideQuery.matches
-            ? `${mobileDateColumnWidth + Math.max(1, count) * mobileColumnWidth}px`
+            ? `${mobileDateColumnWidth + Math.max(1, count) * mobileColumnWidth()}px`
             : state.multi ? `${dateColumnWidth + Math.max(1, count) * multiColumnWidth}px` : '';
         const policyFor = room => state.policies.get(room?.siteSlug || '') || state.policies.get('') || defaultPolicy;
 
@@ -346,6 +359,7 @@
             return visibleRooms().reduce((sum, room) => sum + slotCountOf(room), 0);
         }
         function renderHeader() {
+            state.mobileSlotWidth = 0;
             const list = visibleRooms().filter(room => slotCountOf(room) > 0);
             const count = columnCount();
             const showRooms = state.multi;
@@ -381,9 +395,11 @@
                     const coverUrl = room.coverImageUrl?.trim();
                     if (coverUrl) {
                         const image = element('img');
-                        image.src = coverUrl;
+                        image.src = headThumbUrl(coverUrl);
+                        if (image.src !== new URL(coverUrl, location.href).href) image.addEventListener('error', () => { image.src = coverUrl; }, { once: true });
                         image.alt = '';
                         image.loading = 'lazy';
+                        image.decoding = 'async';
                         cell.appendChild(image);
                     }
                     const label = element('span');
@@ -455,6 +471,11 @@
         function renderVirtualRows() {
             state.renderQueued = false;
             if (!state.dates.length) return;
+            if (!wideQuery.matches && state.mobileSlotWidth && fitMobileSlotWidth() !== state.mobileSlotWidth) {
+                // Phone rotated or viewport resized: rebuild header and rows at the new column width.
+                renderHeader();
+                state.renderVersion++;
+            }
             const first = Math.max(0, Math.floor(viewport.scrollTop / rowHeight) - overscan);
             const visibleCount = Math.ceil(viewport.clientHeight / rowHeight) + (overscan * 2);
             const last = Math.min(state.dates.length, first + visibleCount);
