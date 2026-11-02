@@ -1,9 +1,14 @@
 @page "/booking/lookup"
 @model DeLong.Web.Pages.Booking.LookupModel
+@inject DeLong.Web.Features.Site.SiteContentService SiteContentService
 @{
     ViewData["Title"] = "Tra cứu đặt phòng";
     ViewData["Robots"] = "noindex,follow";
     ViewData["MetaDescription"] = "Tra cứu đặt phòng bằng mã và số điện thoại, hoặc nhận thông tin qua email đã dùng đặt phòng.";
+    var lookupContacts = await SiteContentService.GetPublicContactsAsync(HttpContext.RequestAborted);
+    var lookupHotline = lookupContacts
+        .Where(x => Model.SiteSlug is null || string.Equals(x.SiteSlug, Model.SiteSlug, StringComparison.OrdinalIgnoreCase))
+        .Select(x => x.Phone).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
 }
 
 @section Head {
@@ -11,14 +16,18 @@
     <link rel="stylesheet" href="~/css/booking-guide.css" asp-append-version="true" />
 }
 
-<main id="booking-lookup" class="lookup-page" v-cloak data-site-slug="@Model.SiteSlug">
-    <section class="lookup-hero public-container">
-        <span class="public-eyebrow">Tra cứu đặt phòng</span>
-        <h1>Kiểm tra lượt đặt của bạn</h1>
-        <p>Chọn tra cứu bằng mã đặt phòng và số điện thoại, hoặc nhận thông tin qua email đã dùng đặt phòng.</p>
-    </section>
+<section class="lux-page-hero" aria-labelledby="lookup-title">
+    <span class="lux-page-hero-moon" aria-hidden="true"></span>
+    <span class="lux-page-hero-arch" aria-hidden="true"></span>
+    <div class="public-container">
+        <span class="lux-eyebrow">Tra cứu đơn</span>
+        <h1 id="lookup-title" class="lux-display">Đơn của bạn <em>đang ở đâu?</em></h1>
+        <p>Nhập mã đặt phòng và số điện thoại đã dùng khi đặt để xem trạng thái đơn, hoặc nhận thông tin qua email.</p>
+    </div>
+</section>
 
-    <section class="public-container lookup-shell">
+<main id="booking-lookup" class="lookup-page lux-paper" v-cloak data-site-slug="@Model.SiteSlug">
+    <section class="public-container lookup-shell lux-lookup-shell">
         <form class="lookup-form" v-on:submit.prevent="lookup">
             <fieldset class="lookup-modes">
                 <legend>Cách tra cứu</legend>
@@ -55,6 +64,10 @@
                 <span class="lookup-status" v-bind:data-status="result.status">{{ result.statusLabel }}</span>
             </header>
 
+            <ol class="lux-timeline" v-if="timeline" aria-label="Tiến trình đơn">
+                <li v-for="step in timeline" v-bind:key="step.label" v-bind:class="{ 'is-done': step.done }"><i aria-hidden="true"></i><span>{{ step.label }}</span></li>
+            </ol>
+
             <dl class="lookup-details">
                 <div><dt>Hình thức</dt><dd>{{ result.bookingType }}</dd></div>
                 <div><dt>Nhận phòng</dt><dd>{{ dateTime(result.checkInLocal) }}</dd></div>
@@ -79,6 +92,31 @@
                 <span v-if="result.propertyAddress">{{ result.propertyAddress }}</span>
             </footer>
         </article>
+
+        <div class="lux-lookup-cards">
+            <article class="lux-lookup-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>
+                <h3>Mã đặt phòng ở đâu?</h3>
+                <p>Mã hiển thị trên trang hoàn tất đặt phòng. Nếu chưa lưu lại, chọn “Nhận qua email” ở trên để nhận thông tin đơn.</p>
+            </article>
+            <article class="lux-lookup-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                <h3>Chưa thanh toán?</h3>
+                <p>Đơn chưa thanh toán sẽ tự hết hạn khi hết thời gian giữ phòng hiển thị lúc thanh toán. Hãy đặt lại trên lịch phòng.</p>
+            </article>
+            <article class="lux-lookup-card is-dark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"></path></svg>
+                <h3>Cần hỗ trợ</h3>
+                @if (!string.IsNullOrWhiteSpace(lookupHotline))
+                {
+                    <p>Hotline <a href="tel:@lookupHotline.Replace(" ", string.Empty)">@lookupHotline</a>. Nhân viên kiểm tra đơn và đổi lịch giúp bạn.</p>
+                }
+                else
+                {
+                    <p>Liên hệ cơ sở qua thông tin ở cuối trang. Nhân viên kiểm tra đơn và đổi lịch giúp bạn.</p>
+                }
+            </article>
+        </div>
     </section>
 </main>
 

@@ -256,6 +256,7 @@
         {
             <link rel="stylesheet" href="~/css/public-faq-modal.css" asp-append-version="true"/>
         }
+        <link rel="stylesheet" href="~/css/public-lux.css" asp-append-version="true"/>
     }
     }
     @if (!isAdmin && !isGlobalPublic && !publicThemeStandard)
@@ -626,7 +627,18 @@ else
     var lookupUrl = isGlobalPublic ? "/booking/lookup" : DeLong.Web.Features.Site.PublicUrlBuilder.BookingLookup(publicSiteSlug!);
     var customerAccountUrl = isGlobalPublic ? "/customer/account" : $"/h/{publicSiteSlug}/customer/account";
     var customerLoginUrl = isGlobalPublic ? "/customer/login" : $"/h/{publicSiteSlug}/customer/login";
+    var publicHomeUrl = isGlobalPublic ? "/" : DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(publicSiteSlug!);
+    var currentPublicPath = Context.Request.Path.Value ?? "/";
+    var isPolicyPath = DeLong.Web.Features.Site.PublicPolicyLinks.All.Any(x => currentPublicPath.TrimEnd('/').EndsWith("/" + x.Slug, StringComparison.OrdinalIgnoreCase));
+    var isLookupPath = string.Equals(routePage, "/Booking/Lookup", StringComparison.OrdinalIgnoreCase);
+    var isHomePath = string.Equals(routePage, "/Index", StringComparison.OrdinalIgnoreCase);
+    var footerFacebookUrl = publicContacts.Select(x => x.FacebookUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+    var footerHotline = publicContacts.Select(x => x.Phone).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+    ViewData["PublicFacebookUrl"] = footerFacebookUrl;
+    ViewData["PublicHotline"] = footerHotline;
+    ViewData["PublicBookingUrl"] = bookingUrl;
     <header class="public-site-header">
+        <span class="lux-scroll-progress" aria-hidden="true"></span>
         <div class="public-container public-site-nav">
             <a class="public-site-brand"
                href="@(isGlobalPublic ? "/" : DeLong.Web.Features.Site.PublicUrlBuilder.PropertyHome(publicSiteSlug!))">
@@ -645,14 +657,14 @@ else
                 <button type="button" class="public-faq-mobile" data-public-faq-open aria-haspopup="dialog" aria-controls="public-faq-dialog">FAQ</button>
             }
             <nav class="public-site-links" aria-label="Điều hướng trang khách">
-                <a href="/">Trang chủ</a>
+                <a href="/" aria-current="@(isHomePath ? "page" : null)">Trang chủ</a>
                 <a href="@bookingUrl">Lịch phòng</a>
-                <a href="/chinh-sach-dat-phong">Chính sách</a>
+                <a href="/chinh-sach-dat-phong" aria-current="@(isPolicyPath ? "page" : null)">Chính sách</a>
                 @if (publicFaqSections.Count > 0)
                 {
                     <button type="button" class="public-faq-menu" data-public-faq-open aria-haspopup="dialog" aria-controls="public-faq-dialog">FAQ</button>
                 }
-                <a href="@lookupUrl">Tra cứu</a>
+                <a href="@lookupUrl" aria-current="@(isLookupPath ? "page" : null)">Tra cứu</a>
             </nav>
             <div class="public-site-actions">
                 <a class="public-mobile-lookup" href="@lookupUrl">Tra cứu đơn</a>
@@ -678,6 +690,22 @@ else
     </header>
     <main class="public-main" id="main-content" tabindex="-1">@RenderBody()</main>
     <footer class="public-hospitality-footer">
+        <section class="lux-footer-cta" aria-label="Đặt phòng">
+            <div class="public-container">
+                <h2>Đến nghỉ <em>một chút.</em></h2>
+                <div class="lux-footer-cta-actions">
+                    <a class="public-btn public-btn-primary" href="@bookingUrl">Đặt phòng</a>
+                    @if (!string.IsNullOrWhiteSpace(footerFacebookUrl))
+                    {
+                        <a class="public-btn public-btn-ghost" href="@footerFacebookUrl" target="_blank" rel="noopener">Nhắn Facebook</a>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(footerHotline))
+                    {
+                        <a class="public-btn public-btn-ghost" href="tel:@footerHotline.Replace(" ", string.Empty)">Gọi @footerHotline</a>
+                    }
+                </div>
+            </div>
+        </section>
         @if (publicContacts.Count > 0)
         {
             <section class="public-container public-footer-contacts" aria-labelledby="public-footer-contacts-title">

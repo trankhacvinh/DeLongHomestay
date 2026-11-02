@@ -55,6 +55,7 @@
     <PublicHomeCss Include="$(MSBuildProjectDirectory)/wwwroot/css/public-row-advanced-elements.css" />
     <PublicHomeCss Include="$(MSBuildProjectDirectory)/wwwroot/css/public-custom-pages.css" />
     <PublicHomeCss Include="$(MSBuildProjectDirectory)/wwwroot/css/booking-core-v2.css" />
+    <PublicHomeCss Include="$(MSBuildProjectDirectory)/wwwroot/css/public-lux.css" />
     <Content Remove="wwwroot/css/public-home.bundle.css" />
     <Content Include="wwwroot/css/public-home.bundle.css" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
