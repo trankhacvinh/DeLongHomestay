@@ -3,6 +3,7 @@
 @using System.Text.Json.Nodes
 @using DeLong.Web.Features.Site
 @model DeLong.Web.Pages.CustomPageModel
+@inject SiteContentService SiteContentService
 @{
     var page = Model.PageContent;
     string V(System.Text.Json.Nodes.JsonObject content, string path, bool image = false) => Model.ThemeStandard ? string.Empty : CustomPageModel.VisualClass(content, path, image);
@@ -18,6 +19,14 @@
     var roomCount = Model.IsGlobal ? Model.GlobalCatalog.Rooms.Count : Model.Catalog.Rooms.Count;
     var fromPrice = (Model.IsGlobal ? Model.GlobalCatalog.Rooms.Select(x => x.Room) : Model.Catalog.Rooms)
         .Where(x => x.QuickFromPrice > 0).Select(x => x.QuickFromPrice).DefaultIfEmpty(0).Min();
+    // The five policy pages share the 2026-11 policy layout: dark hero, tab list of all policies,
+    // hotline card and a card holding the page's own Hero text and rich text.
+    var policyIndex = PublicPolicyLinks.All.ToList().FindIndex(x => string.Equals(x.Slug, page.Slug, StringComparison.OrdinalIgnoreCase));
+    var isPolicyPage = policyIndex >= 0;
+    var policyHotline = isPolicyPage
+        ? (await SiteContentService.GetPublicContactsAsync(HttpContext.RequestAborted)).Select(x => x.Phone).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+        : null;
+    var policyHeaderRendered = false;
     string ScopedUrl(string url)
     {
         if (string.Equals(url, "/booking", StringComparison.OrdinalIgnoreCase) ||
@@ -48,11 +57,52 @@
     <div class="public-container"><div class="public-custom-page-draft"><strong>Bản nháp</strong><span>Trang này chỉ hiển thị cho người có quyền chỉnh sửa.</span></div></div>
 }
 
+@if (isPolicyPage)
+{
+    <section class="lux-page-hero" aria-label="Chính sách">
+        <span class="lux-page-hero-arch" aria-hidden="true"></span>
+        <div class="public-container">
+            <span class="lux-eyebrow">Chính sách</span>
+            <p class="lux-display" role="presentation">Rõ ràng trước khi <em>đặt.</em></p>
+        </div>
+    </section>
+    @Html.Raw("<div class=\"lux-policy lux-paper\"><div class=\"public-container lux-policy-layout\">")
+    <aside class="lux-policy-aside" aria-label="Các chính sách">
+        <ol class="lux-policy-tabs">
+            @for (var i = 0; i < PublicPolicyLinks.All.Count; i++)
+            {
+                var link = PublicPolicyLinks.All[i];
+                <li><a href="/@link.Slug" aria-current="@(i == policyIndex ? "page" : null)"><span>@((i + 1).ToString("00"))</span>@link.Title</a></li>
+            }
+        </ol>
+        @if (!string.IsNullOrWhiteSpace(policyHotline))
+        {
+            <div class="lux-help-card">Hỗ trợ đặt phòng<a href="tel:@policyHotline.Replace(" ", string.Empty)">@policyHotline</a></div>
+        }
+    </aside>
+    @Html.Raw("<article class=\"lux-policy-card\">")
+}
 @foreach (var section in page.Sections.Where(x => x.IsVisible).OrderBy(x => x.SortOrder))
 {
     var content = CustomPageModel.Content(section);
     switch (section.Type)
     {
+        case "Hero" when isPolicyPage && !policyHeaderRendered:
+        {
+            policyHeaderRendered = true;
+            var lead = CustomPageModel.Text(content, "body");
+            <header class="lux-policy-head">
+                <span class="public-eyebrow @(V(content, "eyebrow"))">Chính sách @((policyIndex + 1).ToString("00"))</span>
+                <h1 class="@(V(content, "title"))">@CustomPageModel.Text(content, "title", page.Title)</h1>
+                @if (!string.IsNullOrWhiteSpace(lead)) { <p class="lux-policy-lead @(V(content, "body"))">@lead</p> }
+            </header>
+            break;
+        }
+        case "RichText" when isPolicyPage:
+        {
+            <div class="lux-policy-body public-cms-rich-inner @(V(content, "html"))" data-policy-body>@Html.Raw(CustomPageModel.Text(content, "html"))</div>
+            break;
+        }
         case "Hero":
         {
             var title = CustomPageModel.Text(content, "title", page.Title);
@@ -168,7 +218,19 @@
     }
 }
 
-@section Scripts { <script src="~/js/pages/public-availability-calendar.js" asp-append-version="true"></script> }
+@if (isPolicyPage)
+{
+    if (!policyHeaderRendered)
+    {
+        <header class="lux-policy-head"><span class="public-eyebrow">Chính sách @((policyIndex + 1).ToString("00"))</span><h1>@(page.Title)</h1></header>
+    }
+    @Html.Raw("</article></div></div>")
+}
+
+@section Scripts {
+    <script src="~/js/pages/public-availability-calendar.js" asp-append-version="true"></script>
+    @if (isPolicyPage) { <script src="~/js/pages/public-policy-page.js" asp-append-version="true"></script> }
+}
 
 @if (page.Sections.Count == 0)
 {

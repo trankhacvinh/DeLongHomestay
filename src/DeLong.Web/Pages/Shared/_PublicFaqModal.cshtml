@@ -1,8 +1,21 @@
 @using System.Text.Json.Nodes
 @model IReadOnlyList<DeLong.Web.Features.Site.HomeSectionDto>
+@{
+    var hotline = ViewData["PublicHotline"] as string;
+    var facebookUrl = ViewData["PublicFacebookUrl"] as string;
+    var bookingUrl = ViewData["PublicBookingUrl"] as string ?? DeLong.Web.Features.Site.PublicUrlBuilder.BookingHome();
+}
 <dialog id="public-faq-dialog" class="public-faq-dialog" aria-labelledby="public-faq-title">
     <div class="public-faq-dialog-header">
-        <div><span class="public-eyebrow">HỎI ĐÁP</span><h2 id="public-faq-title">Câu hỏi thường gặp</h2></div>
+        <div>
+            <span class="public-eyebrow">Câu hỏi thường gặp</span>
+            <h2 id="public-faq-title">Hỏi gì cũng <em>được.</em></h2>
+            <label class="lux-faq-search">
+                <span class="visually-hidden">Tìm câu hỏi</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+                <input type="search" data-public-faq-search placeholder="Tìm: đổi giờ, giá phòng, check-in…" autocomplete="off" enterkeyhint="search" />
+            </label>
+        </div>
         <button type="button" data-public-faq-close aria-label="Đóng câu hỏi thường gặp" autofocus>×</button>
     </div>
     <div class="public-faq-dialog-content public-faq-list">
@@ -19,5 +32,22 @@
                 <details><summary>@question<span aria-hidden="true">+</span></summary><p>@answer</p></details>
             }
         }
+        <p class="lux-faq-empty" data-public-faq-empty hidden>Không tìm thấy câu hỏi phù hợp.@if (!string.IsNullOrWhiteSpace(hotline)) { <text> Gọi @hotline để được hỗ trợ.</text> }</p>
+    </div>
+    <div class="lux-faq-help lux-dark">
+        <div>
+            <strong>Chưa có câu trả lời?</strong>
+            @if (!string.IsNullOrWhiteSpace(hotline))
+            {
+                <small>Hotline <a href="tel:@hotline.Replace(" ", string.Empty)">@hotline</a></small>
+            }
+        </div>
+        <div class="lux-faq-help-actions">
+            @if (!string.IsNullOrWhiteSpace(facebookUrl))
+            {
+                <a class="public-btn public-btn-primary" href="@facebookUrl" target="_blank" rel="noopener">Nhắn Facebook</a>
+            }
+            <a class="public-btn public-btn-ghost" href="@bookingUrl" data-public-faq-close-link>Xem lịch phòng</a>
+        </div>
     </div>
 </dialog>

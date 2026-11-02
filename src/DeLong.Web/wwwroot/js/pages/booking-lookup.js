@@ -18,6 +18,18 @@
             };
         },
         computed: {
+            timeline() {
+                const result = this.result;
+                if (!result || result.status === 'Cancelled' || result.status === 'NoShow') return null;
+                const confirmed = ['Confirmed', 'CheckedIn', 'Completed'].includes(result.status);
+                const checkedIn = ['CheckedIn', 'Completed'].includes(result.status);
+                return [
+                    { label: 'Tạo đơn', done: true },
+                    { label: 'Đã thanh toán', done: Number(result.paidAmount) > 0 },
+                    { label: 'Đã xác nhận', done: confirmed },
+                    { label: 'Nhận phòng', done: checkedIn }
+                ];
+            },
             canSubmit() {
                 if (this.mode === 'email') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email.trim());
                 return this.form.code.trim().length >= 8 && this.form.phone.trim().length >= 8;

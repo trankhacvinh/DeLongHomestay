@@ -1,0 +1,10 @@
+@* Decorative moon, arches and rotating badge for the dark hero (public-lux.css decides when they show). *@
+<div class="lux-hero-deco" aria-hidden="true"><span class="lux-hero-moon"></span><span class="lux-hero-arches"><i></i><i></i><i></i></span></div>
+<a class="lux-hero-badge" href="@DeLong.Web.Features.Site.PublicUrlBuilder.BookingHome()" aria-label="Xem lịch phòng">
+    <svg viewBox="0 0 136 136" aria-hidden="true">
+        <defs><path id="lux-badge-circle" d="M68 68 m-52 0 a52 52 0 1 1 104 0 a52 52 0 1 1 -104 0"></path></defs>
+        <circle cx="68" cy="68" r="66" fill="rgba(10,35,38,.6)" stroke="rgba(226,196,142,.5)"></circle>
+        <g class="lux-spin"><text font-size="11" letter-spacing="3.2" fill="currentColor"><textPath href="#lux-badge-circle">ĐẶT PHÒNG TRỰC TIẾP · GIÁ RÕ RÀNG · </textPath></text></g>
+        <path d="M56 80 L80 56 M62 56 H80 V74" fill="none" stroke="#f3ede2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+</a>

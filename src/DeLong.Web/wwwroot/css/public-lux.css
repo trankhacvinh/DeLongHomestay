@@ -1,0 +1,529 @@
+/*
+ * De Long public look 2026-11 ("lux"): deep teal, cream paper, gold accent, Playfair Display headings.
+ * Loaded after every other public stylesheet (last entry of the home bundle, last <link> on other public pages)
+ * and before the property's custom.css, so it restyles the existing CMS markup only. It never changes
+ * booking rules, the availability calendar's behaviour or the booking modal.
+ * Selectors start with `html body.public-body` so they win over public-redesign.css without touching it.
+ */
+
+@font-face{font-family:"Playfair Display";font-style:normal;font-weight:400;font-display:swap;src:url("../fonts/playfair/playfair-display-vietnamese-400-normal.woff2") format("woff2");unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}
+@font-face{font-family:"Playfair Display";font-style:normal;font-weight:400;font-display:swap;src:url("../fonts/playfair/playfair-display-latin-400-normal.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Playfair Display";font-style:italic;font-weight:400;font-display:swap;src:url("../fonts/playfair/playfair-display-vietnamese-400-italic.woff2") format("woff2");unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}
+@font-face{font-family:"Playfair Display";font-style:italic;font-weight:400;font-display:swap;src:url("../fonts/playfair/playfair-display-latin-400-italic.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+
+/* ---------- Tokens (also consumed by public-redesign.css rules through var()) ---------- */
+html body.public-body{
+    --dl-ground:#f3ede2;
+    --dl-ground-2:#ebe2d2;
+    --dl-surface:#fffdf8;
+    --dl-ink:#0d2b2e;
+    --dl-ink-2:#164549;
+    --dl-text:#3c5457;
+    --dl-muted:#5a6e70;
+    --dl-line:#e2d8c6;
+    --dl-line-2:#c9bfae;
+    --dl-accent:#e2c48e;
+    --dl-accent-ink:#7a5a1e;
+    --dl-accent-soft:#f6eedc;
+    --dl-sky:#dfe9e6;
+    --dl-sand:#efe3cc;
+    --lux-dark:#0d2b2e;
+    --lux-dark-2:#0a2326;
+    --lux-dark-3:#12393d;
+    --lux-cream:#f3ede2;
+    --lux-cream-2:#c6d4d1;
+    --lux-cream-3:#a9bdba;
+    --lux-gold:#e2c48e;
+    --lux-serif:"Playfair Display","Noto Serif",Georgia,serif;
+    --lux-ease:cubic-bezier(.2,.7,.2,1);
+    --dl-h1:clamp(42px,6.4vw,96px);
+    --dl-h2:clamp(34px,4.4vw,60px);
+    --dl-h3:clamp(20px,1.6vw,23px);
+    background:var(--dl-ground);
+}
+
+/* ---------- Type: serif display headings, italic accent words ---------- */
+html body.public-body .public-main .public-hero h1,
+html body.public-body .public-main .public-section-head h2,
+html body.public-body .public-main .public-cms-feature h2,
+html body.public-body .public-main .public-cms-cta h2,
+html body.public-body .public-main .public-check-card h2,
+html body.public-body .public-footer-contacts-head h2,
+html body.public-body .lux-display{
+    font-family:var(--lux-serif)!important;
+    font-weight:400!important;
+    text-transform:none!important;
+    letter-spacing:-.015em!important;
+    line-height:1.12!important;
+    text-wrap:balance;
+}
+html body.public-body .public-main .public-section-head h2{font-size:var(--dl-h2)!important}
+html body.public-body .public-main h1 em,
+html body.public-body .public-main h2 em,
+html body.public-body .lux-display em,
+html body.public-body .public-hospitality-footer h2 em{font-style:italic;font-weight:400;color:var(--dl-accent-ink)}
+html body.public-body .public-main .public-eyebrow,
+html body.public-body .public-hospitality-footer .public-eyebrow,
+html body.public-body .lux-eyebrow{
+    font-family:var(--dl-sans);font-weight:600;font-size:12px;letter-spacing:.32em!important;text-transform:uppercase;color:var(--dl-accent-ink);
+}
+html body.public-body .public-main .public-section{padding-block:clamp(56px,7vw,120px)}
+html body.public-body :focus-visible{outline:3px solid rgba(226,196,142,.75);outline-offset:2px}
+
+/* ---------- Buttons: pills with a light sweep on hover ---------- */
+html body.public-body .public-btn{position:relative;overflow:hidden;font-weight:600;border-radius:999px!important;transition:transform .35s var(--lux-ease),box-shadow .35s,background-color .35s}
+html body.public-body .public-btn::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;background:rgba(255,255,255,.32);transform:skewX(-20deg);transition:left .7s ease;pointer-events:none}
+html body.public-body .public-btn:hover{transform:translateY(-2px);box-shadow:0 16px 30px -16px rgba(0,0,0,.45)}
+html body.public-body .public-btn:hover::after{left:130%}
+html body.public-body .public-btn-primary{background:var(--dl-ink)!important;border-color:var(--dl-ink)!important;color:var(--lux-cream)!important}
+html body.public-body .public-btn-primary:hover{background:var(--dl-ink-2)!important}
+/* Gold buttons on dark grounds */
+html body.public-body .public-site-header .public-btn-primary,
+html body.public-body .public-hotel-hero .public-btn-primary,
+html body.public-body .lux-dark .public-btn-primary,
+html body.public-body .public-hospitality-footer .public-btn-primary{background:var(--lux-gold)!important;border-color:var(--lux-gold)!important;color:var(--lux-dark)!important}
+html body.public-body .public-hotel-hero .public-btn-ghost,
+html body.public-body .lux-dark .public-btn-ghost,
+html body.public-body .public-hospitality-footer .public-btn-ghost{background:transparent!important;border:1px solid rgba(243,237,226,.38)!important;color:var(--lux-cream)!important}
+html body.public-body .public-hotel-hero .public-btn-ghost:hover,
+html body.public-body .lux-dark .public-btn-ghost:hover,
+html body.public-body .public-hospitality-footer .public-btn-ghost:hover{background:rgba(243,237,226,.1)!important}
+html body.public-body .public-text-link{font-weight:600;border-bottom-width:1px}
+
+/* ---------- Header (dark, all public pages) ---------- */
+html body.public-body .public-site-header{position:sticky;top:0;z-index:50;background:rgba(13,43,46,.94);border-bottom:1px solid rgba(243,237,226,.1);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:var(--lux-cream)}
+html body.public-body .public-site-brand,
+html body.public-body .public-site-brand strong{color:var(--lux-cream)}
+html body.public-body .public-site-brand strong{font-family:var(--lux-serif);font-weight:400;font-size:24px;letter-spacing:0}
+html body.public-body .public-site-brand small{color:var(--lux-gold);font-size:10px;font-weight:600;letter-spacing:.32em;text-transform:uppercase}
+html body.public-body .public-site-brand .brand-mark{background:var(--lux-gold);color:var(--lux-dark);font-family:var(--lux-serif);font-weight:400;font-size:17px;border-radius:999px}
+html body.public-body .public-site-links a,
+html body.public-body .public-site-links .public-faq-menu{position:relative;color:var(--lux-cream);font-weight:400;font-size:14px}
+html body.public-body .public-site-links a::after,
+html body.public-body .public-site-links .public-faq-menu::after{content:"";position:absolute;left:0;right:100%;bottom:6px;height:1px;background:var(--lux-gold);transition:right .35s ease}
+html body.public-body .public-site-links a:hover,
+html body.public-body .public-site-links .public-faq-menu:hover{color:var(--lux-cream)}
+html body.public-body .public-site-links a:hover::after,
+html body.public-body .public-site-links .public-faq-menu:hover::after,
+html body.public-body .public-site-links a[aria-current="page"]::after{right:0}
+html body.public-body .public-site-actions .public-admin-link,
+html body.public-body .public-site-actions .public-mobile-lookup,
+html body.public-body .public-site-header .public-faq-mobile{color:var(--lux-cream)!important;background:transparent!important;border-color:rgba(243,237,226,.3)!important;font-weight:500}
+html body.public-body .public-site-actions .public-logout-link{color:var(--lux-cream)!important}
+html body.public-body .public-site-header .public-btn-primary{min-height:44px;padding:11px 22px}
+html body.public-body .public-site-header .public-site-brand-logo{filter:none}
+/* Scroll progress bar (CSS scroll timeline; browsers without it simply show nothing) */
+.lux-scroll-progress{display:none}
+@supports (animation-timeline:scroll()){
+    html body.public-body .lux-scroll-progress{display:block;position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--lux-gold);transform-origin:0 50%;transform:scaleX(0);animation:lux-progress linear both;animation-timeline:scroll(root)}
+}
+@keyframes lux-progress{to{transform:scaleX(1)}}
+
+/* ---------- Hero: full-bleed dark band, photo as background ---------- */
+html body.public-body .public-main .public-hotel-hero,
+html body.public-body .public-main .public-hero{
+    position:relative;isolation:isolate;overflow:hidden;
+    background:var(--lux-dark)!important;color:var(--lux-cream);
+    padding:clamp(88px,11vw,170px) 0 clamp(80px,10vw,140px)!important;
+    min-height:0;display:block;margin-top:0!important;
+}
+html body.public-body .public-main .public-hotel-hero::before{
+    content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+    background-image:repeating-linear-gradient(90deg,rgba(243,237,226,.035) 0 1px,transparent 1px 120px);
+}
+html body.public-body .public-main .public-hotel-hero>.public-container{position:static}
+html body.public-body .public-main .public-hotel-hero-grid,
+html body.public-body .public-main .public-hero-grid{display:block!important;min-height:0}
+html body.public-body .public-main .public-hotel-hero-copy,
+html body.public-body .public-main .public-hero-copy{position:relative;z-index:3;max-width:940px}
+html body.public-body .public-main .public-hero h1{
+    font-size:var(--dl-h1)!important;line-height:1.06!important;letter-spacing:-.02em!important;
+    color:var(--lux-cream)!important;margin:22px 0 28px;max-width:940px;
+}
+html body.public-body .public-main .public-hero h1 em{color:var(--lux-gold)}
+html body.public-body .public-main .public-hero .public-eyebrow{color:var(--lux-gold)!important;letter-spacing:.36em!important}
+html body.public-body .public-main .public-hero-copy>p{color:var(--lux-cream-2)!important;font-size:18px;font-weight:300;line-height:1.7;max-width:540px}
+html body.public-body .public-main .public-hero-actions{margin-top:38px;gap:14px}
+html body.public-body .public-main .public-hero .public-btn{min-height:54px;padding:16px 30px}
+html body.public-body .public-main .public-hotel-hero-metrics{border:0;margin-top:clamp(44px,6vw,72px);padding:0;gap:16px clamp(32px,4vw,56px)}
+html body.public-body .public-main .public-hotel-hero-metrics span{padding:0}
+html body.public-body .public-main .public-hotel-hero-metrics strong{font-family:var(--lux-serif);font-weight:400;font-size:clamp(32px,3.4vw,46px);line-height:1;color:var(--lux-cream)}
+html body.public-body .public-main .public-hotel-hero-metrics small{margin-top:8px;color:var(--lux-cream-3);font-size:13px;letter-spacing:.06em}
+/* The hero photo (collage main tile or the media column) becomes the background. */
+html body.public-body .public-main .public-hotel-hero .public-hero-collage,
+html body.public-body .public-main .public-hotel-hero .public-hotel-hero-media,
+html body.public-body .public-main .public-hero .public-hero-art{
+    position:absolute!important;inset:0!important;z-index:0;width:auto!important;height:auto!important;min-height:0!important;margin:0!important;
+    border-radius:0!important;background:transparent!important;pointer-events:none;
+}
+html body.public-body .public-main .public-hotel-hero .public-hero-tile.is-main,
+html body.public-body .public-main .public-hotel-hero .public-hotel-hero-main-image{
+    position:absolute!important;inset:0!important;width:100%!important;height:100%!important;border-radius:0!important;box-shadow:none!important;
+    object-fit:cover;background:var(--lux-dark-3)!important;background-image:none!important;
+}
+html body.public-body .public-main .public-hotel-hero .public-hero-tile.is-main img{width:100%;height:100%;object-fit:cover}
+html body.public-body .public-main .public-hotel-hero .public-hero-collage::after,
+html body.public-body .public-main .public-hotel-hero .public-hotel-hero-media::after{
+    content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(10,35,38,.86) 0%,rgba(10,35,38,.62) 55%,rgba(10,35,38,.42) 100%);
+}
+html body.public-body .public-main .public-hotel-hero .public-hero-tile.is-top,
+html body.public-body .public-main .public-hotel-hero .public-hero-tile.is-bottom,
+html body.public-body .public-main .public-hotel-hero .public-hero-collage-label,
+html body.public-body .public-main .public-hotel-hero .public-hero-price-sticker,
+html body.public-body .public-main .public-hotel-hero .public-hotel-hero-inset,
+html body.public-body .public-main .public-hotel-hero .public-hotel-hero-label,
+html body.public-body .public-main .public-hero .hero-art-card{display:none!important}
+/* Moon + arches: drawn only when there is no hero photo (the tile is empty) and only on wide screens. */
+.lux-hero-deco{display:none}
+@media(min-width:900px){
+    html body.public-body .public-main .public-hotel-hero:has(.public-hero-tile.is-main.is-empty) .lux-hero-deco,
+    html body.public-body .public-main .public-hotel-hero:has(.public-hero-art) .lux-hero-deco,
+    html body.public-body .public-main .public-hotel-hero:not(:has(.public-hero-collage,.public-hotel-hero-media,.public-hero-art)) .lux-hero-deco{display:block}
+}
+.lux-hero-deco{position:absolute;inset:0;z-index:1;pointer-events:none}
+.lux-hero-moon{position:absolute;top:14%;right:12%;width:clamp(140px,13vw,200px);aspect-ratio:1;border-radius:50%;background:var(--lux-gold,#e2c48e);opacity:.92;box-shadow:0 0 110px 30px rgba(226,196,142,.22)}
+.lux-hero-arches{position:absolute;right:6%;bottom:0;display:flex;align-items:flex-end;gap:26px}
+.lux-hero-arches i{display:block;border-radius:999px 999px 0 0;background:rgba(22,69,73,.85)}
+.lux-hero-arches i:nth-child(1){width:170px;height:340px}
+.lux-hero-arches i:nth-child(2){width:240px;height:440px;background:rgba(26,80,85,.92)}
+.lux-hero-arches i:nth-child(3){width:150px;height:290px}
+.lux-hero-badge{position:absolute;right:5%;bottom:56px;z-index:4;width:124px;height:124px;color:var(--lux-gold,#e2c48e)}
+.lux-hero-badge svg{width:100%;height:100%;display:block}
+.lux-hero-badge .lux-spin{transform-origin:center;transform-box:fill-box;animation:lux-spin 18s linear infinite}
+@keyframes lux-spin{to{transform:rotate(360deg)}}
+@media(max-width:899px){.lux-hero-badge{display:none}}
+
+/* Word-by-word rise for the hero title (desktop only, honours reduced motion) */
+@media(min-width:900px) and (prefers-reduced-motion:no-preference){
+    html body.public-body .public-main .public-hero h1,
+    html body.public-body .public-main .public-hero .public-eyebrow,
+    html body.public-body .public-main .public-hero-copy>p,
+    html body.public-body .public-main .public-hero-actions,
+    html body.public-body .public-main .public-hotel-hero-metrics{animation:lux-fadeup 1s var(--lux-ease) both}
+    html body.public-body .public-main .public-hero-copy>p{animation-delay:.25s}
+    html body.public-body .public-main .public-hero-actions{animation-delay:.35s}
+    html body.public-body .public-main .public-hotel-hero-metrics{animation-delay:.45s}
+}
+@keyframes lux-fadeup{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+
+/* ---------- Marquee ---------- */
+html body.public-body .public-room-marquee{background:var(--lux-dark-2)!important;border-block:1px solid rgba(243,237,226,.12);padding:22px 0!important;margin:0!important;color:var(--lux-cream)}
+html body.public-body .public-room-marquee-track span{font-family:var(--lux-serif)!important;font-style:italic;font-weight:400!important;font-size:clamp(22px,2.2vw,30px)!important;text-transform:none!important;letter-spacing:0!important;color:var(--lux-cream)!important}
+
+/* ---------- Availability calendar section: only the frame changes ---------- */
+html body.public-body .public-main .public-cms-availability-calendar{
+    position:relative;background-color:var(--lux-cream)!important;
+    background-image:repeating-linear-gradient(0deg,rgba(13,43,46,.045) 0 1px,transparent 1px 64px),repeating-linear-gradient(90deg,rgba(13,43,46,.045) 0 1px,transparent 1px 64px)!important;
+}
+html body.public-body .public-main .public-cms-availability-calendar .public-v2-viewport-shell,
+html body.public-body .public-main .public-cms-availability-calendar .public-v2-roombar{border-radius:26px;box-shadow:0 30px 60px -40px rgba(13,43,46,.35)}
+
+/* ---------- Rooms: dark band, tall photo cards ---------- */
+html body.public-body .public-main .public-cms-room-grid{background:var(--lux-dark)!important;color:var(--lux-cream)}
+html body.public-body .public-main .public-cms-room-grid .public-section-head h2{color:var(--lux-cream)!important}
+html body.public-body .public-main .public-cms-room-grid .public-section-head h2 em{color:var(--lux-gold)}
+html body.public-body .public-main .public-cms-room-grid .public-eyebrow{color:var(--lux-gold)}
+html body.public-body .public-main .public-cms-room-grid .public-text-link{color:var(--lux-cream)!important;border-color:var(--lux-gold)}
+html body.public-body .public-main .public-cms-room-grid .public-room-grid{gap:clamp(22px,2.6vw,36px)}
+html body.public-body .public-main .public-cms-room-grid .public-room-card{
+    background:transparent!important;padding:0!important;border-radius:0!important;gap:18px;color:var(--lux-cream);overflow:visible;
+    transition:transform .7s var(--lux-ease);
+}
+html body.public-body .public-main .public-cms-room-grid .public-room-card:hover{transform:translateY(-8px)}
+html body.public-body .public-main .public-cms-room-grid .public-room-card::before{
+    content:"#" counter(dl-room)!important;z-index:3;left:16px;right:auto;top:16px;
+    padding:6px 12px;border-radius:999px;background:rgba(10,35,38,.62);backdrop-filter:blur(6px);
+    font-family:var(--dl-sans)!important;font-weight:600!important;font-size:12px!important;letter-spacing:.06em!important;line-height:1.2;color:var(--lux-cream)!important;
+}
+html body.public-body .public-main .public-cms-room-grid .public-room-art{
+    aspect-ratio:4/5!important;border-radius:22px!important;background:var(--dl-tone,#164549)!important;
+}
+html body.public-body .public-main .public-cms-room-grid .public-room-art::after{
+    content:"";position:absolute;inset:14% 18% 0;border:1px solid rgba(243,237,226,.28);border-bottom:0;border-radius:999px 999px 0 0;pointer-events:none;
+}
+html body.public-body .public-main .public-cms-room-grid .public-room-art:has(.public-room-cover-image)::after{display:none}
+html body.public-body .public-main .public-cms-room-grid .public-room-cover-image{transition:transform 1.2s var(--lux-ease)}
+html body.public-body .public-main .public-cms-room-grid .public-room-card:hover .public-room-cover-image{transform:scale(1.07)}
+html body.public-body .public-main .public-cms-room-grid .public-room-poster{inset:auto 0 26px;color:rgba(243,237,226,.85)}
+html body.public-body .public-main .public-cms-room-grid .public-room-poster strong{font-family:var(--lux-serif);font-weight:400;font-size:22px;text-transform:none}
+html body.public-body .public-main .public-cms-room-grid .public-room-poster small{font-size:10px;letter-spacing:.2em;text-transform:uppercase;opacity:.7}
+html body.public-body .public-main .public-cms-room-grid .public-room-body{padding:0;gap:12px}
+html body.public-body .public-main .public-cms-room-grid .public-room-body h3{font-family:var(--lux-serif)!important;font-weight:400!important;font-size:clamp(24px,2vw,30px)!important;text-transform:none!important;letter-spacing:0!important;line-height:1.2!important}
+html body.public-body .public-main .public-cms-room-grid .public-room-body h3 a{color:var(--lux-cream)}
+html body.public-body .public-main .public-cms-room-grid .public-room-body p{color:var(--lux-cream-3);font-size:14px}
+html body.public-body .public-main .public-cms-room-grid .public-room-conversion{border-top:1px solid rgba(243,237,226,.16);padding-top:14px}
+html body.public-body .public-main .public-cms-room-grid .public-room-price small{color:var(--lux-cream-3)}
+html body.public-body .public-main .public-cms-room-grid .public-room-price strong{color:var(--lux-gold);font-weight:600;font-size:18px}
+html body.public-body .public-main .public-cms-room-grid .public-room-book-now{background:var(--lux-gold)!important;color:var(--lux-dark)!important;font-weight:600;transition:transform .35s var(--lux-ease)}
+html body.public-body .public-main .public-cms-room-grid .public-room-book-now:hover{transform:translateY(-2px);background:var(--lux-cream)!important}
+html body.public-body .public-main .public-cms-room-grid .public-room-book-now[aria-disabled="true"]{background:rgba(243,237,226,.14)!important;color:var(--lux-cream-3)!important}
+
+/* ---------- Booking steps (home) ---------- */
+.lux-steps{position:relative;overflow:hidden;background:var(--lux-cream,#f3ede2)}
+.lux-steps::before{content:"";position:absolute;left:-60px;top:40px;width:260px;height:360px;border-radius:999px 999px 0 0;background:rgba(226,196,142,.18);pointer-events:none}
+.lux-steps .public-container{position:relative}
+.lux-steps-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;counter-reset:lux-step}
+.lux-steps-grid li{counter-increment:lux-step;display:flex;flex-direction:column;gap:10px;padding:30px 26px 34px;border-radius:24px;background:var(--dl-surface,#fffdf8);border:1px solid var(--dl-line,#e2d8c6);transition:transform .5s var(--lux-ease,ease),box-shadow .5s}
+.lux-steps-grid li:hover{transform:translateY(-6px);box-shadow:0 30px 50px -34px rgba(13,43,46,.45)}
+.lux-steps-grid li::before{content:counter(lux-step,decimal-leading-zero);font-family:var(--lux-serif);font-size:40px;line-height:1;color:var(--dl-accent-ink,#7a5a1e)}
+.lux-steps-grid h3{margin:10px 0 0;font-size:18px;font-weight:600;line-height:1.35;color:var(--dl-ink,#0d2b2e)}
+.lux-steps-grid p{margin:0;font-size:14px;line-height:1.65;color:var(--dl-text,#3c5457)}
+@media(max-width:980px){.lux-steps-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.lux-steps-grid{grid-template-columns:minmax(0,1fr)}.lux-steps-grid li{padding:24px 22px}}
+
+/* ---------- FAQ block on the page ---------- */
+html body.public-body .public-main .public-story-faq .public-faq-list{display:grid;gap:12px;max-width:920px;margin-inline:auto;counter-reset:lux-faq}
+html body.public-body .public-main .public-story-faq details,
+html body.public-body .public-faq-dialog .public-faq-list details{
+    counter-increment:lux-faq;border:1px solid var(--dl-line)!important;border-radius:18px!important;background:var(--dl-surface)!important;
+    transition:border-color .3s,box-shadow .3s;overflow:hidden;
+}
+html body.public-body .public-main .public-story-faq details[open],
+html body.public-body .public-faq-dialog .public-faq-list details[open]{border-color:var(--dl-ink)!important;box-shadow:0 24px 50px -36px rgba(13,43,46,.6)}
+html body.public-body .public-main .public-story-faq summary,
+html body.public-body .public-faq-dialog .public-faq-list summary{
+    display:flex;align-items:center;gap:14px;min-height:64px;padding:18px 20px!important;list-style:none;cursor:pointer;
+    font-family:var(--lux-serif);font-weight:400;font-size:clamp(17px,1.5vw,21px);line-height:1.35;color:var(--dl-ink);
+}
+html body.public-body .public-main .public-story-faq summary::-webkit-details-marker,
+html body.public-body .public-faq-dialog .public-faq-list summary::-webkit-details-marker{display:none}
+html body.public-body .public-main .public-story-faq summary::before,
+html body.public-body .public-faq-dialog .public-faq-list summary::before{content:counter(lux-faq,decimal-leading-zero);flex:none;font-size:14px;color:var(--dl-accent-ink)}
+html body.public-body .public-main .public-story-faq summary span,
+html body.public-body .public-faq-dialog .public-faq-list summary span{
+    margin-left:auto;flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;
+    background:#efe8db;color:var(--dl-ink);font-family:var(--dl-sans);font-size:20px;line-height:1;transition:transform .35s var(--lux-ease),background-color .3s,color .3s;
+}
+html body.public-body .public-main .public-story-faq details[open] summary span,
+html body.public-body .public-faq-dialog .public-faq-list details[open] summary span{transform:rotate(45deg);background:var(--dl-ink);color:var(--lux-gold)}
+html body.public-body .public-main .public-story-faq details p,
+html body.public-body .public-faq-dialog .public-faq-list details p{margin:0!important;padding:0 64px 22px 52px!important;color:var(--dl-text);font-size:15px;line-height:1.75}
+html body.public-body .public-main .public-story-faq .public-section-head{justify-content:center;text-align:center}
+
+/* ---------- Blog cards ---------- */
+html body.public-body .public-main .public-editorial-blog .public-blog-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))!important;gap:28px!important;border:0!important}
+html body.public-body .public-main .public-editorial-blog .public-blog-card{flex-direction:column!important;padding:0!important;border:0!important;gap:16px!important}
+html body.public-body .public-main .public-editorial-blog .public-blog-card::before{content:none!important;display:none!important}
+html body.public-body .public-main .public-editorial-blog .public-blog-media{display:block!important;aspect-ratio:4/3;height:auto;border-radius:22px;background:var(--dl-ink-2)}
+html body.public-body .public-main .public-editorial-blog .public-blog-card:nth-child(3n+2) .public-blog-media{background:#555c68}
+html body.public-body .public-main .public-editorial-blog .public-blog-card:nth-child(3n+3) .public-blog-media{background:#8f5a22}
+html body.public-body .public-main .public-editorial-blog .public-blog-media img{transition:transform 1.2s var(--lux-ease)}
+html body.public-body .public-main .public-editorial-blog .public-blog-card:hover .public-blog-media img{transform:scale(1.06)}
+html body.public-body .public-main .public-editorial-blog .public-blog-media span{color:rgba(243,237,226,.8);font-size:11px;letter-spacing:.2em;text-transform:uppercase}
+html body.public-body .public-main .public-editorial-blog .public-blog-copy{display:flex!important;flex-direction:column!important;gap:8px!important}
+html body.public-body .public-main .public-editorial-blog .public-blog-copy small{display:none!important}
+html body.public-body .public-main .public-editorial-blog .public-blog-copy h3{flex:none!important;font-family:var(--lux-serif)!important;font-weight:400!important;font-size:clamp(20px,1.7vw,24px)!important;line-height:1.3!important;letter-spacing:0!important;margin:0}
+html body.public-body .public-main .public-editorial-blog .public-blog-copy h3 a{color:var(--dl-ink)}
+html body.public-body .public-main .public-editorial-blog .public-blog-copy p{flex:none!important;color:var(--dl-text);font-size:14px;line-height:1.65;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+html body.public-body .public-main .public-editorial-blog .public-blog-copy .public-text-link{font-size:13px!important;border:0!important;padding:0!important;min-height:32px!important;color:var(--dl-accent-ink)!important;letter-spacing:.04em}
+html body.public-body .public-main .public-editorial-blog .public-blog-copy .public-text-link::after{content:none!important}
+
+/* ---------- Branch cards (BranchGrid) ---------- */
+html body.public-body .public-main .public-branch-section{background:var(--lux-cream)!important}
+html body.public-body .public-main .public-branch-card{border-radius:24px!important;overflow:hidden;background:var(--dl-surface)!important;border:1px solid var(--dl-line)!important;transition:transform .5s var(--lux-ease),box-shadow .5s}
+html body.public-body .public-main .public-branch-card:hover{transform:translateY(-6px);box-shadow:0 30px 50px -30px rgba(13,43,46,.5)}
+html body.public-body .public-main .public-branch-copy h3{font-family:var(--lux-serif)!important;font-weight:400!important;text-transform:none!important;letter-spacing:0!important}
+
+/* ---------- Footer: CTA band, contacts and links on dark ---------- */
+html body.public-body .public-hospitality-footer{background:var(--lux-dark)!important;color:var(--lux-cream-2);border-top:0}
+.lux-footer-cta{position:relative;overflow:hidden;padding:clamp(80px,10vw,140px) 0;text-align:center;border-bottom:1px solid rgba(243,237,226,.1)}
+.lux-footer-cta::before{content:"";position:absolute;left:50%;top:50%;width:420px;height:420px;margin:-210px 0 0 -210px;border-radius:50%;background:rgba(226,196,142,.08);pointer-events:none}
+.lux-footer-cta h2{position:relative;margin:0;font-family:var(--lux-serif);font-weight:400;font-size:clamp(46px,7vw,104px);line-height:1.05;letter-spacing:-.02em;color:var(--lux-cream,#f3ede2)}
+html body.public-body .lux-footer-cta h2 em{color:var(--lux-gold)}
+.lux-footer-cta-actions{position:relative;display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:40px}
+html body.public-body .public-footer-contacts{padding-block:clamp(56px,6vw,88px)}
+html body.public-body .public-footer-contacts-head h2{color:var(--lux-cream)!important;font-size:var(--dl-h2)!important}
+html body.public-body .public-footer-contacts-head .public-eyebrow{color:var(--lux-gold)}
+html body.public-body .public-footer-contact-card{background:rgba(243,237,226,.05)!important;border:1px solid rgba(243,237,226,.12)!important;border-radius:24px!important;color:var(--lux-cream-2);box-shadow:none!important}
+html body.public-body .public-footer-contact-card strong,
+html body.public-body .public-footer-contact-brand{color:var(--lux-cream)!important}
+html body.public-body .public-footer-contact-brand strong{font-family:var(--lux-serif);font-weight:400;font-size:20px}
+html body.public-body .public-footer-contact-card small,
+html body.public-body .public-footer-contact-address{color:var(--lux-cream-3)!important}
+html body.public-body .public-footer-contact-hotline{color:var(--lux-gold)!important}
+html body.public-body .public-footer-contact-card a{color:var(--lux-cream)}
+html body.public-body .public-footer-contact-social a{background:rgba(243,237,226,.08)!important;color:var(--lux-cream)!important;border-color:rgba(243,237,226,.16)!important}
+html body.public-body .public-footer-contact-empty,
+html body.public-body .public-footer-contact-empty a{color:var(--lux-cream-3)!important}
+html body.public-body .public-footer-contact-card .brand-mark{background:var(--lux-gold);color:var(--lux-dark)}
+html body.public-body .public-hospitality-footer-grid{border-top:1px solid rgba(243,237,226,.1)}
+html body.public-body .public-hospitality-footer .public-site-brand strong{color:var(--lux-cream)}
+html body.public-body .public-hospitality-footer p{color:var(--lux-cream-3)}
+html body.public-body .public-footer-column strong{color:var(--lux-gold)!important;font-weight:600;font-size:12px;letter-spacing:.2em;text-transform:uppercase}
+html body.public-body .public-footer-column a,
+html body.public-body .public-footer-book{color:var(--lux-cream-2)!important}
+html body.public-body .public-footer-column a:hover,
+html body.public-body .public-footer-book:hover{color:var(--lux-gold)!important}
+html body.public-body .public-footer-bottom{border-top:1px solid rgba(243,237,226,.1);color:var(--lux-cream-3)!important}
+html body.public-body .public-footer-bottom span{color:var(--lux-cream-3)!important}
+html body.public-body .public-footer-wordmark{font-family:var(--lux-serif)!important;font-weight:400!important;color:rgba(243,237,226,.05)!important;letter-spacing:0!important}
+
+/* ---------- Shared page hero for policy / lookup ---------- */
+.lux-page-hero{position:relative;overflow:hidden;background:var(--lux-dark,#0d2b2e);color:var(--lux-cream,#f3ede2);padding:clamp(72px,9vw,120px) 0 clamp(64px,8vw,110px)}
+.lux-page-hero::before{content:"";position:absolute;inset:0;background-image:repeating-linear-gradient(90deg,rgba(243,237,226,.035) 0 1px,transparent 1px 120px);pointer-events:none}
+.lux-page-hero .public-container{position:relative}
+.lux-page-hero .lux-eyebrow{color:var(--lux-gold,#e2c48e)}
+.lux-page-hero .lux-display{margin:22px 0 0;font-size:clamp(44px,6vw,88px);color:var(--lux-cream,#f3ede2);max-width:900px}
+html body.public-body .lux-page-hero .lux-display em{color:var(--lux-gold)}
+.lux-page-hero p{margin:26px 0 0;max-width:560px;color:var(--lux-cream-2,#c6d4d1);font-size:17px;font-weight:300;line-height:1.7}
+.lux-page-hero-arch{position:absolute;right:8%;bottom:-2px;width:clamp(160px,18vw,240px);height:clamp(220px,26vw,330px);border:1px solid rgba(226,196,142,.35);border-bottom:0;border-radius:999px 999px 0 0;pointer-events:none}
+.lux-page-hero-moon{position:absolute;right:calc(8% + clamp(40px,5vw,70px));top:18%;width:clamp(70px,7vw,110px);aspect-ratio:1;border-radius:50%;background:var(--lux-gold,#e2c48e);box-shadow:0 0 90px 24px rgba(226,196,142,.2);pointer-events:none}
+@media(max-width:760px){.lux-page-hero-arch,.lux-page-hero-moon{display:none}}
+.lux-paper{position:relative;background-color:var(--lux-cream,#f3ede2);background-image:repeating-linear-gradient(90deg,rgba(13,43,46,.04) 0 1px,transparent 1px 96px)}
+
+/* ---------- Policy pages ---------- */
+.lux-policy{padding:clamp(40px,6vw,80px) 0 clamp(72px,9vw,120px)}
+.lux-policy-layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:clamp(24px,3vw,40px);align-items:start}
+.lux-policy-aside{position:sticky;top:96px;display:grid;gap:10px}
+.lux-policy-tabs{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.lux-policy-tabs a{display:flex;align-items:baseline;gap:12px;min-height:52px;padding:14px 16px;border-radius:14px;border:1px solid var(--dl-line,#e2d8c6);background:var(--dl-surface,#fffdf8);color:var(--dl-ink,#0d2b2e);font-size:14px;font-weight:500;line-height:1.35;text-decoration:none;transition:transform .3s var(--lux-ease,ease),border-color .3s}
+.lux-policy-tabs a:hover{transform:translateX(4px);border-color:var(--dl-ink,#0d2b2e)}
+.lux-policy-tabs a span{flex:none;font-family:var(--lux-serif);font-size:16px;color:var(--dl-accent-ink,#7a5a1e)}
+.lux-policy-tabs a[aria-current="page"]{background:var(--dl-ink,#0d2b2e);border-color:var(--dl-ink,#0d2b2e);color:var(--lux-cream,#f3ede2)}
+.lux-policy-tabs a[aria-current="page"] span{color:var(--lux-gold,#e2c48e)}
+.lux-help-card{margin-top:8px;padding:18px 18px 20px;border-radius:16px;background:var(--dl-ink,#0d2b2e);color:var(--lux-cream-2,#c6d4d1);font-size:13px}
+.lux-help-card a{display:block;margin-top:6px;font-size:22px;font-weight:600;letter-spacing:.01em;color:var(--lux-gold,#e2c48e);text-decoration:none}
+.lux-policy-card{position:relative;min-width:0;padding:clamp(24px,4vw,48px);border-radius:26px;background:var(--dl-surface,#fffdf8);border:1px solid var(--dl-line,#e2d8c6);box-shadow:0 30px 60px -44px rgba(13,43,46,.45)}
+html body.public-body .lux-policy-card h1{margin:12px 0 0;font-family:var(--lux-serif);font-weight:400;font-size:clamp(30px,3.2vw,44px);line-height:1.15;letter-spacing:-.01em;color:var(--dl-ink);text-transform:none}
+.lux-policy-lead{margin:14px 0 0;color:var(--dl-text,#3c5457);font-size:16px;line-height:1.7}
+.lux-policy-body{margin-top:28px}
+/* Plain rich text inside the policy card */
+html body.public-body .lux-policy-card .public-cms-rich-inner{max-width:none;margin:28px 0 0;padding:0;font-size:15px!important;line-height:1.75!important;color:var(--dl-text)}
+html body.public-body .lux-policy-card .public-cms-rich-inner>*:first-child{margin-top:0}
+/* Sections built by public-policy-page.js */
+.lux-policy-section{display:grid;grid-template-columns:56px minmax(0,1fr);gap:4px 16px;padding:24px 0;border-top:1px solid var(--dl-line,#e2d8c6)}
+.lux-policy-section-index{font-family:var(--lux-serif);font-size:30px;line-height:1.1;color:var(--dl-accent-ink,#7a5a1e)}
+html body.public-body .lux-policy-section-title{margin:0 0 8px!important;font-family:var(--dl-sans)!important;font-weight:600!important;font-size:18px!important;line-height:1.4!important;letter-spacing:0!important;text-transform:none!important;color:var(--dl-ink)!important}
+.lux-policy-section-body{min-width:0}
+.lux-policy-section-body>*:first-child{margin-top:0}
+.lux-policy-section-body>*:last-child{margin-bottom:0}
+html body.public-body .lux-policy-sub{margin:18px 0 6px!important;font-family:var(--dl-sans)!important;font-weight:600!important;font-size:15px!important;line-height:1.5!important;color:var(--dl-ink)!important}
+.lux-policy-note{margin:24px 0 0;padding-top:18px;border-top:1px solid var(--dl-line,#e2d8c6);color:var(--dl-muted,#5a6e70);font-size:13px;line-height:1.6}
+@media(max-width:900px){
+    .lux-policy-layout{grid-template-columns:minmax(0,1fr)}
+    .lux-policy-aside{position:static}
+    .lux-policy-tabs{display:flex;overflow-x:auto;gap:8px;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    .lux-policy-tabs::-webkit-scrollbar{display:none}
+    .lux-policy-tabs li{flex:none}
+    .lux-policy-tabs a{min-height:44px;padding:10px 14px;white-space:nowrap}
+    .lux-help-card{display:none}
+    .lux-policy-section{grid-template-columns:40px minmax(0,1fr)}
+    .lux-policy-section-index{font-size:24px}
+}
+
+/* ---------- FAQ modal ---------- */
+html body.public-body .public-faq-dialog{width:min(820px,calc(100% - 32px));border:0;border-radius:26px;background:var(--lux-cream);color:var(--dl-ink);box-shadow:0 40px 100px -30px rgba(10,35,38,.7)}
+html body.public-body .public-faq-dialog::backdrop{background:rgba(10,35,38,.72);backdrop-filter:blur(4px)}
+html body.public-body .public-faq-dialog-header{position:sticky;top:0;z-index:2;align-items:flex-start;padding:28px 28px 26px;border:0;background:var(--lux-dark);color:var(--lux-cream);overflow:hidden}
+html body.public-body .public-faq-dialog-header::after{content:"?";position:absolute;right:86px;top:-26px;font-family:var(--lux-serif);font-size:170px;line-height:1;color:rgba(243,237,226,.06);pointer-events:none}
+html body.public-body .public-faq-dialog-header .public-eyebrow{color:var(--lux-gold);letter-spacing:.32em}
+html body.public-body .public-faq-dialog-header h2{margin:10px 0 0;font-family:var(--lux-serif);font-weight:400;font-size:clamp(32px,4vw,48px);line-height:1.1;color:var(--lux-cream)}
+html body.public-body .public-faq-dialog-header h2 em{font-style:italic;color:var(--lux-gold)}
+html body.public-body .public-faq-dialog-header button{position:relative;z-index:1;border:1px solid rgba(243,237,226,.3);background:transparent;color:var(--lux-cream);border-radius:999px}
+html body.public-body .public-faq-dialog-header button:hover{background:rgba(243,237,226,.1)}
+.lux-faq-search{position:relative;display:block;margin:22px 0 0}
+.lux-faq-search input{width:100%;min-height:50px;padding:0 18px 0 46px;border-radius:999px;border:1px solid rgba(243,237,226,.25);background:rgba(243,237,226,.08);color:var(--lux-cream,#f3ede2);font:inherit;font-size:15px}
+.lux-faq-search input::placeholder{color:rgba(243,237,226,.6)}
+.lux-faq-search input:focus{outline:none;border-color:var(--lux-gold,#e2c48e);box-shadow:0 0 0 3px rgba(226,196,142,.25)}
+.lux-faq-search svg{position:absolute;left:17px;top:50%;width:18px;height:18px;margin-top:-9px;color:rgba(243,237,226,.7);pointer-events:none}
+html body.public-body .public-faq-dialog .public-faq-dialog-content{display:grid;gap:12px;padding:24px 28px 8px;counter-reset:lux-faq}
+html body.public-body .public-faq-dialog .public-faq-list details[hidden]{display:none}
+.lux-faq-empty{margin:0;padding:22px;border-radius:16px;border:1px dashed var(--dl-line-2,#c9bfae);color:var(--dl-text,#3c5457);text-align:center}
+.lux-faq-help{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin:16px 28px 28px;padding:24px 26px;border-radius:20px;background:var(--lux-dark,#0d2b2e);color:var(--lux-cream-2,#c6d4d1)}
+.lux-faq-help strong{display:block;font-family:var(--lux-serif);font-weight:400;font-size:24px;color:var(--lux-cream,#f3ede2)}
+.lux-faq-help small{display:block;margin-top:4px;font-size:13px}
+.lux-faq-help small a{color:var(--lux-gold,#e2c48e)}
+.lux-faq-help-actions{display:flex;flex-wrap:wrap;gap:10px}
+html body.public-body .lux-faq-help .public-btn{min-height:44px;padding:10px 20px;font-size:14px}
+@media(max-width:680px){
+    html body.public-body .public-faq-dialog{width:calc(100% - 16px);max-height:calc(100dvh - 16px);border-radius:20px}
+    html body.public-body .public-faq-dialog-header{padding:20px 18px}
+    html body.public-body .public-faq-dialog .public-faq-dialog-content{padding:16px 14px 4px}
+    html body.public-body .public-faq-dialog .public-faq-list details p{padding:0 18px 18px 18px!important}
+    .lux-faq-help{margin:12px 14px 16px;padding:20px}
+}
+
+/* ---------- Booking lookup ---------- */
+html body.public-body .lookup-page{padding:0 0 clamp(72px,9vw,120px);background:transparent}
+.lux-lookup-shell{position:relative;z-index:2;max-width:960px;margin-top:clamp(-56px,-4vw,-36px)!important}
+html body.public-body .lookup-form{border:1px solid var(--dl-line);border-radius:26px;background:var(--dl-surface);box-shadow:0 30px 70px -40px rgba(13,43,46,.5);padding:clamp(20px,3vw,32px);gap:18px 20px}
+html body.public-body .lookup-form label span,
+html body.public-body .lookup-modes legend{font-size:13px;font-weight:600;color:var(--dl-text)}
+html body.public-body .lookup-form input:not([type=radio]){height:54px;border:1px solid var(--dl-line-2);border-radius:14px;background:#fff;transition:border-color .25s,box-shadow .25s}
+html body.public-body .lookup-form input:not([type=radio]):focus{outline:none;border-color:var(--lux-gold);box-shadow:0 0 0 3px rgba(226,196,142,.3)}
+html body.public-body .lookup-form .lookup-modes input{accent-color:var(--dl-ink)}
+html body.public-body .lookup-form button{min-height:54px}
+html body.public-body .lookup-result{border:1px solid var(--dl-line);border-radius:26px;background:var(--dl-surface);box-shadow:0 30px 70px -44px rgba(13,43,46,.5);margin-top:24px}
+html body.public-body .lookup-result header{position:relative;padding:28px 30px;background:var(--lux-dark);color:var(--lux-cream);border:0;overflow:hidden}
+html body.public-body .lookup-result header::after{content:"";position:absolute;right:28px;bottom:-60px;width:150px;height:150px;border:1px solid rgba(226,196,142,.3);border-radius:999px 999px 0 0;pointer-events:none}
+html body.public-body .lookup-result header .public-eyebrow{color:var(--lux-gold)}
+html body.public-body .lookup-result h2{font-family:var(--lux-serif);font-weight:400;font-size:clamp(28px,3vw,38px);line-height:1.15;color:var(--lux-cream)}
+html body.public-body .lookup-result header p{color:var(--lux-cream-3)}
+html body.public-body .lookup-status{position:relative;z-index:1}
+.lux-timeline{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:0;padding:26px 30px 8px;list-style:none}
+.lux-timeline li{position:relative;display:grid;justify-items:center;gap:10px;text-align:center;font-size:13px;color:var(--dl-muted,#5a6e70)}
+.lux-timeline li::before{content:"";position:absolute;top:13px;left:-50%;right:50%;height:2px;background:var(--dl-line,#e2d8c6)}
+.lux-timeline li:first-child::before{display:none}
+.lux-timeline li.is-done::before{background:var(--dl-ink,#0d2b2e)}
+.lux-timeline i{position:relative;z-index:1;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;border:2px solid var(--dl-line-2,#c9bfae);background:var(--dl-surface,#fffdf8);font-style:normal}
+.lux-timeline li.is-done{color:var(--dl-ink,#0d2b2e);font-weight:600}
+.lux-timeline li.is-done i{border-color:var(--dl-ink,#0d2b2e);background:var(--dl-ink,#0d2b2e);color:var(--lux-gold,#e2c48e)}
+.lux-timeline li.is-done i::after{content:"";width:9px;height:5px;margin-top:-3px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg)}
+html body.public-body .lookup-details dt{color:var(--dl-muted)}
+html body.public-body .lookup-details dd{color:var(--dl-ink);font-weight:600}
+html body.public-body .lookup-money{background:var(--dl-accent-soft);border-radius:18px}
+html body.public-body .lookup-money .balance{border-top-color:var(--dl-line-2);color:var(--dl-ink)}
+html body.public-body .lookup-money strong{font-weight:600}
+html body.public-body .lookup-result footer{background:var(--lux-cream);color:var(--dl-text)}
+.lux-lookup-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:28px}
+.lux-lookup-card{padding:24px 24px 26px;border-radius:22px;background:var(--dl-surface,#fffdf8);border:1px solid var(--dl-line,#e2d8c6);color:var(--dl-text,#3c5457);font-size:14px;line-height:1.65}
+.lux-lookup-card svg{width:26px;height:26px;color:var(--dl-accent-ink,#7a5a1e)}
+.lux-lookup-card h3{margin:14px 0 6px;font-family:var(--lux-serif);font-weight:400;font-size:22px;line-height:1.25;color:var(--dl-ink,#0d2b2e)}
+.lux-lookup-card p{margin:0}
+.lux-lookup-card.is-dark{background:var(--lux-dark,#0d2b2e);border-color:var(--lux-dark,#0d2b2e);color:var(--lux-cream-2,#c6d4d1)}
+.lux-lookup-card.is-dark svg{color:var(--lux-gold,#e2c48e)}
+.lux-lookup-card.is-dark h3{color:var(--lux-cream,#f3ede2)}
+.lux-lookup-card.is-dark a{color:var(--lux-gold,#e2c48e)}
+@media(max-width:760px){
+    .lux-lookup-cards{grid-template-columns:minmax(0,1fr)}
+    .lux-timeline{padding:22px 16px 4px}
+    .lux-timeline li{font-size:12px}
+    html body.public-body .lookup-result header{padding:22px}
+}
+
+/* ---------- Scroll reveal (CSS only, supporting browsers, desktop) ---------- */
+@supports (animation-timeline:view()){
+    @media(min-width:900px) and (prefers-reduced-motion:no-preference){
+        html body.public-body .public-main .public-section-head,
+        html body.public-body .public-main .public-room-card,
+        html body.public-body .lux-steps-grid li,
+        html body.public-body .public-main .public-blog-card{animation:lux-rise linear both;animation-timeline:view();animation-range:entry 0% cover 24%}
+    }
+}
+@keyframes lux-rise{from{opacity:0;transform:translateY(48px)}to{opacity:1;transform:none}}
+
+/* ---------- Phones: lighter effects, comfortable spacing ---------- */
+@media(max-width:899px){
+    html body.public-body .public-main .public-hotel-hero,
+    html body.public-body .public-main .public-hero{min-height:0;padding:72px 0 64px!important}
+    html body.public-body .public-btn::after{display:none}
+    html body.public-body .public-main .public-cms-room-grid .public-room-card:hover,
+    html body.public-body .lux-steps-grid li:hover{transform:none}
+}
+@media(max-width:560px){
+    html body.public-body{--dl-h1:clamp(38px,11vw,52px);--dl-h2:clamp(30px,8.6vw,40px)}
+    html body.public-body .public-main .public-hero-actions .public-btn{flex:1 1 100%}
+    .lux-footer-cta-actions .public-btn{flex:1 1 100%}
+}
+@media(prefers-reduced-motion:reduce){
+    html body.public-body .public-btn,
+    html body.public-body .public-btn::after,
+    .lux-hero-badge .lux-spin,
+    .lux-scroll-progress{animation:none!important;transition:none!important}
+}
+
+/* Dark heroes sit directly under the header. */
+html body.public-body .public-main:has(> .public-hero:first-child),
+html body.public-body .public-main:has(> .lux-page-hero:first-child),
+html body.public-body .public-main:has(> .lookup-page:first-child){padding-top:0!important}
+.lux-faq-search .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
