@@ -74,21 +74,41 @@ function page({ rows = [], failAt = 0, pickers = true } = {}) {
     return { state, rows, requests, queries, datePickers };
 }
 
-test('default draft remains draft and is visible immediately after creation', async () => {
+test('new vouchers default to active and remain visible after creation', async () => {
     const { state, rows, requests } = page();
-    assert.equal(state.form.status, 0);
+    assert.equal(state.form.status, 1);
     await state.save();
-    assert.equal(requests[0].body.status, 0);
-    assert.equal(rows[0].status, 0);
-    assert.equal(state.filters.status, 'Draft');
+    assert.equal(requests[0].body.status, 1);
+    assert.equal(rows[0].status, 1);
+    assert.equal(state.filters.status, '');
     assert.equal(state.vouchers[0]?.code, 'NEWVOUCHER');
     assert.equal(state.editor.open, false);
     assert.equal(state.toast.message, 'Đã lưu voucher.');
 });
 
+test('initial filters include all statuses and dates', async () => {
+    const rows = [
+        { id: 'draft', code: 'DRAFT', status: 0, startsAtUtc: '2025-01-01T00:00:00Z', endsAtUtc: '2025-02-01T00:00:00Z' },
+        { id: 'active', code: 'ACTIVE', status: 1, startsAtUtc: '2027-01-01T00:00:00Z', endsAtUtc: '2027-02-01T00:00:00Z' },
+        { id: 'paused', code: 'PAUSED', status: 2 },
+        { id: 'archived', code: 'ARCHIVED', status: 3 }
+    ];
+    const { state, queries } = page({ rows });
+    assert.equal(state.filters.status, '');
+    assert.equal(state.filters.from, '');
+    assert.equal(state.filters.to, '');
+    await state.load();
+    assert.equal(queries[0].size, 0);
+    assert.equal(state.vouchers.length, 4);
+});
+
 test('saving clears stale search and dates, including visible date picker inputs', async () => {
     const { state, queries, datePickers } = page();
     state.filters.q = 'OTHER';
+    state.filters.status = 'Paused';
+    state.filters.from = '2026-11-01';
+    state.filters.to = '2026-11-30';
+    state.mountFilterPickers();
     state.form.status = 1;
     state.form.startsAtLocal = '2027-01-01T09:00';
     state.form.endsAtLocal = '2027-01-31T09:00';
@@ -96,9 +116,10 @@ test('saving clears stale search and dates, including visible date picker inputs
     assert.equal(state.filters.q, '');
     assert.equal(state.filters.from, '');
     assert.equal(state.filters.to, '');
-    assert.deepEqual([...queries.at(-1).keys()], ['status']);
+    assert.equal(state.filters.status, '');
+    assert.equal(queries.at(-1).size, 0);
     assert.equal(state.vouchers.length, 1);
-    for (const picker of datePickers) {
+    for (const picker of datePickers.slice(-2)) {
         assert.equal(picker.value, '');
         assert.equal(picker.altInput.value, '');
         assert.deepEqual(picker.clears, [false]);
@@ -107,7 +128,7 @@ test('saving clears stale search and dates, including visible date picker inputs
 
 test('create and edit reveal the saved draft, active or paused voucher', async () => {
     for (const mode of ['create', 'edit']) {
-        for (const [status, filter] of [[0, 'Draft'], [1, 'Active'], [2, 'Paused']]) {
+        for (const status of [0, 1, 2]) {
             const { state, requests } = page();
             state.editor.mode = mode;
             state.editor.voucherId = 'existing';
@@ -115,22 +136,22 @@ test('create and edit reveal the saved draft, active or paused voucher', async (
             state.form.status = status;
             await state.save();
             assert.equal(requests[0].method, mode === 'edit' ? 'PUT' : 'POST');
-            assert.equal(state.filters.status, filter);
+            assert.equal(state.filters.status, '');
             assert.equal(state.vouchers[0]?.status, status);
             assert.equal(state.editor.error, '');
         }
     }
 });
 
-test('batch creation reveals every new voucher without activating drafts', async () => {
+test('batch creation defaults every new voucher to active', async () => {
     const { state, rows, requests } = page();
     state.form.customerIds = ['customer-a', 'customer-b'];
     state.filters.q = 'OTHER';
     await state.save();
     assert.equal(rows.length, 2);
-    assert.deepEqual(requests.map(request => request.body.status), [0, 0]);
+    assert.deepEqual(requests.map(request => request.body.status), [1, 1]);
     assert.deepEqual(Array.from(state.vouchers, row => row.code), ['NEWVOUCHER-01', 'NEWVOUCHER-02']);
-    assert.equal(state.filters.status, 'Draft');
+    assert.equal(state.filters.status, '');
     assert.equal(state.editor.open, false);
     assert.equal(state.toast.message, 'Đã tạo 2 voucher cho 2 khách.');
 });
@@ -173,6 +194,7 @@ test('batch failure preserves dialog and filters and reports partial completion'
 
 test('save also reveals draft when flatpickr is unavailable', async () => {
     const { state } = page({ pickers: false });
+    state.form.status = 0;
     await state.save();
     assert.equal(state.vouchers[0]?.code, 'NEWVOUCHER');
     assert.equal(state.editor.error, '');

@@ -16,7 +16,7 @@
             startsAtLocal: zonedInput(now, propertyTimeZone), endsAtLocal: zonedInput(end, propertyTimeZone),
             timeSlot: true, overnight: true, fullDay: true,
             totalUsageLimit: null, perCustomerUsageLimit: 1,
-            customerIds: [], status: 0
+            customerIds: [], status: 1
         };
     };
 
@@ -46,9 +46,6 @@
 
     createApp({
         data() {
-            const first = new Date();
-            first.setDate(1);
-            const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
             return {
                 propertyId: initial.propertyId,
                 propertyName: initial.propertyName,
@@ -56,7 +53,7 @@
                 canManage: initial.canManage === true,
                 customers: initial.customers || [],
                 vouchers: [], loading: false, saving: false,
-                filters: { q: '', status: 'Active', from: zonedInput(first, propertyTimeZone).slice(0, 10), to: zonedInput(last, propertyTimeZone).slice(0, 10) },
+                filters: { q: '', status: '', from: '', to: '' },
                 editor: { open: false, mode: 'create', voucherId: null, error: '' },
                 form: emptyForm(),
                 customerSearch: '',
@@ -227,9 +224,9 @@
                     status: Number(this.form.status)
                 };
             },
-            resetFiltersAfterSave(status) {
+            resetFiltersAfterSave() {
                 this.filters.q = '';
-                this.filters.status = ({ 0: 'Draft', 1: 'Active', 2: 'Paused', 3: 'Archived' })[Number(status)] || '';
+                this.filters.status = '';
                 this.filters.from = '';
                 this.filters.to = '';
                 filterPickers.forEach(picker => picker.clear(false));
@@ -243,10 +240,9 @@
                     if (this.editor.mode === 'create' && this.form.customerIds.length > 1) {
                         const customerIds = [...this.form.customerIds];
                         let created = 0;
-                        let savedVoucher;
                         try {
                             for (let index = 0; index < customerIds.length; index++) {
-                                savedVoucher = await DeLongApi.post(this.api('/'), this.payload(customerIds[index], this.batchCode(this.form.code, index, customerIds.length)));
+                                await DeLongApi.post(this.api('/'), this.payload(customerIds[index], this.batchCode(this.form.code, index, customerIds.length)));
                                 created++;
                             }
                         } catch (error) {
@@ -254,7 +250,7 @@
                                 ? `Đã tạo ${created}/${customerIds.length} voucher. Các voucher còn lại chưa tạo: ${error.message || 'có lỗi xảy ra'}`
                                 : (error.message || 'Không thể tạo voucher hàng loạt.'));
                         }
-                        this.resetFiltersAfterSave(savedVoucher.status);
+                        this.resetFiltersAfterSave();
                         this.editor.open = false;
                         await this.load();
                         this.notify(`Đã tạo ${created} voucher cho ${created} khách.`);
@@ -262,10 +258,9 @@
                     }
 
                     const customerId = this.form.customerIds[0] || null;
-                    const savedVoucher = this.editor.mode === 'create'
-                        ? await DeLongApi.post(this.api('/'), this.payload(customerId))
-                        : await DeLongApi.put(this.api(`/${this.editor.voucherId}`), this.payload(customerId));
-                    this.resetFiltersAfterSave(savedVoucher.status);
+                    if (this.editor.mode === 'create') await DeLongApi.post(this.api('/'), this.payload(customerId));
+                    else await DeLongApi.put(this.api(`/${this.editor.voucherId}`), this.payload(customerId));
+                    this.resetFiltersAfterSave();
                     this.editor.open = false;
                     await this.load();
                     this.notify('Đã lưu voucher.');

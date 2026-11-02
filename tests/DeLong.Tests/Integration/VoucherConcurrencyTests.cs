@@ -14,6 +14,54 @@ namespace DeLong.Tests.Integration;
 [Collection("PostgreSQL integration")]
 public sealed class VoucherConcurrencyTests
 {
+    [RoomLockPostgresFact]
+    [Trait("Category", "Integration")]
+    public async Task Voucher_list_prioritizes_active_then_newest_and_preserves_filters_and_property_scope()
+    {
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("DELONG_TEST_CONNECTION")!).Options);
+        await db.Database.MigrateAsync();
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var property = new Property { Code = $"VL-{suffix}", Name = "Voucher list test" };
+        var otherProperty = new Property { Code = $"VO-{suffix}", Name = "Other voucher property" };
+        var start = new DateTime(2031, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        Voucher NewVoucher(Property owner, string code, VoucherStatus status) => new()
+        {
+            Property = owner,
+            Code = code,
+            NormalizedCode = code,
+            DiscountPercent = 10m,
+            AppliesTo = VoucherApplicability.TimeSlot,
+            StartsAtUtc = start,
+            EndsAtUtc = start.AddMonths(1),
+            Status = status
+        };
+        var activeOld = NewVoucher(property, "ACTIVE-OLD", VoucherStatus.Active);
+        var paused = NewVoucher(property, "PAUSED", VoucherStatus.Paused);
+        var activeNew = NewVoucher(property, "ACTIVE-NEW", VoucherStatus.Active);
+        var archived = NewVoucher(property, "ARCHIVED", VoucherStatus.Archived);
+        var draft = NewVoucher(property, "DRAFT", VoucherStatus.Draft);
+        var other = NewVoucher(otherProperty, "OTHER", VoucherStatus.Active);
+        Voucher[] vouchers = [activeOld, paused, activeNew, archived, draft, other];
+        db.Vouchers.AddRange(vouchers);
+        await db.SaveChangesAsync();
+        for (var index = 0; index < vouchers.Length; index++)
+            vouchers[index].CreatedAtUtc = start.AddDays(index);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var all = await service.GetAllAsync(property.Id, null, null, null, null);
+        Assert.Equal(new[] { activeNew.Id, activeOld.Id, draft.Id, archived.Id, paused.Id }, all.Select(x => x.Id));
+        var active = await service.GetAllAsync(property.Id, VoucherStatus.Active, null, null, null);
+        Assert.Equal(new[] { activeNew.Id, activeOld.Id }, active.Select(x => x.Id));
+        var drafts = await service.GetAllAsync(property.Id, VoucherStatus.Draft, null, null, null);
+        Assert.Equal(draft.Id, Assert.Single(drafts).Id);
+        var searched = await service.GetAllAsync(property.Id, null, "ACTIVE", start, start.AddMonths(1));
+        Assert.Equal(new[] { activeNew.Id, activeOld.Id }, searched.Select(x => x.Id));
+        Assert.Empty(await service.GetAllAsync(property.Id, null, null, start.AddMonths(2), null));
+        Assert.Empty(await service.GetAllAsync(property.Id, null, null, null, start.AddDays(-1)));
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     public async Task Hundred_percent_voucher_can_be_redeemed_and_manually_restored_only_after_cancellation()

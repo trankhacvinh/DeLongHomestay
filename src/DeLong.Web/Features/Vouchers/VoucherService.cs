@@ -43,7 +43,8 @@ public sealed class VoucherService(
         if (fromUtc.HasValue) query = query.Where(x => x.EndsAtUtc >= fromUtc.Value);
         if (toUtc.HasValue) query = query.Where(x => x.StartsAtUtc < toUtc.Value);
 
-        return await Project(query.OrderByDescending(x => x.CreatedAtUtc)).ToListAsync(cancellationToken);
+        return await Project(query.OrderByDescending(x => x.Status == VoucherStatus.Active)
+            .ThenByDescending(x => x.CreatedAtUtc)).ToListAsync(cancellationToken);
     }
 
     public Task<VoucherDto?> GetAsync(Guid propertyId, Guid voucherId, CancellationToken cancellationToken = default) =>
