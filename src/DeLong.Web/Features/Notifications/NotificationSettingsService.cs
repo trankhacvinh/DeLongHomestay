@@ -92,6 +92,7 @@ public sealed partial class NotificationSettingsService(
         settings.EmailBookingEnabled = request.EmailBookingEnabled;
         settings.GuestCheckInEmailEnabled = request.GuestCheckInEmailEnabled;
         settings.GuestCancellationEmailEnabled = request.GuestCancellationEmailEnabled;
+        settings.ManagerCancellationEmailEnabled = request.ManagerCancellationEmailEnabled;
         settings.InternalBookingEmailSubjectTemplate = Clean(request.InternalBookingEmailSubjectTemplate);
         settings.InternalBookingEmailBodyTemplate = Clean(NotificationEmailTemplateRenderer.SanitizeTemplate(request.InternalBookingEmailBodyTemplate));
         settings.GuestCheckInEmailSubjectTemplate = Clean(request.GuestCheckInEmailSubjectTemplate);
@@ -216,7 +217,8 @@ public sealed partial class NotificationSettingsService(
         settings?.LastTelegramSentAtUtc,
         settings?.LastTelegramError,
         settings?.LastTelegramErrorAtUtc,
-        TelegramEvents.Parse(settings?.TelegramEventTypes));
+        TelegramEvents.Parse(settings?.TelegramEventTypes),
+        settings?.ManagerCancellationEmailEnabled ?? true);
 
     private static NotificationOperationError? ValidateTemplates(UpdateNotificationSettingsRequest request)
     {

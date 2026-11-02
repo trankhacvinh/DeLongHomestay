@@ -105,5 +105,5 @@ public sealed class UpdateBookingRequest
     public string? Note { get; init; }
 }
 
-public sealed record ChangeBookingStatusRequest(BookingStatus Status);
+public sealed record ChangeBookingStatusRequest(BookingStatus Status, string? Reason = null, Cancellations.CancelRefundOption? Refund = null);
 public sealed record BookingOperationError(string Code, string Message);

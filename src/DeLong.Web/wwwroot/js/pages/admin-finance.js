@@ -36,6 +36,8 @@
                 payments: initial.payments || [],
                 expenses: initial.expenses || [],
                 outstanding: Number(initial.summary?.outstanding || 0),
+                refundsOwed: Number(initial.summary?.refundsOwed || 0),
+                cancellationKept: Number(initial.summary?.cancellationKept || 0),
                 ledgerFilter: 'all',
                 canManage: window.DeLongFinanceCanManage === true,
                 saving: false,

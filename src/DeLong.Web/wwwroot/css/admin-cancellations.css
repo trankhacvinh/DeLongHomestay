@@ -1,0 +1,18 @@
+.cancellations-page .ops-toolbar .cancel-search{flex:1 1 220px}
+.cancellations-page .cancel-table{min-width:980px}
+.cancellations-page .cancel-table td small{display:block}
+.cancellations-page .cancel-owed{color:#a12c25;font-weight:600}
+.cancellations-page .cancel-kpi-warn.active{border-color:#eab7b2;background:#fff5f4}
+.cancellations-page .cancel-kpi-warn.active strong{color:#a12c25}
+.cancel-badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;background:#eef3f2;color:#3f5551}
+.cancel-badge.is-pending{background:#fff1e0;color:#9a5a00}
+.cancel-badge.is-partial{background:#fff7d6;color:#7a6200}
+.cancel-badge.is-refunded{background:#e4f5ec;color:#16613e}
+.cancel-badge.is-kept{background:#ede9fb;color:#4b3a9a}
+.cancel-pager{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:12px;font-size:13px;color:#556f6a}
+.cancel-modal h3{margin:18px 0 8px;font-size:15px}
+.cancel-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:12px 0}
+.cancel-summary div{padding:10px 12px;border:1px solid #dce7e4;border-radius:10px;background:#f8fbfa}
+.cancel-summary span{display:block;font-size:12px;color:#607370}
+.cancel-summary strong{display:block;margin-top:4px}
+@media(max-width:650px){.cancellations-page .ops-toolbar label{flex:1 1 100%}}

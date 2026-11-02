@@ -380,6 +380,7 @@
                                 <use href="#i-users"/>
                             </svg>
                             <span>Khách hàng</span></a>
+                        <a class="@NavClass("/Admin/Cancellations")" asp-page="/Admin/Cancellations/Index" asp-route-propertyId="@propertyId"><svg><use href="#i-wallet"/></svg><span>Hủy &amp; hoàn tiền</span></a>
                         @if (canViewVouchers)
                         {
                             <a class="@NavClass("/Admin/Vouchers")" asp-page="/Admin/Vouchers/Index"

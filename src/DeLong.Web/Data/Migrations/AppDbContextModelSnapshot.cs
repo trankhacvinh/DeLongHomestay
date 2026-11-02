@@ -1105,6 +1105,84 @@ namespace DeLong.Web.Data.Migrations
                     b.ToTable("bookings");
                 });
 
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.BookingCancellation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_id");
+
+                    b.Property<DateTime>("CancelledAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at_utc");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cancelled_by_user_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<bool>("IsBackfilled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_backfilled");
+
+                    b.Property<decimal>("PaidAmountSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("paid_amount_snapshot");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("property_id");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<decimal>("RefundDueAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("refund_due_amount");
+
+                    b.Property<string>("RefundNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("refund_note");
+
+                    b.Property<DateTime?>("RestoredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("restored_at_utc");
+
+                    b.Property<decimal>("TotalAmountSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_amount_snapshot");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_booking_cancellations");
+
+                    b.HasIndex("BookingId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_booking_cancellations_active_booking")
+                        .HasFilter("restored_at_utc IS NULL");
+
+                    b.HasIndex("PropertyId", "CancelledAtUtc")
+                        .HasDatabaseName("i_x_booking_cancellations_property_id_cancelled_at_utc");
+
+                    b.ToTable("booking_cancellations");
+                });
+
             modelBuilder.Entity("DeLong.Web.Domain.Entities.BookingGuestGuideEmail", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3926,6 +4004,12 @@ namespace DeLong.Web.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_telegram_sent_at_utc");
 
+                    b.Property<bool>("ManagerCancellationEmailEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("manager_cancellation_email_enabled");
+
                     b.Property<Guid>("PropertyId")
                         .HasColumnType("uuid")
                         .HasColumnName("property_id");
@@ -6185,6 +6269,27 @@ namespace DeLong.Web.Data.Migrations
                     b.Navigation("Room");
 
                     b.Navigation("RoomRate");
+                });
+
+            modelBuilder.Entity("DeLong.Web.Domain.Entities.BookingCancellation", b =>
+                {
+                    b.HasOne("DeLong.Web.Domain.Entities.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_booking_cancellations_bookings_booking_id");
+
+                    b.HasOne("DeLong.Web.Domain.Entities.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_booking_cancellations_properties_property_id");
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Property");
                 });
 
             modelBuilder.Entity("DeLong.Web.Domain.Entities.BookingGuestGuideEmail", b =>

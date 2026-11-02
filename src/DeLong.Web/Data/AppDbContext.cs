@@ -30,6 +30,7 @@ public sealed class AppDbContext
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<BookingRateSegment> BookingRateSegments => Set<BookingRateSegment>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<BookingCancellation> BookingCancellations => Set<BookingCancellation>();
     public DbSet<PropertySePaySettings> PropertySePaySettings => Set<PropertySePaySettings>();
     public DbSet<SePayTransaction> SePayTransactions => Set<SePayTransaction>();
     public DbSet<Pay2SPaymentIntent> Pay2SPaymentIntents => Set<Pay2SPaymentIntent>();
@@ -702,6 +703,7 @@ public sealed class AppDbContext
         modelBuilder.Entity<PropertyNotificationSettings>(entity =>
         {
             entity.Property(x => x.TelegramEventTypes).HasMaxLength(1000);
+            entity.Property(x => x.ManagerCancellationEmailEnabled).HasDefaultValue(true);
             entity.HasIndex(x => x.PropertyId).IsUnique();
             entity.Property(x => x.EmailRecipients).HasMaxLength(2000);
             entity.Property(x => x.SmtpHost).HasMaxLength(300);

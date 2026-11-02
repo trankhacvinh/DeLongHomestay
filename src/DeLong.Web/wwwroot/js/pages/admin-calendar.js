@@ -717,6 +717,10 @@
                 }
 
                 const cancelling = Number(action.status) === 5;
+                if (cancelling) {
+                    this.openCancelDialog();
+                    return;
+                }
                 this.statusConfirm = {
                     open: true,
                     action,
@@ -736,18 +740,22 @@
                 if (status === undefined || status === null) return;
                 await this.changeStatus(status);
             },
-            async changeStatus(status) {
-                if (!this.selectedBooking) return;
+            async changeStatus(status, extraBody) {
+                if (!this.selectedBooking) return false;
                 this.saving = true;
                 try {
-                    const updated = await DeLongApi.post(`/api/admin/properties/${this.propertyId}/bookings/${this.selectedBooking.id}/status`, { status });
+                    const updated = await DeLongApi.post(`/api/admin/properties/${this.propertyId}/bookings/${this.selectedBooking.id}/status`, { status, ...(extraBody || {}) });
                     const index = this.bookings.findIndex(x => x.id === updated.id);
                     if (index >= 0) this.bookings.splice(index, 1, updated);
                     this.selectedBooking = updated;
                     this.statusConfirm = { open: false, action: null, title: '', message: '', confirmLabel: '' };
                     this.notify(`Đã chuyển sang ${this.statusText(updated.status)}.`, 'success');
+                    return true;
                 } catch (error) {
-                    this.notify(error.message || 'Không thể đổi trạng thái lượt đặt.', 'error');
+                    const message = error.message || 'Không thể đổi trạng thái lượt đặt.';
+                    this.reportCancelError?.(message);
+                    this.notify(message, 'error');
+                    return false;
                 } finally {
                     this.saving = false;
                 }
@@ -775,6 +783,6 @@
             dateRangePicker = null;
         }
     });
-    const calendarVm = calendarApp.mixin(window.DeLongBookingHistory).mixin(window.DeLongRoomBookingLock).mixin(window.DeLongCustomerAutocomplete).mixin(window.DeLongMoneyInput || {}).mount(root);
+    const calendarVm = calendarApp.mixin(window.DeLongBookingHistory).mixin(window.DeLongBookingCancel || {}).mixin(window.DeLongRoomBookingLock).mixin(window.DeLongCustomerAutocomplete).mixin(window.DeLongMoneyInput || {}).mount(root);
     root.__delongCalendarVm = calendarVm;
 })();

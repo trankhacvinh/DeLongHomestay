@@ -572,6 +572,10 @@
             },
             requestStatus(action) {
                 if (!action) return;
+                if (Number(action.status) === 5) {
+                    this.openCancelDialog();
+                    return;
+                }
                 if (!action.confirmTitle) {
                     this.changeStatus(action.status);
                     return;
@@ -592,19 +596,23 @@
                 this.statusConfirm.open = false;
                 await this.changeStatus(action.status);
             },
-            async changeStatus(status) {
-                if (!this.selectedBooking) return;
+            async changeStatus(status, extraBody) {
+                if (!this.selectedBooking) return false;
                 this.saving = true;
                 try {
                     const updated = await DeLongApi.post(
                         `/api/admin/properties/${this.propertyId}/bookings/${this.selectedBooking.id}/status`,
-                        { status });
+                        { status, ...(extraBody || {}) });
                     const index = this.bookings.findIndex(x => x.id === updated.id);
                     if (index >= 0) this.bookings.splice(index, 1, updated);
                     this.selectedBooking = updated;
                     this.notify(`Đã chuyển sang trạng thái “${this.statusText(updated.status)}”.`, 'success');
+                    return true;
                 } catch (error) {
-                    this.notify(this.friendlyError(error, 'Không thể đổi trạng thái đặt phòng.'), 'error');
+                    const message = this.friendlyError(error, 'Không thể đổi trạng thái đặt phòng.');
+                    this.reportCancelError?.(message);
+                    this.notify(message, 'error');
+                    return false;
                 } finally {
                     this.saving = false;
                 }
@@ -622,5 +630,5 @@
         beforeUnmount() {
             if (todayTimer) clearInterval(todayTimer);
         }
-    }).mixin(window.DeLongMoneyInput || {}).mixin(window.DeLongBookingHistory).mount(root);
+    }).mixin(window.DeLongMoneyInput || {}).mixin(window.DeLongBookingHistory).mixin(window.DeLongBookingCancel || {}).mount(root);
 })();

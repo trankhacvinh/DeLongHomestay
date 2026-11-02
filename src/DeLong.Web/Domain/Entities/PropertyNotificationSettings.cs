@@ -12,6 +12,9 @@ public sealed class PropertyNotificationSettings : EntityBase
     public bool EmailBookingEnabled { get; set; }
     public bool GuestCheckInEmailEnabled { get; set; }
     public bool GuestCancellationEmailEnabled { get; set; } = true;
+
+    /// <summary>Gửi email cho danh sách quản lý khi một booking bị hủy (cần bật email booking và có người nhận).</summary>
+    public bool ManagerCancellationEmailEnabled { get; set; } = true;
     public bool TelegramBookingEnabled { get; set; }
 
     [MaxLength(300)]

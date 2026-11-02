@@ -1,6 +1,7 @@
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
+using DeLong.Web.Features.Cancellations;
 using Microsoft.EntityFrameworkCore;
 
 namespace DeLong.Web.Features.Notifications;
@@ -134,13 +135,15 @@ public sealed class BookingNotificationService(
         BookingStatus nextStatus,
         string? reason = null,
         DateTime? occurredAtUtc = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        CancellationNotice? cancellation = null)
     {
         if (previousStatus == nextStatus) return;
         var type = nextStatus switch
         {
             BookingStatus.Confirmed => BookingConfirmedType,
-            BookingStatus.Cancelled => BookingCancelledType,
+            // Mỗi lần hủy có hồ sơ riêng nên booking hủy rồi khôi phục rồi hủy lại vẫn được báo lại.
+            BookingStatus.Cancelled => cancellation is null ? BookingCancelledType : $"{BookingCancelledType}:{cancellation.CancellationId:N}",
             BookingStatus.CheckedIn => BookingCheckedInType,
             BookingStatus.Completed => BookingCompletedType,
             _ => null
@@ -166,8 +169,10 @@ public sealed class BookingNotificationService(
             await AddTelegramOutboxIfEnabledAsync(
                 propertyId,
                 notification,
-                BuildStatusMessage(booking, nextStatus, reason, occurredAtUtc ?? DateTime.UtcNow),
+                BuildStatusMessage(booking, nextStatus, reason, occurredAtUtc ?? DateTime.UtcNow, cancellation),
                 cancellationToken);
+            if (cancellation is not null)
+                await AddManagerCancellationEmailIfEnabledAsync(propertyId, notification, booking, cancellation, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
         }
         catch (Exception ex)
@@ -217,6 +222,50 @@ public sealed class BookingNotificationService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Could not enqueue payment Telegram notification for payment {PaymentId}, booking {BookingId}.", paymentId, bookingId);
+            DetachPendingNotificationEntries();
+        }
+    }
+
+    public async Task NotifyRefundRecordedAsync(
+        Guid propertyId,
+        Guid bookingId,
+        Guid paymentId,
+        decimal amount,
+        PaymentMethod method,
+        string? actorName,
+        decimal netPaidAfter,
+        CancellationToken cancellationToken = default)
+    {
+        var type = $"booking-refunded:{paymentId:N}";
+        try
+        {
+            if (await db.Set<PropertyNotification>().AsNoTracking()
+                .AnyAsync(x => x.PropertyId == propertyId && x.BookingId == bookingId && x.Type == type, cancellationToken)) return;
+            var booking = await LoadBookingAsync(propertyId, bookingId, cancellationToken);
+            if (booking is null) return;
+            var notification = new PropertyNotification
+            {
+                PropertyId = propertyId,
+                BookingId = bookingId,
+                Type = type,
+                Title = $"Hoàn tiền · {booking.Code}",
+                Message = $"{booking.CustomerName} · {CancellationRecorder.Money(amount)} · {PaymentMethodText(method)}",
+                ActionUrl = $"/Admin/Bookings?propertyId={propertyId}&bookingId={bookingId}"
+            };
+            db.Add(notification);
+            await AddTelegramOutboxIfEnabledAsync(propertyId, notification, string.Join(Environment.NewLine,
+            [
+                $"💸 {booking.PropertyName} · ĐÃ GHI NHẬN HOÀN TIỀN", string.Empty,
+                $"Mã: {booking.Code}", $"Khách: {booking.CustomerName}", $"Phòng: {booking.RoomName}",
+                $"Số tiền hoàn: {CancellationRecorder.Money(amount)}", $"Phương thức: {PaymentMethodText(method)}",
+                $"Người ghi nhận: {(string.IsNullOrWhiteSpace(actorName) ? "Không rõ" : actorName)}",
+                $"Khách còn đã thanh toán: {CancellationRecorder.Money(Math.Max(0, netPaidAfter))}"
+            ]), cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not enqueue refund notification for payment {PaymentId}, booking {BookingId}.", paymentId, bookingId);
             DetachPendingNotificationEntries();
         }
     }
@@ -426,7 +475,49 @@ public sealed class BookingNotificationService(
         (note ?? string.Empty).Split('\n', StringSplitOptions.TrimEntries)
             .FirstOrDefault(x => x.StartsWith("Điều chỉnh thời gian", StringComparison.Ordinal)) ?? string.Empty;
 
-    private static string BuildStatusMessage(BookingTelegramData booking, BookingStatus status, string? reason, DateTime occurredAtUtc)
+    private async Task AddManagerCancellationEmailIfEnabledAsync(
+        Guid propertyId,
+        PropertyNotification notification,
+        BookingTelegramData booking,
+        CancellationNotice cancellation,
+        CancellationToken cancellationToken)
+    {
+        var settings = await db.Set<PropertyNotificationSettings>().AsNoTracking()
+            .SingleOrDefaultAsync(x => x.PropertyId == propertyId, cancellationToken);
+        if (settings is null || !settings.EmailBookingEnabled || !settings.ManagerCancellationEmailEnabled ||
+            string.IsNullOrWhiteSpace(settings.EmailRecipients)) return;
+
+        var local = GetLocalTimes(booking);
+        var lines = new List<(string Label, string Value)>
+        {
+            ("Mã booking", booking.Code),
+            ("Khách", $"{booking.CustomerName} · {booking.CustomerPhone}"),
+            ("Phòng", booking.RoomName),
+            ("Nhận phòng", local.CheckIn.ToString("dd/MM/yyyy HH:mm")),
+            ("Trả phòng", local.CheckOut.ToString("dd/MM/yyyy HH:mm")),
+            ("Người hủy", string.IsNullOrWhiteSpace(cancellation.ActorName) ? "Không rõ" : cancellation.ActorName!),
+            ("Lý do hủy", string.IsNullOrWhiteSpace(cancellation.Reason) ? "Không có" : cancellation.Reason!),
+            ("Tổng tiền booking", CancellationRecorder.Money(booking.TotalAmount)),
+            ("Khách đã thanh toán", CancellationRecorder.Money(cancellation.PaidAmount)),
+            ("Xử lý tiền", cancellation.RefundSummary)
+        };
+        var html = "<p><strong>" + System.Net.WebUtility.HtmlEncode(booking.PropertyName) + " · Booking bị hủy</strong></p><table cellpadding=\"6\" style=\"border-collapse:collapse\">" +
+            string.Concat(lines.Select(x => "<tr><td style=\"color:#666\">" + System.Net.WebUtility.HtmlEncode(x.Label) + "</td><td><strong>" + System.Net.WebUtility.HtmlEncode(x.Value) + "</strong></td></tr>")) + "</table>";
+        var text = $"{booking.PropertyName} · Booking bị hủy{Environment.NewLine}{Environment.NewLine}" + string.Join(Environment.NewLine, lines.Select(x => $"{x.Label}: {x.Value}"));
+        var subject = $"[{booking.PropertyName}] Booking {booking.Code} bị hủy";
+        db.Add(new NotificationEmailOutbox
+        {
+            PropertyId = propertyId,
+            NotificationId = notification.Id,
+            ToRecipients = settings.EmailRecipients,
+            Subject = Truncate(subject.Replace('\r', ' ').Replace('\n', ' '), 300),
+            BodyHtml = html,
+            BodyText = text,
+            NextAttemptAtUtc = DateTime.UtcNow
+        });
+    }
+
+    private static string BuildStatusMessage(BookingTelegramData booking, BookingStatus status, string? reason, DateTime occurredAtUtc, CancellationNotice? cancellation = null)
     {
         var local = GetLocalTimes(booking);
         if (status == BookingStatus.Confirmed)
@@ -445,6 +536,13 @@ public sealed class BookingNotificationService(
                 $"Mã: {booking.Code}", $"Khách: {booking.CustomerName}", $"Phòng: {booking.RoomName}",
                 $"Nhận: {local.CheckIn:dd/MM/yyyy HH:mm}", $"Trả: {local.CheckOut:dd/MM/yyyy HH:mm}"
             };
+            if (cancellation is not null)
+            {
+                lines.Add($"Người hủy: {(string.IsNullOrWhiteSpace(cancellation.ActorName) ? "Không rõ" : cancellation.ActorName)}");
+                lines.Add($"Tổng tiền: {CancellationRecorder.Money(booking.TotalAmount)}");
+                lines.Add($"Đã thanh toán: {CancellationRecorder.Money(cancellation.PaidAmount)}");
+                lines.Add($"Xử lý tiền: {cancellation.RefundSummary}");
+            }
             if (!string.IsNullOrWhiteSpace(reason)) { lines.Add(string.Empty); lines.Add($"Lý do: {Truncate(reason.Trim(), 600)}"); }
             return string.Join(Environment.NewLine, lines);
         }

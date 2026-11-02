@@ -68,7 +68,8 @@ public sealed class DataQualityService(AppDbContext db, AuditService audit, Noti
             .Select(x => new BookingQualityFact(x.Id, x.RoomId, x.CustomerId, x.Code, x.Room.Name,
                 x.CheckInUtc, x.CheckOutUtc, x.Status,
                 x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount,
-                x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount)))
+                x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
+                db.BookingCancellations.Any(c => c.BookingId == x.Id && c.RestoredAtUtc == null && c.RefundDueAmount <= 0 && c.PaidAmountSnapshot > 0)))
             .ToListAsync(ct);
         var findings = DataQualityRules.Evaluate(facts).ToList();
         var late = await db.Pay2SPaymentIntents.AsNoTracking().Where(x => x.PropertyId == propertyId &&

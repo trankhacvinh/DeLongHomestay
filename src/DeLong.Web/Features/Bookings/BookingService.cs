@@ -3,6 +3,7 @@ using DeLong.Web.Features.Rooms;
 using DeLong.Web.Data;
 using DeLong.Web.Domain.Entities;
 using DeLong.Web.Domain.Enums;
+using DeLong.Web.Features.Cancellations;
 using DeLong.Web.Features.Customers;
 using DeLong.Web.Features.Payments;
 using DeLong.Web.Features.Notifications;
@@ -155,13 +156,26 @@ public sealed class BookingService(
         return (await GetAsync(propertyId, bookingId, cancellationToken), null);
     }
 
-    public async Task<(BookingDto? Booking, BookingOperationError? Error)> ChangeStatusAsync(Guid propertyId, Guid bookingId, BookingStatus nextStatus, Guid? actorUserId = null, CancellationToken cancellationToken = default)
+    public async Task<(BookingDto? Booking, BookingOperationError? Error)> ChangeStatusAsync(Guid propertyId, Guid bookingId, BookingStatus nextStatus, Guid? actorUserId = null, CancellationToken cancellationToken = default, CancelDetails? cancel = null)
     {
         var booking = await db.Bookings.SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.Id == bookingId, cancellationToken);
         if (booking is null) return (null, new("not_found", "Không tìm thấy booking."));
         if (!BookingRules.CanTransition(booking.Status, nextStatus)) return (null, new("invalid_transition", $"Không thể chuyển trạng thái từ {booking.Status} sang {nextStatus}."));
         if (BookingRules.LocksRoom(nextStatus) && await HasConflictAsync(propertyId, booking.RoomId, booking.CheckInUtc, booking.CheckOutUtc, booking.Id, cancellationToken)) return (null, ConflictError());
         var previousStatus = booking.Status;
+        PreparedCancellation? cancellation = null;
+        if (nextStatus == BookingStatus.Cancelled)
+        {
+            var (prepared, cancelError) = await CancellationRecorder.PrepareAsync(db, auditService, booking, actorUserId, cancel, cancellationToken);
+            if (cancelError is not null) return (null, cancelError);
+            cancellation = prepared;
+            db.BookingCancellations.Add(prepared!.Record);
+            if (prepared.Refund is not null) db.Payments.Add(prepared.Refund);
+        }
+        else if (previousStatus == BookingStatus.Cancelled)
+        {
+            await CancellationRecorder.MarkRestoredAsync(db, bookingId, cancellationToken);
+        }
         var before = Snapshot(booking); booking.Status = nextStatus;
         if (nextStatus is BookingStatus.Cancelled or BookingStatus.Completed or BookingStatus.NoShow)
             await Pay2SIntentLifecycleManager.CloseOpenIntentsAsync(db, propertyId, bookingId, cancellationToken);
@@ -180,7 +194,18 @@ public sealed class BookingService(
         if (nextStatus == BookingStatus.Cancelled && guestGuideEmailService is not null)
             await guestGuideEmailService.QueueCancellationAsync(propertyId, bookingId, actorUserId, cancellationToken: cancellationToken);
         if (notificationService is not null)
-            await notificationService.NotifyBookingStatusChangedAsync(propertyId, bookingId, previousStatus, nextStatus, cancellationToken: cancellationToken);
+        {
+            CancellationNotice? notice = null;
+            if (cancellation is not null)
+            {
+                var actorName = actorUserId.HasValue
+                    ? await db.Users.AsNoTracking().Where(x => x.Id == actorUserId.Value)
+                        .Select(x => x.DisplayName != "" ? x.DisplayName : (x.Email ?? x.UserName)).SingleOrDefaultAsync(cancellationToken)
+                    : null;
+                notice = new CancellationNotice(cancellation.Record.Id, actorName, cancellation.Record.Reason, cancellation.Record.PaidAmountSnapshot, cancellation.RefundSummary);
+            }
+            await notificationService.NotifyBookingStatusChangedAsync(propertyId, bookingId, previousStatus, nextStatus, reason: cancellation?.Record.Reason, cancellationToken: cancellationToken, cancellation: notice);
+        }
         return (await GetAsync(propertyId, bookingId, cancellationToken), null);
     }
 
@@ -228,6 +253,7 @@ public sealed class BookingService(
         try { await db.SaveChangesAsync(cancellationToken); return null; }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == PostgresErrorCodes.ExclusionViolation) { return ConflictError(); }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == PostgresErrorCodes.UniqueViolation && string.Equals(pg.ConstraintName, BookingCodeUniqueConstraint, StringComparison.OrdinalIgnoreCase)) { return new("booking_code_conflict", "Không thể tạo mã booking duy nhất. Vui lòng thử gửi lại yêu cầu."); }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == PostgresErrorCodes.UniqueViolation && string.Equals(pg.ConstraintName, "ux_booking_cancellations_active_booking", StringComparison.OrdinalIgnoreCase)) { return new("already_cancelled", "Booking này vừa được hủy bởi người khác. Vui lòng tải lại."); }
         catch (DbUpdateException ex) when (publicRequest && ex.InnerException is PostgresException pg && pg.SqlState == PostgresErrorCodes.UniqueViolation) { return new("public_request_retry", "Yêu cầu đã được nhận hoặc đang được xử lý. Vui lòng thử lại."); }
     }
 

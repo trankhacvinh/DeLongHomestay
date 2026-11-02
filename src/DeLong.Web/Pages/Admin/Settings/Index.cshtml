@@ -209,6 +209,7 @@
                 <div class="field full"><label for="notification-recipients">Danh sách thành viên nhận email booking</label><textarea id="notification-recipients" rows="2" v-model.trim="notification.emailRecipients" placeholder="owner@example.com; staff@example.com"></textarea><small>Mỗi email cách nhau bằng dấu phẩy, chấm phẩy hoặc xuống dòng.</small></div>
                 <label class="check-row full"><input type="checkbox" v-model="notification.guestCheckInEmailEnabled" /> Tự gửi hướng dẫn check-in cho khách có email khi booking được xác nhận</label>
                 <label class="check-row full"><input type="checkbox" v-model="notification.guestCancellationEmailEnabled" /> Gửi email cho khách có email khi booking bị hủy</label>
+                <label class="check-row full"><input type="checkbox" v-model="notification.managerCancellationEmailEnabled" /> Gửi email cho danh sách quản lý bên trên khi có booking bị hủy (cần bật email booking)</label>
                 <div class="field"><label for="smtp-host">SMTP host</label><input id="smtp-host" v-model.trim="notification.smtpHost" maxlength="300" autocomplete="off" placeholder="smtp.gmail.com" /></div>
                 <div class="field"><label for="smtp-port">Port</label><input id="smtp-port" type="number" min="1" max="65535" v-model.number="notification.smtpPort" /></div>
                 <label class="check-row full"><input type="checkbox" v-model="notification.smtpUseSsl" /> Bật SSL/TLS (STARTTLS với port 587)</label>

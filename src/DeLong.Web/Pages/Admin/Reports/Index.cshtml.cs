@@ -250,7 +250,9 @@ public sealed class IndexModel(
             outstandingBuckets,
             daily,
             weekly,
-            trend);
+            trend,
+            reports.Sum(x => x.Report.RefundsOwed),
+            reports.Sum(x => x.Report.CancellationKept));
     }
 
     private static bool TryParseMonth(string? value, out DateOnly month)
