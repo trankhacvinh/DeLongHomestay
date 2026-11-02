@@ -1,12 +1,12 @@
 <div class="modal-backdrop modal-top" v-if="cancelDialog.open" v-on:click.self="closeCancelDialog">
     <section class="modal-card modal-small status-confirm-card booking-cancel-card" role="alertdialog" aria-modal="true" aria-labelledby="booking-cancel-title">
         <div class="modal-head">
-            <div><h2 id="booking-cancel-title">Hủy booking này?</h2><p class="small muted">Booking chuyển sang Đã hủy, phòng được giải phóng và được ghi vào danh sách Hủy &amp; hoàn tiền.</p></div>
+            <div><h2 id="booking-cancel-title">Hủy booking này?</h2><p class="booking-cancel-sub">Booking chuyển sang Đã hủy, phòng được giải phóng và được ghi vào danh sách Hủy &amp; hoàn tiền.</p></div>
             <button class="icon-btn" type="button" v-on:click="closeCancelDialog" aria-label="Đóng">×</button>
         </div>
         <div class="status-confirm-body">
             <div class="status-confirm-booking" v-if="selectedBooking"><span>{{ selectedBooking.code }}</span><strong>{{ selectedBooking.customerName }} · {{ selectedBooking.roomName }}</strong></div>
-            <label class="booking-cancel-field">Lý do hủy <b>*</b>
+            <label class="booking-cancel-field"><span class="booking-cancel-label">Lý do hủy <b aria-hidden="true">*</b></span>
                 <textarea rows="2" maxlength="1000" v-model="cancelDialog.reason" placeholder="Ví dụ: Khách báo bận, đổi lịch"></textarea>
             </label>
             <template v-if="cancelDialog.paid > 0">
@@ -16,14 +16,14 @@
                     <span><strong>{{ option.label }}</strong><small>{{ option.hint }}</small></span>
                 </label>
                 <div class="booking-cancel-grid" v-if="cancelDialog.mode === 'now' || cancelDialog.mode === 'later'">
-                    <label class="booking-cancel-field">Số tiền hoàn<input type="number" min="1" step="1000" v-bind:max="cancelDialog.paid" v-model.number="cancelDialog.amount" /></label>
-                    <label class="booking-cancel-field" v-if="cancelDialog.mode === 'now'">Phương thức
+                    <label class="booking-cancel-field"><span class="booking-cancel-label">Số tiền hoàn</span><input type="number" min="1" step="1000" v-bind:max="cancelDialog.paid" v-model.number="cancelDialog.amount" /></label>
+                    <label class="booking-cancel-field" v-if="cancelDialog.mode === 'now'"><span class="booking-cancel-label">Phương thức</span>
                         <select v-model.number="cancelDialog.method"><option v-bind:value="1">Chuyển khoản</option><option v-bind:value="0">Tiền mặt</option><option v-bind:value="2">Thẻ</option><option v-bind:value="3">Khác</option></select>
                     </label>
                 </div>
-                <label class="booking-cancel-field" v-if="cancelDialog.mode">Ghi chú tiền hoàn (không bắt buộc)<input maxlength="1000" v-model="cancelDialog.note" /></label>
+                <label class="booking-cancel-field" v-if="cancelDialog.mode"><span class="booking-cancel-label">Ghi chú tiền hoàn (không bắt buộc)</span><input maxlength="1000" v-model="cancelDialog.note" /></label>
             </template>
-            <p class="small muted" v-else>Khách chưa thanh toán nên không cần hoàn tiền.</p>
+            <p class="booking-cancel-sub" v-else>Khách chưa thanh toán nên không cần hoàn tiền.</p>
             <p class="booking-cancel-error" role="alert" v-if="cancelDialog.error">{{ cancelDialog.error }}</p>
         </div>
         <div class="modal-actions">
