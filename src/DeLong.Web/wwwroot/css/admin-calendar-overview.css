@@ -86,11 +86,21 @@ tr.today .cal-ov-cell{background-color:#f4fbf9}
 .cal-ov-cell.state-occupied{cursor:pointer}
 .cal-ov-booking{position:absolute;top:1px;bottom:1px;display:flex;align-items:center;min-width:0;padding:0 calc(5px * var(--ov-s));border-radius:2px;color:#fff;overflow:hidden}
 .cal-ov-guest{display:block;width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:calc(11px * var(--ov-s));font-weight:700;text-shadow:0 1px 1px rgba(0,0,0,.2);pointer-events:none}
-/* Zoomed far out: colour blocks only, like looking at the whole Excel sheet. */
-.cal-ov-viewport.is-compact .cal-ov-guest,.cal-ov-viewport.is-compact .cal-ov-slot small,.cal-ov-viewport.is-compact .cal-ov-room small{display:none}
-.cal-ov-viewport.is-compact .cal-ov-slot b{display:none}
-.cal-ov-viewport.is-compact .cal-ov-h2 th{height:6px}
+.cal-ov-booking.on-light{color:#1d2b2b}
+.cal-ov-booking.on-light .cal-ov-guest{text-shadow:none}
+.cal-ov-room.on-light{color:#1d2b2b!important}
+/* Zoomed out: drop secondary text but keep guest names and slot times readable at a floor size. */
+.cal-ov-viewport.is-compact .cal-ov-guest{font-size:max(8px, calc(11px * var(--ov-s)));padding:0;letter-spacing:-.01em}
+.cal-ov-viewport.is-compact .cal-ov-booking{padding:0 2px}
+.cal-ov-viewport.is-compact .cal-ov-slot small,.cal-ov-viewport.is-compact .cal-ov-room small{display:none}
+.cal-ov-viewport.is-compact .cal-ov-slot b{font-size:max(7px, calc(11px * var(--ov-s)));letter-spacing:-.02em}
+.cal-ov-viewport.is-compact .cal-ov-h2 th{height:max(14px, calc(40px * var(--ov-s)))}
+.cal-ov-viewport.is-compact .cal-ov-cell{height:max(16px, calc(38px * var(--ov-s)))}
+.cal-ov-viewport.is-compact .cal-ov-day{height:max(16px, calc(38px * var(--ov-s)))}
 .cal-ov-viewport.is-compact .cal-ov-day b,.cal-ov-viewport.is-compact .cal-ov-corner small{display:none}
+/* Zoomed all the way out: colour blocks only, like looking at the whole Excel sheet. */
+.cal-ov-viewport.is-tiny .cal-ov-guest,.cal-ov-viewport.is-tiny .cal-ov-slot b{display:none}
+.cal-ov-viewport.is-tiny .cal-ov-h2 th{height:6px}
 .cal-ov-viewport.is-compact .cal-ov-corner b{font-size:9px}
 
 /* Never let the wide grid push the page sideways: only the grid itself scrolls. */

@@ -43,11 +43,18 @@ async function verifyTimeLabels(page) {
             padding: parseFloat(container.paddingLeft), mobile: matchMedia('(max-width:760px)').matches };
     }));
     assert.ok(labels.some(label => label.value === '21:00–09:30'), 'overnight hours must remain complete');
+    // Phones: the first room's four slots fit the calendar width without scrolling sideways.
+    const fit = await page.evaluate(() => {
+        const viewport = document.querySelector('.public-v2-viewport');
+        const slots = [...document.querySelectorAll('.public-v2-head-slot')].slice(0, 4);
+        return { mobile: matchMedia('(max-width:760px)').matches, scrollLeft: viewport.scrollLeft,
+            right: viewport.getBoundingClientRect().left + viewport.clientWidth, lastRight: slots[3]?.getBoundingClientRect().right };
+    });
+    if (fit.mobile && fit.scrollLeft === 0) assert.ok(fit.lastRight <= fit.right + 1, `4 slots must fit on screen (${fit.lastRight} > ${fit.right})`);
     for (const label of labels.filter(item => item.mobile)) {
-        assert.ok(label.width >= 128, `${label.value}: mobile column must be at least 128px`);
-        assert.ok(label.fontSize >= 11 && label.fontSize <= 13);
-        assert.ok(label.padding >= 8);
-        assert.ok(label.leftGap >= 8 && label.rightGap >= 8, `${label.value}: full text must fit with breathing room`);
+        assert.ok(label.width >= 60, `${label.value}: mobile column must be at least 60px`);
+        assert.ok(label.fontSize >= 9 && label.fontSize <= 11);
+        assert.ok(label.leftGap >= 2 && label.rightGap >= 2, `${label.value}: full text must fit inside its column`);
         assert.ok(label.textHeight <= label.lineHeight + 1, 'time range must stay on one line');
         assert.equal(label.whiteSpace, 'nowrap');
         assert.notEqual(label.overflow, 'hidden');
