@@ -3,7 +3,7 @@ window.DeLongCalendarDailySummary = {
         let summaries = new Map();
         let requestVersion = 0;
         const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value || 0));
-        const time = value => new Intl.DateTimeFormat('vi-VN', { timeZone, day: '2-digit', month: '2-digit', year: 'numeric', timeStyle: 'short' }).format(new Date(value));
+        const time = value => new Intl.DateTimeFormat('vi-VN', { timeZone, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value));
         const element = (tag, text, className) => {
             const node = document.createElement(tag);
             if (text !== undefined) node.textContent = text;

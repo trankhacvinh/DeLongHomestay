@@ -61,10 +61,10 @@
             pollDelayMs = 3000;
             resume.hidden = !result.canResume;
             if (result.inSettlementGrace && result.releaseAtUtc) {
-                expiry.textContent = `Đang chờ ngân hàng xác nhận. Phòng vẫn được khóa đến ${new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeStyle: 'medium' }).format(new Date(result.releaseAtUtc))}.`;
+                expiry.textContent = `Đang chờ ngân hàng xác nhận. Phòng vẫn được khóa đến ${new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(result.releaseAtUtc))}.`;
                 message.textContent = 'Đã hết thời gian khởi tạo thanh toán mới. Hệ thống vẫn chờ kết quả giao dịch đang xử lý.';
             } else if (result.expiresAtUtc) {
-                expiry.textContent = `Bạn có thể thanh toán đến ${new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeStyle: 'medium' }).format(new Date(result.expiresAtUtc))}.`;
+                expiry.textContent = `Bạn có thể thanh toán đến ${new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(result.expiresAtUtc))}.`;
             }
             if (result.status === 'Succeeded') {
                 stopped = true;
