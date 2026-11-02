@@ -58,7 +58,7 @@
         },
         beforeUnmount() { clearInterval(this.timer); },
         methods: {
-            dateText(value) { return value ? new Intl.DateTimeFormat('vi-VN',{timeZone:zone,day: '2-digit', month: '2-digit', year: 'numeric',timeStyle:'short'}).format(new Date(value)) : ''; },
+            dateText(value) { return value ? new Intl.DateTimeFormat('vi-VN',{timeZone:zone,day: '2-digit', month: '2-digit', year: 'numeric',hour: '2-digit', minute: '2-digit', hour12: false}).format(new Date(value)) : ''; },
             statusLabel(item) { return ({active:'Đang khóa',upcoming:'Sắp diễn ra',ended:'Đã kết thúc'})[item.state]; },
             resetConflicts() { this.conflicts=[];this.acknowledged=false; },
             open(item = null, roomId = '') {

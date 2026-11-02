@@ -9,7 +9,7 @@
     const form = root.querySelector('[data-page-form]');
     const state = { pages: [], editing: null, loading: false };
     const h = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-    const fmtDate = value => value ? new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeStyle: 'short' }).format(new Date(value)) : '—';
+    const fmtDate = value => value ? new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value)) : '—';
 
     function toast(message, error) {
         let node = document.querySelector('.custom-pages-toast');

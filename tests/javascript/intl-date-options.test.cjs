@@ -1,0 +1,6 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+// Intl.DateTimeFormat throws "TypeError: Invalid option : option" when dateStyle/timeStyle is mixed with
+// explicit fields (day, month, year, hour, minute, second, weekday...). One bad call blanks a whole Vue page.
+function files(dir){return fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>{const p=path.join(dir,e.name);if(e.isDirectory())return e.name==='vendor'?[]:files(p);return /\.(js|cshtml)$/.test(e.name)?[p]:[];});}
+test('no Intl date options literal mixes dateStyle/timeStyle with explicit fields',()=>{const bad=[];for(const file of [...files('src/DeLong.Web/wwwroot/js'),...files('src/DeLong.Web/Pages')]){const text=fs.readFileSync(file,'utf8');for(const m of text.matchAll(/\{[^{}]*\b(?:dateStyle|timeStyle)\s*:[^{}]*\}/g)){if(/\b(?:weekday|era|year|month|day|hour|minute|second|fractionalSecondDigits|timeZoneName|dayPeriod)\s*:/.test(m[0]))bad.push(`${file}: ${m[0]}`);}}assert.deepEqual(bad,[]);});
+test('fixed formatters still produce date and time',()=>{const text=new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date('2026-11-02T03:30:00Z'));assert.match(text,/10:30/);assert.match(text,/02\/11\/2026/);});
