@@ -35,23 +35,23 @@
 
     <section class="panel">
         <div class="entity-toolbar"><strong>{{ vouchers.length }} voucher</strong><span class="muted tiny">Lượt giữ cũng được tính vào hạn mức</span></div>
-        <div class="table-wrap">
-            <table class="data-table voucher-table">
+        <div class="table-wrap booking-table-wrap">
+            <table class="data-table responsive-booking-table voucher-table">
                 <thead><tr><th>Mã voucher</th><th>Ưu đãi / phạm vi</th><th>Hiệu lực</th><th>Hạn mức</th><th>Đã giữ</th><th>Đã dùng</th><th>Còn lại</th><th>Trạng thái</th><th></th></tr></thead>
                 <tbody>
                     <tr v-for="voucher in vouchers" v-bind:key="voucher.id" class="clickable-row" v-on:click="openDetail(voucher)">
-                        <td><div class="voucher-code-cell"><strong>{{ voucher.code }}</strong><button class="copy-code" type="button" title="Sao chép mã" v-on:click.stop="copy(voucher.code)">⧉</button><span>{{ voucher.customerName || 'Mã dùng chung' }}</span></div></td>
-                        <td><strong>{{ number(voucher.discountPercent) }}%</strong><div class="tiny muted">{{ applicabilityText(voucher.appliesTo) }}</div></td>
-                        <td><strong>{{ dateText(voucher.startsAtUtc) }}</strong><div class="tiny muted">đến {{ dateText(voucher.endsAtUtc) }}</div></td>
-                        <td>{{ voucher.totalUsageLimit ?? 'Không giới hạn' }}<div class="tiny muted">Mỗi khách: {{ voucher.perCustomerUsageLimit ?? '∞' }}</div></td>
-                        <td><span class="pill warning">{{ voucher.reservedCount }}</span></td>
-                        <td><span class="pill success">{{ voucher.redeemedCount }}</span></td>
-                        <td><strong>{{ voucher.remainingCount ?? '∞' }}</strong></td>
-                        <td><span class="pill" v-bind:class="statusClass(voucher.status)">{{ statusText(voucher.status) }}</span></td>
-                        <td class="voucher-row-actions"><button class="btn btn-light btn-sm" type="button" v-on:click.stop="openEmail(voucher)">Gửi</button><button v-if="canManage && voucher.status !== 3" class="btn btn-light btn-sm" type="button" v-on:click.stop="openEdit(voucher)">Sửa</button></td>
+                        <td data-label="Mã"><div class="voucher-code-cell"><strong>{{ voucher.code }}</strong><button class="copy-code" type="button" title="Sao chép mã" v-on:click.stop="copy(voucher.code)">⧉</button><span>{{ voucher.customerName || 'Mã dùng chung' }}</span></div></td>
+                        <td data-label="Ưu đãi"><strong>{{ number(voucher.discountPercent) }}%</strong><div class="tiny muted">{{ applicabilityText(voucher.appliesTo) }}</div></td>
+                        <td data-label="Hiệu lực"><strong>{{ dateText(voucher.startsAtUtc) }}</strong><div class="tiny muted">đến {{ dateText(voucher.endsAtUtc) }}</div></td>
+                        <td data-label="Hạn mức">{{ voucher.totalUsageLimit ?? 'Không giới hạn' }}<div class="tiny muted">Mỗi khách: {{ voucher.perCustomerUsageLimit ?? '∞' }}</div></td>
+                        <td data-label="Đã giữ"><span class="pill warning">{{ voucher.reservedCount }}</span></td>
+                        <td data-label="Đã dùng"><span class="pill success">{{ voucher.redeemedCount }}</span></td>
+                        <td data-label="Còn lại"><strong>{{ voucher.remainingCount ?? '∞' }}</strong></td>
+                        <td data-label="Trạng thái"><span class="pill" v-bind:class="statusClass(voucher.status)">{{ statusText(voucher.status) }}</span></td>
+                        <td class="voucher-row-actions" data-label="Thao tác"><button class="btn btn-light btn-sm" type="button" v-on:click.stop="openEmail(voucher)">Gửi</button><button v-if="canManage && voucher.status !== 3" class="btn btn-light btn-sm" type="button" v-on:click.stop="openEdit(voucher)">Sửa</button></td>
                     </tr>
-                    <tr v-if="!loading && vouchers.length === 0"><td colspan="9" class="empty-state"><strong>Không có voucher phù hợp</strong>Hãy đổi bộ lọc hoặc tạo voucher mới.</td></tr>
-                    <tr v-if="loading"><td colspan="9" class="empty-state"><strong>Đang tải voucher…</strong></td></tr>
+                    <tr class="booking-empty-row" v-if="!loading && vouchers.length === 0"><td colspan="9" class="empty-state"><strong>Không có voucher phù hợp</strong>Hãy đổi bộ lọc hoặc tạo voucher mới.</td></tr>
+                    <tr class="booking-empty-row" v-if="loading"><td colspan="9" class="empty-state"><strong>Đang tải voucher…</strong></td></tr>
                 </tbody>
             </table>
         </div>
