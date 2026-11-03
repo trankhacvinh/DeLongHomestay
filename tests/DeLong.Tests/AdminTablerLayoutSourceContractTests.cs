@@ -52,6 +52,7 @@ public sealed class AdminTablerLayoutSourceContractTests
     [InlineData("src/DeLong.Web/Pages/Admin/Housekeeping/Index.cshtml")]
     [InlineData("src/DeLong.Web/Pages/Admin/RoomConditionReports/Index.cshtml")]
     [InlineData("src/DeLong.Web/Pages/Admin/RoomBlocks.cshtml")]
+    [InlineData("src/DeLong.Web/Pages/Admin/CalendarV2.cshtml")]
     public void Converted_pages_use_the_tabler_layout(string path)
     {
         Assert.Contains("Layout = \"_AdminLayout\";", Read(path), StringComparison.Ordinal);
