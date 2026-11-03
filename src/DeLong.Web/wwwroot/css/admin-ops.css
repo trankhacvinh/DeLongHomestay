@@ -872,3 +872,4 @@
 
 .row-actions { display:flex; flex-wrap:wrap; gap:6px; }
 @media (max-width:767.98px) { .responsive-booking-table .row-actions { display:grid; grid-template-columns:repeat(auto-fit,minmax(0,1fr)); } }
+@media (max-width:767.98px) { .responsive-booking-table td > * { grid-column: 2; } }
