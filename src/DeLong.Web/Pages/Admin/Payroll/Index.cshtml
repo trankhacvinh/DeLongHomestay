@@ -1,6 +1,6 @@
 @page "/Admin/Payroll"
 @model DeLong.Web.Pages.Admin.Payroll.IndexModel
-@{ ViewData["Title"] = "Chấm công & Lương"; }
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["Title"] = "Chấm công & Lương"; }
 @section Head { <link rel="stylesheet" href="~/css/admin-payroll.css" asp-append-version="true" /> }
 <script id="payroll-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 <div id="payroll-page" class="pr" v-cloak>

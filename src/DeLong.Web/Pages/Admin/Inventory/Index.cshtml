@@ -1,6 +1,6 @@
 @page "/Admin/Inventory"
 @model DeLong.Web.Pages.Admin.Inventory.IndexModel
-@{ ViewData["Title"] = "Kho chung"; }
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["Title"] = "Kho chung"; }
 @section Head { <link rel="stylesheet" href="~/vendor/tom-select/tom-select.default.min.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/admin-operations-ledger.css" asp-append-version="true" /> }
 <script id="inventory-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 <div id="inventory-page" class="operations-ledger inventory-compact" v-cloak>
