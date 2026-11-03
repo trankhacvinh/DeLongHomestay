@@ -22,5 +22,5 @@ web="$root/src/DeLong.Web"
 npx purgecss --css full.css \
   --content "$web/Pages/**/*.cshtml" "$web/wwwroot/js/**/*.js" "$web/**/*.cs" \
   --safelist standard '/^(show|fade|collapsing|collapse|collapsed|active|disabled|open|is-|has-|was-validated|modal|toast|dropdown|tooltip|bs-|placeholder|spinner|offcanvas)/' \
-  --keyframes --variables --output "$root/src/DeLong.Web/wwwroot/vendor/tabler/tabler.min.css" >/dev/null
+  --output "$root/src/DeLong.Web/wwwroot/vendor/tabler/tabler.min.css" >/dev/null
 echo "Built tabler.min.css (Tabler $TABLER_VERSION, Bootstrap $BOOTSTRAP_VERSION)"

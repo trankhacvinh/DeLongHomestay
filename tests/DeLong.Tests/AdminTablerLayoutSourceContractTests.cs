@@ -19,6 +19,15 @@ public sealed class AdminTablerLayoutSourceContractTests
     }
 
     [Fact]
+    public void Compact_control_sizing_loads_after_page_head_css_so_it_wins()
+    {
+        var layout = Read("src/DeLong.Web/Pages/Shared/_AdminLayout.cshtml");
+        var head = layout.IndexOf("RenderSectionAsync(\"Head\"", StringComparison.Ordinal);
+        var compact = layout.IndexOf("~/css/admin-compact.css", StringComparison.Ordinal);
+        Assert.True(head > 0 && compact > head, "admin-compact.css must come after the Head section");
+    }
+
+    [Fact]
     public void Tabler_admin_layout_keeps_the_hooks_used_by_shell_notification_and_ai_scripts()
     {
         var layout = Read("src/DeLong.Web/Pages/Shared/_AdminLayout.cshtml");
