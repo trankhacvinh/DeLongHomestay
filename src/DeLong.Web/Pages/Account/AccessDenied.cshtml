@@ -1,6 +1,11 @@
 @page
 @model DeLong.Web.Pages.Account.AccessDeniedModel
 @{
+    Layout = "_AuthLayout";
     ViewData["Title"] = "Không có quyền";
 }
-<section class="auth-wrap"><div class="auth-card"><h1>Không có quyền truy cập</h1><p class="muted">Tài khoản của bạn không được phép thực hiện thao tác này.</p><a class="btn btn-primary" asp-page="/Admin/Index">Về quản trị</a></div></section>
+<div class="card dl-auth-card"><div class="card-body d-grid gap-3">
+    <h1 class="h2 mb-0">Không có quyền truy cập</h1>
+    <p class="text-secondary mb-0">Tài khoản của bạn không được phép thực hiện thao tác này.</p>
+    <a class="btn btn-primary" asp-page="/Admin/Index">Về quản trị</a>
+</div></div>

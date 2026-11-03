@@ -129,3 +129,11 @@ body.sidebar-open .dl-overlay { opacity: 1; visibility: visible; }
 }
 .admin-tabler .notification-popover { border-radius: 6px; }
 .admin-tabler .notification-live-toast { border-radius: 6px; }
+
+/* ---------- Sign-in / account security (_AuthLayout) ---------- */
+body.admin-tabler.dl-auth { background: var(--dl-sidebar-bg); }
+.dl-auth .btn { white-space: normal; }
+.dl-auth-page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; padding: 1.5rem 1rem; }
+.dl-auth-brand { display: flex; align-items: center; gap: .65rem; color: #fff; }
+.dl-auth-card { width: min(26rem, 100%); }
+.dl-auth-card .card-body { padding: 1.5rem; }

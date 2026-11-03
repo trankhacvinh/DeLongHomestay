@@ -1,17 +1,27 @@
 @page
 @model DeLong.Web.Pages.Account.LoginModel
 @{
+    Layout = "_AuthLayout";
     ViewData["Title"] = "Đăng nhập";
 }
-<section class="auth-wrap">
-    <form method="post" class="auth-card">
-        <span class="eyebrow">Admin</span>
-        <h1>Đăng nhập quản trị</h1>
-        <div asp-validation-summary="ModelOnly" class="validation"></div>
-        <div class="field"><label asp-for="Input.Identifier"></label><input asp-for="Input.Identifier" autocomplete="username" /><span asp-validation-for="Input.Identifier" class="validation"></span></div>
-        <div class="field"><label asp-for="Input.Password"></label><input asp-for="Input.Password" autocomplete="current-password" /></div>
-        <label class="check-row"><input asp-for="Input.RememberMe" /> Ghi nhớ đăng nhập</label>
-        <button class="btn btn-primary" type="submit">Đăng nhập</button>
-        <a class="btn btn-light" href="/customer/login">Bạn là khách? Đăng nhập bằng số điện thoại</a>
-    </form>
-</section>
+<form method="post" class="card dl-auth-card">
+    <div class="card-body d-grid gap-3">
+        <div>
+            <div class="page-pretitle">Admin</div>
+            <h1 class="h2 mb-0">Đăng nhập quản trị</h1>
+        </div>
+        <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+        <div>
+            <label class="form-label" asp-for="Input.Identifier"></label>
+            <input class="form-control" asp-for="Input.Identifier" autocomplete="username" />
+            <span asp-validation-for="Input.Identifier" class="text-danger small"></span>
+        </div>
+        <div>
+            <label class="form-label" asp-for="Input.Password"></label>
+            <input class="form-control" asp-for="Input.Password" autocomplete="current-password" />
+        </div>
+        <label class="form-check m-0"><input class="form-check-input" asp-for="Input.RememberMe" /><span class="form-check-label">Ghi nhớ đăng nhập</span></label>
+        <button class="btn btn-primary w-100" type="submit">Đăng nhập</button>
+        <a class="btn w-100" href="/customer/login">Bạn là khách? Đăng nhập bằng số điện thoại</a>
+    </div>
+</form>
