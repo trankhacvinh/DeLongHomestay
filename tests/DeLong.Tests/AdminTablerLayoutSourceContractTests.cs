@@ -6,15 +6,16 @@ namespace DeLong.Tests;
 public sealed class AdminTablerLayoutSourceContractTests
 {
     [Fact]
-    public void Tabler_admin_layout_links_every_admin_page_the_legacy_layout_links()
+    public void Public_layout_no_longer_carries_the_admin_shell_and_the_admin_layout_owns_the_ai_drawers()
     {
-        var legacy = Read("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
-        var next = Read("src/DeLong.Web/Pages/Shared/_AdminLayout.cshtml");
+        var publicLayout = Read("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var admin = Read("src/DeLong.Web/Pages/Shared/_AdminLayout.cshtml");
 
-        var legacyPages = Regex.Matches(legacy, "asp-page=\"(/Admin/[^\"]+)\"").Select(x => x.Groups[1].Value).ToHashSet();
-        Assert.NotEmpty(legacyPages);
-        foreach (var page in legacyPages)
-            Assert.True(next.Contains($"\"{page}\"", StringComparison.Ordinal), $"_AdminLayout.cshtml is missing a link to {page}");
+        Assert.DoesNotContain("admin-shell", publicLayout, StringComparison.Ordinal);
+        Assert.DoesNotContain("sidebar-overlay", publicLayout, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-ai-chat-drawer", publicLayout, StringComparison.Ordinal);
+        Assert.Contains("data-ai-chat-drawer", admin, StringComparison.Ordinal);
+        Assert.Contains("data-staff-ai-drawer", admin, StringComparison.Ordinal);
     }
 
     [Fact]

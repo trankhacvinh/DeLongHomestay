@@ -61,7 +61,7 @@ public sealed class RoomConditionReportSourceContractTests
     [Fact]
     public void Room_condition_reports_are_a_separate_admin_feature()
     {
-        var layout = ReadRepositoryFile("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var layout = ReadRepositoryFile("src/DeLong.Web/Pages/Shared/_AdminLayout.cshtml");
         var housekeeping = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/Housekeeping/Index.cshtml");
 
         Assert.Contains("/Admin/RoomConditionReports/Index", layout, StringComparison.Ordinal);

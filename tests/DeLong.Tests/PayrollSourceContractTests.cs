@@ -36,7 +36,7 @@ public sealed class PayrollSourceContractTests
     {
         var page = Read("src/DeLong.Web/Pages/Admin/Payroll/Index.cshtml");
         var script = Read("src/DeLong.Web/wwwroot/js/pages/admin-payroll.js");
-        var layout = Read("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var layout = Read("src/DeLong.Web/Pages/Shared/_AdminLayout.cshtml");
         Assert.Contains("pr-fbar", page, StringComparison.Ordinal);
         Assert.Contains("pr-tabs", page, StringComparison.Ordinal);
         Assert.Contains("v-on:mousedown=\"cellDown\"", page, StringComparison.Ordinal);
@@ -51,7 +51,7 @@ public sealed class PayrollSourceContractTests
         Assert.DoesNotContain("<option value=\"\">Chọn nhân viên</option>", page, StringComparison.Ordinal);
         Assert.Contains("/payroll/attendance", script, StringComparison.Ordinal);
         Assert.Contains("crypto.randomUUID()", script, StringComparison.Ordinal);
-        Assert.Contains("asp-page=\"/Admin/Payroll/Index\"", layout, StringComparison.Ordinal);
+        Assert.Contains("new(\"Chấm công & Lương\", \"i-users\", \"/Admin/Payroll/Index\"", layout, StringComparison.Ordinal);
         Assert.DoesNotContain("@click", page, StringComparison.Ordinal);
     }
 
