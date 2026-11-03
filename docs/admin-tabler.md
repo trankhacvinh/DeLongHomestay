@@ -8,3 +8,5 @@ Giao diện admin đang được chuyển dần sang Tabler (kế hoạch 6 PR).
 - Chỉ tải script khi trang cần: `ViewData["UseVue"]`, `UseFlatpickr`, `UseUploads`, `UsePasswordStrength`.
 - Icon: sprite `#i-*` trong `_AdminIcons.cshtml` (cùng bộ với `_Layout.cshtml` cho tới khi layout cũ bị gỡ).
 - Khi thêm trang admin vào menu, cập nhật cả `_Layout.cshtml` và `_AdminLayout.cshtml` (test `AdminTablerLayoutSourceContractTests` kiểm tra hai bên khớp).
+- `wwwroot/css/admin-legacy.css` ánh xạ class cũ (`.panel`, `.btn-light`, `.pill`, `.data-table`, `.modal-card`, `.form-grid`...) sang kiểu Tabler phẳng (bo góc 4-6px) để trang chuyển layout trước, viết lại markup sau. Xóa từng khối khi không còn trang nào dùng class đó.
+- Trang đã chuyển: Tổng quan, Chọn cơ sở, Đặt phòng, Khách hàng, Hủy & hoàn tiền, Voucher, Dọn phòng, Tình trạng phòng, Lịch khóa phòng.

@@ -1,6 +1,6 @@
 @* Tabler-based admin shell. A page opts in with `Layout = "_AdminLayout";`.
    Optional ViewData flags keep unrelated scripts off a page:
-     UseVue (Vue 3), UseFlatpickr (date pickers), UseUploads (image-upload + rich-text-tools), UsePasswordStrength.
+     UseVue (Vue 3), UseFlatpickr (date pickers), UseUploads (rich-text-tools; image-upload is always loaded because api.js uses it), UsePasswordStrength.
    Pages that are not converted yet keep using _Layout.cshtml. *@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @inject DeLong.Web.Common.Security.CurrentPropertyService CurrentPropertyService
@@ -128,6 +128,7 @@
     <link rel="preload" href="~/fonts/brand/be-vietnam-pro-400.woff2?v=446d2bf4dee42971" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="~/vendor/tabler/tabler.min.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/css/admin-app.css" asp-append-version="true"/>
+    <link rel="stylesheet" href="~/css/admin-legacy.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/css/notifications.css" asp-append-version="true"/>
     @if (User.IsInRole("Admin"))
     {
@@ -253,8 +254,8 @@
 @if (useUploads)
 {
     <script src="~/js/core/rich-text-tools.js" asp-append-version="true"></script>
-    <script src="~/js/core/image-upload.js" asp-append-version="true"></script>
 }
+<script src="~/js/core/image-upload.js" asp-append-version="true"></script>
 <script src="~/js/core/api.js" asp-append-version="true"></script>
 @if (usePasswordStrength)
 {

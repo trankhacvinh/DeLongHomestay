@@ -45,6 +45,13 @@ public sealed class AdminTablerLayoutSourceContractTests
     [Theory]
     [InlineData("src/DeLong.Web/Pages/Admin/Index.cshtml")]
     [InlineData("src/DeLong.Web/Pages/Admin/SelectProperty.cshtml")]
+    [InlineData("src/DeLong.Web/Pages/Admin/Bookings/Index.cshtml")]
+    [InlineData("src/DeLong.Web/Pages/Admin/Customers/Index.cshtml")]
+    [InlineData("src/DeLong.Web/Pages/Admin/Cancellations/Index.cshtml")]
+    [InlineData("src/DeLong.Web/Pages/Admin/Vouchers/Index.cshtml")]
+    [InlineData("src/DeLong.Web/Pages/Admin/Housekeeping/Index.cshtml")]
+    [InlineData("src/DeLong.Web/Pages/Admin/RoomConditionReports/Index.cshtml")]
+    [InlineData("src/DeLong.Web/Pages/Admin/RoomBlocks.cshtml")]
     public void Converted_pages_use_the_tabler_layout(string path)
     {
         Assert.Contains("Layout = \"_AdminLayout\";", Read(path), StringComparison.Ordinal);

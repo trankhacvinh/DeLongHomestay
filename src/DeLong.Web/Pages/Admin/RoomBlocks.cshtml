@@ -1,6 +1,6 @@
 @page
 @model DeLong.Web.Pages.Admin.RoomBlocksModel
-@{ ViewData["Title"] = "Lịch khóa phòng"; }
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["Title"] = "Lịch khóa phòng"; }
 @section Head { <link rel="stylesheet" href="~/css/room-blocks.css" asp-append-version="true" /> }
 <div id="room-blocks-page" v-cloak>
     <script id="room-blocks-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
