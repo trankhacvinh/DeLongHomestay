@@ -4,7 +4,7 @@
     max-width:calc(100vw - 20px);
     padding:8px;
     border:1px solid #cadbd7;
-    border-radius:13px;
+    border-radius:6px;
     display:flex;
     align-items:center;
     gap:7px;
@@ -20,7 +20,7 @@
     min-height:31px;
     padding:5px 8px;
     border:1px solid var(--line);
-    border-radius:8px;
+    border-radius:6px;
     background:#fff;
     color:var(--text-soft);
     font-size:9px;
@@ -34,7 +34,7 @@
 .room-image-tool-btn.is-danger:hover { background:var(--danger-bg); }
 .room-image-alt-control { min-width:190px; display:grid; grid-template-columns:auto minmax(130px,220px); align-items:center; gap:6px; }
 .room-image-alt-control > span { color:var(--muted); font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; }
-.room-image-alt-control input { min-height:31px; height:31px; padding:5px 8px; border-radius:8px; font-size:9px; }
+.room-image-alt-control input { min-height:31px; height:31px; padding:5px 8px; border-radius:6px; font-size:9px; }
 
 .quill-editor-shell .ql-editor img { cursor:pointer; transition:outline-color .15s ease,box-shadow .15s ease; }
 .quill-editor-shell .ql-editor img[data-editor-selected="true"] {

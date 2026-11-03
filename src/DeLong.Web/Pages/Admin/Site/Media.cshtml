@@ -1,6 +1,6 @@
 @page
 @model DeLong.Web.Pages.Admin.Site.MediaModel
-@{
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["UseUploads"] = true; ViewData["UsePasswordStrength"] = true;
     ViewData["Title"] = "Media Library";
 }
 @section Head {

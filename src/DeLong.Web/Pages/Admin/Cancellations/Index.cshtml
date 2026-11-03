@@ -1,6 +1,6 @@
 @page "/Admin/Cancellations"
 @model DeLong.Web.Pages.Admin.Cancellations.IndexModel
-@{ ViewData["Title"] = "Hủy phòng & hoàn tiền"; }
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["Title"] = "Hủy phòng & hoàn tiền"; }
 @section Head {
     <link rel="stylesheet" href="~/css/admin-operations-ledger.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-cancellations.css" asp-append-version="true" />

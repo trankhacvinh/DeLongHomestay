@@ -1,0 +1,14 @@
+# Admin UI trên Tabler
+
+Giao diện admin đang được chuyển dần sang Tabler (kế hoạch 6 PR). Quy tắc:
+
+- Layout mới: `Pages/Shared/_AdminLayout.cshtml`. Trang đã chuyển đặt `Layout = "_AdminLayout";`, trang chưa chuyển vẫn dùng `_Layout.cshtml`. Một trang không bao giờ tải cả hai bộ CSS.
+- CSS: `wwwroot/vendor/tabler/tabler.min.css` (Tabler 1.4.0 + Bootstrap 5.3.7, chỉ các thành phần cần dùng, màu chủ đạo `#174b4f`, font Be Vietnam Pro) và `wwwroot/css/admin-app.css`. Dựng lại bằng `scripts/tabler/build.sh` (cần Node chỉ khi nâng cấp; server không cần Node).
+- Không dùng JS của Bootstrap: modal do Vue điều khiển; dropdown topbar dùng `js/core/admin-dropdown.js`.
+- Chỉ tải script khi trang cần: `ViewData["UseVue"]`, `UseFlatpickr`, `UseUploads`, `UsePasswordStrength`.
+- Icon: sprite `#i-*` trong `_AdminIcons.cshtml` (cùng bộ với `_Layout.cshtml` cho tới khi layout cũ bị gỡ).
+- Khi thêm trang admin vào menu, cập nhật cả `_Layout.cshtml` và `_AdminLayout.cshtml` (test `AdminTablerLayoutSourceContractTests` kiểm tra hai bên khớp).
+- `wwwroot/css/admin-legacy.css` ánh xạ class cũ (`.panel`, `.btn-light`, `.pill`, `.data-table`, `.modal-card`, `.form-grid`...) sang kiểu Tabler phẳng (bo góc 4-6px) để trang chuyển layout trước, viết lại markup sau. Xóa từng khối khi không còn trang nào dùng class đó.
+- Trang đã chuyển: Tổng quan, Chọn cơ sở, Đặt phòng, Khách hàng, Hủy & hoàn tiền, Voucher, Dọn phòng, Tình trạng phòng, Lịch khóa phòng, Lịch phòng (CalendarV2, chỉ đổi khung; lưới lịch giữ nguyên).
+- Nhóm tài chính (Kho chung, Tiền mặt, Chấm công & Lương, Thu chi, Báo cáo) đã chuyển layout.
+- Tất cả trang admin đã dùng `_AdminLayout`; `_Layout.cshtml` chỉ còn phục vụ trang khách và trang đăng nhập/tài khoản (nhánh admin trong đó sẽ được gỡ ở bước dọn dẹp).

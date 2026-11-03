@@ -6,10 +6,10 @@
 .cancellations-page .ops-toolbar{gap:8px 10px}
 .cancellations-page .ops-toolbar label{gap:3px;min-width:120px;font-size:12px;font-weight:600;color:#1c2f2c}
 .cancellations-page .ops-toolbar .cancel-search{flex:1 1 220px}
-.cancellations-page .ops-toolbar input,.cancellations-page .ops-toolbar select{min-height:34px;padding:4px 8px;font-size:13px;color:#102421;border-radius:8px}
-.cancellations-page .ops-toolbar .btn,.cancellations-page .btn-sm{min-height:34px;padding:4px 12px;font-size:13px;border-radius:8px}
+.cancellations-page .ops-toolbar input,.cancellations-page .ops-toolbar select{min-height:34px;padding:4px 8px;font-size:13px;color:#102421;border-radius:6px}
+.cancellations-page .ops-toolbar .btn,.cancellations-page .btn-sm{min-height:34px;padding:4px 12px;font-size:13px;border-radius:6px}
 .cancellations-page .ops-kpis{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
-.cancellations-page .ops-kpis article{padding:8px 12px;border-radius:10px}
+.cancellations-page .ops-kpis article{padding:8px 12px;border-radius:6px}
 .cancellations-page .ops-kpis span{font-size:12px;color:#34484a;font-weight:600}
 .cancellations-page .ops-kpis strong{margin-top:2px;font-size:17px;color:#102421}
 .cancellations-page .cancel-kpi-warn.active{border-color:#eab7b2;background:#fff5f4}
@@ -20,7 +20,7 @@
 .cancellations-page .ops-scroll td small{margin-top:1px;font-size:12px;color:#34484a}
 .cancellations-page .cancel-owed{color:#a12c25;font-weight:700}
 .cancellations-page .muted{color:#34484a!important}
-.cancel-badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;background:#e3ebe9;color:#26403c}
+.cancel-badge{display:inline-block;padding:1px 8px;border-radius:6px;font-size:12px;font-weight:700;background:#e3ebe9;color:#26403c}
 .cancel-badge.is-pending{background:#ffe9cc;color:#7d4600}
 .cancel-badge.is-partial{background:#fff0b8;color:#5f4c00}
 .cancel-badge.is-refunded{background:#d5f0e1;color:#0f5133}
@@ -32,8 +32,8 @@
 .cancel-modal h2{margin:0 0 4px;font-size:17px}
 .cancel-modal h3{margin:12px 0 6px;font-size:13.5px;color:#102421}
 .cancel-modal label{gap:3px;font-size:12px;font-weight:600;color:#1c2f2c}
-.cancel-modal input,.cancel-modal select{min-height:34px;padding:4px 8px;font-size:13px;color:#102421;border-radius:8px}
-.cancel-modal .btn{min-height:32px;padding:4px 12px;font-size:13px;border-radius:8px}
+.cancel-modal input,.cancel-modal select{min-height:34px;padding:4px 8px;font-size:13px;color:#102421;border-radius:6px}
+.cancel-modal .btn{min-height:32px;padding:4px 12px;font-size:13px;border-radius:6px}
 .cancel-modal .ops-form{gap:8px 10px;grid-template-columns:repeat(4,minmax(0,1fr))}
 .cancel-modal .ops-form label.wide{grid-column:span 2}
 .cancel-modal .ops-form input,.cancel-modal .ops-form select{min-width:0;max-width:100%;width:100%;box-sizing:border-box;font-size:13px}
@@ -46,7 +46,7 @@
 .cancel-modal .ops-details article>.ops-actions{margin:0 0 0 auto}
 .cancel-modal .ops-details article>fieldset{width:100%}
 .cancel-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:8px 0}
-.cancel-summary div{padding:6px 8px;border:1px solid #c5d6d2;border-radius:8px;background:#f4f8f7}
+.cancel-summary div{padding:6px 8px;border:1px solid #c5d6d2;border-radius:6px;background:#f4f8f7}
 .cancel-summary span{display:block;font-size:11.5px;color:#34484a;font-weight:600}
 .cancel-summary strong{display:block;margin-top:1px;font-size:13.5px;color:#102421}
 @media(max-width:760px){.cancel-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.cancel-modal .ops-form{grid-template-columns:repeat(2,minmax(0,1fr))}}

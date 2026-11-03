@@ -1,6 +1,6 @@
 @page "/Admin/Cash"
 @model DeLong.Web.Pages.Admin.Cash.IndexModel
-@{ ViewData["Title"] = "Tiền mặt"; }
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["Title"] = "Tiền mặt"; }
 @section Head { <link rel="stylesheet" href="~/css/admin-operations-ledger.css" asp-append-version="true" /> }
 <script id="cash-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
 <div id="cash-page" class="operations-ledger" v-cloak>

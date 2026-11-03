@@ -1,6 +1,6 @@
 @page
 @model DeLong.Web.Pages.Admin.DataQualityModel
-@{ ViewData["Title"] = "Kiểm tra dữ liệu"; }
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["UseUploads"] = true; ViewData["UsePasswordStrength"] = true; ViewData["Title"] = "Kiểm tra dữ liệu"; }
 @section Head { <link rel="stylesheet" href="~/css/data-quality.css" asp-append-version="true" /> }
 <div id="data-quality-page" v-cloak>
     <script id="data-quality-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>

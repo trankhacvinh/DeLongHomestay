@@ -1,6 +1,9 @@
 @page
 @model DeLong.Web.Pages.Admin.Bookings.IndexModel
 @{
+    Layout = "_AdminLayout";
+    ViewData["UseVue"] = true;
+    ViewData["UseFlatpickr"] = true;
     ViewData["Title"] = "Đặt phòng";
 }
 @section Head {

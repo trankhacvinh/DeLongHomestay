@@ -10,16 +10,16 @@
 .booking-cancel-field{display:grid;gap:4px;font-size:13px;font-weight:600;color:#1c2f2c}
 .booking-cancel-label{display:inline;white-space:normal}
 .booking-cancel-label b{display:inline;color:#b3261e;font-size:15px;line-height:1}
-.booking-cancel-field textarea,.booking-cancel-field input,.booking-cancel-field select{width:100%;min-height:36px;padding:6px 10px;font-size:14px;font-weight:400;color:#102421;border-radius:8px}
+.booking-cancel-field textarea,.booking-cancel-field input,.booking-cancel-field select{width:100%;min-height:36px;padding:6px 10px;font-size:14px;font-weight:400;color:#102421;border-radius:6px}
 .booking-cancel-field textarea{min-height:60px;resize:vertical;font-weight:700;line-height:1.4}
 .booking-cancel-field textarea::placeholder,.booking-cancel-field input::placeholder{font-weight:400;color:#5a6d6a}
 .booking-cancel-paid{margin:0;font-size:13.5px}
-.booking-cancel-option{display:flex;gap:8px;align-items:flex-start;padding:6px 10px;border:1px solid #c5d6d2;border-radius:8px;cursor:pointer;margin:0}
+.booking-cancel-option{display:flex;gap:8px;align-items:flex-start;padding:6px 10px;border:1px solid #c5d6d2;border-radius:6px;cursor:pointer;margin:0}
 .booking-cancel-option input{margin:3px 0 0;width:16px;height:16px;min-height:0}
 .booking-cancel-option span{display:grid;gap:0;font-size:13.5px}
 .booking-cancel-option small{font-size:12px;line-height:1.35;color:#34484a}
 .booking-cancel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.booking-cancel-error{margin:0;padding:8px 10px;border:1px solid #eab7b2;border-radius:8px;background:#fff5f4;color:#a12c25;font-size:13px;font-weight:600}
+.booking-cancel-error{margin:0;padding:8px 10px;border:1px solid #eab7b2;border-radius:6px;background:#fff5f4;color:#a12c25;font-size:13px;font-weight:600}
 .booking-cancel-card .modal-actions{padding:10px 16px}
-.booking-cancel-card .modal-actions .btn{min-height:36px;padding:6px 14px;font-size:13.5px;border-radius:8px}
+.booking-cancel-card .modal-actions .btn{min-height:36px;padding:6px 14px;font-size:13.5px;border-radius:6px}
 @media(max-width:520px){.booking-cancel-grid{grid-template-columns:1fr}}

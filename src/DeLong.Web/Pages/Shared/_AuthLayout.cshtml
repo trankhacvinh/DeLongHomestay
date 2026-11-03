@@ -1,0 +1,27 @@
+@* Centered Tabler shell for sign-in and account-security pages (no sidebar). *@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var csrf = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="csrf-token" content="@csrf"/>
+    <meta name="theme-color" content="#0d2b2e"/>
+    <meta name="robots" content="noindex,nofollow"/>
+    <title>@ViewData["Title"] - De Long Homestay</title>
+    <link rel="preload" href="~/fonts/brand/be-vietnam-pro-400.woff2?v=446d2bf4dee42971" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="~/vendor/tabler/tabler.min.css" asp-append-version="true"/>
+    <link rel="stylesheet" href="~/css/admin-app.css" asp-append-version="true"/>
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body class="admin-tabler dl-auth">
+<main class="dl-auth-page" id="main-content">
+    <div class="dl-auth-brand"><span class="dl-brand-mark">DL</span><strong>De Long Homestay</strong></div>
+    @RenderBody()
+</main>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

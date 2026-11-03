@@ -1,6 +1,6 @@
 @page
 @model DeLong.Web.Pages.Admin.Site.SeoModel
-@{
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["UseUploads"] = true; ViewData["UsePasswordStrength"] = true;
     ViewData["Title"] = "SEO & Xuất bản";
     var pageIssues = Model.Pages.Count(x => x.IssueCount > 0);
     var roomIssues = Model.Rooms.Count(x => x.IssueCount > 0);

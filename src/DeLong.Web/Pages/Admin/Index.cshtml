@@ -1,176 +1,206 @@
 @page
 @model DeLong.Web.Pages.Admin.IndexModel
 @{
+    Layout = "_AdminLayout";
     ViewData["Title"] = "Tổng quan";
+    string Money(decimal value) => value.ToString("N0") + " đ";
 }
-<div class="page-title-row">
-    <div>
-        <div class="page-eyebrow">@Model.PropertyName</div>
-        <h1>Tổng quan hôm nay</h1>
-        <p>@Model.TodayLabel · Những việc cần chú ý trong phạm vi đang xem.</p>
-    </div>
-    <div class="toolbar dashboard-scope-toolbar">
-        <form method="get" class="dashboard-scope-form">
-            <input type="hidden" name="propertyId" value="@Model.PropertyId" />
-            <select name="scope" class="property-scope-select" aria-label="Phạm vi cơ sở" onchange="this.form.submit()">
-                @if (User.IsInRole("Admin"))
-                {
-                    if (Model.IsAllScope)
-                    {
-                        <option value="all" selected>Tất cả cơ sở</option>
-                    }
-                    else
-                    {
-                        <option value="all">Tất cả cơ sở</option>
-                    }
-                }
-                @foreach (var property in Model.Properties)
-                {
-                    if (Model.Scope == property.Id.ToString())
-                    {
-                        <option value="@property.Id" selected>@property.Name</option>
-                    }
-                    else
-                    {
-                        <option value="@property.Id">@property.Name</option>
-                    }
-                }
-            </select>
-        </form>
-        <a class="btn btn-light btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Booking · @Model.WorkingPropertyName</a>
-        <a class="btn btn-primary btn-sm" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId"><svg><use href="#i-plus" /></svg>Đặt phòng · @Model.WorkingPropertyName</a>
+<div class="page-header d-print-none mb-3">
+    <div class="row align-items-center g-2">
+        <div class="col">
+            <div class="page-pretitle">@Model.PropertyName</div>
+            <h1 class="page-title">Tổng quan hôm nay</h1>
+            <div class="text-secondary mt-1">@Model.TodayLabel · Những việc cần chú ý trong phạm vi đang xem.</div>
+        </div>
+        <div class="col-12 col-md-auto">
+            <div class="btn-list">
+                <form method="get" class="m-0 flex-fill">
+                    <input type="hidden" name="propertyId" value="@Model.PropertyId" />
+                    <select name="scope" class="form-select" aria-label="Phạm vi cơ sở" onchange="this.form.submit()">
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <option value="all" selected="@Model.IsAllScope">Tất cả cơ sở</option>
+                        }
+                        @foreach (var property in Model.Properties)
+                        {
+                            <option value="@property.Id" selected="@(Model.Scope == property.Id.ToString())">@property.Name</option>
+                        }
+                    </select>
+                </form>
+                <a class="btn" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Booking · @Model.WorkingPropertyName</a>
+                <a class="btn btn-primary" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId"><svg class="icon"><use href="#i-plus" /></svg>Đặt phòng · @Model.WorkingPropertyName</a>
+            </div>
+        </div>
     </div>
 </div>
 
 @if (Model.IsAllScope)
 {
-    <div class="dashboard-scope-note"><strong>Đang xem tổng hợp tất cả chi nhánh.</strong><span>Các nút thao tác vẫn mở cơ sở đang làm việc: @Model.WorkingPropertyName.</span></div>
+    <div class="alert alert-info" role="status"><strong>Đang xem tổng hợp tất cả chi nhánh.</strong> Các nút thao tác vẫn mở cơ sở đang làm việc: @Model.WorkingPropertyName.</div>
 }
 
 @if (Model.RequestedCount > 0)
 {
-    <section class="panel website-request-panel">
-        <div class="panel-head">
-            <div><h2>Yêu cầu mới từ website</h2><span class="tiny muted">Khách đã gửi yêu cầu nhưng phòng chưa được giữ chính thức</span></div>
-            <div class="toolbar"><span class="pill warning">@Model.RequestedCount yêu cầu</span><a class="btn btn-light btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Xử lý tại @Model.WorkingPropertyName</a></div>
+    <section class="card mb-3 border-warning">
+        <div class="card-header">
+            <div>
+                <h2 class="card-title">Yêu cầu mới từ website</h2>
+                <div class="card-subtitle">Khách đã gửi yêu cầu nhưng phòng chưa được giữ chính thức</div>
+            </div>
+            <div class="card-actions btn-list">
+                <span class="badge bg-warning-lt">@Model.RequestedCount yêu cầu</span>
+                <a class="btn btn-sm" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Xử lý tại @Model.WorkingPropertyName</a>
+            </div>
         </div>
-        <div class="dashboard-list">
+        <div class="list-group list-group-flush">
             @foreach (var item in Model.WebsiteRequests)
             {
-                <div class="dashboard-item">
-                    <span class="dashboard-time">@item.DateTimeText</span>
-                    <div class="dashboard-main"><strong>@item.CustomerName</strong><span>@item.CustomerPhone · @item.RoomName · @item.Code@if (Model.Properties.Count > 1) { <text> · @item.PropertyName</text> }</span></div>
-                    <span class="dashboard-amount">@item.TotalAmount.ToString("N0") đ</span>
+                <div class="list-group-item d-flex align-items-center gap-3">
+                    <span class="dl-list-time">@item.DateTimeText</span>
+                    <div class="dl-truncate flex-fill">
+                        <strong class="d-block dl-truncate">@item.CustomerName</strong>
+                        <span class="text-secondary small">@item.CustomerPhone · @item.RoomName · @item.Code@if (Model.Properties.Count > 1) { <text> · @item.PropertyName</text> }</span>
+                    </div>
+                    <span class="ms-auto text-nowrap fw-semibold">@Money(item.TotalAmount)</span>
                 </div>
             }
         </div>
     </section>
 }
 
-<div class="kpi-grid">
-    <article class="kpi">
-        <div class="kpi-top"><span class="kpi-label">Khách đến</span><span class="kpi-icon"><svg><use href="#i-calendar" /></svg></span></div>
-        <strong class="kpi-value">@Model.ArrivalsCount</strong>
-        <span class="kpi-note">Check-in trong hôm nay</span>
-    </article>
-    <article class="kpi">
-        <div class="kpi-top"><span class="kpi-label">Khách trả</span><span class="kpi-icon"><svg><use href="#i-booking" /></svg></span></div>
-        <strong class="kpi-value">@Model.DeparturesCount</strong>
-        <span class="kpi-note">Check-out trong hôm nay</span>
-    </article>
-    <article class="kpi">
-        <div class="kpi-top"><span class="kpi-label">Đang ở</span><span class="kpi-icon"><svg><use href="#i-bed" /></svg></span></div>
-        <strong class="kpi-value">@Model.OccupiedCount</strong>
-        <span class="kpi-note">Booking đã check-in</span>
-    </article>
-    <article class="kpi">
-        <div class="kpi-top"><span class="kpi-label">Cần dọn</span><span class="kpi-icon"><svg><use href="#i-sparkles" /></svg></span></div>
-        <strong class="kpi-value">@Model.DirtyCount</strong>
-        <span class="kpi-note">Phòng đang ở trạng thái bẩn</span>
-    </article>
+<div class="row row-cards mb-3">
+    @{
+        (string Label, int Value, string Note, string Icon)[] kpis =
+        [
+            ("Khách đến", Model.ArrivalsCount, "Check-in trong hôm nay", "i-calendar"),
+            ("Khách trả", Model.DeparturesCount, "Check-out trong hôm nay", "i-booking"),
+            ("Đang ở", Model.OccupiedCount, "Booking đã check-in", "i-bed"),
+            ("Cần dọn", Model.DirtyCount, "Phòng đang ở trạng thái bẩn", "i-sparkles")
+        ];
+    }
+    @foreach (var kpi in kpis)
+    {
+        <div class="col-6 col-lg-3">
+            <div class="card card-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="dl-stat-icon"><svg class="icon"><use href="#@kpi.Icon" /></svg></span>
+                        <div class="min-w-0">
+                            <div class="subheader">@kpi.Label</div>
+                            <div class="h1 mb-0">@kpi.Value</div>
+                        </div>
+                    </div>
+                    <div class="text-secondary small mt-2 d-none d-sm-block">@kpi.Note</div>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @if (Model.CanViewFinance)
 {
-    <div class="finance-strip">
-        <div><span>Thực thu hôm nay</span><strong>@Model.ReceiptsToday.ToString("N0") đ</strong></div>
-        <div><span>Công nợ hiện tại</span><strong>@Model.Outstanding.ToString("N0") đ</strong></div>
-        <div><span>Truy cập nhanh</span><strong><a asp-page="/Admin/Finance/Index" asp-route-propertyId="@Model.PropertyId" asp-route-scope="@Model.Scope">Thu chi →</a></strong></div>
+    <div class="row row-cards mb-3">
+        <div class="col-12 col-sm-6 col-lg-4"><div class="card card-sm"><div class="card-body"><div class="subheader">Thực thu hôm nay</div><div class="h2 mb-0">@Money(Model.ReceiptsToday)</div></div></div></div>
+        <div class="col-12 col-sm-6 col-lg-4"><div class="card card-sm"><div class="card-body"><div class="subheader">Công nợ hiện tại</div><div class="h2 mb-0">@Money(Model.Outstanding)</div></div></div></div>
+        <div class="col-12 col-lg-4"><div class="card card-sm"><div class="card-body"><div class="subheader">Truy cập nhanh</div><div class="h2 mb-0"><a asp-page="/Admin/Finance/Index" asp-route-propertyId="@Model.PropertyId" asp-route-scope="@Model.Scope">Thu chi →</a></div></div></div></div>
     </div>
 }
 
-<div class="dashboard-grid">
-    <section class="panel">
-        <div class="panel-head"><div><h2>Sắp check-in</h2><span class="tiny muted">Theo thứ tự thời gian hôm nay</span></div><a class="btn btn-ghost btn-sm" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId">Mở lịch · @Model.WorkingPropertyName</a></div>
-        <div class="dashboard-list">
+<div class="row row-cards mb-3">
+    <div class="col-lg-7">
+        <section class="card h-100">
+            <div class="card-header">
+                <div><h2 class="card-title">Sắp check-in</h2><div class="card-subtitle">Theo thứ tự thời gian hôm nay</div></div>
+                <div class="card-actions"><a class="btn btn-sm btn-ghost-primary" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId">Mở lịch · @Model.WorkingPropertyName</a></div>
+            </div>
             @if (Model.Arrivals.Count == 0)
             {
-                <div class="empty-state"><strong>Chưa có khách đến hôm nay</strong>Lịch sẽ xuất hiện ở đây khi có booking.</div>
+                <div class="empty"><p class="empty-title">Chưa có khách đến hôm nay</p><p class="empty-subtitle text-secondary">Lịch sẽ xuất hiện ở đây khi có booking.</p></div>
             }
             else
             {
-                @foreach (var item in Model.Arrivals)
-                {
-                    <div class="dashboard-item">
-                        <span class="dashboard-time">@item.TimeText</span>
-                        <div class="dashboard-main"><strong>@item.CustomerName</strong><span>@item.RoomName · @item.Code@if (Model.Properties.Count > 1) { <text> · @item.PropertyName</text> }</span></div>
-                        @if (item.BalanceAmount > 0) { <span class="dashboard-amount text-danger">Còn @item.BalanceAmount.ToString("N0") đ</span> }
-                        else { <span class="dashboard-amount text-success">Đã đủ tiền</span> }
-                    </div>
-                }
+                <div class="list-group list-group-flush">
+                    @foreach (var item in Model.Arrivals)
+                    {
+                        <div class="list-group-item d-flex align-items-center gap-3">
+                            <span class="dl-list-time">@item.TimeText</span>
+                            <div class="dl-truncate flex-fill">
+                                <strong class="d-block dl-truncate">@item.CustomerName</strong>
+                                <span class="text-secondary small">@item.RoomName · @item.Code@if (Model.Properties.Count > 1) { <text> · @item.PropertyName</text> }</span>
+                            </div>
+                            @if (item.BalanceAmount > 0) { <span class="ms-auto text-danger text-nowrap small fw-semibold">Còn @Money(item.BalanceAmount)</span> }
+                            else { <span class="ms-auto text-success text-nowrap small fw-semibold">Đã đủ tiền</span> }
+                        </div>
+                    }
+                </div>
             }
-        </div>
-    </section>
-
-    <section class="panel">
-        <div class="panel-head"><div><h2>Vận hành nhanh</h2><span class="tiny muted">Thao tác tại cơ sở đang làm việc: @Model.WorkingPropertyName</span></div></div>
-        <div class="quick-actions">
-            <a class="quick-action" asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@Model.PropertyId"><strong>Dọn phòng</strong><span>Mở trạng thái phòng →</span></a>
-            <a class="quick-action" asp-page="/Admin/Customers/Index" asp-route-propertyId="@Model.PropertyId"><strong>Khách hàng</strong><span>Tra cứu SĐT / lịch sử →</span></a>
-            <a class="quick-action" asp-page="/Admin/Rooms/Index" asp-route-propertyId="@Model.PropertyId"><strong>Phòng & giá</strong><span>Quản lý phòng →</span></a>
-            <a class="quick-action" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId"><strong>Booking</strong><span>Tra cứu & thanh toán →</span></a>
-        </div>
-    </section>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="card h-100">
+            <div class="card-header"><div><h2 class="card-title">Vận hành nhanh</h2><div class="card-subtitle">Thao tác tại cơ sở đang làm việc: @Model.WorkingPropertyName</div></div></div>
+            <div class="dl-quick">
+                <a asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@Model.PropertyId"><strong>Dọn phòng</strong><span>Mở trạng thái phòng →</span></a>
+                <a asp-page="/Admin/Customers/Index" asp-route-propertyId="@Model.PropertyId"><strong>Khách hàng</strong><span>Tra cứu SĐT / lịch sử →</span></a>
+                <a asp-page="/Admin/Rooms/Index" asp-route-propertyId="@Model.PropertyId"><strong>Phòng &amp; giá</strong><span>Quản lý phòng →</span></a>
+                <a asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId"><strong>Booking</strong><span>Tra cứu &amp; thanh toán →</span></a>
+            </div>
+        </section>
+    </div>
 </div>
 
-<div class="dashboard-grid">
-    <section class="panel">
-        <div class="panel-head"><div><h2>Sắp check-out</h2><span class="tiny muted">Chuẩn bị thanh toán và dọn phòng</span></div></div>
-        <div class="dashboard-list">
+<div class="row row-cards">
+    <div class="col-lg-7">
+        <section class="card h-100">
+            <div class="card-header"><div><h2 class="card-title">Sắp check-out</h2><div class="card-subtitle">Chuẩn bị thanh toán và dọn phòng</div></div></div>
             @if (Model.Departures.Count == 0)
             {
-                <div class="empty-state"><strong>Không có khách trả hôm nay</strong>Không có check-out trong ngày hiện tại.</div>
+                <div class="empty"><p class="empty-title">Không có khách trả hôm nay</p><p class="empty-subtitle text-secondary">Không có check-out trong ngày hiện tại.</p></div>
             }
             else
             {
-                @foreach (var item in Model.Departures)
-                {
-                    <div class="dashboard-item"><span class="dashboard-time">@item.TimeText</span><div class="dashboard-main"><strong>@item.CustomerName</strong><span>@item.RoomName · @item.Code@if (Model.Properties.Count > 1) { <text> · @item.PropertyName</text> }</span></div>@if (item.BalanceAmount > 0){<span class="dashboard-amount text-danger">Còn @item.BalanceAmount.ToString("N0") đ</span>}</div>
-                }
+                <div class="list-group list-group-flush">
+                    @foreach (var item in Model.Departures)
+                    {
+                        <div class="list-group-item d-flex align-items-center gap-3">
+                            <span class="dl-list-time">@item.TimeText</span>
+                            <div class="dl-truncate flex-fill">
+                                <strong class="d-block dl-truncate">@item.CustomerName</strong>
+                                <span class="text-secondary small">@item.RoomName · @item.Code@if (Model.Properties.Count > 1) { <text> · @item.PropertyName</text> }</span>
+                            </div>
+                            @if (item.BalanceAmount > 0) { <span class="ms-auto text-danger text-nowrap small fw-semibold">Còn @Money(item.BalanceAmount)</span> }
+                        </div>
+                    }
+                </div>
             }
-        </div>
-    </section>
-
-    <section class="panel">
-        <div class="panel-head"><div><h2>Trạng thái dọn phòng</h2><span class="tiny muted">Phòng bẩn / đang dọn</span></div><a class="btn btn-ghost btn-sm" asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@Model.PropertyId">Chi tiết · @Model.WorkingPropertyName</a></div>
-        <div class="dashboard-list">
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="card h-100">
+            <div class="card-header">
+                <div><h2 class="card-title">Trạng thái dọn phòng</h2><div class="card-subtitle">Phòng bẩn / đang dọn</div></div>
+                <div class="card-actions"><a class="btn btn-sm btn-ghost-primary" asp-page="/Admin/Housekeeping/Index" asp-route-propertyId="@Model.PropertyId">Chi tiết · @Model.WorkingPropertyName</a></div>
+            </div>
             @if (Model.DirtyRooms.Count == 0)
             {
-                <div class="empty-state"><strong>Tất cả phòng đã sẵn sàng</strong>Không có phòng bẩn hoặc đang dọn.</div>
+                <div class="empty"><p class="empty-title">Tất cả phòng đã sẵn sàng</p><p class="empty-subtitle text-secondary">Không có phòng bẩn hoặc đang dọn.</p></div>
             }
             else
             {
-                @foreach (var room in Model.DirtyRooms)
-                {
-                    <div class="dashboard-item"><span class="dashboard-time">@(room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty ? "Bẩn" : "Dọn")</span><div class="dashboard-main"><strong>@room.Name</strong><span>@room.Code@if (Model.Properties.Count > 1) { <text> · @room.PropertyName</text> }</span></div><span class="pill @(room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty ? "warning" : "")">@(room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty ? "Cần dọn" : "Đang dọn")</span></div>
-                }
+                <div class="list-group list-group-flush">
+                    @foreach (var room in Model.DirtyRooms)
+                    {
+                        var isDirty = room.Status == DeLong.Web.Domain.Enums.HousekeepingStatus.Dirty;
+                        <div class="list-group-item d-flex align-items-center gap-3">
+                            <div class="dl-truncate flex-fill">
+                                <strong class="d-block dl-truncate">@room.Name</strong>
+                                <span class="text-secondary small">@room.Code@if (Model.Properties.Count > 1) { <text> · @room.PropertyName</text> }</span>
+                            </div>
+                            <span class="badge @(isDirty ? "bg-warning-lt" : "bg-secondary-lt") ms-auto">@(isDirty ? "Cần dọn" : "Đang dọn")</span>
+                        </div>
+                    }
+                </div>
             }
-        </div>
-    </section>
+        </section>
+    </div>
 </div>
-
-@section Head {
-<style>
-.dashboard-scope-toolbar{flex-wrap:wrap}.dashboard-scope-form{margin:0}.property-scope-select{min-height:38px;width:auto;max-width:230px}.dashboard-scope-note{display:flex;gap:8px 18px;align-items:center;flex-wrap:wrap;margin:-8px 0 18px;padding:11px 15px;border:1px solid #dce6e2;border-radius:12px;background:#f6faf8;color:var(--muted);font-size:.88rem}.dashboard-scope-note strong{color:var(--text)}
-</style>
-}

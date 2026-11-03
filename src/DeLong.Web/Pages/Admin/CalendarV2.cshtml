@@ -1,9 +1,13 @@
 @page "/Admin/CalendarV2"
 @model DeLong.Web.Pages.Admin.CalendarV2Model
 @{
+    Layout = "_AdminLayout";
+    ViewData["UseVue"] = true;
+    ViewData["UseFlatpickr"] = true;
     ViewData["Title"] = "Lịch phòng V2";
 }
 @section Head {
+    <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/calendar-day-summary.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-booking-history.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-booking-cancel.css" asp-append-version="true" />

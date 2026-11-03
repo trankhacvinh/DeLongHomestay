@@ -1,6 +1,6 @@
 @page
 @model DeLong.Web.Pages.Admin.Site.EditorialGlobalModel
-@{
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["UseUploads"] = true; ViewData["UsePasswordStrength"] = true;
     var isBlog = string.Equals(Request.Query["tab"], "blog", StringComparison.OrdinalIgnoreCase);
     ViewData["Title"] = isBlog ? "Blog trang chủ" : "Gallery trang chủ";
 }

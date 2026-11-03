@@ -1,6 +1,6 @@
 @page
 @model DeLong.Web.Pages.Admin.Settings.IndexModel
-@{
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["UseUploads"] = true; ViewData["UsePasswordStrength"] = true;
     ViewData["Title"] = "Cấu hình";
 }
 @section Head {

@@ -1,37 +1,40 @@
 @page
 @model DeLong.Web.Pages.Account.AuthenticatorModel
-@{ ViewData["Title"] = "Google Authenticator"; }
-<section class="auth-wrap">
-    <form method="post" class="auth-card"><span class="eyebrow">Bảo mật</span>
-        <h1>Google Authenticator</h1>
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Google Authenticator";
+}
+<div class="page-header mb-3">
+    <div class="page-pretitle">Bảo mật</div>
+    <h1 class="page-title">Google Authenticator</h1>
+</div>
+<form method="post" class="card" style="max-width:34rem">
+    <div class="card-body d-grid gap-3">
         @if (Model.Enabled)
         {
-            <p class="notice">Authenticator đang bật. Bạn có thể dùng mã 6 số thay mật khẩu tại trang đăng nhập quản
-                trị.</p>
+            <div class="alert alert-success mb-0">Authenticator đang bật. Bạn có thể dùng mã 6 số thay mật khẩu tại trang đăng nhập quản trị.</div>
             <button class="btn btn-danger" type="submit" asp-page-handler="Disable">Tắt và tạo lại khóa</button>
         }
         else
         {
-            <p>Trong Google Authenticator, chọn <strong>Nhập khóa thiết lập</strong>, sau đó nhập khóa dưới đây.</p>
-            <code
-                style="display:block;padding:14px;border-radius:12px;background:#eef4f2;overflow-wrap:anywhere">@Model.SharedKey</code>
-            <div class="field"><label asp-for="Code">Mã 6 số để xác nhận</label><input asp-for="Code"
-                                                                                       inputmode="numeric"
-                                                                                       autocomplete="one-time-code"
-                                                                                       maxlength="8"/><span
-                    asp-validation-for="Code" class="validation"></span></div>
+            <p class="mb-0">Trong Google Authenticator, chọn <strong>Nhập khóa thiết lập</strong>, sau đó nhập khóa dưới đây.</p>
+            <code class="d-block p-3 bg-secondary-lt" style="overflow-wrap:anywhere">@Model.SharedKey</code>
+            <div>
+                <label class="form-label" asp-for="Code">Mã 6 số để xác nhận</label>
+                <input class="form-control" asp-for="Code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" />
+                <span asp-validation-for="Code" class="text-danger small"></span>
+            </div>
             <button class="btn btn-primary" type="submit" asp-page-handler="Enable">Bật Authenticator</button>
         }
         @if (Model.RecoveryCodes.Count > 0)
         {
-            <div class="notice"><strong>Lưu các mã khôi phục này ở nơi an toàn.</strong>
+            <div class="alert alert-warning mb-0">
+                <strong>Lưu các mã khôi phục này ở nơi an toàn.</strong>
                 @foreach (var code in Model.RecoveryCodes)
                 {
-                    <code style="display:block">
-                        @(code)
-                    </code>
+                    <code class="d-block">@(code)</code>
                 }
             </div>
         }
-    </form>
-</section>
+    </div>
+</form>

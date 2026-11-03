@@ -1,6 +1,6 @@
 @page
 @model DeLong.Web.Pages.Admin.Properties.IndexModel
-@{
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["UseUploads"] = true; ViewData["UsePasswordStrength"] = true;
     ViewData["Title"] = "Cơ sở";
     var timeZones = TimeZoneInfo.GetSystemTimeZones()
         .OrderByDescending(zone => string.Equals(zone.Id, "Asia/Ho_Chi_Minh", StringComparison.OrdinalIgnoreCase))
