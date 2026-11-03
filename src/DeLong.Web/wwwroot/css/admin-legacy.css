@@ -19,7 +19,6 @@
 .admin-tabler .tiny { font-size: .75rem; }
 .admin-tabler .spacer { flex: 1; }
 .admin-tabler .mt-16 { margin-top: 16px; }
-.admin-tabler .mt-24 { margin-top: 24px; }
 .admin-tabler .toolbar { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .admin-tabler .full { grid-column: 1 / -1; }
 
@@ -39,13 +38,7 @@
 .admin-tabler .panel-head { min-height: 3.25rem; padding: .75rem 1rem; border-bottom: 1px solid var(--tblr-border-color); display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
 .admin-tabler .panel-head h2, .admin-tabler .panel-head h3 { margin: 0; font-size: 1rem; font-weight: 600; }
 .admin-tabler .panel-body { padding: 1rem; }
-.admin-tabler .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
 .admin-tabler .kpi { padding: 1rem; background: #fff; border: 1px solid var(--tblr-border-color); border-radius: var(--tblr-border-radius); display: flex; flex-direction: column; gap: .35rem; }
-.admin-tabler .kpi-top { display: flex; justify-content: space-between; align-items: flex-start; }
-.admin-tabler .kpi-icon { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 4px; background: var(--brand-50); color: var(--tblr-primary); }
-.admin-tabler .kpi-label, .admin-tabler .kpi-note { font-size: .75rem; color: var(--muted); }
-.admin-tabler .kpi-value { font-size: 1.75rem; line-height: 1.1; font-weight: 600; }
-@media (max-width: 991.98px) { .admin-tabler .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* buttons */
 .admin-tabler .btn-light { background: #fff; border-color: var(--tblr-border-color); color: var(--text-soft); }
@@ -61,7 +54,6 @@
 .admin-tabler .btn-icon:not(.btn) { width: 2.25rem; height: 2.25rem; padding: 0; border: 1px solid var(--tblr-border-color); border-radius: 4px; display: inline-grid; place-items: center; background: #fff; color: var(--text-soft); }
 .admin-tabler .btn-icon:not(.btn) svg { width: 1.125rem; height: 1.125rem; }
 .admin-tabler .row-action { margin-left: .25rem; }
-.admin-tabler .table-actions { display: flex; justify-content: flex-end; gap: .35rem; }
 
 /* tables */
 .admin-tabler .table-wrap { overflow: auto; -webkit-overflow-scrolling: touch; }
@@ -86,7 +78,6 @@
 .admin-tabler .filter-select { width: auto !important; min-width: 10rem; }
 .admin-tabler .field { display: grid; gap: .3rem; }
 .admin-tabler .field label, .admin-tabler .form-grid label { color: #46544f; font-size: .8125rem; font-weight: 600; }
-.admin-tabler .field-hint { color: var(--muted); font-size: .75rem; }
 .admin-tabler .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; }
 .admin-tabler .form-grid > label { display: grid; gap: .3rem; align-content: start; }
 .admin-tabler .check-row { display: inline-flex; align-items: center; gap: .45rem; color: #46544f; font-size: .875rem; }
@@ -140,10 +131,8 @@
 .admin-tabler .empty-state { padding: 2.5rem 1.25rem !important; text-align: center !important; color: var(--muted); }
 .admin-tabler .empty-state strong { display: block; margin-bottom: .25rem; color: var(--text-soft); }
 .admin-tabler .alert { padding: .65rem .9rem; border-radius: 4px; }
-.admin-tabler .payment-row, .admin-tabler .housekeeping-card { display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding: .6rem .8rem; border: 1px solid var(--tblr-border-color); border-radius: 4px; background: #fff; }
-.admin-tabler .payment-list, .admin-tabler .housekeeping-list { display: grid; gap: .5rem; }
+.admin-tabler .payment-row { display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding: .6rem .8rem; border: 1px solid var(--tblr-border-color); border-radius: 4px; background: #fff; }
+.admin-tabler .payment-list { display: grid; gap: .5rem; }
 .admin-tabler .payment-voided { opacity: .55; background: #f5f7f6; }
-.admin-tabler .housekeeping-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: start; }
-@media (max-width: 991.98px) { .admin-tabler .housekeeping-board { grid-template-columns: 1fr; } }
 .admin-tabler .rate-inline { display: flex; gap: .35rem; flex-wrap: wrap; }
 .admin-tabler .entity-avatar { border-radius: 4px; }
