@@ -1,6 +1,6 @@
 @page "/Admin/Rooms/{roomId:guid}/Content"
 @model DeLong.Web.Pages.Admin.Rooms.ContentModel
-@{
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["UseUploads"] = true; ViewData["UsePasswordStrength"] = true;
     ViewData["Title"] = "Nội dung phòng";
 }
 @section Head {

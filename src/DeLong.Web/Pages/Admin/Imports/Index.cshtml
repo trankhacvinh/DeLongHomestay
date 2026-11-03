@@ -1,6 +1,6 @@
 @page "/Admin/Imports"
 @model DeLong.Web.Pages.Admin.Imports.IndexModel
-@{
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["UseUploads"] = true; ViewData["UsePasswordStrength"] = true;
     ViewData["Title"] = "Nhập dữ liệu";
 }
 @section Head {

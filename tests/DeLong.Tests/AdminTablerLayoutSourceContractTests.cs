@@ -42,25 +42,23 @@ public sealed class AdminTablerLayoutSourceContractTests
             Assert.Contains($"ViewData[\"{flag}\"] is true", layout, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData("src/DeLong.Web/Pages/Admin/Index.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/SelectProperty.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/Bookings/Index.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/Customers/Index.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/Cancellations/Index.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/Vouchers/Index.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/Housekeeping/Index.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/RoomConditionReports/Index.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/RoomBlocks.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/CalendarV2.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/Inventory/Index.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/Cash/Index.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/Payroll/Index.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/Finance/Index.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/Reports/Index.cshtml")]
-    public void Converted_pages_use_the_tabler_layout(string path)
+    [Fact]
+    public void Every_admin_page_uses_the_tabler_layout()
     {
-        Assert.Contains("Layout = \"_AdminLayout\";", Read(path), StringComparison.Ordinal);
+        var root = Path.Combine(RepositoryRoot(), "src/DeLong.Web/Pages/Admin");
+        var pages = Directory.GetFiles(root, "*.cshtml", SearchOption.AllDirectories)
+            .Where(x => !Path.GetFileName(x).StartsWith('_')).ToList();
+        Assert.True(pages.Count >= 30);
+        foreach (var page in pages)
+            Assert.True(File.ReadAllText(page).Contains("Layout = \"_AdminLayout\";", StringComparison.Ordinal),
+                $"{Path.GetRelativePath(root, page)} should use _AdminLayout");
+    }
+
+    private static string RepositoryRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "DeLongHomestay.sln"))) dir = dir.Parent;
+        return dir!.FullName;
     }
 
     private static string Read(string relative)

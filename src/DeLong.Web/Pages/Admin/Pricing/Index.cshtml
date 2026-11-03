@@ -1,6 +1,6 @@
 @page
 @model DeLong.Web.Pages.Admin.Pricing.IndexModel
-@{ ViewData["Title"] = "Giá & ngày đặc biệt"; }
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["UseUploads"] = true; ViewData["UsePasswordStrength"] = true; ViewData["Title"] = "Giá & ngày đặc biệt"; }
 @section Head {
     <link rel="stylesheet" href="~/css/entities.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-pricing.css" asp-append-version="true" />

@@ -1,6 +1,6 @@
 @page
 @model DeLong.Web.Pages.Admin.Ai.IndexModel
-@{ ViewData["Title"] = "Trợ lý AI"; }
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true; ViewData["UseFlatpickr"] = true; ViewData["UseUploads"] = true; ViewData["UsePasswordStrength"] = true; ViewData["Title"] = "Trợ lý AI"; }
 <div class="page-head"><div><span class="eyebrow">CẤU HÌNH QUẢN TRỊ</span><h1>Trợ lý AI</h1><p>Chọn OpenAI, Google Gemini hoặc DeepSeek. API key được mã hóa và không hiển thị lại.</p></div></div>
 <div class="ai-settings-grid" data-ai-settings data-property-id="@Model.PropertyId">
     <section class="panel"><div class="panel-head"><div><h2>Kết nối AI</h2><p>Chỉ Admin có thể cấu hình và sử dụng.</p></div></div>

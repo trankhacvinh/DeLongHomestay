@@ -11,3 +11,4 @@ Giao diện admin đang được chuyển dần sang Tabler (kế hoạch 6 PR).
 - `wwwroot/css/admin-legacy.css` ánh xạ class cũ (`.panel`, `.btn-light`, `.pill`, `.data-table`, `.modal-card`, `.form-grid`...) sang kiểu Tabler phẳng (bo góc 4-6px) để trang chuyển layout trước, viết lại markup sau. Xóa từng khối khi không còn trang nào dùng class đó.
 - Trang đã chuyển: Tổng quan, Chọn cơ sở, Đặt phòng, Khách hàng, Hủy & hoàn tiền, Voucher, Dọn phòng, Tình trạng phòng, Lịch khóa phòng, Lịch phòng (CalendarV2, chỉ đổi khung; lưới lịch giữ nguyên).
 - Nhóm tài chính (Kho chung, Tiền mặt, Chấm công & Lương, Thu chi, Báo cáo) đã chuyển layout.
+- Tất cả trang admin đã dùng `_AdminLayout`; `_Layout.cshtml` chỉ còn phục vụ trang khách và trang đăng nhập/tài khoản (nhánh admin trong đó sẽ được gỡ ở bước dọn dẹp).
