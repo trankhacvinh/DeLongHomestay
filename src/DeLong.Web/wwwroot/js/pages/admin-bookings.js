@@ -62,6 +62,8 @@
                 debtOnly: false,
                 dateFrom: '',
                 dateTo: '',
+                createdFrom: '',
+                createdTo: '',
                 sortMode: 'operations',
                 selectedBooking: null,
                 customerRiskForm: { note: '', isBlacklisted: false, blacklistReason: '', isBlocked: false },
@@ -97,8 +99,15 @@
             filteredBookings() {
                 const q = this.search.toLowerCase();
                 if (this.dateFrom && this.dateTo && this.dateFrom > this.dateTo) return [];
+                if (this.createdFrom && this.createdTo && this.createdFrom > this.createdTo) return [];
                 const rows = this.bookings.filter(booking => {
                     if (this.debtOnly && ([5, 6].includes(Number(booking.status)) || Number(booking.balanceAmount || 0) <= 0)) return false;
+                    if (this.createdFrom || this.createdTo) {
+                        if (!booking.createdAtUtc || !Number.isFinite(new Date(booking.createdAtUtc).getTime())) return false;
+                        const createdDate = localDateKey(booking.createdAtUtc);
+                        if (this.createdFrom && createdDate < this.createdFrom) return false;
+                        if (this.createdTo && createdDate > this.createdTo) return false;
+                    }
                     if (this.dateFrom || this.dateTo) {
                         const date = localDateKey(booking.checkInUtc);
                         if (this.dateFrom && date < this.dateFrom) return false;

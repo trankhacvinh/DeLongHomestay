@@ -32,6 +32,7 @@ public sealed class VoucherService(
     {
         var query = db.Vouchers.AsNoTracking().Where(x => x.PropertyId == propertyId);
         if (status.HasValue) query = query.Where(x => x.Status == status.Value);
+        else query = query.Where(x => x.Status != VoucherStatus.Archived);
         if (!string.IsNullOrWhiteSpace(search))
         {
             var value = search.Trim();

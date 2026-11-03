@@ -51,7 +51,10 @@ public sealed class VoucherConcurrencyTests
 
         var service = CreateService(db);
         var all = await service.GetAllAsync(property.Id, null, null, null, null);
-        Assert.Equal(new[] { activeNew.Id, activeOld.Id, draft.Id, archived.Id, paused.Id }, all.Select(x => x.Id));
+        Assert.Equal(new[] { activeNew.Id, activeOld.Id, draft.Id, paused.Id }, all.Select(x => x.Id));
+        var archivedOnly = await service.GetAllAsync(property.Id, VoucherStatus.Archived, null, null, null);
+        Assert.Equal(archived.Id, Assert.Single(archivedOnly).Id);
+        Assert.Empty(await service.GetAllAsync(property.Id, null, "ARCHIVED", null, null));
         var active = await service.GetAllAsync(property.Id, VoucherStatus.Active, null, null, null);
         Assert.Equal(new[] { activeNew.Id, activeOld.Id }, active.Select(x => x.Id));
         var drafts = await service.GetAllAsync(property.Id, VoucherStatus.Draft, null, null, null);

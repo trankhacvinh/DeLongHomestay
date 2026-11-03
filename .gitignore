@@ -16,3 +16,4 @@ src/DeLong.Web/App_Data/
 src/DeLong.Web/wwwroot/uploads/
 .agents
 src/DeLong.Web/wwwroot/css/public-home.bundle.css
+docs/

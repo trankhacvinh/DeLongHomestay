@@ -39,7 +39,7 @@ function page({ rows = [], failAt = 0, pickers = true } = {}) {
                 const query = new URL(url, 'http://localhost').searchParams;
                 queries.push(query);
                 return rows.filter(row =>
-                    (!query.get('status') || row.status === statuses[query.get('status')]) &&
+                    (query.get('status') ? row.status === statuses[query.get('status')] : row.status !== statuses.Archived) &&
                     (!query.get('search') || row.code.includes(query.get('search'))) &&
                     (!query.get('fromUtc') || row.endsAtUtc >= query.get('fromUtc')) &&
                     (!query.get('toUtc') || row.startsAtUtc < query.get('toUtc')));
@@ -86,7 +86,7 @@ test('new vouchers default to active and remain visible after creation', async (
     assert.equal(state.toast.message, 'Đã lưu voucher.');
 });
 
-test('initial filters include all statuses and dates', async () => {
+test('all filter hides archived vouchers until archived is explicitly selected', async () => {
     const rows = [
         { id: 'draft', code: 'DRAFT', status: 0, startsAtUtc: '2025-01-01T00:00:00Z', endsAtUtc: '2025-02-01T00:00:00Z' },
         { id: 'active', code: 'ACTIVE', status: 1, startsAtUtc: '2027-01-01T00:00:00Z', endsAtUtc: '2027-02-01T00:00:00Z' },
@@ -99,7 +99,11 @@ test('initial filters include all statuses and dates', async () => {
     assert.equal(state.filters.to, '');
     await state.load();
     assert.equal(queries[0].size, 0);
-    assert.equal(state.vouchers.length, 4);
+    assert.deepEqual(Array.from(state.vouchers, row => row.id), ['draft', 'active', 'paused']);
+    state.filters.status = 'Archived';
+    await state.load();
+    assert.equal(queries.at(-1).get('status'), 'Archived');
+    assert.deepEqual(Array.from(state.vouchers, row => row.id), ['archived']);
 });
 
 test('saving clears stale search and dates, including visible date picker inputs', async () => {

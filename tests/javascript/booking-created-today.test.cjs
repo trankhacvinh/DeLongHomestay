@@ -14,6 +14,7 @@ function fixture(timeZoneId = 'Asia/Ho_Chi_Minh') {
     });
     const app = { ...options.data(), todayDateKey: '2026-10-28' };
     Object.defineProperty(app, 'createdTodayCount', { get: () => options.computed.createdTodayCount.call(app) });
+    Object.defineProperty(app, 'filteredBookings', { get: () => options.computed.filteredBookings.call(app) });
     return { app, options, tick: () => tick(), cleared: () => cleared };
 }
 
@@ -30,6 +31,47 @@ test('counts persisted bookings by local creation day, including online/staff an
     assert.equal(app.createdTodayCount, 3);
     Object.assign(app, { debtOnly: true, search: 'no match', dateFrom: '2027-01-01', dateTo: '2027-01-02', statusFilter: '4' });
     assert.equal(app.createdTodayCount, 3);
+});
+
+test('creation range includes the whole local day regardless of future stay dates', () => {
+    const { app } = fixture();
+    app.bookings = ['2026-11-02T16:59:59Z', '2026-11-02T17:00:00Z', '2026-11-03T16:59:59.999Z', '2026-11-03T17:00:00Z']
+        .map((createdAtUtc, id) => ({ id, createdAtUtc, checkInUtc: '2026-11-20T07:00:00Z', status: 2 }));
+    app.createdFrom = app.createdTo = '2026-11-03';
+    assert.deepEqual(Array.from(app.filteredBookings, x => x.id), [1, 2]);
+    app.createdTo = '';
+    assert.equal(app.filteredBookings.length, 3);
+    app.createdFrom = ''; app.createdTo = '2026-11-03';
+    assert.equal(app.filteredBookings.length, 3);
+    app.createdFrom = '2026-11-04';
+    assert.equal(app.filteredBookings.length, 0);
+    app.createdFrom = app.createdTo = '';
+    assert.equal(app.filteredBookings.length, 4);
+});
+
+test('creation filter combines with stay, debt and status filters and leaves daily count independent', () => {
+    const { app, options } = fixture();
+    app.todayDateKey = '2026-11-03';
+    app.bookings = [
+        { id: 'match', createdAtUtc: '2026-11-03T03:00:00Z', checkInUtc: '2026-11-20T07:00:00Z', status: 2, balanceAmount: 100 },
+        { id: 'paid', createdAtUtc: '2026-11-03T03:00:00Z', checkInUtc: '2026-11-20T07:00:00Z', status: 2, balanceAmount: 0 },
+        { id: 'other-stay', createdAtUtc: '2026-11-03T03:00:00Z', checkInUtc: '2026-11-21T07:00:00Z', status: 2, balanceAmount: 300 },
+        { id: 'cancelled', createdAtUtc: '2026-11-03T03:00:00Z', checkInUtc: '2026-11-20T07:00:00Z', status: 5, balanceAmount: 100 },
+        { id: 'missing', checkInUtc: '2026-11-20T07:00:00Z', status: 2, balanceAmount: 100 },
+        { id: 'invalid', createdAtUtc: 'invalid', checkInUtc: '2026-11-20T07:00:00Z', status: 2, balanceAmount: 100 }
+    ];
+    Object.assign(app, { createdFrom: '2026-11-03', createdTo: '2026-11-03', dateFrom: '2026-11-20', dateTo: '2026-11-20', debtOnly: true, statusFilter: '2' });
+    assert.deepEqual(Array.from(app.filteredBookings, x => x.id), ['match']);
+    assert.equal(options.computed.filteredDebtSummary.call(app).amount, 100);
+    assert.equal(app.createdTodayCount, 4);
+});
+
+test('creation range uses the property timezone even across daylight saving changes', () => {
+    const { app } = fixture('America/New_York');
+    app.createdFrom = app.createdTo = '2026-11-01';
+    app.bookings = ['2026-11-01T03:59:59Z', '2026-11-01T04:00:00Z', '2026-11-02T04:59:59Z', '2026-11-02T05:00:00Z']
+        .map((createdAtUtc, id) => ({ id, createdAtUtc }));
+    assert.deepEqual(Array.from(app.filteredBookings, x => x.id), [1, 2]);
 });
 test('count updates when refreshed booking list changes and when the local day rolls over', () => {
     const { app } = fixture();

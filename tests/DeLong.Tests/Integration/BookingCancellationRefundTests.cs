@@ -46,10 +46,10 @@ public sealed class BookingCancellationRefundTests
         return new(property, room, staff);
     }
 
-    private static BookingService Bookings(AppDbContext db, bool notifications = false)
+    private static BookingService Bookings(AppDbContext db, bool notifications = false, NotificationRealtimeBroker? broker = null)
     {
         var audit = new AuditService(db);
-        var notification = notifications ? new BookingNotificationService(db, new NotificationRealtimeBroker(), NullLogger<BookingNotificationService>.Instance) : null;
+        var notification = notifications ? new BookingNotificationService(db, broker ?? new NotificationRealtimeBroker(), NullLogger<BookingNotificationService>.Instance) : null;
         return new BookingService(db, new CustomerService(db), audit, notificationService: notification);
     }
 
@@ -359,6 +359,95 @@ public sealed class BookingCancellationRefundTests
         Assert.Equal("Lan lễ tân", row.CancelledByName);
         Assert.Equal("Pending", row.RefundStatus);
         Assert.Equal(250000, row.RemainingRefundAmount);
+    }
+
+    [RoomLockPostgresFact]
+    public async Task Cancellation_in_app_notification_is_visible_and_published_without_external_channels()
+    {
+        await using var db = Db();
+        var f = await SeedAsync(db);
+        var id = await CreateBookingAsync(db, f, paid: 0);
+        var broker = new NotificationRealtimeBroker();
+        using var subscription = broker.Subscribe(f.Property.Id);
+        using var otherProperty = broker.Subscribe(Guid.NewGuid());
+
+        var result = await Bookings(db, notifications: true, broker: broker).ChangeStatusAsync(
+            f.Property.Id, id, BookingStatus.Cancelled, f.Staff.Id, cancel: Cancel("Khách báo bận"));
+        Assert.Null(result.Error);
+
+        var service = new BookingNotificationService(db, broker, NullLogger<BookingNotificationService>.Instance);
+        var feed = await service.GetFeedAsync(f.Property.Id, f.Staff.Id);
+        var item = Assert.Single(feed.Items);
+        Assert.StartsWith("booking-cancelled:", item.Type);
+        Assert.Contains("hủy", item.Title);
+        Assert.Equal(id, item.BookingId);
+        Assert.Contains($"bookingId={id}", item.ActionUrl);
+        Assert.Equal(1, feed.UnreadCount);
+        Assert.True(subscription.Reader.TryRead(out var notificationEvent));
+        Assert.Equal(item.Id, notificationEvent!.NotificationId);
+        Assert.False(otherProperty.Reader.TryRead(out _));
+        Assert.Empty(await db.NotificationEmailOutbox.Where(x => x.PropertyId == f.Property.Id).ToListAsync());
+        Assert.Empty(await db.NotificationTelegramOutbox.Where(x => x.PropertyId == f.Property.Id).ToListAsync());
+
+        var cancellationId = await db.BookingCancellations.Where(x => x.BookingId == id).Select(x => x.Id).SingleAsync();
+        await service.NotifyBookingStatusChangedAsync(f.Property.Id, id, BookingStatus.Confirmed, BookingStatus.Cancelled,
+            cancellation: new CancellationNotice(cancellationId, "Lan lễ tân", "Khách báo bận", 0, "Không cần hoàn"));
+        Assert.False(subscription.Reader.TryRead(out _));
+        Assert.Equal(1, (await service.GetFeedAsync(f.Property.Id, f.Staff.Id)).UnreadCount);
+
+        Assert.True(await service.MarkReadAsync(f.Property.Id, item.Id, f.Staff.Id));
+        Assert.Equal(0, (await service.GetFeedAsync(f.Property.Id, f.Staff.Id)).UnreadCount);
+    }
+
+    [RoomLockPostgresFact]
+    public async Task Cancellation_in_app_switch_hides_feed_and_realtime_but_preserves_external_channels()
+    {
+        await using var db = Db();
+        var f = await SeedAsync(db, notifications: true);
+        await db.PropertyNotificationSettings.Where(x => x.PropertyId == f.Property.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.InAppBookingEnabled, false));
+        var id = await CreateBookingAsync(db, f, paid: 0);
+        var broker = new NotificationRealtimeBroker();
+        using var subscription = broker.Subscribe(f.Property.Id);
+        Assert.Null((await Bookings(db, notifications: true, broker: broker).ChangeStatusAsync(
+            f.Property.Id, id, BookingStatus.Cancelled, f.Staff.Id, cancel: Cancel("Khách báo bận"))).Error);
+
+        var service = new BookingNotificationService(db, broker, NullLogger<BookingNotificationService>.Instance);
+        var notification = await db.PropertyNotifications.SingleAsync(x => x.BookingId == id);
+        var feed = await service.GetFeedAsync(f.Property.Id, f.Staff.Id);
+        Assert.Empty(feed.Items);
+        Assert.Equal(0, feed.UnreadCount);
+        Assert.False(subscription.Reader.TryRead(out _));
+        Assert.False(await service.MarkReadAsync(f.Property.Id, notification.Id, f.Staff.Id));
+        Assert.Equal(0, await service.MarkAllReadAsync(f.Property.Id, f.Staff.Id));
+        Assert.Single(await db.NotificationEmailOutbox.Where(x => x.NotificationId == notification.Id).ToListAsync());
+        Assert.Single(await db.NotificationTelegramOutbox.Where(x => x.NotificationId == notification.Id).ToListAsync());
+    }
+
+    [RoomLockPostgresFact]
+    public async Task Cancellation_in_app_feed_and_read_all_include_legacy_and_per_cancellation_types_only_in_property()
+    {
+        await using var db = Db();
+        var f = await SeedAsync(db);
+        var other = await SeedAsync(db);
+        var legacy = new PropertyNotification { PropertyId = f.Property.Id, Type = "booking-cancelled", Title = "Hủy cũ" };
+        var current = new PropertyNotification { PropertyId = f.Property.Id, Type = $"booking-cancelled:{Guid.NewGuid():N}", Title = "Hủy mới" };
+        db.AddRange(legacy, current,
+            new PropertyNotification { PropertyId = other.Property.Id, Type = "booking-cancelled", Title = "Chi nhánh khác" },
+            new PropertyNotification { PropertyId = f.Property.Id, Type = "booking-confirmed", Title = "Chỉ kênh ngoài" },
+            new PropertyNotification { PropertyId = f.Property.Id, Type = "booking-email-only", Title = "Chỉ email" });
+        await db.SaveChangesAsync();
+
+        var service = new BookingNotificationService(db, new NotificationRealtimeBroker(), NullLogger<BookingNotificationService>.Instance);
+        var feed = await service.GetFeedAsync(f.Property.Id, f.Staff.Id);
+        Assert.Equal(2, feed.UnreadCount);
+        Assert.Equal(new[] { legacy.Id, current.Id }.Order(), feed.Items.Select(x => x.Id).Order());
+        Assert.False(await service.MarkReadAsync(other.Property.Id, legacy.Id, f.Staff.Id));
+        Assert.True(await service.MarkReadAsync(f.Property.Id, legacy.Id, f.Staff.Id));
+        Assert.Equal(1, await service.MarkAllReadAsync(f.Property.Id, f.Staff.Id));
+        Assert.Equal(0, (await service.GetFeedAsync(f.Property.Id, f.Staff.Id)).UnreadCount);
+        Assert.Equal(2, (await service.GetFeedAsync(f.Property.Id, other.Staff.Id)).UnreadCount);
+        Assert.Equal(1, (await service.GetFeedAsync(other.Property.Id, other.Staff.Id)).UnreadCount);
     }
 
     [RoomLockPostgresFact]

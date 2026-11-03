@@ -144,12 +144,15 @@
         }
     }
 
-    function showRealtimeToast() {
+    function showRealtimeToast(type) {
         const root = document.getElementById('global-toast-root');
         if (!root) return;
         const toast = document.createElement('div');
         toast.className = 'notification-live-toast';
-        toast.innerHTML = '<strong>Có yêu cầu đặt phòng mới</strong><span>Lịch phòng và danh sách đặt phòng đang được cập nhật.</span>';
+        const cancelled = String(type || '').split(':')[0] === 'booking-cancelled';
+        toast.innerHTML = cancelled
+            ? '<strong>Có đặt phòng vừa bị hủy</strong><span>Lịch phòng và danh sách đặt phòng đang được cập nhật.</span>'
+            : '<strong>Có yêu cầu đặt phòng mới</strong><span>Lịch phòng và danh sách đặt phòng đang được cập nhật.</span>';
         root.appendChild(toast);
         requestAnimationFrame(() => toast.classList.add('show'));
         setTimeout(() => {
@@ -197,7 +200,10 @@
             document.dispatchEvent(new CustomEvent('delong:booking-notification', {
                 detail: { propertyId, raw: event.data || '' }
             }));
-            showRealtimeToast();
+            let type = '';
+            try { type = JSON.parse(event.data || '{}')?.type || ''; }
+            catch { }
+            showRealtimeToast(type);
         });
         source.addEventListener('open', refresh);
         window.addEventListener('beforeunload', () => source.close(), { once: true });
