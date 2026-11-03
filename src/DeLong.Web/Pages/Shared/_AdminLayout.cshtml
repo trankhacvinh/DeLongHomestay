@@ -1,0 +1,280 @@
+@* Tabler-based admin shell. A page opts in with `Layout = "_AdminLayout";`.
+   Optional ViewData flags keep unrelated scripts off a page:
+     UseVue (Vue 3), UseFlatpickr (date pickers), UseUploads (image-upload + rich-text-tools), UsePasswordStrength.
+   Pages that are not converted yet keep using _Layout.cshtml. *@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject DeLong.Web.Common.Security.CurrentPropertyService CurrentPropertyService
+@{
+    var csrf = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+    var path = Context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
+    var requestedPropertyValue = Context.Request.Query["propertyId"].ToString();
+    Guid? requestedPropertyId = Guid.TryParse(requestedPropertyValue, out var parsedPropertyId) ? parsedPropertyId : null;
+    IReadOnlyList<DeLong.Web.Common.Security.CurrentPropertyDto> accessibleProperties = [];
+    DeLong.Web.Common.Security.CurrentPropertyDto? currentProperty = null;
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        accessibleProperties = await CurrentPropertyService.GetAccessibleAsync(User, Context.RequestAborted);
+        currentProperty = await CurrentPropertyService.ResolveAsync(User, requestedPropertyId, Context.RequestAborted);
+    }
+
+    string? propertyId = currentProperty?.Id.ToString();
+    var adminBrandName = currentProperty?.Name ?? "Homestay";
+    var adminBrandInitials = string.Concat(adminBrandName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2)
+        .Select(x => System.Globalization.StringInfo.GetNextTextElement(x))).ToUpperInvariant();
+    var pageTitle = ViewData["Title"]?.ToString();
+
+    var canViewOperations = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff") || User.IsInRole("Viewer");
+    var canViewVouchers = User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Staff");
+    var canViewRooms = canViewOperations || User.IsInRole("Media");
+    var canViewPricing = canViewOperations;
+    var canManageSettings = User.IsInRole("Admin") || User.IsInRole("Manager");
+    var canManageStaff = User.IsInRole("Admin");
+    var canManageProperties = User.IsInRole("Admin");
+    var canManageSite = User.IsInRole("Admin") || User.IsInRole("Manager");
+    var canManageMedia = canManageSite || User.IsInRole("Media");
+    var canUseStaffAi = User.IsInRole("Manager") || User.IsInRole("Staff") || User.IsInRole("Housekeeping") || User.IsInRole("Viewer");
+    var displayName = User.FindFirst("delong_display_name")?.Value ?? User.Identity?.Name ?? "Tài khoản";
+    var roleLabel = User.IsInRole("Admin") ? "Quản trị viên"
+        : User.IsInRole("Manager") ? "Quản lý"
+        : User.IsInRole("Staff") ? "Nhân viên"
+        : User.IsInRole("Housekeeping") ? "Dọn phòng"
+        : User.IsInRole("Media") ? "Media"
+        : User.IsInRole("Viewer") ? "Chỉ xem"
+        : "Tài khoản";
+    var applicationBuild = DeLong.Web.Common.Operations.ApplicationBuildInfo.Current;
+    var userInitial = string.IsNullOrWhiteSpace(displayName) ? "A" : displayName.Trim().Substring(0, 1).ToUpperInvariant();
+    var editorialTab = string.Equals(Context.Request.Query["tab"].ToString(), "blog", StringComparison.OrdinalIgnoreCase) ? "blog" : "gallery";
+
+    var useVue = ViewData["UseVue"] is true;
+    var useFlatpickr = ViewData["UseFlatpickr"] is true;
+    var useUploads = ViewData["UseUploads"] is true;
+    var usePasswordStrength = ViewData["UsePasswordStrength"] is true;
+
+    // Sidebar definition. Keep the page list in step with the legacy _Layout.cshtml until it is retired.
+    var navGroups = new List<(string Label, List<NavItem> Items)>
+    {
+        ("Vận hành", new List<NavItem>
+        {
+            new("Tổng quan", "i-grid", "/Admin/Index", "/Admin", Exact: true),
+            new("Lịch phòng", "i-calendar", "/Admin/CalendarV2", "/Admin/CalendarV2", Visible: canViewOperations),
+            new("Lịch khóa phòng", "i-calendar", "/Admin/RoomBlocks", "/Admin/RoomBlocks", Visible: canViewOperations && canManageSettings),
+            new("Đặt phòng", "i-booking", "/Admin/Bookings/Index", "/Admin/Bookings", Visible: canViewOperations),
+            new("Khách hàng", "i-users", "/Admin/Customers/Index", "/Admin/Customers", Visible: canViewOperations),
+            new("Hủy & hoàn tiền", "i-wallet", "/Admin/Cancellations/Index", "/Admin/Cancellations", Visible: canViewOperations),
+            new("Voucher", "i-booking", "/Admin/Vouchers/Index", "/Admin/Vouchers", Visible: canViewOperations && canViewVouchers),
+            new("Dọn phòng", "i-sparkles", "/Admin/Housekeeping/Index", "/Admin/Housekeeping"),
+            new("Tình trạng phòng", "i-image", "/Admin/RoomConditionReports/Index", "/Admin/RoomConditionReports")
+        }),
+        ("Tài chính", new List<NavItem>
+        {
+            new("Kho chung", "i-grid", "/Admin/Inventory/Index", "/Admin/Inventory"),
+            new("Tiền mặt", "i-wallet", "/Admin/Cash/Index", "/Admin/Cash"),
+            new("Chấm công & Lương", "i-users", "/Admin/Payroll/Index", "/Admin/Payroll", Visible: canManageSettings),
+            new("Thu chi", "i-wallet", "/Admin/Finance/Index", "/Admin/Finance"),
+            new("Báo cáo", "i-chart", "/Admin/Reports/Index", "/Admin/Reports")
+        }.Where(_ => User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Viewer")).ToList()),
+        ("Quản lý", new List<NavItem>
+        {
+            new("Phòng", "i-bed", "/Admin/Rooms/Index", "/Admin/Rooms", Visible: canViewRooms),
+            new("Giá & ngày đặc biệt", "i-calendar", "/Admin/Pricing/Index", "/Admin/Pricing", Visible: canViewRooms && canViewPricing),
+            new("Cấu hình", "i-settings", "/Admin/Settings/Index", "/Admin/Settings", Visible: canManageSettings),
+            new("Trợ lý AI", "i-sparkles", "/Admin/Ai/Index", "/Admin/Ai", Visible: User.IsInRole("Admin")),
+            new("Cơ sở", "i-bed", "/Admin/Properties/Index", "/Admin/Properties", Visible: canManageProperties),
+            new("Nhân viên", "i-users", "/Admin/Staff/Index", "/Admin/Staff", Visible: canManageStaff)
+        }),
+        ("Website", new List<NavItem>
+        {
+            new("Trang cơ sở", "i-settings", "/Admin/Site/Index", "/Admin/Site", Exact: true, Visible: canManageSite),
+            new("Trang chủ chung", "i-grid", "/Admin/Site/Global", "/Admin/Site/Global", Exact: true, Visible: User.IsInRole("Admin"), NoProperty: true),
+            new("Gallery", "i-image", "/Admin/Site/Editorial", "/Admin/Site/Editorial", Tab: "gallery"),
+            new("Blog", "i-article", "/Admin/Site/Editorial", "/Admin/Site/Editorial", Tab: "blog"),
+            new("Media Library", "i-image", "/Admin/Site/Media", "/Admin/Site/Media"),
+            new("Xem website", "i-external", null, null, Href: "/", External: true)
+        }.Where(_ => canManageMedia).ToList()),
+        ("Hệ thống", new List<NavItem>
+        {
+            new("Kiểm tra dữ liệu", "i-grid", "/Admin/DataQuality", "/Admin/DataQuality")
+        }.Where(_ => canViewOperations && canManageSettings).ToList())
+    };
+
+    bool IsActive(NavItem item)
+    {
+        if (item.Prefix is null) return false;
+        var active = item.Exact
+            ? string.Equals(path, item.Prefix, StringComparison.OrdinalIgnoreCase)
+            : path.StartsWith(item.Prefix, StringComparison.OrdinalIgnoreCase);
+        if (active && item.Tab is not null) active = string.Equals(item.Tab, editorialTab, StringComparison.OrdinalIgnoreCase);
+        return active;
+    }
+
+    string ItemHref(NavItem item)
+    {
+        if (item.Href is not null) return item.Href;
+        var values = new Dictionary<string, object?>();
+        if (!item.NoProperty && propertyId is not null) values["propertyId"] = propertyId;
+        if (item.Tab is not null) values["tab"] = item.Tab;
+        return Url.Page(item.Page!, values) ?? "#";
+    }
+}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="csrf-token" content="@csrf"/>
+    <meta name="theme-color" content="#0d2b2e"/>
+    <meta name="robots" content="noindex,nofollow"/>
+    <title>@pageTitle - @adminBrandName</title>
+    <link rel="preload" href="~/fonts/brand/be-vietnam-pro-400.woff2?v=446d2bf4dee42971" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="~/vendor/tabler/tabler.min.css" asp-append-version="true"/>
+    <link rel="stylesheet" href="~/css/admin-app.css" asp-append-version="true"/>
+    <link rel="stylesheet" href="~/css/notifications.css" asp-append-version="true"/>
+    @if (User.IsInRole("Admin"))
+    {
+        <link rel="stylesheet" href="~/css/admin-ai.css" asp-append-version="true"/>
+        <link rel="stylesheet" href="~/css/admin-ai-enhancements.css" asp-append-version="true"/>
+    }
+    @if (useFlatpickr)
+    {
+        <link rel="stylesheet" href="~/vendor/flatpickr/flatpickr.min.css" asp-append-version="true"/>
+        <link rel="stylesheet" href="~/vendor/flatpickr/monthSelect.css" asp-append-version="true"/>
+        <link rel="stylesheet" href="~/css/date-presentation.css" asp-append-version="true"/>
+    }
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body class="admin-tabler">
+<a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
+<partial name="_AdminIcons"/>
+<div class="dl-shell">
+    <div class="dl-overlay" data-sidebar-overlay></div>
+    <aside class="dl-sidebar" aria-label="Điều hướng quản trị">
+        <div class="dl-sidebar-head">
+            <a class="dl-brand" href="@Url.Page("/Admin/Index", new { propertyId })">
+                <span class="dl-brand-mark">@adminBrandInitials</span>
+                <span class="dl-brand-copy"><strong>@adminBrandName</strong><small>Quản trị cơ sở</small></span>
+            </a>
+            <button class="btn btn-icon btn-ghost-light dl-sidebar-close" type="button" data-sidebar-toggle aria-label="Đóng menu" aria-expanded="false">
+                <svg><use href="#i-close"/></svg>
+            </button>
+        </div>
+        <nav class="dl-nav">
+            @foreach (var group in navGroups)
+            {
+                var items = group.Items.Where(x => x.Visible).ToList();
+                if (items.Count == 0) continue;
+                <div class="dl-nav-label">@group.Label</div>
+                foreach (var item in items)
+                {
+                    <a class="dl-nav-link@(IsActive(item) ? " active" : string.Empty)" href="@ItemHref(item)"
+                       aria-current="@(IsActive(item) ? "page" : null)"
+                       target="@(item.External ? "_blank" : null)" rel="@(item.External ? "noopener" : null)">
+                        <svg><use href="#@item.Icon"/></svg><span>@item.Label</span>
+                    </a>
+                }
+            }
+        </nav>
+        <div class="dl-sidebar-foot">
+            <div><span class="dl-status-dot"></span>Hệ thống đang hoạt động</div>
+            <div title="@(applicationBuild.Commit is null ? null : $"Commit {applicationBuild.Commit}")">Phiên bản @applicationBuild.Version · Build @applicationBuild.BuildId</div>
+        </div>
+    </aside>
+    <div class="dl-main">
+        <header class="dl-topbar">
+            <button class="btn btn-icon btn-ghost-secondary dl-menu-btn" type="button" data-sidebar-toggle aria-label="Mở menu" aria-expanded="false">
+                <svg><use href="#i-menu"/></svg>
+            </button>
+            <div class="dl-topbar-context">
+                @if (accessibleProperties.Count > 1 && currentProperty is not null)
+                {
+                    <select class="form-select form-select-sm dl-property-select" data-property-switcher aria-label="Cơ sở hiện tại" title="Chọn cơ sở đang làm việc">
+                        @foreach (var property in accessibleProperties)
+                        {
+                            <option value="@property.Id" selected="@(property.Id == currentProperty.Id)">@property.Name · @property.Code</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <span class="dl-property-name">@(currentProperty?.Name ?? (accessibleProperties.Count > 0 ? "Không xác định cơ sở" : "Chưa có cơ sở"))</span>
+                }
+                <span class="dl-topbar-title d-none d-md-inline">@pageTitle</span>
+            </div>
+            @if ((User.IsInRole("Admin") || canUseStaffAi) && currentProperty is not null)
+            {
+                <button class="btn btn-icon btn-ghost-secondary" type="button" data-ai-chat-toggle data-property-id="@currentProperty.Id" title="Trợ lý AI" aria-label="Mở trợ lý AI" aria-expanded="false"><svg><use href="#i-sparkles"/></svg></button>
+            }
+            @if (canViewOperations && currentProperty is not null)
+            {
+                <div class="notification-center" data-notification-center data-property-id="@currentProperty.Id">
+                    <button class="btn btn-icon btn-ghost-secondary notification-bell" type="button" data-notification-toggle aria-label="Thông báo" aria-expanded="false">
+                        <svg><use href="#i-bell"/></svg>
+                        <span class="notification-badge" data-notification-badge hidden>0</span>
+                    </button>
+                    <section class="notification-popover" data-notification-popover hidden aria-label="Thông báo đặt phòng">
+                        <div class="notification-popover-head"><strong>Thông báo</strong>
+                            <button class="notification-read-all" type="button" data-notification-read-all hidden>Đánh dấu đã đọc</button>
+                        </div>
+                        <div class="notification-list" data-notification-list></div>
+                        <div class="notification-empty" data-notification-empty>Chưa có thông báo đặt phòng.</div>
+                    </section>
+                </div>
+            }
+            <div class="dl-dropdown" data-dl-dropdown>
+                <button class="dl-user-toggle" type="button" data-dl-dropdown-toggle aria-haspopup="menu" aria-expanded="false" aria-label="Menu tài khoản">
+                    <span class="avatar avatar-sm bg-primary text-white">@userInitial</span>
+                    <span class="dl-user-copy"><strong>@displayName</strong><small>@roleLabel</small></span>
+                </button>
+                <div class="dropdown-menu dl-menu" role="menu">
+                    <div class="dropdown-header d-md-none">@displayName · @roleLabel</div>
+                    <a class="dropdown-item" role="menuitem" asp-page="/Account/Authenticator"><svg class="icon"><use href="#i-users"/></svg>Google Authenticator</a>
+                    <a class="dropdown-item" role="menuitem" asp-page="/Account/ChangePassword"><svg class="icon"><use href="#i-settings"/></svg>Đổi mật khẩu</a>
+                    <div class="dropdown-divider"></div>
+                    <form method="post" asp-page="/Account/Logout">
+                        <button class="dropdown-item text-danger" type="submit" role="menuitem"><svg class="icon"><use href="#i-logout"/></svg>Đăng xuất</button>
+                    </form>
+                </div>
+            </div>
+        </header>
+        <main class="dl-content" id="main-content" tabindex="-1">@RenderBody()</main>
+    </div>
+</div>
+<div id="global-toast-root" class="toast-root" aria-live="polite"></div>
+@if (useVue)
+{
+    <script src="~/vendor/vue/vue.global.prod.js" asp-append-version="true"></script>
+}
+@if (useFlatpickr)
+{
+    <script src="~/vendor/flatpickr/flatpickr.min.js" asp-append-version="true"></script>
+    <script src="~/vendor/flatpickr/vn.js" asp-append-version="true"></script>
+    <script src="~/vendor/flatpickr/monthSelect.js" asp-append-version="true"></script>
+    <script src="~/js/core/date-presentation.js" asp-append-version="true"></script>
+}
+@if (useUploads)
+{
+    <script src="~/js/core/rich-text-tools.js" asp-append-version="true"></script>
+    <script src="~/js/core/image-upload.js" asp-append-version="true"></script>
+}
+<script src="~/js/core/api.js" asp-append-version="true"></script>
+@if (usePasswordStrength)
+{
+    <script src="~/js/core/password-strength.js" asp-append-version="true"></script>
+}
+<script src="~/js/core/shell.js" asp-append-version="true"></script>
+<script src="~/js/core/admin-dropdown.js" asp-append-version="true"></script>
+<script src="~/js/core/admin-notifications.js" asp-append-version="true"></script>
+@if (User.IsInRole("Admin"))
+{
+    <script src="~/js/core/admin-ai-chat.js" asp-append-version="true"></script>
+}
+else if (canUseStaffAi)
+{
+    <script src="~/js/core/staff-ai-chat.js" asp-append-version="true"></script>
+}
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+@functions {
+    private sealed record NavItem(string Label, string Icon, string? Page, string? Prefix, bool Exact = false, bool Visible = true,
+        string? Tab = null, bool NoProperty = false, string? Href = null, bool External = false);
+}

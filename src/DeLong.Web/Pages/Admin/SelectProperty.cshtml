@@ -1,32 +1,31 @@
 @page
 @model DeLong.Web.Pages.Admin.SelectPropertyModel
 @{
+    Layout = "_AdminLayout";
     ViewData["Title"] = "Chọn cơ sở";
 }
 
-<section class="property-choice-page">
-    <div class="property-choice-copy">
-        <div class="page-eyebrow">Phạm vi làm việc</div>
-        <h1>Bạn đang làm việc tại cơ sở nào?</h1>
-        <p>Tài khoản của bạn được cấp quyền nhiều cơ sở. Hãy chọn một cơ sở để thao tác phòng, booking, lịch, khách hàng và vận hành. Hệ thống sẽ nhớ lựa chọn này cho lần sau.</p>
+<div class="container-lg py-3 py-md-4">
+    <div class="page-header mb-4">
+        <div class="page-pretitle">Phạm vi làm việc</div>
+        <h1 class="page-title">Bạn đang làm việc tại cơ sở nào?</h1>
+        <p class="text-secondary mt-2 mb-0">Tài khoản của bạn được cấp quyền nhiều cơ sở. Hãy chọn một cơ sở để thao tác phòng, booking, lịch, khách hàng và vận hành. Hệ thống sẽ nhớ lựa chọn này cho lần sau.</p>
     </div>
 
-    <div class="property-choice-grid">
+    <div class="row row-cards">
         @foreach (var property in Model.Properties)
         {
-            <a class="panel property-choice-card" href="@property.Url">
-                <span class="property-choice-code">@property.Code</span>
-                <strong>@property.Name</strong>
-                <span>Chọn cơ sở này <span aria-hidden="true">→</span></span>
-            </a>
+            <div class="col-md-6">
+                <a class="card card-link card-link-pop h-100" href="@property.Url">
+                    <div class="card-body">
+                        <span class="badge bg-primary-lt mb-2">@property.Code</span>
+                        <h2 class="card-title mb-1">@property.Name</h2>
+                        <div class="text-primary fw-semibold">Chọn cơ sở này <span aria-hidden="true">→</span></div>
+                    </div>
+                </a>
+            </div>
         }
     </div>
 
-    <p class="property-choice-note">Bạn chỉ nhìn thấy các cơ sở đã được phân quyền. Có thể đổi cơ sở bất cứ lúc nào từ bộ chọn trên thanh Admin.</p>
-</section>
-
-@section Head {
-<style>
-.property-choice-page{max-width:980px;margin:48px auto;display:grid;gap:28px}.property-choice-copy{max-width:720px}.property-choice-copy h1{margin:8px 0 12px;font-size:clamp(2rem,4vw,3rem);letter-spacing:-.045em}.property-choice-copy p,.property-choice-note{color:var(--muted);line-height:1.65}.property-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.property-choice-card{padding:24px;display:grid;gap:10px;text-decoration:none;color:var(--text);transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}.property-choice-card:hover{transform:translateY(-2px);border-color:#9fbfba;box-shadow:0 12px 28px rgba(19,75,70,.08)}.property-choice-card strong{font-size:1.22rem}.property-choice-card>span:last-child{color:#17605e;font-weight:800}.property-choice-code{width:max-content;padding:5px 8px;border-radius:999px;background:#e8f2ef;color:#17605e;font-size:.75rem;font-weight:850;letter-spacing:.07em}.property-choice-note{margin:0;font-size:.9rem}@@media(max-width:720px){.property-choice-page{margin:20px auto}.property-choice-grid{grid-template-columns:1fr}}
-</style>
-}
+    <p class="text-secondary small mt-4 mb-0">Bạn chỉ nhìn thấy các cơ sở đã được phân quyền. Có thể đổi cơ sở bất cứ lúc nào từ bộ chọn trên thanh Admin.</p>
+</div>
