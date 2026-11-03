@@ -147,17 +147,16 @@ public sealed class CalendarV2SourceContractTests
     [Trait("Category", "Unit")]
     public void Sidebar_puts_finance_before_management_and_data_quality_last_under_system()
     {
-        var layout = ReadRepositoryFile("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
-        var finance = layout.IndexOf("<div class=\"nav-label\">Tài chính</div>", StringComparison.Ordinal);
-        var management = layout.IndexOf("<div class=\"nav-label\">Quản lý</div>", StringComparison.Ordinal);
-        var website = layout.IndexOf("<div class=\"nav-label\">Website</div>", StringComparison.Ordinal);
-        var system = layout.IndexOf("<div class=\"nav-label\">Hệ thống</div>", StringComparison.Ordinal);
-        var dataQuality = layout.IndexOf("asp-page=\"/Admin/DataQuality\"", StringComparison.Ordinal);
+        var layout = ReadRepositoryFile("src/DeLong.Web/Pages/Shared/_AdminLayout.cshtml");
+        var finance = layout.IndexOf("(\"Tài chính\"", StringComparison.Ordinal);
+        var management = layout.IndexOf("(\"Quản lý\"", StringComparison.Ordinal);
+        var website = layout.IndexOf("(\"Website\"", StringComparison.Ordinal);
+        var system = layout.IndexOf("(\"Hệ thống\"", StringComparison.Ordinal);
+        var dataQuality = layout.IndexOf("new(\"Kiểm tra dữ liệu\"", StringComparison.Ordinal);
 
         Assert.True(finance > 0 && finance < management);
         Assert.True(website < system && system < dataQuality);
-        Assert.Equal(dataQuality, layout.LastIndexOf("asp-page=\"/Admin/DataQuality\"", StringComparison.Ordinal));
-        Assert.True(dataQuality < layout.IndexOf("</nav>", StringComparison.Ordinal));
+        Assert.Equal(-1, layout.IndexOf("new(\"", dataQuality + 1, StringComparison.Ordinal));
     }
 
     private static string ReadRepositoryFile(string relativePath)

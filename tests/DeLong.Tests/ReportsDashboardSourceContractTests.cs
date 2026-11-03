@@ -42,7 +42,7 @@ public sealed class ReportsDashboardSourceContractTests
         var page = Read("src/DeLong.Web/Pages/Admin/Reports/Index.cshtml");
         var pageModel = Read("src/DeLong.Web/Pages/Admin/Reports/Index.cshtml.cs");
         var service = Read("src/DeLong.Web/Features/Reports/ReportService.cs");
-        var layout = Read("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var layout = Read("src/DeLong.Web/Pages/Shared/_AdminLayout.cshtml");
 
         Assert.Contains("Chi phí theo nhóm", page, StringComparison.Ordinal);
         Assert.Contains("Hiệu quả theo thứ", page, StringComparison.Ordinal);
@@ -52,8 +52,8 @@ public sealed class ReportsDashboardSourceContractTests
         Assert.Contains("ReportExpenseCategoryDto", service, StringComparison.Ordinal);
         Assert.Contains("ReportOutstandingBucketDto", service, StringComparison.Ordinal);
         Assert.True(
-            layout.IndexOf("<div class=\"nav-label\">Tài chính</div>", StringComparison.Ordinal) <
-            layout.IndexOf("<div class=\"nav-label\">Website</div>", StringComparison.Ordinal));
+            layout.IndexOf("(\"Tài chính\"", StringComparison.Ordinal) <
+            layout.IndexOf("(\"Website\"", StringComparison.Ordinal));
     }
 
     [Fact]

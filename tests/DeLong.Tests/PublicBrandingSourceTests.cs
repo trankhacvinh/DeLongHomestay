@@ -28,8 +28,8 @@ public sealed class PublicBrandingSourceTests
     [Fact]
     public void Admin_sidebar_prefers_the_working_property_over_global_branding()
     {
-        var source = Read("Pages/Shared/_Layout.cshtml");
-        Assert.Contains("var adminBrandName = currentProperty?.Name ?? publicSiteName", source);
+        var source = Read("Pages/Shared/_AdminLayout.cshtml");
+        Assert.Contains("var adminBrandName = currentProperty?.Name ?? \"Homestay\"", source);
         Assert.Contains("@adminBrandInitials", source);
         Assert.Contains("<strong>@adminBrandName</strong>", source);
     }

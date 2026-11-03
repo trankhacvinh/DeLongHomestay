@@ -32,11 +32,11 @@ public sealed class MediaStaffAuthorizationSourceContractTests
     [Fact]
     public void Media_navigation_only_exposes_room_and_editorial_tools()
     {
-        var layout = Read("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var layout = Read("src/DeLong.Web/Pages/Shared/_AdminLayout.cshtml");
         Assert.Contains("canViewRooms = canViewOperations || User.IsInRole(\"Media\")", layout, StringComparison.Ordinal);
         Assert.Contains("canManageMedia = canManageSite || User.IsInRole(\"Media\")", layout, StringComparison.Ordinal);
-        Assert.Contains("@if (canManageSite)", layout, StringComparison.Ordinal);
-        Assert.Contains("@if (canViewPricing)", layout, StringComparison.Ordinal);
+        Assert.Contains("Visible: canManageSite", layout, StringComparison.Ordinal);
+        Assert.Contains("canViewRooms && canViewPricing", layout, StringComparison.Ordinal);
 
         var staffPage = Read("src/DeLong.Web/Pages/Admin/Staff/Index.cshtml");
         Assert.Contains("Tài khoản chỉ nhìn thấy dữ liệu của các cơ sở được chọn.", staffPage, StringComparison.Ordinal);

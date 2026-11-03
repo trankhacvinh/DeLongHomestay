@@ -95,7 +95,7 @@ public sealed class AdminAiSourceContractTests
         var attachmentService = Read("src/DeLong.Web/Features/AdminAi/AiAttachmentService.cs");
         var chat = Read("src/DeLong.Web/wwwroot/js/core/admin-ai-chat.js");
         var settings = Read("src/DeLong.Web/Pages/Admin/Ai/Index.cshtml");
-        var layout = Read("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var layout = Read("src/DeLong.Web/Pages/Shared/_AdminLayout.cshtml");
         Assert.Contains("/conversations/{conversationId:guid}/attachments", endpoints);
         Assert.Contains("PropertyId == propertyId", attachmentService);
         Assert.Contains("x.Conversation.UserId == userId", attachmentService);
@@ -197,7 +197,7 @@ public sealed class AdminAiSourceContractTests
         var program = Read("src/DeLong.Web/Program.cs");
         var endpoints = Read("src/DeLong.Web/Features/PublicAi/StaffAiEndpoints.cs");
         var service = Read("src/DeLong.Web/Features/PublicAi/StaffAiService.cs");
-        var layout = Read("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var layout = Read("src/DeLong.Web/Pages/Shared/_AdminLayout.cshtml");
 
         Assert.Contains("UseStaffAi", program);
         Assert.Contains("AddEndpointFilter<PropertyAccessFilter>()", endpoints);
@@ -249,7 +249,7 @@ public sealed class AdminAiSourceContractTests
     [Fact]
     public void Admin_ai_drawer_offers_token_free_report_shortcuts_for_common_periods()
     {
-        var layout = Read("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var layout = Read("src/DeLong.Web/Pages/Shared/_AdminLayout.cshtml");
 
         Assert.Contains("aria-label=\"Lệnh báo cáo nhanh\"", layout);
         Assert.Contains("công suất tuần này", layout);
