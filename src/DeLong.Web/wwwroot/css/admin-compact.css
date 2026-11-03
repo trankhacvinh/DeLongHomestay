@@ -1,0 +1,35 @@
+/* Compact ("sm") sizing for every admin control. Loaded last (after page CSS) so it wins over the legacy per-page sizes.
+   Tabler's own classes are already compact via scripts/tabler/delong.scss; this file covers legacy markup. */
+.admin-tabler .btn,
+.admin-tabler .btn-sm,
+.admin-tabler .btn-lg { padding: .25rem .6rem; font-size: .8125rem; line-height: 1.5; min-height: 1.875rem; border-radius: 4px; }
+.admin-tabler .btn-sm { padding: .2rem .5rem; font-size: .75rem; min-height: 1.625rem; }
+.admin-tabler .btn svg { width: 1rem; height: 1rem; margin-inline-end: .3rem; }
+.admin-tabler .btn-icon, .admin-tabler .btn-icon:not(.btn), .admin-tabler .icon-btn { width: 1.875rem; height: 1.875rem; min-height: 0; padding: 0; font-size: 1rem; }
+.admin-tabler .btn-icon svg, .admin-tabler .btn-icon:not(.btn) svg { width: 1rem; height: 1rem; margin: 0; }
+
+.admin-tabler .dl-content :is(input, select, textarea):not([type=checkbox], [type=radio], [type=range], [type=file], [type=color], .ts-control input),
+.admin-tabler .form-control, .admin-tabler .form-select {
+    min-height: 1.875rem; padding: .25rem .55rem; font-size: .8125rem; line-height: 1.5;
+}
+.admin-tabler .dl-content select, .admin-tabler .form-select { padding-right: 1.75rem; }
+.admin-tabler .dl-content textarea, .admin-tabler textarea.form-control { min-height: 4.5rem; }
+.admin-tabler .field label, .admin-tabler .form-grid label, .admin-tabler .form-label { font-size: .75rem; }
+.admin-tabler .field, .admin-tabler .form-grid > label { gap: .2rem; }
+.admin-tabler .form-grid { gap: .65rem; }
+
+.admin-tabler .pill, .admin-tabler .badge { padding: .1rem .4rem; font-size: .6875rem; line-height: 1.4; }
+.admin-tabler .data-table th { padding: .45rem .65rem; font-size: .625rem; }
+.admin-tabler .data-table td { padding: .4rem .65rem; font-size: .8125rem; }
+.admin-tabler .check-row { font-size: .8125rem; }
+.admin-tabler .card-body { padding: .85rem 1rem; }
+.admin-tabler .card-header { padding: .6rem 1rem; min-height: 0; }
+.admin-tabler .page-title { font-size: 1.25rem; }
+
+@media (max-width: 767.98px) {
+    /* Phones: still compact, but keep a 36px touch target and 16px text in fields so iOS Safari does not zoom on focus. */
+    .admin-tabler .btn, .admin-tabler .form-control, .admin-tabler .form-select { min-height: 2.25rem; }
+    .admin-tabler .btn-sm { min-height: 2rem; }
+    .admin-tabler .dl-content :is(input, select, textarea):not([type=checkbox], [type=radio], [type=range], [type=file], [type=color], .ts-control input) { min-height: 2.25rem; font-size: 1rem; }
+    .admin-tabler .btn-icon, .admin-tabler .btn-icon:not(.btn), .admin-tabler .icon-btn { width: 2.25rem; height: 2.25rem; }
+}
