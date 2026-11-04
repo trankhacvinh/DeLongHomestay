@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const base = 'src/DeLong.Web/wwwroot/';
 const out = 'docs/qa/mobile-identity-2026-10-28';
 
-async function mount(browser, mode = 'normal') {
+async function mount(browser, mode = 'normal', handoff = false) {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } }); const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.route('http://localhost/**', route => route.fulfill({ contentType: 'text/html', body: '<html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body></body></html>' }));
@@ -39,6 +39,7 @@ async function mount(browser, mode = 'normal') {
         new MutationObserver(() => { const progress = document.querySelector('[data-booking-progress]'); if(progress?.textContent)window.progress.push(progress.textContent); }).observe(document.getElementById('public-booking-page'), { childList:true,subtree:true });
     }, mode);
     await page.addScriptTag({ path: base + 'js/core/image-upload.js' });
+    if (handoff) await page.addScriptTag({ path: base + 'js/core/identity-handoff.js' });
     await page.addScriptTag({ path: base + 'js/pages/public-booking-core-v2.js' });
     await page.locator('[data-booking-email]').fill('synthetic@example.test');
     await page.locator('[data-policy-accepted]').check();
@@ -86,6 +87,75 @@ async function photos(page) {
         });
         assert.equal(rotated.height,1024);assert.equal(rotated.width,683);
         fs.writeFileSync(out+(timings.before?'/benchmark.json':'/benchmark-current.json'),JSON.stringify(timings,null,2)); console.log('Native benchmark',JSON.stringify(timings));await perf.close();
+
+        // Fast path: with IndexedDB the guest goes to the QR at once and the next page finishes the CCCD.
+        const readJobs = page => page.evaluate(() => new Promise((resolve, reject) => {
+            const open = indexedDB.open('delong-identity-handoff', 1);
+            open.onupgradeneeded = () => open.result.createObjectStore('jobs', { keyPath: 'bookingId' });
+            open.onsuccess = () => { const request = open.result.transaction('jobs').objectStore('jobs').getAll(); request.onsuccess = () => { open.result.close(); resolve(request.result.map(job => ({ bookingId: job.bookingId, requestKey: job.requestKey, stagingKey: job.stagingKey, sides: job.sides.map(item => ({ side: item.side, staged: item.staged, blobBytes: item.blob?.size || 0 })) }))); }; };
+            open.onerror = () => reject(open.error);
+        }));
+        async function paymentPage(page, claimSides) {
+            await page.unrouteAll({ behavior: 'ignoreErrors' });
+            const calls = [];
+            await page.route('http://localhost/**', async route => {
+                const url = new URL(route.request().url());
+                if (url.pathname === '/payment/sepay') return route.fulfill({ contentType: 'text/html', body: '<html><head><meta name="csrf-token" content="pay-page"></head><body>QR</body></html>' });
+                calls.push({ path: url.pathname, csrf: route.request().headers()['x-csrf-token'], key: route.request().headers()['idempotency-key'], body: url.pathname.includes('/identity-documents/') ? null : route.request().postDataJSON() });
+                if (url.pathname.endsWith('/identity-staging/claim')) return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ sides: claimSides }) });
+                if (url.pathname.includes('/identity-documents/')) return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ side: url.pathname.split('/').at(-1) }) });
+                if (url.pathname.endsWith('/complete')) return route.fulfill({ contentType: 'application/json', body: '{"complete":true}' });
+                return route.fulfill({ status: 404, body: '' });
+            });
+            await page.goto('http://localhost/payment/sepay?orderId=synthetic-order');
+            await page.addScriptTag({ path: base + 'js/core/identity-handoff.js' });
+            await page.waitForFunction(() => localStorage.getItem('delong.identityHandoff') === null, null, { timeout: 10000 });
+            return calls;
+        }
+        {
+            const {page,errors}=await mount(browser,'normal',true);
+            await page.route('**/identity-staging/*',()=>{}); // evening 4G: the background upload never finishes on this page
+            await page.route('**/identity-documents/*',()=>{});
+            await photos(page);await page.waitForFunction(()=>document.querySelectorAll('[data-identity-side].has-image').length===2);
+            assert.equal(await page.locator('[data-id-message]').filter({hasText:/%/}).count(),0,'cards show no upload percentage');
+            const started=Date.now();await page.locator('#submit').click();
+            await page.waitForFunction(()=>window.results.length===1);
+            assert.ok(Date.now()-started<3000,'submit returns the payment link without waiting for CCCD uploads');
+            assert.equal(await page.evaluate(()=>window.completes),0);
+            assert.equal(await page.locator('[data-booking-payment-stage]').count(),0,'no "Chuẩn bị thanh toán" wait screen');
+            const jobs=await readJobs(page);
+            assert.equal(jobs.length,1);assert.equal(jobs[0].bookingId,'synthetic-booking');assert.equal(jobs[0].requestKey,'stable-test-key');
+            assert.deepEqual(jobs[0].sides.map(item=>[item.side,item.staged]),[['front',false],['back',false]]);
+            assert.ok(jobs[0].sides.every(item=>item.blobBytes>0&&item.blobBytes<=110*1024),'compressed photos are handed to the next page');
+            const calls=await paymentPage(page,[]);
+            assert.deepEqual(calls.map(call=>call.path),['/api/public/booking-requests/synthetic-booking/identity-documents/front','/api/public/booking-requests/synthetic-booking/identity-documents/back','/api/public/booking-requests/synthetic-booking/complete']);
+            assert.ok(calls.every(call=>call.key==='stable-test-key'&&call.csrf==='pay-page'));
+            assert.deepEqual(await readJobs(page),[]);
+            assert.deepEqual(errors,[]);await page.close();console.log('PASS submit goes straight to QR; payment page uploads CCCD and completes');
+        }
+        {
+            const {page,errors}=await mount(browser,'normal',true);
+            await page.route('**/identity-staging/*',async route=>{await route.fulfill({contentType:'application/json',body:JSON.stringify({side:route.request().url().split('/').at(-1).split('?')[0]})});});
+            await photos(page);
+            await page.waitForFunction(()=>[...document.querySelectorAll('[data-id-message]')].filter(item=>item.textContent==='Đã tải lên').length===2);
+            await page.locator('#submit').click();await page.waitForFunction(()=>window.results.length===1);
+            const jobs=await readJobs(page);
+            assert.deepEqual(jobs[0].sides.map(item=>[item.side,item.staged]),[['front',true],['back',true]]);
+            const calls=await paymentPage(page,['front','back']);
+            assert.deepEqual(calls.map(call=>call.path),['/api/public/booking-requests/synthetic-booking/identity-staging/claim','/api/public/booking-requests/synthetic-booking/complete']);
+            assert.deepEqual(calls[0].body,{stagingKey:jobs[0].stagingKey,sides:['front','back']});
+            assert.deepEqual(errors,[]);await page.close();console.log('PASS staged photos are claimed on the payment page without re-uploading');
+        }
+        {
+            const {page,errors}=await mount(browser,'normal',true);
+            await page.route('**/identity-staging/*',async route=>{await route.fulfill({contentType:'application/json',body:JSON.stringify({side:route.request().url().split('/').at(-1).split('?')[0]})});});
+            await photos(page);
+            await page.waitForFunction(()=>[...document.querySelectorAll('[data-id-message]')].filter(item=>item.textContent==='Đã tải lên').length===2);
+            await page.locator('#submit').click();await page.waitForFunction(()=>window.results.length===1);
+            const calls=await paymentPage(page,['front']); // back expired on the server: upload the saved copy
+            assert.deepEqual(calls.map(call=>call.path.split('/').at(-1)),['claim','back','complete']);
+            assert.deepEqual(errors,[]);await page.close();console.log('PASS expired staged photo is re-uploaded from the saved copy');
+        }
 
         for (const mode of ['normal','no-payment']) {
             const {page,errors}=await mount(browser,mode);const pending=[];
