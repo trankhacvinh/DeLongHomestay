@@ -1,7 +1,7 @@
 (function (global) {
     function profile(url) {
         const path = new URL(url, global.location.origin).pathname;
-        if (/\/identity-documents\/(front|back|second-front|second-back)$/.test(path)) return { maxEdge: 1600, quality: 0.9, opaque: true, targetBytes: 250 * 1024 };
+        if (/\/identity-documents\/(front|back|second-front|second-back)$/.test(path)) return { maxEdge: 1024, quality: 0.86, opaque: true, targetBytes: 100 * 1024 };
         if (/\/assets\/[^/]+$|\/content\/images$|\/media\/upload$/.test(path)) return { maxEdge: 2560, quality: 0.85 };
         return null;
     }
@@ -117,10 +117,11 @@
             const type = sourceType === 'image/png' && !settings.opaque ? 'image/png' : 'image/jpeg';
             let blob = await new Promise(resolve => canvas.toBlob(resolve, type, settings.quality));
             if (settings.targetBytes && blob?.type === 'image/jpeg' && blob.size > settings.targetBytes) {
-                // Encode from the same canvas: keep every pixel of document detail (1600px reads a CCCD clearly).
+                // Encode from the same canvas: 1024px still reads every line of a CCCD photographed to fill the frame; smaller files matter
+                // more, because guests upload over 4G that is slow in the evening (~30 KB/s seen 2026-11-03).
                 // Stay on JPEG: Chrome's WebP encoder is ~5-20x slower than JPEG on phones
                 // (seconds per photo), and the server re-encodes identity images to WebP anyway.
-                for (const quality of [0.84, 0.78]) {
+                for (const quality of [0.8, 0.74, 0.68]) {
                     const candidate = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
                     check(job);
                     if (candidate?.type !== 'image/jpeg') break;

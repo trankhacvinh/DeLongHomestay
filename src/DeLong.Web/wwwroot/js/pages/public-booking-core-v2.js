@@ -266,7 +266,11 @@
             xhr.setRequestHeader('Accept', 'application/json');
             xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]')?.content || '');
             xhr.setRequestHeader('X-Identity-Staging-Key', stagingKey);
-            xhr.upload.onprogress = event => entry.onProgress?.(event.lengthComputable && event.total > 0 ? Math.round(event.loaded / event.total * 100) : null);
+            xhr.upload.onprogress = event => {
+                const percent = event.lengthComputable && event.total > 0 ? Math.round(event.loaded / event.total * 100) : null;
+                entry.onProgress?.(percent);
+                entry.onCardProgress?.(percent);
+            };
             xhr.onload = () => {
                 let payload; try { payload = JSON.parse(xhr.responseText); } catch { }
                 if (xhr.status >= 200 && xhr.status < 300 && payload?.side === uploadSide) resolve(); else reject(new Error('staging failed'));
@@ -278,6 +282,7 @@
         entry.promise.then(() => { entry.done = true; if (!entry.cancelled) onStaged?.(); }, () => {});
         entry.promise.catch(() => {});
         stagedUploads.set(uploadSide, entry);
+        return entry;
     }
 
     function setDocument(side, file, card) {
@@ -303,10 +308,17 @@
                 const key = `${side}Url`; state[key] = URL.createObjectURL(prepared);
                 preview.src = state[key]; preview.hidden = false; empty.hidden = true;
                 message.hidden = true; card.classList.add('has-image');
-                stageIdentity(uploadSide, file, prepared, () => {
+                const staged = stageIdentity(uploadSide, file, prepared, () => {
                     if (card.dataset.fileVersion !== version || state[side] !== file) return;
                     message.hidden = false; message.textContent = 'Đã tải lên'; message.classList.remove('is-error');
                 });
+                // Show the upload while it runs: on a slow evening 4G uplink a photo can take several
+                // seconds, and without this the guest only saw a long "Đang lưu thông tin đặt phòng…".
+                staged.onCardProgress = percent => {
+                    if (card.dataset.fileVersion !== version || state[side] !== file || staged.done) return;
+                    message.hidden = false; message.classList.remove('is-error');
+                    message.textContent = percent === null ? 'Đang tải lên…' : `Đang tải lên… ${percent}%`;
+                };
             }).catch(error => {
                 if (card.dataset.fileVersion !== version) return;
                 message.hidden = false; message.textContent = error.message || 'Không thể xử lý ảnh. Vui lòng chọn lại.'; message.classList.add('is-error');

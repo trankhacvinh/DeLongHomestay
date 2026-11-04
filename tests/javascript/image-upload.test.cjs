@@ -29,7 +29,7 @@ for (const [url, edge, quality] of [
     ['/api/admin/properties/p/rooms/r/content/images', 2560, 0.85],
     ['/api/admin/site/global/assets/section', 2560, 0.85],
     ['/api/admin/site/global/media/upload', 2560, 0.85],
-    ['/api/public/booking-requests/b/identity-documents/front?siteSlug=x', 1600, 0.9]
+    ['/api/public/booking-requests/b/identity-documents/front?siteSlug=x', 1024, 0.86]
 ]) {
     test(`Resize before upload: ${url}`, async () => {
         const env = setup(10000, 7500);
@@ -78,7 +78,7 @@ for (const side of ['second-front', 'second-back']) {
         const form = new FormData();
         form.append('file', new File(['large'], 'id.jpg', { type: 'image/jpeg' }));
         await env.prepare(`/api/public/booking-requests/b/identity-documents/${side}`, form);
-        assert.deepEqual(env.draws[0], [0, 0, 1600, 1200]);
+        assert.deepEqual(env.draws[0], [0, 0, 1024, 768]);
     });
 }
 
@@ -95,24 +95,24 @@ test('Preparing the same File twice reuses its compressed result', async () => {
 test('identity upload lowers JPEG quality instead of slow WebP encoding, keeping dimensions', async () => {
     const encodes=[];
     const window={location:{origin:'https://delonghomestay.com'},createImageBitmap:async()=>({width:1600,height:1040,close(){}})};
-    const sizes={0.9:600000,0.84:400000,0.78:240000};
+    const sizes={0.86:300000,0.8:160000,0.74:95000};
     const document={createElement:()=>({getContext:()=>({fillRect(){},drawImage(){}}),toBlob(callback,type,quality){encodes.push({type,quality});callback(new Blob([new Uint8Array(sizes[quality]||900000)],{type}));}})};
     vm.runInNewContext(source,{window,document,URL,File,FormData,setTimeout,clearTimeout});
     const input=new File([new Uint8Array(1200000)],'camera.jpg',{type:'image/jpeg'});
     const output=await window.DeLongImageUpload.prepareFile('/api/public/booking-requests/b/identity-documents/front',input);
-    assert.equal(output.type,'image/jpeg');assert.equal(output.size,240000);assert.match(output.name,/\.jpg$/);
-    assert.equal(encodes[0].quality,0.9);
+    assert.equal(output.type,'image/jpeg');assert.equal(output.size,95000);assert.match(output.name,/\.jpg$/);
+    assert.equal(encodes[0].quality,0.86);
     assert.ok(encodes.every(item=>item.type==='image/jpeg'),'must never invoke the WebP encoder');
-    assert.deepEqual(encodes.map(item=>item.quality),[0.9,0.84,0.78]);
+    assert.deepEqual(encodes.map(item=>item.quality),[0.86,0.8,0.74]);
 });
 
 
-test('identity JPEG that already fits under 250 KB is encoded once',async()=>{
+test('identity JPEG that already fits under 100 KB is encoded once',async()=>{
     const encodes=[];
     const window={location:{origin:'https://delonghomestay.com'},createImageBitmap:async()=>({width:1600,height:1040,close(){}})};
-    const document={createElement:()=>({getContext:()=>({fillRect(){},drawImage(){}}),toBlob(callback,type,quality){encodes.push({type,quality});callback(new Blob([new Uint8Array(200000)],{type}));}})};
+    const document={createElement:()=>({getContext:()=>({fillRect(){},drawImage(){}}),toBlob(callback,type,quality){encodes.push({type,quality});callback(new Blob([new Uint8Array(90000)],{type}));}})};
     vm.runInNewContext(source,{window,document,URL,File,FormData,setTimeout,clearTimeout});
     const output=await window.DeLongImageUpload.prepareFile('/api/public/booking-requests/b/identity-documents/back',new File([new Uint8Array(1000000)],'camera.jpg',{type:'image/jpeg'}));
-    assert.equal(output.type,'image/jpeg');assert.equal(output.size,200000);assert.match(output.name,/\.jpg$/);
+    assert.equal(output.type,'image/jpeg');assert.equal(output.size,90000);assert.match(output.name,/\.jpg$/);
     assert.equal(encodes.length,1);
 });

@@ -84,7 +84,7 @@ async function photos(page) {
             const prepared=await DeLongImageUpload.prepareFile('/api/public/booking-requests/b/identity-documents/front',file);
             const bitmap=await window.nativeBitmap(prepared);const size={width:bitmap.width,height:bitmap.height};bitmap.close();return size;
         });
-        assert.equal(rotated.height,1600);assert.equal(rotated.width,1067);
+        assert.equal(rotated.height,1024);assert.equal(rotated.width,683);
         fs.writeFileSync(out+(timings.before?'/benchmark.json':'/benchmark-current.json'),JSON.stringify(timings,null,2)); console.log('Native benchmark',JSON.stringify(timings));await perf.close();
 
         for (const mode of ['normal','no-payment']) {
