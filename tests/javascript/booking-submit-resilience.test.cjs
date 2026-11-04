@@ -36,7 +36,7 @@ test('Retry preserves the original key for server failures and incomplete upload
     assert.equal(apply.call({ requestKey: 'same-key' }, { status: 400 }), null);
 });
 const wrapper = source.slice(source.indexOf('    function wrapBookingPost()'), source.indexOf('    const observer ='));
-function submitHarness({ uploadFailure = false, completionFailure = false, preparationFailure = false } = {}) {
+function submitHarness({ uploadFailure = false, completionFailure = false, preparationFailure = false, handoff = false } = {}) {
     const calls = [], progress = [];
     const sandbox = {
         root: { querySelectorAll: () => [], querySelector:()=>null, classList:{remove(){}} },
@@ -52,7 +52,8 @@ function submitHarness({ uploadFailure = false, completionFailure = false, prepa
         state: { policy: {}, front: {}, back: {}, guestCount: 2 }, siteSlug: 'demo',
         validateExtraFields: () => null, createPendingCustomerAccount: async () => {}, claimStagedIdentity: async () => {},
         setProgress: message => progress.push(message), withBookingTimeout: action => action(undefined),
-        uploadIdentity: async () => { if (uploadFailure) throw new Error('upload failed'); }
+        uploadIdentity: async () => { if (uploadFailure) throw new Error('upload failed'); },
+        handOffIdentity: async () => handoff
     };
     vm.runInNewContext(`${wrapper}; wrapBookingPost();`, sandbox);
     return { post: sandbox.window.DeLongApi.post, calls, progress };
@@ -62,6 +63,13 @@ test('Successful submit verifies saved CCCD before returning the booking to redi
     const result = await harness.post('/api/public/booking-requests', {}, {'Idempotency-Key':'key'});
     assert.equal(result.bookingId, 'booking-1');
     assert.deepEqual(harness.calls, ['/api/public/booking-requests','/api/public/booking-requests/booking-1/complete?siteSlug=demo']);
+    assert.equal(harness.progress.at(-1), '');
+});
+test('With the IndexedDB handoff the booking returns at once and CCCD work moves to the payment page', async () => {
+    const harness = submitHarness({ handoff: true, uploadFailure: true, completionFailure: true });
+    const result = await harness.post('/api/public/booking-requests', {}, {'Idempotency-Key':'key'});
+    assert.equal(result.bookingId, 'booking-1');
+    assert.deepEqual(harness.calls, ['/api/public/booking-requests']);
     assert.equal(harness.progress.at(-1), '');
 });
 test('Upload or completion failure never returns a successful booking result', async () => {

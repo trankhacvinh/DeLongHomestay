@@ -573,6 +573,10 @@
 <script src="~/js/core/api.js" asp-append-version="true"></script>
 <script src="~/js/core/password-strength.js" asp-append-version="true"></script>
 <script src="~/js/core/shell.js" asp-append-version="true"></script>
+@if (!isAdmin)
+{
+    <script src="~/js/core/identity-handoff.js" asp-append-version="true"></script>
+}
 @if (!isAdmin && !isPaymentPage)
 {
     <script src="~/js/core/public-ai-chat.js" asp-append-version="true"></script>

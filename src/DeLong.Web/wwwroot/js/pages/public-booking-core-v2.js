@@ -243,6 +243,7 @@
         return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
     })();
     const stagedUploads = new Map();
+    const preparedFiles = new WeakMap();
     let stagingQueue = Promise.resolve();
 
     function cancelStagedUpload(uploadSide) {
@@ -269,7 +270,6 @@
             xhr.upload.onprogress = event => {
                 const percent = event.lengthComputable && event.total > 0 ? Math.round(event.loaded / event.total * 100) : null;
                 entry.onProgress?.(percent);
-                entry.onCardProgress?.(percent);
             };
             xhr.onload = () => {
                 let payload; try { payload = JSON.parse(xhr.responseText); } catch { }
@@ -308,17 +308,11 @@
                 const key = `${side}Url`; state[key] = URL.createObjectURL(prepared);
                 preview.src = state[key]; preview.hidden = false; empty.hidden = true;
                 message.hidden = true; card.classList.add('has-image');
-                const staged = stageIdentity(uploadSide, file, prepared, () => {
+                stageIdentity(uploadSide, file, prepared, () => {
                     if (card.dataset.fileVersion !== version || state[side] !== file) return;
                     message.hidden = false; message.textContent = 'Đã tải lên'; message.classList.remove('is-error');
                 });
-                // Show the upload while it runs: on a slow evening 4G uplink a photo can take several
-                // seconds, and without this the guest only saw a long "Đang lưu thông tin đặt phòng…".
-                staged.onCardProgress = percent => {
-                    if (card.dataset.fileVersion !== version || state[side] !== file || staged.done) return;
-                    message.hidden = false; message.classList.remove('is-error');
-                    message.textContent = percent === null ? 'Đang tải lên…' : `Đang tải lên… ${percent}%`;
-                };
+                preparedFiles.set(file, prepared);
             }).catch(error => {
                 if (card.dataset.fileVersion !== version) return;
                 message.hidden = false; message.textContent = error.message || 'Không thể xử lý ảnh. Vui lòng chọn lại.'; message.classList.add('is-error');
@@ -667,6 +661,28 @@
         }
     }
 
+    // Guests must reach the QR at once: the booking is saved, so the remaining CCCD work (claiming
+    // staged photos, uploading any still in flight, /complete) moves to the next page. The prepared
+    // photos are kept in IndexedDB and identity-handoff.js finishes them on the payment page while the
+    // guest scans the QR. Returns false when IndexedDB is unusable; the caller then uploads here.
+    async function handOffIdentity(result, documents, requestKey) {
+        const handoff = window.DeLongIdentityHandoff;
+        if (!handoff?.isSupported?.()) return false;
+        try {
+            const sides = [];
+            for (const [side, file] of documents) {
+                const entry = stagedUploads.get(side);
+                const staged = !!(entry && entry.done && entry.file === file);
+                let blob = preparedFiles.get(file) || null;
+                if (!blob) blob = await window.DeLongImageUpload.prepareFile(`/api/public/booking-requests/prepare/identity-documents/${side}`, file);
+                // Keep the blob even for staged sides: if the staged copy expired, it is uploaded instead.
+                sides.push({ side, staged, blob });
+            }
+            await handoff.save({ bookingId: result.bookingId, requestKey, siteSlug: siteSlug || '', stagingKey, sides });
+            return true;
+        } catch { return false; }
+    }
+
     function showPaymentStage(documents, hasPayment) {
         root.querySelector('[data-booking-payment-stage]')?.remove();
         const stage = document.createElement('section');
@@ -725,6 +741,7 @@
                 };
                 const result = await withBookingTimeout(signal => originalPost(url, payload, headers, { signal }));
                 const requestKey = headers?.['Idempotency-Key'] || headers?.['idempotency-key'] || '';
+                if (result?.bookingId && requestKey && await handOffIdentity(result, selectedDocuments, requestKey)) return result;
                 if (result?.bookingId && requestKey) {
                     const stage = showPaymentStage(selectedDocuments, Boolean(result.paymentUrl));
                     void warmPaymentQr(result).catch(()=>{});
