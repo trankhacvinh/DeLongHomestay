@@ -92,7 +92,7 @@ async function photos(page) {
         const readJobs = page => page.evaluate(() => new Promise((resolve, reject) => {
             const open = indexedDB.open('delong-identity-handoff', 1);
             open.onupgradeneeded = () => open.result.createObjectStore('jobs', { keyPath: 'bookingId' });
-            open.onsuccess = () => { const request = open.result.transaction('jobs').objectStore('jobs').getAll(); request.onsuccess = () => { open.result.close(); resolve(request.result.map(job => ({ bookingId: job.bookingId, requestKey: job.requestKey, stagingKey: job.stagingKey, sides: job.sides.map(item => ({ side: item.side, staged: item.staged, blobBytes: item.blob?.size || 0 })) }))); }; };
+            open.onsuccess = () => { const request = open.result.transaction('jobs').objectStore('jobs').getAll(); request.onsuccess = () => { open.result.close(); resolve(request.result.map(job => ({ bookingId: job.bookingId, requestKey: job.requestKey, stagingKey: job.stagingKey, sides: job.sides.map(item => ({ side: item.side, staged: item.staged, blobBytes: item.blob?.bytes?.byteLength || 0 })) }))); }; };
             open.onerror = () => reject(open.error);
         }));
         async function paymentPage(page, claimSides) {
@@ -101,7 +101,7 @@ async function photos(page) {
             await page.route('http://localhost/**', async route => {
                 const url = new URL(route.request().url());
                 if (url.pathname === '/payment/sepay') return route.fulfill({ contentType: 'text/html', body: '<html><head><meta name="csrf-token" content="pay-page"></head><body>QR</body></html>' });
-                calls.push({ path: url.pathname, csrf: route.request().headers()['x-csrf-token'], key: route.request().headers()['idempotency-key'], body: url.pathname.includes('/identity-documents/') ? null : route.request().postDataJSON() });
+                calls.push({ path: url.pathname, csrf: route.request().headers()['x-csrf-token'], key: route.request().headers()['idempotency-key'], body: (route.request().headers()['content-type']||'').includes('json') ? route.request().postDataJSON() : null });
                 if (url.pathname.endsWith('/identity-staging/claim')) return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ sides: claimSides }) });
                 if (url.pathname.includes('/identity-documents/')) return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ side: url.pathname.split('/').at(-1) }) });
                 if (url.pathname.endsWith('/complete')) return route.fulfill({ contentType: 'application/json', body: '{"complete":true}' });
@@ -155,6 +155,20 @@ async function photos(page) {
             const calls=await paymentPage(page,['front']); // back expired on the server: upload the saved copy
             assert.deepEqual(calls.map(call=>call.path.split('/').at(-1)),['claim','back','complete']);
             assert.deepEqual(errors,[]);await page.close();console.log('PASS expired staged photo is re-uploaded from the saved copy');
+        }
+
+        {
+            // iOS WebKit can leave indexedDB.open pending forever: submit must not hang on it.
+            const {page,errors}=await mount(browser,'normal',true);
+            await page.evaluate(()=>{indexedDB.open=()=>({});});
+            await page.route('**/identity-staging/*',async route=>{await route.fulfill({contentType:'application/json',body:JSON.stringify({side:route.request().url().split('/').at(-1).split('?')[0]})});});
+            await photos(page);
+            await page.waitForFunction(()=>[...document.querySelectorAll('[data-id-message]')].filter(item=>item.textContent==='Đã tải lên').length===2);
+            const started=Date.now();await page.locator('#submit').click();
+            await page.waitForFunction(()=>window.results.length===1&&window.completes===1,null,{timeout:10000});
+            assert.ok(Date.now()-started<6000,'a stuck IndexedDB falls back to finishing on the booking page');
+            assert.deepEqual(await page.evaluate(()=>window.claims.map(item=>item.sides)),[['front','back']]);
+            assert.deepEqual(errors,[]);await page.close();console.log('PASS stuck IndexedDB falls back instead of hanging submit');
         }
 
         for (const mode of ['normal','no-payment']) {
