@@ -10,6 +10,15 @@
     const MAX_AGE_MS = 2 * 60 * 60 * 1000; // staged photos are purged on the server after 2 hours
     const labels = { front: 'mặt trước', back: 'mặt sau', 'second-front': 'mặt trước người thứ hai', 'second-back': 'mặt sau người thứ hai' };
 
+    // iOS WebKit (Safari and Chrome on iPhone) can leave an IndexedDB request pending forever, for
+    // example while an earlier page that used the database sits in the back-forward cache. Every
+    // database step is therefore capped; the booking page falls back to uploading in place.
+    function capped(promise, ms) {
+        let timer;
+        return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('IndexedDB timeout')), ms); })])
+            .finally(() => clearTimeout(timer));
+    }
+
     function storage(action) { try { return action(window.localStorage); } catch { return null; } }
 
     function openDb() {
@@ -19,18 +28,22 @@
             request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: 'bookingId' });
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error || new Error('IndexedDB open failed'));
+            request.onblocked = () => reject(new Error('IndexedDB blocked'));
         });
     }
 
-    async function withStore(mode, action) {
-        const db = await openDb();
+    async function withStore(mode, action, ms = 4000) {
+        const opening = openDb();
+        let db;
+        try { db = await capped(opening, ms); }
+        catch (error) { opening.then(late => late.close(), () => {}); throw error; }
         try {
-            return await new Promise((resolve, reject) => {
+            return await capped(new Promise((resolve, reject) => {
                 const tx = db.transaction(STORE, mode);
                 const result = action(tx.objectStore(STORE));
                 tx.oncomplete = () => resolve(result?.result);
                 tx.onerror = tx.onabort = () => reject(tx.error || new Error('IndexedDB write failed'));
-            });
+            }), ms);
         } finally { db.close(); }
     }
 
@@ -50,7 +63,7 @@
 
     async function uploadSide(job, side, blob) {
         const form = new FormData();
-        form.append('file', blob, `${side}.jpg`);
+        form.append('file', blob instanceof Blob ? blob : new Blob([blob.bytes], { type: blob.type || 'image/jpeg' }), `${side}.jpg`);
         const response = await fetch(`/api/public/booking-requests/${encodeURIComponent(job.bookingId)}/identity-documents/${side}${query(job.siteSlug)}`, {
             method: 'POST', credentials: 'same-origin',
             headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf(), 'Idempotency-Key': job.requestKey },
@@ -62,8 +75,13 @@
         }
     }
 
+    // Photos are stored as plain bytes: WebKit writes a stored Blob to a separate file, which has
+    // been seen to stall, while an ArrayBuffer is copied like any other value.
     async function save(job) {
-        await withStore('readwrite', store => store.put({ ...job, createdAt: Date.now() }));
+        const sides = [];
+        for (const item of job.sides)
+            sides.push({ side: item.side, staged: item.staged, blob: item.blob ? { bytes: await item.blob.arrayBuffer(), type: item.blob.type } : null });
+        await withStore('readwrite', store => store.put({ ...job, sides, createdAt: Date.now() }), 2500);
         storage(local => local.setItem(FLAG, '1'));
     }
 
