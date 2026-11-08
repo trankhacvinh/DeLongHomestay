@@ -7,6 +7,14 @@
 - [ ] UAT sau publish: ảnh thực, nhiều chi nhánh, mất mạng/ảnh lỗi, thiết bị iOS/Android; tiếp tục tạo booking sau khi đóng album.
 - [ ] So sánh waterfall/LCP/INP trước/sau trên cùng mạng/thiết bị/dữ liệu. Fixture dùng ảnh tổng hợp để đếm request, chưa đo hiệu năng production.
 
+Làm lại giao diện (08/11/2026, nhánh `claude/project-thread-06pad2`):
+
+- [x] Một tấm xem ảnh dùng chung (`room-photo-viewer.js`): vuốt bằng scroll-snap native, đếm "2/6", chấm trên điện thoại, dải ảnh nhỏ trên máy tính, chỉ gắn `src` cho ảnh đang xem và hai ảnh kế bên; có nút "Chọn phòng này". Danh sách phòng và album nằm trong cùng một dialog (không chồng popup).
+- [x] Lịch trang chủ chế độ một phòng: thẻ phòng hiện tại có ảnh + dải phòng vuốt ngang chia theo cơ sở, nút "Tất cả" mở danh sách có ảnh và tìm kiếm không dấu. Chế độ nhiều cột: nút "Xem ảnh & chọn phòng", chọn phòng sẽ cuộn tới cột đó; đầu cột có ảnh + số ảnh. Lịch dùng sẵn URL ảnh trong JSON trang (`photos`), không gọi thêm API.
+- [x] Trang đặt phòng: chạm ảnh ở dòng phòng để xem, phần còn lại của dòng để chọn; bỏ modal gallery Vue cũ.
+- [x] Admin Calendar/CalendarV2: ô chọn phòng có ảnh, mã, sức chứa, số ảnh; tấm chọn phòng kiểu Tabler; phòng khóa không chọn được.
+- [x] `node tests/javascript/room-photos.browser.cjs` (390px/1280px), `dotnet test` 522 qua / 139 bỏ qua (cần PostgreSQL).
+
 Thiết kế: entry script khoảng 914 byte gzip, chỉ dùng ở Index/CustomPage/Booking và Calendar/CalendarV2 nội bộ. Viewer JS/CSS và metadata chỉ tải sau thao tác. Thumbnail WebP dùng lại từ dữ liệu hiện có; album chỉ tải card đang xem, không tải cả album hay ảnh large/gốc. Cache metadata trong tab 60 giây/tối đa 20 URL chứa site+room; đóng album hủy request, timeout metadata 12 giây. Không thêm dependency/migration, không đổi logic availability/giá/tạo booking.
 
 API chỉ đọc: `/api/public/rooms/{roomId}/photos?siteSlug=...` kiểm tra published/active và property active; `/api/admin/properties/{propertyId}/rooms/{roomId}/photos` kế thừa `ViewRooms` + `PropertyAccessFilter`. Projection `AsNoTracking` chỉ trả tên và URL ảnh công khai/alt text, không trả ảnh gốc hay hướng dẫn nội bộ. Select nội bộ vẫn là nguồn giá trị và phát `change` cho Vue; xem ảnh không chọn phòng. Nếu module ảnh không tải được, hiện lại select chuẩn để tiếp tục đặt phòng.

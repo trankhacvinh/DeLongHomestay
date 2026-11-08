@@ -34,6 +34,15 @@
     // every room card is plenty and much lighter than the 900px card image.
     const headThumbUrl = url => /\/uploads\/rooms\/.+\/card\.webp(\?|$)/.test(url) ? url.replace(/\/card\.webp(?=\?|$)/, '/thumb.webp') : url;
     const roomPhotosUrl = room => `/api/public/rooms/${encodeURIComponent(room.id)}/photos${room.siteSlug ? '?siteSlug=' + encodeURIComponent(room.siteSlug) : ''}`;
+    // The page already ships each room's photo URLs, so the album opens without another request
+    // (falls back to the per-room photo API for markup rendered before `photos` existed).
+    const roomPhotoCount = room => Array.isArray(room?.photos) ? room.photos.length : (room?.coverImageUrl ? 1 : 0);
+    const roomAlbum = room => Array.isArray(room?.photos)
+        ? { name: room.name, propertyName: room.propertyName, images: room.photos.map(url => ({ cardUrl: url, thumbnailUrl: headThumbUrl(url) })) }
+        : roomPhotosUrl(room);
+    const roomThumb = room => room?.coverImageUrl?.trim() ? headThumbUrl(room.coverImageUrl.trim()) : '';
+    const photoSheet = () => window.DeLongRoomPhotos ? Promise.resolve(window.DeLongRoomPhotos)
+        : window.DeLongRoomPhotosLoad ? window.DeLongRoomPhotosLoad() : Promise.reject(new Error('viewer'));
     const timeFormats = new Map();
     const element = (tag, className, text) => {
         const node = document.createElement(tag);
@@ -129,7 +138,8 @@
 
         host.innerHTML = `
             <fieldset class="public-v2-branches" data-calendar-branches hidden><legend>Chọn cơ sở để xem lịch</legend><div class="public-v2-branch-actions"><button type="button" data-branch-all>Chọn tất cả</button><button type="button" data-branch-none>Bỏ chọn</button></div><div class="public-v2-branch-list" data-branch-list></div></fieldset>
-            <div class="public-v2-roombar" data-calendar-roombar><img class="public-v2-room-cover" data-room-cover alt="" aria-hidden="true" hidden><button type="button" data-room-prev aria-label="Phòng trước">‹</button><div><small>PHÒNG</small><strong data-room-name>—</strong><span data-room-meta></span></div><button type="button" data-room-next aria-label="Phòng tiếp theo">›</button></div>
+            <div class="public-v2-roompicker" data-calendar-roombar><div class="public-v2-roomcard"><button type="button" class="public-v2-roomcard-photo" data-room-photo-current><img data-room-cover alt="" hidden><em data-room-photo-count hidden></em></button><div class="public-v2-roomcard-copy"><small data-room-position>PHÒNG</small><strong data-room-name>—</strong><span data-room-meta></span></div><div class="public-v2-roomcard-nav"><button type="button" data-room-prev aria-label="Phòng trước">‹</button><button type="button" data-room-next aria-label="Phòng tiếp theo">›</button></div></div><div class="public-v2-roomstrip" data-room-strip role="group" aria-label="Chọn phòng"></div></div>
+            <div class="public-v2-roomsbar" data-rooms-overview hidden><span data-rooms-overview-text></span><button type="button" data-room-all-open>Xem ảnh &amp; chọn phòng</button></div>
             <div class="public-v2-legend"><span><i class="available"></i>Còn trống</span><span><i class="selected"></i>Đang chọn</span><span><i class="partial"></i>Trống một phần</span><span><i class="occupied"></i>Đã có khách</span><span class="public-v2-legend-hint" data-calendar-hint hidden>Chọn một khung, rồi nối tiếp các khung liền sau của cùng phòng.</span></div>
             <div class="public-v2-status" data-calendar-status></div>
             <div class="public-v2-viewport-shell">
@@ -143,6 +153,12 @@
         const name = host.querySelector('[data-room-name]');
         const meta = host.querySelector('[data-room-meta]');
         const cover = host.querySelector('[data-room-cover]');
+        const coverButton = host.querySelector('[data-room-photo-current]');
+        const coverCount = host.querySelector('[data-room-photo-count]');
+        const position = host.querySelector('[data-room-position]');
+        const strip = host.querySelector('[data-room-strip]');
+        const overview = host.querySelector('[data-rooms-overview]');
+        const overviewText = host.querySelector('[data-rooms-overview-text]');
         const hint = host.querySelector('[data-calendar-hint]');
         const status = host.querySelector('[data-calendar-status]');
         const viewport = host.querySelector('[data-calendar-viewport]');
@@ -391,28 +407,32 @@
                 list.forEach(room => {
                     const span = slotCountOf(room);
                     const cell = element('div', 'public-v2-head-room');
-                    cell.dataset.roomPhotos = roomPhotosUrl(room);
-                    cell.setAttribute('role', 'button');
-                    cell.setAttribute('tabindex', '0');
-                    cell.setAttribute('aria-label', `Xem ảnh ${room.name} · ${room.propertyName || ''}`);
-                    cell.style.cursor = 'pointer';
+                    cell.dataset.roomId = String(room.id);
+                    if (roomPhotoCount(room) > 0) {
+                        cell.classList.add('has-photos');
+                        cell.setAttribute('role', 'button');
+                        cell.setAttribute('tabindex', '0');
+                        cell.setAttribute('aria-label', `Xem ${roomPhotoCount(room)} ảnh ${room.name} · ${room.propertyName || ''}`);
+                    }
                     cell.style.gridRow = String(showBranches ? 2 : 1);
                     cell.style.gridColumn = `${column} / span ${span}`;
                     const coverUrl = room.coverImageUrl?.trim();
                     if (coverUrl) {
+                        const frame = element('i', 'public-v2-head-photo');
                         const image = element('img');
                         image.src = headThumbUrl(coverUrl);
                         if (image.src !== new URL(coverUrl, location.href).href) image.addEventListener('error', () => { image.src = coverUrl; }, { once: true });
                         image.alt = '';
                         image.loading = 'lazy';
                         image.decoding = 'async';
-                        cell.appendChild(image);
+                        frame.appendChild(image);
+                        if (roomPhotoCount(room) > 1) frame.appendChild(element('em', null, String(roomPhotoCount(room))));
+                        cell.appendChild(frame);
                     }
                     const label = element('span');
                     label.appendChild(element('strong', null, room.name));
                     if (room.isBookingLocked) label.appendChild(element('small', null, 'Tạm ngừng nhận đặt phòng'));
                     else if (Number(room.fromPrice) > 0) label.appendChild(element('small', null, `từ ${money(room.fromPrice)}`));
-                    label.appendChild(element('small', null, 'Xem ảnh phòng'));
                     cell.appendChild(label);
                     head.appendChild(cell);
                     column += span;
@@ -740,27 +760,155 @@
         window.addEventListener('focus', refreshAdmission);
         window.addEventListener('pagehide', () => { admissionSource?.close(); clearInterval(admissionPoll); });
 
+        // Phones (one room at a time): a card for the current room + a swipeable strip of every room,
+        // so guests see each room's photo and jump straight to it instead of tapping ‹ › fifteen times.
+        // Wide screens (all rooms as columns): a slim bar that opens the room list with photos.
+        let stripKey = '';
+        function roomMeta(room) {
+            if (!room) return '';
+            if (room.isBookingLocked) return 'Tạm ngừng nhận đặt phòng';
+            return [groups.length > 1 ? room.propertyName : '', Number(room.fromPrice) > 0 ? `từ ${money(room.fromPrice)}` : room.code].filter(Boolean).join(' · ');
+        }
+        function renderStrip(list) {
+            const key = list.map(room => room.id).join(',');
+            if (key === stripKey) return;
+            stripKey = key;
+            strip.replaceChildren();
+            const all = element('button', 'public-v2-roomchip is-all');
+            all.type = 'button';
+            all.dataset.roomAllOpen = '';
+            all.setAttribute('aria-label', `Xem tất cả ${list.length} phòng kèm ảnh`);
+            all.appendChild(element('i', 'public-v2-roomchip-grid'));
+            all.appendChild(element('span', null, `Tất cả ${list.length}`));
+            strip.appendChild(all);
+            const multiBranch = new Set(list.map(room => room.groupKey)).size > 1;
+            let lastGroup = null;
+            list.forEach((room, index) => {
+                if (multiBranch && room.groupKey !== lastGroup) {
+                    lastGroup = room.groupKey;
+                    strip.appendChild(element('span', 'public-v2-roomchip-branch', room.propertyName || 'Cơ sở'));
+                }
+                const chip = element('button', 'public-v2-roomchip');
+                chip.type = 'button';
+                chip.dataset.roomIndex = String(index);
+                const thumb = roomThumb(room);
+                const frame = element('i', thumb ? 'public-v2-roomchip-photo' : 'public-v2-roomchip-photo is-empty');
+                if (thumb) {
+                    const image = element('img');
+                    image.alt = '';
+                    image.loading = 'lazy';
+                    image.decoding = 'async';
+                    image.src = thumb;
+                    frame.appendChild(image);
+                }
+                chip.appendChild(frame);
+                chip.appendChild(element('span', null, room.name));
+                if (room.isBookingLocked) chip.classList.add('is-locked');
+                strip.appendChild(chip);
+            });
+        }
+        function scrollChipIntoView(chip) {
+            if (!chip.isConnected || !strip.clientWidth) return;
+            // Centre the current room in the part of the strip not covered by the sticky "Tất cả" chip,
+            // keeping its branch label in view too when both fit.
+            const covered = (strip.querySelector('[data-room-all-open]')?.offsetWidth || 0) + 18;
+            const available = strip.clientWidth - covered;
+            const prev = chip.previousElementSibling;
+            const label = prev?.classList.contains('public-v2-roomchip-branch') && chip.offsetLeft + chip.offsetWidth - prev.offsetLeft <= available ? prev : chip;
+            const width = chip.offsetLeft + chip.offsetWidth - label.offsetLeft;
+            strip.scrollTo({ left: Math.max(0, label.offsetLeft - covered - (available - width) / 2), behavior: 'auto' });
+        }
         function renderRoombar() {
             const list = groupRooms();
-            roombar.hidden = state.multi;
-            const room = state.multi ? null : list[Math.min(state.roomIndex, list.length - 1)];
-            name.textContent = room?.name || '—';
-            meta.textContent = room?.isBookingLocked ? 'Tạm ngừng nhận đặt phòng' : room ? `${room.propertyName || ''} · ${room.code}` : '';
-            const coverUrl = room?.coverImageUrl?.trim();
-            cover.hidden = !coverUrl;
-            if (coverUrl) {
-                cover.src = headThumbUrl(coverUrl);
-                cover.dataset.roomPhotos = roomPhotosUrl(room);
-                cover.setAttribute('role', 'button');
-                cover.setAttribute('tabindex', '0');
-                cover.removeAttribute('aria-hidden');
-                cover.alt = `Xem ảnh ${room.name}`;
-                cover.style.cursor = 'pointer';
+            roombar.hidden = state.multi || !list.length;
+            overview.hidden = !state.multi || list.length < 2;
+            if (state.multi) {
+                const branchCount = new Set(list.map(room => room.groupKey)).size;
+                overviewText.textContent = `${list.length} phòng${branchCount > 1 ? ` · ${branchCount} cơ sở` : ''}`;
+                return;
             }
+            const index = Math.min(state.roomIndex, list.length - 1);
+            const room = list[index];
+            name.textContent = room?.name || '—';
+            meta.textContent = roomMeta(room);
+            position.textContent = list.length > 1 ? `PHÒNG ${index + 1}/${list.length}` : 'PHÒNG';
+            const coverUrl = room?.coverImageUrl?.trim();
+            const count = roomPhotoCount(room);
+            cover.hidden = !coverUrl;
+            if (coverUrl) cover.src = headThumbUrl(coverUrl);
             else cover.removeAttribute('src');
+            coverButton.classList.toggle('is-empty', !coverUrl);
+            coverButton.disabled = !count;
+            coverButton.setAttribute('aria-label', count ? `Xem ${count} ảnh ${room.name}` : `${room?.name || 'Phòng'} chưa có ảnh`);
+            coverCount.hidden = count < 1;
+            coverCount.textContent = String(count);
             const single = list.length < 2;
             host.querySelector('[data-room-prev]').disabled = single;
             host.querySelector('[data-room-next]').disabled = single;
+            strip.hidden = single;
+            if (single) return;
+            renderStrip(list);
+            strip.querySelectorAll('[data-room-index]').forEach(chip => {
+                const active = Number(chip.dataset.roomIndex) === index;
+                chip.classList.toggle('is-active', active);
+                chip.setAttribute('aria-pressed', String(active));
+                chip.setAttribute('aria-label', active && roomPhotoCount(list[index]) ? `${list[index].name}, đang xem. Bấm lần nữa để xem ảnh` : list[Number(chip.dataset.roomIndex)].name);
+                if (active) requestAnimationFrame(() => scrollChipIntoView(chip));
+            });
+        }
+        function selectRoom(index) {
+            const list = groupRooms();
+            if (!list.length || state.multi || index === state.roomIndex) return;
+            state.roomIndex = Math.max(0, Math.min(list.length - 1, index));
+            resetRoom();
+        }
+        function showColumn(room) {
+            const cell = head.querySelector(`.public-v2-head-room[data-room-id="${CSS.escape(String(room.id))}"]`);
+            if (!cell) return;
+            const dateWidth = head.querySelector('.public-v2-date-column')?.offsetWidth || 0;
+            viewport.scrollTo({ left: Math.max(0, cell.offsetLeft - dateWidth - 8), behavior: 'smooth' });
+            cell.classList.remove('is-flash');
+            void cell.offsetWidth;
+            cell.classList.add('is-flash');
+        }
+        function openRoomAlbum(room, trigger) {
+            if (!room) return;
+            const list = groupRooms();
+            const index = list.indexOf(room);
+            const isCurrent = !state.multi && index === Math.min(state.roomIndex, list.length - 1);
+            photoSheet().then(sheet => sheet.open(roomAlbum(room), trigger, {
+                title: room.name,
+                subtitle: [room.propertyName, room.code].filter(Boolean).join(' · '),
+                onChoose: isCurrent ? null : () => (state.multi ? showColumn(room) : selectRoom(index)),
+                chooseLabel: state.multi ? 'Xem lịch phòng này' : 'Chọn phòng này',
+                chooseDisabled: room.isBookingLocked ? 'Phòng đang tạm ngừng nhận đặt' : ''
+            })).catch(() => {});
+        }
+        function openRoomList(trigger) {
+            const list = groupRooms();
+            const current = state.multi ? null : list[Math.min(state.roomIndex, list.length - 1)];
+            const sheetGroups = groups.map(group => ({
+                name: group.name,
+                rooms: list.filter(room => room.groupKey === group.key).map(room => ({
+                    id: room.id,
+                    name: room.name,
+                    code: room.code,
+                    meta: [room.code, Number(room.fromPrice) > 0 ? `từ ${money(room.fromPrice)}` : ''].filter(Boolean).join(' · '),
+                    note: room.isBookingLocked ? 'Tạm ngừng nhận đặt phòng' : '',
+                    thumbUrl: roomThumb(room),
+                    imageCount: roomPhotoCount(room),
+                    photos: roomAlbum(room),
+                    room
+                }))
+            })).filter(group => group.rooms.length);
+            photoSheet().then(sheet => sheet.list({
+                title: state.multi ? 'Các phòng' : 'Chọn phòng',
+                subtitle: sheetGroups.length > 1 ? `${list.length} phòng · ${sheetGroups.length} cơ sở` : `${list.length} phòng`,
+                groups: sheetGroups,
+                selectedId: current?.id,
+                chooseLabel: state.multi ? 'Xem lịch phòng này' : 'Chọn phòng này',
+                onSelect: item => (state.multi ? showColumn(item.room) : selectRoom(list.indexOf(item.room)))
+            }, trigger)).catch(() => {});
         }
 
         function resetRoom() {
@@ -849,6 +997,27 @@
             resetRoom();
         };
         host.querySelector('[data-room-prev]').addEventListener('click', () => changeRoom(-1));
+        coverButton.addEventListener('click', () => openRoomAlbum(visibleRooms()[0], coverButton));
+        strip.addEventListener('click', event => {
+            const chip = event.target.closest('button');
+            if (!chip) return;
+            if (chip.hasAttribute('data-room-all-open')) { openRoomList(chip); return; }
+            const index = Number(chip.dataset.roomIndex);
+            if (index === Math.min(state.roomIndex, groupRooms().length - 1)) openRoomAlbum(groupRooms()[index], chip);
+            else selectRoom(index);
+        });
+        overview.querySelector('[data-room-all-open]').addEventListener('click', event => openRoomList(event.currentTarget));
+        const headRoomFrom = event => event.target.closest?.('.public-v2-head-room.has-photos');
+        head.addEventListener('click', event => {
+            const cell = headRoomFrom(event);
+            if (cell) openRoomAlbum(roomById(cell.dataset.roomId), cell);
+        });
+        head.addEventListener('keydown', event => {
+            const cell = headRoomFrom(event);
+            if (!cell || !['Enter', ' '].includes(event.key)) return;
+            event.preventDefault();
+            openRoomAlbum(roomById(cell.dataset.roomId), cell);
+        });
         host.querySelector('[data-room-next]').addEventListener('click', () => changeRoom(1));
         host.querySelector('[data-branch-all]').addEventListener('click', () => setAllGroups(true));
         host.querySelector('[data-branch-none]').addEventListener('click', () => setAllGroups(false));
@@ -881,6 +1050,7 @@
 
         if (!rooms.length) {
             roombar.hidden = true;
+            overview.hidden = true;
             status.textContent = 'Chưa có phòng được xuất bản để hiển thị.';
             status.className = 'public-v2-status show';
         } else {

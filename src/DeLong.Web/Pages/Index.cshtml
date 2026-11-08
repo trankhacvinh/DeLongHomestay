@@ -212,6 +212,7 @@
                     propertyId = item.PropertyId,
                     fromPrice = item.Room.QuickFromPrice,
                     coverImageUrl = item.Room.CoverCardUrl,
+                    photos = item.Room.GalleryCardUrls ?? [],
                     bookingUrl = PublicUrlBuilder.Booking(item.PropertySiteSlug, room: item.Room.Code)
                 }));
                 <section id="@calendarAnchorId" class="public-section public-cms-availability-calendar variant-@(Variant(block.Variant))" data-public-availability-calendar data-days="@days">
@@ -303,6 +304,7 @@ else
                         siteSlug = Model.SiteSlug,
                         fromPrice = room.QuickFromPrice,
                         coverImageUrl = room.CoverCardUrl,
+                        photos = room.GalleryCardUrls ?? [],
                         bookingUrl = PublicUrlBuilder.Booking(Model.SiteSlug!, room: room.Code)
                     }));
                     <section id="@calendarAnchorId" class="public-section public-cms-availability-calendar variant-@(Variant(block.Variant))" data-public-availability-calendar data-days="@days"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">@Text(block.Content, "eyebrow", "LỊCH PHÒNG")</span><h2>@PublicTitleAccent.Render(Text(block.Content, "title", "Xem phòng và khung giờ còn trống"))</h2></div></div><script type="application/json" data-availability-rooms>@Html.Raw(roomsJson)</script><div data-availability-calendar-host></div></div></section>

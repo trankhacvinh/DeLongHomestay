@@ -80,3 +80,5 @@
 .booking-payment-stage p { line-height:1.6; }
 .booking-payment-stage ul { padding-left:20px; display:grid; gap:12px; overflow-wrap:anywhere; }
 @media(max-width:600px) { .booking-payment-stage { padding:18px; margin:12px 0; } .booking-payment-stage h2 { font-size:21px; } }
+/* Email and guest count are stacked, so the empty spacer under email only adds a gap. */
+.booking-v2-fields .booking-email-field>small{display:none}

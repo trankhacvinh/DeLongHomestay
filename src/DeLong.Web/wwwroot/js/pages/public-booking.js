@@ -63,7 +63,6 @@
                 roomMedia: {},
                 roomPreviewCache: {},
                 roomPreview: { open: false, loading: false, error: '', data: null },
-                gallery: { open: false, loading: false, error: '', images: [], index: 0, roomName: '' },
                 selectedRoomId: initial.initialRoomId || null,
                 selectedRateId: initial.initialRateId || null,
                 loading: false,
@@ -148,22 +147,27 @@
             embeddedSelectionHasOvernight() {
                 return this.selectedSlotDetails.some(item => Number(item.rate.type) === 1 || item.rate.endTime <= item.rate.startTime);
             },
+            // Display only: "Từ 14:30 ngày 09/11 đến 17:30 ngày 09/11".
             embeddedSelectionRangeText() {
+                const pad = value => String(value).padStart(2, '0');
+                const phrase = (time, date) => `${time} ngày ${date}`;
+                const range = (from, to) => `Từ ${from} đến ${to}`;
                 if (this.effectiveCheckIn && this.effectiveCheckOut) {
-                    const options = { timeZone: initial.timeZoneId || 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false };
-                    const format = value => new Intl.DateTimeFormat('vi-VN', options).format(new Date(value));
-                    return `${format(this.effectiveCheckIn)} → ${format(this.effectiveCheckOut)}`;
+                    const options = { timeZone: initial.timeZoneId || 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' };
+                    const formatter = new Intl.DateTimeFormat('en-GB', options);
+                    const format = value => {
+                        const parts = Object.fromEntries(formatter.formatToParts(new Date(value)).map(part => [part.type, part.value]));
+                        return phrase(`${pad(parts.hour)}:${pad(parts.minute)}`, `${parts.day}/${parts.month}`);
+                    };
+                    return range(format(this.effectiveCheckIn), format(this.effectiveCheckOut));
                 }
                 if (!this.selectedSlotDetails.length) return '';
                 const first = this.selectedSlotDetails[0];
                 const last = this.selectedSlotDetails[this.selectedSlotDetails.length - 1];
                 const lastIsOvernight = Number(last.rate.type) === 1 || last.rate.endTime <= last.rate.startTime;
                 const endDate = lastIsOvernight ? addDays(last.stayDate, 1) : last.stayDate;
-                const startDateText = this.shortDateText(first.stayDate);
-                const endDateText = this.shortDateText(endDate);
-                return first.stayDate === endDate
-                    ? `${startDateText} · ${first.rate.startTime} → ${last.rate.endTime}`
-                    : `${startDateText} · ${first.rate.startTime} → ${endDateText} · ${last.rate.endTime}`;
+                const dayMonth = value => { const [, month, day] = String(value).split('-'); return `${day}/${month}`; };
+                return range(phrase(first.rate.startTime, dayMonth(first.stayDate)), phrase(last.rate.endTime, dayMonth(endDate)));
             },
             selectedSlotsTotal() {
                 if (!this.embeddedSlotSelection || !this.selectedSlots.length || !this.selectedRoom) return Number(this.selectedRate?.price || 0);
@@ -189,9 +193,6 @@
             },
             dateText() {
                 return this.stayDateText(this.date);
-            },
-            galleryImage() {
-                return this.gallery.images[this.gallery.index] || null;
             }
         },
         async mounted() {
@@ -262,7 +263,7 @@
                 return detail;
             },
             syncBookingModalLock() {
-                document.documentElement.classList.toggle('booking-room-modal-open', this.roomPreview.open || this.gallery.open);
+                document.documentElement.classList.toggle('booking-room-modal-open', this.roomPreview.open);
             },
             async openRoomPreview(room) {
                 if (!room) return;
@@ -280,36 +281,21 @@
                 this.roomPreview.open = false;
                 this.syncBookingModalLock();
             },
-            async openRoomGallery(room) {
-                if (!room) return;
-                this.gallery = { open: true, loading: true, error: '', images: [], index: 0, roomName: room.name || '' };
-                this.syncBookingModalLock();
-                try {
-                    const detail = await this.fetchRoomPreview(room);
-                    this.gallery.roomName = detail.name || room.name || '';
-                    this.gallery.images = Array.isArray(detail.images) ? detail.images : [];
-                    if (!this.gallery.images.length) this.gallery.error = 'Phòng này chưa có ảnh trong thư viện.';
-                } catch (error) {
-                    this.gallery.error = error.message || 'Không thể tải thư viện ảnh.';
-                } finally {
-                    this.gallery.loading = false;
-                }
-            },
-            closeGallery() {
-                this.gallery.open = false;
-                this.syncBookingModalLock();
-            },
-            setGalleryImage(index) {
-                if (!this.gallery.images.length) return;
-                this.gallery.index = Math.max(0, Math.min(index, this.gallery.images.length - 1));
-            },
-            previousGalleryImage() {
-                if (!this.gallery.images.length) return;
-                this.gallery.index = (this.gallery.index - 1 + this.gallery.images.length) % this.gallery.images.length;
-            },
-            nextGalleryImage() {
-                if (!this.gallery.images.length) return;
-                this.gallery.index = (this.gallery.index + 1) % this.gallery.images.length;
+            // One shared photo sheet (room-photo-viewer.js) for every "Xem ảnh" on this page.
+            // From the room list it also offers "Chọn phòng này", so guests pick without scrolling back.
+            openRoomGallery(room) {
+                if (!room?.id) return;
+                const trigger = document.activeElement;
+                const load = window.DeLongRoomPhotos ? Promise.resolve(window.DeLongRoomPhotos) : window.DeLongRoomPhotosLoad?.();
+                if (!load) return;
+                const listed = this.roomList.some(item => item.id === room.id);
+                const canChoose = listed && !this.embeddedSlotSelection && this.selectedRoomId !== room.id;
+                load.then(photos => photos.open(this.apiUrl(`/api/public/rooms/${encodeURIComponent(room.id)}/photos`), trigger, {
+                    title: room.name,
+                    subtitle: this.propertyName,
+                    onChoose: canChoose ? () => this.chooseRoom(room) : null,
+                    chooseDisabled: canChoose && !this.roomSelectable(room) ? (this.bookingType === 0 ? 'Phòng đã hết khung phù hợp' : 'Phòng đã có khách trong khoảng này') : ''
+                })).catch(() => {});
             },
             openGalleryFromPreview() {
                 const room = this.selectedRoom;
@@ -318,13 +304,8 @@
             },
             handleBookingModalKeydown(event) {
                 if (event.key === 'Escape') {
-                    if (this.gallery.open) this.closeGallery();
-                    else if (this.roomPreview.open) this.closeRoomPreview();
-                    return;
+                    if (this.roomPreview.open) this.closeRoomPreview();
                 }
-                if (!this.gallery.open) return;
-                if (event.key === 'ArrowLeft') this.previousGalleryImage();
-                if (event.key === 'ArrowRight') this.nextGalleryImage();
             },
             timeSlotRates(room) {
                 return (room?.rates || []).filter(x => Number(x.type) !== 2);
