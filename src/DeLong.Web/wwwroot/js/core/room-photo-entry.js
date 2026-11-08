@@ -6,7 +6,7 @@
         if (loading) return loading;
         loading = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = '/js/core/room-photo-viewer.js?v=20261108-3';
+            script.src = '/js/core/room-photo-viewer.js?v=20261108-4';
             script.onload = () => resolve(window.DeLongRoomPhotos);
             script.onerror = () => { script.remove(); loading = null; reject(new Error('viewer')); };
             document.head.appendChild(script);

@@ -124,6 +124,7 @@
     body:not(.admin-tabler) .rp:has(.rp-album) .rp-stage{flex:1;min-height:0;display:flex}
     body:not(.admin-tabler) .rp:has(.rp-album) .rp-track{flex:1;height:100%}
     body:not(.admin-tabler) .rp:has(.rp-album) .rp-slide{aspect-ratio:auto;height:100%;max-height:none}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-slide img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
     body:not(.admin-tabler) .rp:has(.rp-album) .rp-nav{width:46px;height:60px;margin-top:-30px;border:1px solid rgba(255,255,255,.28);border-radius:12px;background:rgba(8,24,21,.65);color:#fff;font-size:34px;box-shadow:none;backdrop-filter:blur(8px)}
     body:not(.admin-tabler) .rp:has(.rp-album) .rp-nav:hover{background:rgba(8,24,21,.9)}
     body:not(.admin-tabler) .rp:has(.rp-album) .rp-prev{left:14px}
