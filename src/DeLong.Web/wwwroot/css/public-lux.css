@@ -566,3 +566,11 @@ html body.public-body .public-ai-launch:hover{transform:translateY(-2px);border-
     html body.public-body .public-ai-launch{height:44px;padding:0 14px 0 12px;right:14px;bottom:14px}
 }
 html body.public-body .public-ai-launch[hidden]{display:none!important}
+
+/* Keep "Hỏi trợ lý" above the calendar's "Đặt phòng" bar instead of covering it. */
+html body.public-body:has(.public-v2-selection:not([hidden])) .public-ai-launch{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 84px);transition:bottom .2s ease}
+@media(max-width:760px){
+    html body.public-body:has(.public-v2-selection:not([hidden])) .public-ai-launch{bottom:calc(max(8px,env(safe-area-inset-bottom)) + 72px)}
+}
+/* The booking form modal has its own buttons; hide "Hỏi trợ lý" while it is open so it never sits on top of them. */
+html body.public-body.public-booking-modal-open .public-ai-launch{display:none!important}

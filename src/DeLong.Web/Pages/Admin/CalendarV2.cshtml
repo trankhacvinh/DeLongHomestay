@@ -89,8 +89,16 @@
                                 <option v-for="rate in selectedRoomRateOptions" v-bind:key="rate.id" v-bind:value="rate.id" v-bind:disabled="rate.unavailable">{{ rate.name }} · {{ rate.unavailable ? 'Không còn khoảng trống' : rate.labelStart+'–'+rate.labelEnd }} · {{ money(rate.price) }}</option>
                             </select><small v-if="editor.mode==='create' && rateSuggestions.loading" role="status">Đang cập nhật giờ trống…</small><small v-if="editor.mode==='create' && rateSuggestions.error" role="alert">{{ rateSuggestions.error }} <button type="button" class="btn btn-light btn-sm" v-on:click="loadRateSuggestions">Thử lại</button></small>
                         </div>
-                        <div class="field"><label>Nhận phòng *</label><input type="datetime-local" v-model="form.checkInLocal" v-on:change="bookingTimeChanged" /></div>
-                        <div class="field"><label>Trả phòng *</label><input type="datetime-local" v-model="form.checkOutLocal" v-on:change="bookingTimeChanged" /></div>
+                        <div class="field booking-time-field">
+                            <label>Thời gian *</label>
+                            <details class="booking-time" v-bind:open="!form.rateId || !form.checkInLocal || !form.checkOutLocal">
+                                <summary><span>{{ form.checkInLocal && form.checkOutLocal ? 'Từ ' + form.checkInLocal.slice(11, 16) + ' ngày ' + form.checkInLocal.slice(8, 10) + '/' + form.checkInLocal.slice(5, 7) + ' đến ' + form.checkOutLocal.slice(11, 16) + ' ngày ' + form.checkOutLocal.slice(8, 10) + '/' + form.checkOutLocal.slice(5, 7) : 'Chưa chọn giờ nhận/trả' }}</span><em>Đổi giờ</em></summary>
+                                <div class="booking-time-inputs">
+                                    <div class="field"><label>Nhận phòng *</label><input type="datetime-local" v-model="form.checkInLocal" v-on:change="bookingTimeChanged" /></div>
+                                    <div class="field"><label>Trả phòng *</label><input type="datetime-local" v-model="form.checkOutLocal" v-on:change="bookingTimeChanged" /></div>
+                                </div>
+                            </details>
+                        </div>
                     </div>
                 </section>
 

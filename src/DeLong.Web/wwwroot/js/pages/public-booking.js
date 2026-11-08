@@ -147,22 +147,27 @@
             embeddedSelectionHasOvernight() {
                 return this.selectedSlotDetails.some(item => Number(item.rate.type) === 1 || item.rate.endTime <= item.rate.startTime);
             },
+            // Display only: "Từ 14:30 ngày 09/11 đến 17:30 ngày 09/11".
             embeddedSelectionRangeText() {
+                const pad = value => String(value).padStart(2, '0');
+                const phrase = (time, date) => `${time} ngày ${date}`;
+                const range = (from, to) => `Từ ${from} đến ${to}`;
                 if (this.effectiveCheckIn && this.effectiveCheckOut) {
-                    const options = { timeZone: initial.timeZoneId || 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false };
-                    const format = value => new Intl.DateTimeFormat('vi-VN', options).format(new Date(value));
-                    return `${format(this.effectiveCheckIn)} → ${format(this.effectiveCheckOut)}`;
+                    const options = { timeZone: initial.timeZoneId || 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' };
+                    const formatter = new Intl.DateTimeFormat('en-GB', options);
+                    const format = value => {
+                        const parts = Object.fromEntries(formatter.formatToParts(new Date(value)).map(part => [part.type, part.value]));
+                        return phrase(`${pad(parts.hour)}:${pad(parts.minute)}`, `${parts.day}/${parts.month}`);
+                    };
+                    return range(format(this.effectiveCheckIn), format(this.effectiveCheckOut));
                 }
                 if (!this.selectedSlotDetails.length) return '';
                 const first = this.selectedSlotDetails[0];
                 const last = this.selectedSlotDetails[this.selectedSlotDetails.length - 1];
                 const lastIsOvernight = Number(last.rate.type) === 1 || last.rate.endTime <= last.rate.startTime;
                 const endDate = lastIsOvernight ? addDays(last.stayDate, 1) : last.stayDate;
-                const startDateText = this.shortDateText(first.stayDate);
-                const endDateText = this.shortDateText(endDate);
-                return first.stayDate === endDate
-                    ? `${startDateText} · ${first.rate.startTime} → ${last.rate.endTime}`
-                    : `${startDateText} · ${first.rate.startTime} → ${endDateText} · ${last.rate.endTime}`;
+                const dayMonth = value => { const [, month, day] = String(value).split('-'); return `${day}/${month}`; };
+                return range(phrase(first.rate.startTime, dayMonth(first.stayDate)), phrase(last.rate.endTime, dayMonth(endDate)));
             },
             selectedSlotsTotal() {
                 if (!this.embeddedSlotSelection || !this.selectedSlots.length || !this.selectedRoom) return Number(this.selectedRate?.price || 0);

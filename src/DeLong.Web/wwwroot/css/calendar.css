@@ -110,18 +110,47 @@
     .empty-cell-action { opacity:.65; }
 }
 
-/* Booking form room picker with photo (room-photo-entry.js / room-photo-viewer.js). */
-.room-pick{display:flex;align-items:stretch;min-height:56px;border:1px solid var(--tblr-border-color,#dce1e7);border-radius:var(--tblr-border-radius,6px);background:var(--tblr-bg-forms,#fff);overflow:hidden}
-.room-pick:focus-within{border-color:var(--tblr-primary,#066fd1);box-shadow:0 0 0 .2rem rgba(6,111,209,.15)}
-.room-pick-photo{position:relative;flex:none;width:76px;padding:0;border:0;border-right:1px solid var(--tblr-border-color,#dce1e7);background:var(--tblr-bg-surface-secondary,#f6f8fb);cursor:zoom-in;overflow:hidden}
+/* Booking form: every control the same height and border, room picker with photo, one-line time summary. */
+.booking-editor .form-grid{align-items:start}
+.booking-editor .room-pick,.booking-editor .booking-time summary,.booking-editor .ts-wrapper .ts-control{min-height:1.875rem}
+.booking-editor .form-grid>.field,.booking-time,.booking-time summary{min-width:0}
+.room-pick{display:flex;align-items:stretch;border:1px solid #e5e7eb!important;border-radius:4px;background:#fff;overflow:hidden}
+.room-pick:focus-within{border-color:#5f9a9a!important;box-shadow:0 0 0 .2rem rgba(23,75,79,.14)}
+.room-pick-photo{position:relative;flex:none;width:2.75rem;padding:0;border:0;border-right:1px solid var(--tblr-border-color,#dce1e7);background:#f1f4f3;cursor:zoom-in;overflow:hidden}
 .room-pick-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.room-pick-photo em{position:absolute;right:4px;bottom:4px;padding:1px 6px;border-radius:999px;background:rgba(24,36,51,.8);color:#fff;font-size:11px;font-style:normal;font-weight:600;line-height:1.5}
-.room-pick-photo.is-empty{cursor:default;background:var(--tblr-bg-surface-secondary,#f6f8fb) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa5b1' stroke-width='1.6'%3E%3Cpath d='M4 8h3l2-3h6l2 3h3v11H4z' stroke-linejoin='round'/%3E%3Ccircle cx='12' cy='13' r='3.5'/%3E%3C/svg%3E") center/22px no-repeat}
-.room-pick-main{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:6px 12px;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
-.room-pick-main:hover{background:var(--tblr-bg-surface-secondary,#f6f8fb)}
-.room-pick-main>span:first-child{flex:1;min-width:0;display:grid;gap:1px}
-.room-pick-main strong{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.room-pick-main small{color:var(--tblr-secondary,#667382);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.room-pick-caret{flex:none;color:var(--tblr-secondary,#667382);font-size:22px;line-height:1}
+.room-pick-photo em{position:absolute;right:2px;bottom:2px;padding:0 4px;border-radius:999px;background:rgba(24,36,51,.8);color:#fff;font-size:9px;font-style:normal;font-weight:600;line-height:1.5}
+.room-pick-photo.is-empty{cursor:default;background:#f1f4f3 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa5b1' stroke-width='1.6'%3E%3Cpath d='M4 8h3l2-3h6l2 3h3v11H4z' stroke-linejoin='round'/%3E%3Ccircle cx='12' cy='13' r='3.5'/%3E%3C/svg%3E") center/16px no-repeat}
+.room-pick-main{flex:1;min-width:0;display:flex;align-items:center;gap:.5rem;padding:.25rem .55rem;border:0;background:transparent;color:inherit;font:inherit;font-size:.8125rem;line-height:1.5;text-align:left;cursor:pointer}
+.room-pick-main:hover{background:#f8fbfa}
+.room-pick-main>span:first-child{flex:1;min-width:0;display:flex;align-items:baseline;gap:.4rem;white-space:nowrap;overflow:hidden}
+.room-pick-main strong{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.room-pick-main small{flex:none;color:var(--tblr-secondary,#667382);font-size:.75rem}
+.room-pick-caret{flex:none;color:var(--tblr-secondary,#667382);font-size:1.1rem;line-height:1}
 .room-pick[hidden]{display:none}
-.room-pick-photo:focus-visible,.room-pick-main:focus-visible{outline:2px solid var(--tblr-primary,#066fd1);outline-offset:-2px}
+.room-pick-photo:focus-visible,.room-pick-main:focus-visible{outline:2px solid #5f9a9a;outline-offset:-2px}
+.booking-time-field{grid-column:1/-1}
+.booking-time{border:1px solid #e5e7eb!important;border-radius:4px;background:#fff}
+.booking-time summary{display:flex;align-items:center;gap:.75rem;padding:.25rem .55rem;font-size:.8125rem;line-height:1.5;font-weight:600;cursor:pointer;list-style:none}
+.booking-time summary::-webkit-details-marker{display:none}
+.booking-time summary span{flex:1;min-width:0}
+.booking-time summary em{flex:none;color:#174b4f;font-size:.75rem;font-style:normal;font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.booking-time[open] summary{border-bottom:1px solid var(--tblr-border-color,#dce1e7)}
+.booking-time[open] summary em{display:none}
+.booking-time-inputs{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;padding:.55rem}
+/* Phone autocomplete (Tom Select) looks like the other inputs: white, same border, no dropdown arrow. */
+.booking-editor .ts-wrapper{min-height:0;padding:0}
+.booking-editor .ts-wrapper .ts-control{display:flex;align-items:center;padding:.25rem .55rem!important;border:1px solid #e5e7eb!important;border-radius:4px;background:#fff!important;background-image:none!important;box-shadow:none!important;font-size:.8125rem;line-height:1.5}
+.booking-editor .ts-wrapper.single .ts-control::after{display:none}
+.booking-editor .ts-wrapper .ts-control input{font-size:inherit;min-height:0!important}
+.booking-editor .ts-wrapper.focus .ts-control{border-color:#5f9a9a!important;box-shadow:0 0 0 .2rem rgba(23,75,79,.14)!important}
+@media(max-width:767.98px){
+    .booking-editor .room-pick,.booking-editor .booking-time summary,.booking-editor .ts-wrapper .ts-control{min-height:2.25rem}
+    .room-pick-main,.booking-editor .ts-wrapper .ts-control{font-size:1rem}
+    .booking-editor .booking-time summary{font-size:.8125rem;font-weight:500;gap:.4rem;padding-right:.45rem}
+    .booking-time summary em{font-size:0;text-decoration:none}
+    .booking-time summary em::after{content:"✎";font-size:1rem}
+    .room-pick-photo{width:3rem}
+    .room-pick-main small{font-size:.8125rem}
+    .booking-time-inputs{grid-template-columns:minmax(0,1fr)}
+    .booking-editor .form-grid{grid-template-columns:minmax(0,1fr)}
+}
