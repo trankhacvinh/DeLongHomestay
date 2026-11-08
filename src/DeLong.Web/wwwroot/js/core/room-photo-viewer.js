@@ -4,7 +4,7 @@
 // room never stacks a second popup on top of the first.
 (function () {
     const style = document.createElement('link');
-    style.rel = 'stylesheet'; style.href = '/css/room-photo-viewer.css?v=20261108-2';
+    style.rel = 'stylesheet'; style.href = '/css/room-photo-viewer.css?v=20261108-3';
     document.head.appendChild(style);
 
     const cache = new Map();
