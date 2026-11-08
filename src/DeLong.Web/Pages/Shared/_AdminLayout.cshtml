@@ -285,6 +285,7 @@ else if (canUseStaffAi && currentProperty is not null)
     <script src="~/js/core/rich-text-tools.js" asp-append-version="true"></script>
 }
 <script src="~/js/core/image-upload.js" asp-append-version="true"></script>
+@if (path.Equals("/Admin/Calendar", StringComparison.OrdinalIgnoreCase) || path.Equals("/Admin/CalendarV2", StringComparison.OrdinalIgnoreCase)) { <script defer src="~/js/core/room-photo-entry.js" asp-append-version="true"></script> }
 <script src="~/js/core/api.js" asp-append-version="true"></script>
 @if (usePasswordStrength)
 {

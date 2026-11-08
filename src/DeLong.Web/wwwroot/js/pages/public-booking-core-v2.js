@@ -438,7 +438,7 @@
         wrapper.innerHTML = `
             <div class="booking-account-panel" data-booking-account-panel hidden></div>
             <div class="booking-v2-contact-row">
-                <label class="booking-email-field"><span>Email *</span><input data-booking-email type="email" maxlength="254" autocomplete="off" placeholder="ten@email.com" /><small aria-hidden="true">&nbsp;</small></label>
+                <label class="booking-email-field"><span>Email *</span><input data-booking-email type="email" maxlength="254" autocomplete="off" placeholder="Nhập địa chỉ email" /><small aria-hidden="true">&nbsp;</small></label>
                 <div class="booking-guest-field">
                     <span>Số lượng khách *</span>
                     <div class="booking-guest-stepper"><button type="button" data-guest-minus aria-label="Giảm số khách">−</button><strong data-booking-guest-count>${state.guestCount}</strong><button type="button" data-guest-plus aria-label="Tăng số khách">+</button></div>

@@ -18,6 +18,15 @@ public static class PublicRoomMediaEndpoints
 {
     public static IEndpointRouteBuilder MapPublicRoomMediaEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapGet("/api/public/rooms/{roomId:guid}/photos", async (
+            Guid roomId, [FromQuery] string? siteSlug, AppDbContext db, PublicPropertyResolver resolver, CancellationToken ct) =>
+        {
+            var property = await resolver.ResolveAsync(siteSlug, ct);
+            if (property is null) return Results.NotFound();
+            var gallery = await DeLong.Web.Features.Rooms.RoomPhotoGallery.LoadAsync(db, property.Id, roomId, true, ct);
+            return gallery is null ? Results.NotFound() : Results.Ok(gallery);
+        }).AllowAnonymous();
+
         app.MapGet("/api/public/room-media", async ([FromQuery] string? siteSlug, AppDbContext db, PublicPropertyResolver resolver, CancellationToken ct) =>
         {
             var property = await resolver.ResolveAsync(siteSlug, ct);

@@ -33,6 +33,7 @@
     // Calendar column heads show the room photo at ~30-48px; the 480px thumb variant saved next to
     // every room card is plenty and much lighter than the 900px card image.
     const headThumbUrl = url => /\/uploads\/rooms\/.+\/card\.webp(\?|$)/.test(url) ? url.replace(/\/card\.webp(?=\?|$)/, '/thumb.webp') : url;
+    const roomPhotosUrl = room => `/api/public/rooms/${encodeURIComponent(room.id)}/photos${room.siteSlug ? '?siteSlug=' + encodeURIComponent(room.siteSlug) : ''}`;
     const timeFormats = new Map();
     const element = (tag, className, text) => {
         const node = document.createElement(tag);
@@ -390,6 +391,11 @@
                 list.forEach(room => {
                     const span = slotCountOf(room);
                     const cell = element('div', 'public-v2-head-room');
+                    cell.dataset.roomPhotos = roomPhotosUrl(room);
+                    cell.setAttribute('role', 'button');
+                    cell.setAttribute('tabindex', '0');
+                    cell.setAttribute('aria-label', `Xem ảnh ${room.name} · ${room.propertyName || ''}`);
+                    cell.style.cursor = 'pointer';
                     cell.style.gridRow = String(showBranches ? 2 : 1);
                     cell.style.gridColumn = `${column} / span ${span}`;
                     const coverUrl = room.coverImageUrl?.trim();
@@ -406,6 +412,7 @@
                     label.appendChild(element('strong', null, room.name));
                     if (room.isBookingLocked) label.appendChild(element('small', null, 'Tạm ngừng nhận đặt phòng'));
                     else if (Number(room.fromPrice) > 0) label.appendChild(element('small', null, `từ ${money(room.fromPrice)}`));
+                    label.appendChild(element('small', null, 'Xem ảnh phòng'));
                     cell.appendChild(label);
                     head.appendChild(cell);
                     column += span;
@@ -741,7 +748,15 @@
             meta.textContent = room?.isBookingLocked ? 'Tạm ngừng nhận đặt phòng' : room ? `${room.propertyName || ''} · ${room.code}` : '';
             const coverUrl = room?.coverImageUrl?.trim();
             cover.hidden = !coverUrl;
-            if (coverUrl) cover.src = coverUrl;
+            if (coverUrl) {
+                cover.src = headThumbUrl(coverUrl);
+                cover.dataset.roomPhotos = roomPhotosUrl(room);
+                cover.setAttribute('role', 'button');
+                cover.setAttribute('tabindex', '0');
+                cover.removeAttribute('aria-hidden');
+                cover.alt = `Xem ảnh ${room.name}`;
+                cover.style.cursor = 'pointer';
+            }
             else cover.removeAttribute('src');
             const single = list.length < 2;
             host.querySelector('[data-room-prev]').disabled = single;

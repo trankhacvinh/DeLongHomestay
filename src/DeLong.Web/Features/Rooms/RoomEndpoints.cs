@@ -22,6 +22,13 @@ public static class RoomEndpoints
             return room is null ? Results.NotFound() : Results.Ok(room);
         });
 
+        group.MapGet("/{roomId:guid}/photos", async (
+            Guid propertyId, Guid roomId, DeLong.Web.Data.AppDbContext db, CancellationToken ct) =>
+        {
+            var gallery = await RoomPhotoGallery.LoadAsync(db, propertyId, roomId, false, ct);
+            return gallery is null ? Results.NotFound() : Results.Ok(gallery);
+        });
+
         group.MapPost("/", async (
             Guid propertyId, CreateRoomRequest request, RoomService service, CancellationToken cancellationToken) =>
         {

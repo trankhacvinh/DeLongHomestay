@@ -66,10 +66,15 @@
                     <div class="form-grid">
                         <div class="field">
                             <label>Phòng *</label>
-                            <select v-model="form.roomId" v-on:change="roomChanged">
+                            <select v-model="form.roomId" v-on:change="roomChanged" hidden aria-hidden="true" tabindex="-1" style="display:none">
                                 <option value="">Chọn phòng</option>
                                 <option v-for="room in activeRooms" v-bind:key="room.id" v-bind:value="room.id" v-bind:disabled="room.isBookingLocked && (editor.mode === 'create' || room.id !== selectedBooking?.roomId)">{{ room.name }}{{ room.isBookingLocked ? ' · Đang khóa' : '' }}</option>
                             </select>
+                            <button type="button" class="btn btn-light" data-room-photo-picker v-bind:data-property-id="propertyId" style="width:100%;justify-content:flex-start">
+                                <img v-if="selectedRoom?.coverThumbnailUrl" v-bind:src="selectedRoom.coverThumbnailUrl" alt="" width="36" height="36" loading="lazy" decoding="async" style="object-fit:cover;border-radius:6px" />
+                                <span>{{ selectedRoom?.name || 'Chọn phòng' }}</span>
+                            </button>
+                            <button v-if="selectedRoom?.imageCount > 0" class="btn btn-light btn-sm" type="button" v-bind:data-room-photos="'/api/admin/properties/' + propertyId + '/rooms/' + selectedRoom.id + '/photos'">Xem ảnh ({{ selectedRoom.imageCount }})</button>
                         </div>
                         <div class="field">
                             <label>Mức giá</label>
@@ -86,9 +91,9 @@
                 <section class="booking-form-section">
                     <div class="booking-form-title">Khách hàng <span>SĐT dùng để nhận diện khách cũ</span></div>
                     <div class="form-grid">
-                        <div class="field"><label>Tên khách *</label><input v-model.trim="form.customerName" maxlength="200" placeholder="Ví dụ: Nguyễn Minh Anh" /></div>
-                        <div class="field"><label>Số điện thoại *</label><input data-admin-customer-phone v-model.trim="form.customerPhone" maxlength="30" inputmode="tel" placeholder="09xx xxx xxx" /></div>
-                        <div class="field"><label>Email</label><input v-model.trim="form.customerEmail" type="email" maxlength="254" autocomplete="email" placeholder="ten@email.com" /></div>
+                        <div class="field"><label>Tên khách *</label><input v-model.trim="form.customerName" maxlength="200" placeholder="Nhập họ và tên khách" /></div>
+                        <div class="field"><label>Số điện thoại *</label><input data-admin-customer-phone v-model.trim="form.customerPhone" maxlength="30" inputmode="tel" placeholder="Nhập số điện thoại liên hệ" /></div>
+                        <div class="field"><label>Email</label><input v-model.trim="form.customerEmail" type="email" maxlength="254" autocomplete="email" placeholder="Nhập địa chỉ email" /></div>
                         <div class="field"><label>Số lượng khách *</label><input v-model.number="form.guestCount" type="number" min="1" v-bind:max="selectedRoom?.capacity || 1" /></div>
                         <div class="field">
                             <label>Nguồn</label>
@@ -124,7 +129,7 @@
                         <div class="field"><label>Phương thức thu</label><select v-model.number="form.initialPaymentMethod"><option v-bind:value="1">Chuyển khoản</option><option v-bind:value="0">Tiền mặt</option><option v-bind:value="2">Thẻ</option><option v-bind:value="3">Khác</option></select></div>
                     </div>
                     <partial name="_BookingDisplayColor" />
-                    <div class="field mt-16"><label>Ghi chú</label><textarea v-model.trim="form.note" maxlength="2000" placeholder="Ví dụ: nhận phòng 22:30, thêm gối, khách cần hóa đơn..."></textarea></div>
+                    <div class="field mt-16"><label>Ghi chú</label><textarea v-model.trim="form.note" maxlength="2000" placeholder="Ghi chú hoặc yêu cầu của khách (nếu có)"></textarea></div>
                 </section>
 
                 <div class="summary-box">

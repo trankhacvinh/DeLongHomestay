@@ -1,5 +1,12 @@
 # Roadmap
 
+## Ảnh phòng tại bước chọn phòng (08/11/2026)
+
+- [x] Album dùng chung, tải khi bấm xem, cho lịch khách và chọn phòng nội bộ; tái sử dụng WebP đã có.
+- [x] API ảnh chỉ đọc, giới hạn phòng/chi nhánh/quyền; không đổi schema hay nghiệp vụ đặt phòng.
+- [x] Placeholder đặt phòng rõ nghĩa; trạng thái thiếu ảnh trung tính.
+- [ ] Publish và UAT với ảnh thực trên điện thoại. Chi tiết: `docs/CHECKLIST.md`, mục ảnh phòng.
+
 ## Ngày tháng Việt Nam và modal voucher (01/11/2026)
 
 - [x] Thống nhất ô nhập ngày/ngày giờ/tháng, thư viện tiếng Việt đóng gói cục bộ và hiển thị năm đầy đủ ở các nhãn ngày.

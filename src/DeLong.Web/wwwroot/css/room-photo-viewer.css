@@ -1,0 +1,19 @@
+.room-photo-dialog{box-sizing:border-box;width:min(900px,calc(100vw - 24px));max-height:90dvh;padding:20px;border:1px solid #dce7e4;border-radius:18px;background:#fff;color:#173b3b;overflow:auto;box-shadow:0 20px 70px #0004}
+.room-photo-dialog::backdrop{background:#071e20b3}
+.room-photo-dialog header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+.room-photo-dialog h2{margin:0;font-size:18px;overflow-wrap:anywhere}
+.room-photo-dialog button{padding:10px 14px;border:1px solid #cbdcda;border-radius:10px;background:#f5faf8;color:inherit;font:inherit;cursor:pointer;min-height:44px}
+.room-photo-dialog button:disabled{opacity:.5;cursor:not-allowed}
+.room-photo-dialog figure{margin:0;touch-action:pan-y pinch-zoom}
+.room-photo-dialog figure>img{display:block;width:100%;height:min(62dvh,600px);object-fit:contain;background:#f2f5f4;border-radius:10px}
+.room-photo-dialog figcaption{text-align:center;padding:10px}
+.room-photo-dialog nav{display:flex;justify-content:space-between;gap:12px}
+.room-photo-dialog [hidden]{display:none}
+.room-photo-picker{max-width:560px}
+.room-photo-picker>input{box-sizing:border-box;width:100%;margin-bottom:12px}
+.room-photo-options{display:grid;gap:8px;max-height:55dvh;overflow:auto;overscroll-behavior:contain}
+.room-photo-option{display:flex;gap:8px;align-items:center}
+.room-photo-option>button:first-child{display:flex;align-items:center;gap:12px;flex:1;min-width:0;text-align:left}
+.room-photo-option img{width:48px;height:48px;object-fit:cover;border-radius:7px;flex:none}
+.room-photo-option button[aria-pressed=true]{border-color:#17666a;background:#e5f3ef}
+@media(max-width:600px){.room-photo-dialog{padding:14px}.room-photo-dialog h2{font-size:16px}.room-photo-dialog figure>img{height:52dvh}}

@@ -52,6 +52,10 @@ else
                         <div>
                             <span class="public-eyebrow">Lựa chọn của bạn</span>
                             <h2>{{ selectedRoom.name }}</h2>
+                            <button type="button" class="public-btn public-btn-ghost" v-bind:data-room-photos="apiUrl('/api/public/rooms/' + selectedRoom.id + '/photos')" style="display:inline-flex;gap:10px;align-items:center;padding:8px;margin-top:8px">
+                                <img v-if="roomImage(selectedRoom)?.thumbnailUrl" v-bind:src="roomImage(selectedRoom).thumbnailUrl" alt="" width="72" height="48" loading="lazy" decoding="async" style="object-fit:cover;border-radius:8px" />
+                                <span>Xem ảnh phòng</span>
+                            </button>
                             <p>{{ propertyName }}</p>
                         </div>
                         <div class="public-embedded-selection-price">
@@ -128,14 +132,15 @@ else
                     <div class="public-conversion-loading" v-if="loading" role="status" aria-live="polite"><span class="public-loading-dot"></span><span>Đang kiểm tra phòng trống…</span></div>
                     <div class="public-inline-status error" v-else-if="availabilityError" role="alert"><div><strong>Chưa kiểm tra được phòng trống</strong><p>{{ availabilityError }}</p></div><button class="public-btn public-btn-ghost" type="button" v-on:click="reloadAvailability">Thử lại</button></div>
                     <div class="public-booking-room-list" v-else-if="roomList.length">
-                        <button v-for="room in roomList" v-bind:key="room.id" type="button" class="public-booking-room"
+                        <div v-for="room in roomList" v-bind:key="room.id" class="public-booking-room-option" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px">
+                            <button type="button" class="public-booking-room" style="width:100%"
                                 v-bind:data-room-capacity="room.capacity"
                                 v-bind:class="{ active: selectedRoomId === room.id, disabled: !roomSelectable(room) }"
                                 v-bind:disabled="!roomSelectable(room)" v-on:click="chooseRoom(room)">
                             <span class="public-mini-room-art public-mini-room-photo" v-if="roomImage(room)">
-                                <img v-bind:src="roomImage(room).thumbnailUrl" v-bind:alt="roomImage(room).altText || room.name" loading="lazy" />
+                                <img v-bind:src="roomImage(room).thumbnailUrl" v-bind:alt="roomImage(room).altText || room.name" loading="lazy" decoding="async" width="42" height="42" />
                             </span>
-                            <span v-else class="public-mini-room-art" v-bind:data-room-code="room.code">{{ room.code.split('-').slice(-1)[0] }}</span>
+                            <span v-else class="public-mini-room-art" style="background:#f1f4f3;color:#6b7b77;font-size:10px;font-weight:500;text-align:center" aria-label="Phòng chưa có ảnh">Chưa có ảnh</span>
                             <span class="public-booking-room-copy">
                                 <strong>{{ room.name }}</strong>
                                 <small v-if="bookingType === 0">{{ room.capacity }} người · từ {{ money(room.fromPrice) }}</small>
@@ -149,11 +154,13 @@ else
                                 <span class="public-booking-room-state" v-if="room.available">Còn phòng</span>
                                 <span class="public-booking-room-state sold" v-else>Đã có khách</span>
                             </template>
-                        </button>
+                            </button>
+                            <button type="button" class="public-btn public-btn-ghost" v-bind:data-room-photos="apiUrl('/api/public/rooms/' + room.id + '/photos')" v-bind:aria-label="'Xem ảnh ' + room.name" style="padding:8px;font-size:12px">Ảnh</button>
+                        </div>
                     </div>
                     <div class="public-booking-room-mobile-actions" v-if="selectedRoom && !loading">
                         <button type="button" v-on:click="openRoomPreview(selectedRoom)">Chi tiết phòng</button>
-                        <button type="button" v-if="roomImageCount(selectedRoom) > 0" v-on:click="openRoomGallery(selectedRoom)">Xem ảnh ({{ roomImageCount(selectedRoom) }})</button>
+                        <button type="button" v-if="roomImageCount(selectedRoom) > 0" v-bind:data-room-photos="apiUrl('/api/public/rooms/' + selectedRoom.id + '/photos')">Xem ảnh ({{ roomImageCount(selectedRoom) }})</button>
                     </div>
                     <div v-if="!loading && !availabilityError && roomList.length && selectableRoomCount === 0" class="public-inline-status empty"><div><strong>{{ bookingType === 0 ? 'Ngày này đã hết khung phù hợp' : 'Khoảng ngày này chưa còn phòng' }}</strong><p>Đổi ngày để kiểm tra lại hoặc xem mô tả các phòng khác trước khi chọn.</p></div><button class="public-btn public-btn-ghost" type="button" v-on:click="focusDateInput">Đổi ngày</button></div>
                     <div v-else-if="bookingType === 1 && !loading && !availabilityError && !roomList.length" class="public-stay-empty">
@@ -196,8 +203,8 @@ else
                     <div class="public-step-head"><span>{{ embeddedSlotSelection ? '01' : '04' }}</span><div><h2>Thông tin liên hệ</h2><p>{{ embeddedSlotSelection ? 'Điền thông tin khách để tiếp tục sang bước thanh toán.' : 'Nhân viên sẽ gọi lại để xác nhận phòng và tiền cọc.' }}</p></div></div>
                     <div class="public-inline-status warning" v-if="scheduleNote"><div><strong>Thời gian nhận/trả đã được điều chỉnh</strong><p>{{ embeddedSelectionRangeText }}. {{ scheduleNote }} Bạn vẫn có thể tiếp tục đặt hoặc đóng cửa sổ để chọn khung khác.</p></div></div>
                     <div class="public-form-grid">
-                        <label v-bind:class="{ invalid: fieldErrors.customerPhone }"><span>Số điện thoại *</span><input ref="customerPhone" data-booking-customer-phone v-model.trim="form.customerPhone" v-on:input="clearFieldError('customerPhone')" v-bind:aria-invalid="!!fieldErrors.customerPhone" maxlength="30" inputmode="tel" autocomplete="off" placeholder="09xx xxx xxx" /><small class="public-field-error" v-if="fieldErrors.customerPhone">{{ fieldErrors.customerPhone }}</small></label>
-                        <label v-bind:class="{ invalid: fieldErrors.customerName }"><span>Họ và tên *</span><input ref="customerName" data-booking-customer-name v-model.trim="form.customerName" v-on:input="clearFieldError('customerName')" v-bind:aria-invalid="!!fieldErrors.customerName" maxlength="200" autocomplete="off" placeholder="Nguyễn Minh Anh" /><small class="public-field-error" v-if="fieldErrors.customerName">{{ fieldErrors.customerName }}</small></label>
+                        <label v-bind:class="{ invalid: fieldErrors.customerPhone }"><span>Số điện thoại *</span><input ref="customerPhone" data-booking-customer-phone v-model.trim="form.customerPhone" v-on:input="clearFieldError('customerPhone')" v-bind:aria-invalid="!!fieldErrors.customerPhone" maxlength="30" inputmode="tel" autocomplete="off" placeholder="Nhập số điện thoại liên hệ" /><small class="public-field-error" v-if="fieldErrors.customerPhone">{{ fieldErrors.customerPhone }}</small></label>
+                        <label v-bind:class="{ invalid: fieldErrors.customerName }"><span>Họ và tên *</span><input ref="customerName" data-booking-customer-name v-model.trim="form.customerName" v-on:input="clearFieldError('customerName')" v-bind:aria-invalid="!!fieldErrors.customerName" maxlength="200" autocomplete="off" placeholder="Nhập họ và tên" /><small class="public-field-error" v-if="fieldErrors.customerName">{{ fieldErrors.customerName }}</small></label>
                         <label class="public-honeypot" aria-hidden="true"><span>Website</span><input v-model="form.website" tabindex="-1" autocomplete="off" /></label>
                     </div>
                     <section class="public-voucher-box" v-if="bookingType === 0">
@@ -221,18 +228,17 @@ else
 
             <aside class="public-booking-summary" v-if="selectedRoom && selectedRate">
                 <div class="public-summary-room-art public-summary-room-photo" v-if="roomImage(selectedRoom)">
-                    <img v-bind:src="roomImage(selectedRoom).cardUrl" v-bind:alt="roomImage(selectedRoom).altText || selectedRoom.name" />
+                    <img v-bind:src="roomImage(selectedRoom).cardUrl" v-bind:alt="roomImage(selectedRoom).altText || selectedRoom.name" loading="lazy" decoding="async" />
                 </div>
-                <div v-else class="public-summary-room-art" v-bind:data-room-code="selectedRoom.code">
-                    <small>{{ propertyName }}</small>
-                    <strong>{{ selectedRoom.name }}</strong>
+                <div v-else class="public-summary-room-art" style="background:#f1f4f3;color:#6b7b77">
+                    <span>Phòng chưa có ảnh</span>
                 </div>
                 <div class="public-summary-content">
                     <span class="public-eyebrow">Yêu cầu của bạn</span>
                     <h3>{{ selectedRoom.name }}</h3>
                     <div class="public-summary-room-actions">
                         <button type="button" v-on:click="openRoomPreview(selectedRoom)">Chi tiết phòng</button>
-                        <button type="button" v-if="roomImageCount(selectedRoom) > 0" v-on:click="openRoomGallery(selectedRoom)">Xem ảnh ({{ roomImageCount(selectedRoom) }})</button>
+                        <button type="button" v-if="roomImageCount(selectedRoom) > 0" v-bind:data-room-photos="apiUrl('/api/public/rooms/' + selectedRoom.id + '/photos')">Xem ảnh ({{ roomImageCount(selectedRoom) }})</button>
                     </div>
                     <dl v-if="bookingType === 0">
                         <div><dt>Ngày</dt><dd>{{ dateText }}</dd></div>
