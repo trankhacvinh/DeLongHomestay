@@ -234,11 +234,10 @@ html.booking-room-modal-open { overflow:hidden; }
 .public-booking-room-photo.is-empty { cursor:default; pointer-events:none; background:#f1ede6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a9b5b3' stroke-width='1.6'%3E%3Cpath d='M4 8h3l2-3h6l2 3h3v11H4z' stroke-linejoin='round'/%3E%3Ccircle cx='12' cy='13' r='3.5'/%3E%3C/svg%3E") center/24px no-repeat; }
 .public-booking-room-option.disabled .public-booking-room-photo { opacity:.6; }
 .public-booking-room-photo:focus-visible { outline:3px solid rgba(18,41,43,.35); outline-offset:2px; }
-.public-embedded-room-photo { display:inline-flex; align-items:center; gap:10px; margin-top:8px; padding:4px 14px 4px 4px; border:1.5px solid #e3dccf; border-radius:12px; background:#fff; color:#12292b; font:inherit; font-size:13px; font-weight:700; cursor:zoom-in; }
-.public-embedded-room-photo img { width:64px; height:48px; border-radius:9px; object-fit:cover; }
-.public-embedded-room-photo:hover { border-color:#12292b; }
+.public-embedded-room-photo { display:inline; padding:0; border:0; background:none; color:inherit; font:inherit; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.public-embedded-room-photo:hover { color:#12292b; }
+.public-embedded-range span { display:inline-block; white-space:nowrap; margin-right:.3em; }
 @media (max-width:760px) {
     .public-booking-page .public-booking-room-option .public-booking-room { grid-template-columns:minmax(0,1fr) auto; padding-left:88px; min-height:76px; }
     .public-booking-room-photo { width:72px; }
-    .public-embedded-room-photo img { width:52px; height:39px; }
 }

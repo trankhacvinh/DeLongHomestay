@@ -52,11 +52,7 @@ else
                         <div>
                             <span class="public-eyebrow">Lựa chọn của bạn</span>
                             <h2>{{ selectedRoom.name }}</h2>
-                            <button type="button" class="public-embedded-room-photo" v-if="roomImageCount(selectedRoom) > 0" v-on:click="openRoomGallery(selectedRoom)">
-                                <img v-bind:src="roomImage(selectedRoom).thumbnailUrl" alt="" decoding="async" />
-                                <span>Xem {{ roomImageCount(selectedRoom) }} ảnh phòng</span>
-                            </button>
-                            <p>{{ propertyName }}</p>
+                            <p>{{ propertyName }}<template v-if="roomImageCount(selectedRoom) > 0"> · <button type="button" class="public-embedded-room-photo" v-on:click="openRoomGallery(selectedRoom)">Xem {{ roomImageCount(selectedRoom) }} ảnh phòng</button></template></p>
                         </div>
                         <div class="public-embedded-selection-price">
                             <small>Tổng tiền</small>
@@ -66,7 +62,7 @@ else
                     <div class="public-embedded-selection-timeline">
                         <div>
                             <small>Thời gian sử dụng</small>
-                            <strong>{{ embeddedSelectionRangeText }}</strong>
+                            <strong class="public-embedded-range"><span v-for="(part, index) in embeddedSelectionRangeText.split(' đến ')" v-bind:key="index">{{ index ? 'đến ' + part : part }}</span></strong>
                         </div>
                         <div class="public-embedded-selection-badges">
                             <span>{{ embeddedSlotCountText }}</span>
