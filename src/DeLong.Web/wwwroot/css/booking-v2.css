@@ -223,3 +223,22 @@ html.booking-room-modal-open { overflow:hidden; }
     .public-booking-room-preview-facts { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 .public-booking-embedded-selection>.public-booking-hero,.public-booking-embedded-selection>.public-booking-journey-wrap,.public-booking-embedded-selection .public-booking-mode,.public-booking-embedded-selection .public-booking-main>.public-step-card:not(.public-contact-step),.public-booking-embedded-selection .public-booking-summary,.public-booking-embedded-selection .public-booking-mobile-bar{display:none!important}.public-booking-embedded-selection .public-booking-grid{display:block;max-width:880px}.public-booking-embedded-selection .public-booking-section{padding-block:18px}.public-booking-embedded-selection .public-contact-step{margin:0}.public-booking-embedded-selection .public-submit-booking{position:sticky;bottom:10px;z-index:4}
+
+/* 2026-11: room photo sits on the left of each room row as its own button (tap = album, rest of row = choose). */
+.public-booking-room-option { position:relative; }
+.public-booking-page .public-booking-room-option .public-booking-room { grid-template-columns:minmax(0,1fr) auto; padding-left:102px; min-height:84px; }
+.public-booking-room-photo { position:absolute; left:8px; top:8px; bottom:8px; width:84px; padding:0; border:0; border-radius:11px; overflow:hidden; background:#f1ede6; cursor:zoom-in; -webkit-tap-highlight-color:transparent; }
+.public-booking-room-photo img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.public-booking-room-photo em { position:absolute; right:4px; bottom:4px; display:inline-flex; align-items:center; gap:3px; padding:1px 6px; border-radius:999px; background:rgba(10,30,32,.78); color:#fff; font-size:11px; font-style:normal; font-weight:800; line-height:1.5; }
+.public-booking-room-photo em::before { content:""; width:10px; height:8px; background:currentColor; -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 20'%3E%3Cpath d='M2 5h5l2-3h6l2 3h5v13H2z M12 7a4.5 4.5 0 100 9 4.5 4.5 0 000-9z' fill-rule='evenodd'/%3E%3C/svg%3E") center/contain no-repeat; mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 20'%3E%3Cpath d='M2 5h5l2-3h6l2 3h5v13H2z M12 7a4.5 4.5 0 100 9 4.5 4.5 0 000-9z' fill-rule='evenodd'/%3E%3C/svg%3E") center/contain no-repeat; }
+.public-booking-room-photo.is-empty { cursor:default; pointer-events:none; background:#f1ede6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a9b5b3' stroke-width='1.6'%3E%3Cpath d='M4 8h3l2-3h6l2 3h3v11H4z' stroke-linejoin='round'/%3E%3Ccircle cx='12' cy='13' r='3.5'/%3E%3C/svg%3E") center/24px no-repeat; }
+.public-booking-room-option.disabled .public-booking-room-photo { opacity:.6; }
+.public-booking-room-photo:focus-visible { outline:3px solid rgba(18,41,43,.35); outline-offset:2px; }
+.public-embedded-room-photo { display:inline-flex; align-items:center; gap:10px; margin-top:8px; padding:4px 14px 4px 4px; border:1.5px solid #e3dccf; border-radius:12px; background:#fff; color:#12292b; font:inherit; font-size:13px; font-weight:700; cursor:zoom-in; }
+.public-embedded-room-photo img { width:64px; height:48px; border-radius:9px; object-fit:cover; }
+.public-embedded-room-photo:hover { border-color:#12292b; }
+@media (max-width:760px) {
+    .public-booking-page .public-booking-room-option .public-booking-room { grid-template-columns:minmax(0,1fr) auto; padding-left:88px; min-height:76px; }
+    .public-booking-room-photo { width:72px; }
+    .public-embedded-room-photo img { width:52px; height:39px; }
+}

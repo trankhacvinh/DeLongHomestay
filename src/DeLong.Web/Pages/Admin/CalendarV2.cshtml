@@ -64,17 +64,23 @@
                 <section class="booking-form-section">
                     <div class="booking-form-title">Phòng & thời gian <span>Thời gian thực tế quyết định phòng có bận hay không</span></div>
                     <div class="form-grid">
-                        <div class="field">
+                        <div class="field" data-room-photo-field>
                             <label>Phòng *</label>
                             <select v-model="form.roomId" v-on:change="roomChanged" hidden aria-hidden="true" tabindex="-1" style="display:none">
                                 <option value="">Chọn phòng</option>
                                 <option v-for="room in activeRooms" v-bind:key="room.id" v-bind:value="room.id" v-bind:disabled="room.isBookingLocked && (editor.mode === 'create' || room.id !== selectedBooking?.roomId)">{{ room.name }}{{ room.isBookingLocked ? ' · Đang khóa' : '' }}</option>
                             </select>
-                            <button type="button" class="btn btn-light" data-room-photo-picker v-bind:data-property-id="propertyId" style="width:100%;justify-content:flex-start">
-                                <img v-if="selectedRoom?.coverThumbnailUrl" v-bind:src="selectedRoom.coverThumbnailUrl" alt="" width="36" height="36" loading="lazy" decoding="async" style="object-fit:cover;border-radius:6px" />
-                                <span>{{ selectedRoom?.name || 'Chọn phòng' }}</span>
-                            </button>
-                            <button v-if="selectedRoom?.imageCount > 0" class="btn btn-light btn-sm" type="button" v-bind:data-room-photos="'/api/admin/properties/' + propertyId + '/rooms/' + selectedRoom.id + '/photos'">Xem ảnh ({{ selectedRoom.imageCount }})</button>
+                            <div class="room-pick" data-room-photo-picker-ui>
+                                <button type="button" class="room-pick-photo" v-if="selectedRoom?.imageCount > 0" v-bind:data-room-photos="'/api/admin/properties/' + propertyId + '/rooms/' + selectedRoom.id + '/photos'" v-bind:data-room-name="selectedRoom.name" v-bind:aria-label="'Xem ' + selectedRoom.imageCount + ' ảnh ' + selectedRoom.name">
+                                    <img v-if="selectedRoom.coverThumbnailUrl" v-bind:src="selectedRoom.coverThumbnailUrl" alt="" width="64" height="48" decoding="async" />
+                                    <em>{{ selectedRoom.imageCount }}</em>
+                                </button>
+                                <span class="room-pick-photo is-empty" v-else aria-hidden="true"></span>
+                                <button type="button" class="room-pick-main" data-room-photo-picker v-bind:data-property-id="propertyId">
+                                    <span><strong>{{ selectedRoom?.name || 'Chọn phòng' }}</strong><small v-if="selectedRoom">{{ selectedRoom.code }} · {{ selectedRoom.capacity }} người{{ selectedRoom.imageCount > 0 ? '' : ' · chưa có ảnh' }}</small><small v-else>Bấm để xem ảnh và chọn phòng</small></span>
+                                    <span class="room-pick-caret" aria-hidden="true">›</span>
+                                </button>
+                            </div>
                         </div>
                         <div class="field">
                             <label>Mức giá</label>

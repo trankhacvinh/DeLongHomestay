@@ -135,3 +135,70 @@
  .public-v2-viewport.is-multi .public-v2-head-room span strong{font-size:11px}
  .public-v2-viewport.is-multi .public-v2-slot-bar{font-size:9px}
 }
+
+/* ---------- 2026-11 room photos in the room picker ----------
+   Phones (one room at a time): current-room card + swipeable strip of every room with its photo.
+   Wide screens (all rooms as columns): slim bar that opens the room list; column heads open the album. */
+.public-v2-roompicker{display:grid;gap:12px;min-width:0;padding:12px;border:1.5px solid #12292b;border-radius:20px;background:#fff}
+.public-v2-roompicker[hidden],.public-v2-roomsbar[hidden],.public-v2-roomstrip[hidden]{display:none}
+.public-v2-roomcard{display:grid;grid-template-columns:104px minmax(0,1fr) auto;align-items:center;gap:14px;min-width:0}
+.public-v2-roomcard-photo{position:relative;width:104px;height:78px;padding:0;border:0;border-radius:14px;background:#f7f3ec url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a9b5b3' stroke-width='1.6'%3E%3Cpath d='M4 8h3l2-3h6l2 3h3v11H4z' stroke-linejoin='round'/%3E%3Ccircle cx='12' cy='13' r='3.5'/%3E%3C/svg%3E") center/26px no-repeat;overflow:hidden;cursor:zoom-in;-webkit-tap-highlight-color:transparent}
+.public-v2-roomcard-photo:disabled{cursor:default}
+.public-v2-roomcard-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.public-v2-roomcard-photo img[hidden]{display:none}
+.public-v2-roomcard-photo em,.public-v2-head-photo em{position:absolute;right:5px;bottom:5px;display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:999px;background:rgba(10,30,32,.78);color:#fff;font-size:11.5px;font-style:normal;font-weight:800;line-height:1.4}
+.public-v2-roomcard-photo em[hidden]{display:none}
+.public-v2-roomcard-photo em::before,.public-v2-head-photo em::before{content:"";width:11px;height:9px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 20'%3E%3Cpath d='M2 5h5l2-3h6l2 3h5v13H2z M12 7a4.5 4.5 0 100 9 4.5 4.5 0 000-9z' fill-rule='evenodd'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 20'%3E%3Cpath d='M2 5h5l2-3h6l2 3h5v13H2z M12 7a4.5 4.5 0 100 9 4.5 4.5 0 000-9z' fill-rule='evenodd'/%3E%3C/svg%3E") center/contain no-repeat}
+.public-v2-roomcard-copy{display:grid;gap:2px;min-width:0}
+.public-v2-roomcard-copy small{color:#5c6b6c;font-size:11px;font-weight:700;letter-spacing:.08em}
+.public-v2-roomcard-copy strong{color:#12292b;font-size:21px;font-weight:900;line-height:1.15;letter-spacing:-.02em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.public-v2-roomcard-copy span{color:#3e5254;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.public-v2-roomcard-nav{display:flex;gap:6px}
+.public-v2-roomcard-nav button{display:grid;place-items:center;width:44px;height:44px;padding:0 0 3px;border:1.5px solid #12292b;border-radius:999px;background:#fff;color:#12292b;font-size:26px;line-height:1;cursor:pointer}
+.public-v2-roomcard-nav button:disabled{opacity:.3;cursor:default}
+.public-v2-roomstrip{position:relative;display:flex;gap:8px;min-width:0;margin:0 -12px -2px;padding:2px 12px 4px;overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent)}
+.public-v2-roomstrip::-webkit-scrollbar{display:none}
+.public-v2-roomchip{flex:none;display:flex;align-items:center;gap:8px;max-width:180px;height:48px;padding:4px 14px 4px 4px;border:1.5px solid #e3dccf;border-radius:14px;background:#fff;color:#12292b;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s,background-color .15s}
+.public-v2-roomchip span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.public-v2-roomchip:hover{border-color:#12292b}
+.public-v2-roomchip.is-active{border-color:#12292b;background:#12292b;color:#fff}
+.public-v2-roomchip.is-locked:not(.is-active){color:#7b8b8c}
+.public-v2-roomchip-photo{position:relative;flex:none;width:52px;height:38px;border-radius:10px;background:#f7f3ec;overflow:hidden}
+.public-v2-roomchip-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.public-v2-roomchip-photo.is-empty{background:#f7f3ec url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a9b5b3' stroke-width='1.8'%3E%3Cpath d='M4 8h3l2-3h6l2 3h3v11H4z' stroke-linejoin='round'/%3E%3Ccircle cx='12' cy='13' r='3.5'/%3E%3C/svg%3E") center/18px no-repeat}
+.public-v2-roomchip.is-all{position:sticky;left:0;z-index:1;padding-left:12px;background:#f7f3ec;border-color:#f7f3ec;box-shadow:-12px 0 0 #fff,10px 0 0 #fff,24px 0 12px -2px rgba(255,255,255,.92)}
+.public-v2-roomchip.is-all:hover{border-color:#12292b}
+.public-v2-roomchip-grid{width:16px;height:16px;flex:none;background:linear-gradient(currentColor 0 0) 0 0/7px 7px no-repeat,linear-gradient(currentColor 0 0) 100% 0/7px 7px no-repeat,linear-gradient(currentColor 0 0) 0 100%/7px 7px no-repeat,linear-gradient(currentColor 0 0) 100% 100%/7px 7px no-repeat;border-radius:2px}
+.public-v2-roomchip-branch{flex:none;align-self:center;max-width:104px;overflow:hidden;text-overflow:ellipsis;line-height:1.25;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;padding:0 2px 0 10px;border-left:1.5px solid #e3dccf;color:#5c6b6c;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.public-v2-roomsbar{display:flex;align-items:center;justify-content:flex-end;gap:14px;margin-bottom:-6px}
+.public-v2-roomsbar span{color:#5c6b6c;font-size:14px;font-weight:600}
+.public-v2-roomsbar button{display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:0 18px 0 14px;border:1.5px solid #12292b;border-radius:999px;background:#fff;color:#12292b;font:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.public-v2-roomsbar button::before{content:"";width:16px;height:16px;background:linear-gradient(currentColor 0 0) 0 0/7px 7px no-repeat,linear-gradient(currentColor 0 0) 100% 0/7px 7px no-repeat,linear-gradient(currentColor 0 0) 0 100%/7px 7px no-repeat,linear-gradient(currentColor 0 0) 100% 100%/7px 7px no-repeat}
+.public-v2-roomsbar button:hover{background:#12292b;color:#fff}
+.public-v2-grid-head>.public-v2-head-room.has-photos{cursor:zoom-in}
+.public-v2-grid-head>.public-v2-head-room.has-photos:hover strong{text-decoration:underline;text-underline-offset:3px}
+.public-v2-head-photo{position:relative;flex:none;display:block;width:44px;height:33px;border-radius:9px;overflow:hidden;font-style:normal}
+.public-v2-head-room .public-v2-head-photo img{width:100%;height:100%;border-radius:0}
+.public-v2-head-photo em{right:2px;bottom:2px;padding:0 4px;font-size:9.5px;gap:2px}
+.public-v2-head-photo em::before{width:8px;height:7px}
+.public-v2-head-room.is-flash{animation:public-v2-flash 1.2s ease-out}
+@keyframes public-v2-flash{0%,40%{background:#ffff00}100%{background:#f7f3ec}}
+@media(max-width:760px){
+    .public-v2-roompicker{gap:10px;padding:10px;border-radius:17px}
+    .public-v2-roomcard{grid-template-columns:80px minmax(0,1fr) auto;gap:10px}
+    .public-v2-roomcard-photo{width:80px;height:60px;border-radius:12px}
+    .public-v2-roomcard-copy small{font-size:10px}
+    .public-v2-roomcard-copy strong{font-size:16px}
+    .public-v2-roomcard-copy span{font-size:12px}
+    .public-v2-roomcard-nav{gap:4px}
+    .public-v2-roomcard-nav button{width:38px;height:38px;font-size:23px}
+    .public-v2-roomstrip{margin-inline:-10px;padding-inline:10px}
+    .public-v2-roomchip{height:44px;max-width:150px;font-size:12.5px;padding-right:12px}
+    .public-v2-roomchip-photo{width:46px;height:34px;border-radius:9px}
+    .public-v2-roomsbar{justify-content:space-between;margin-bottom:-2px;padding:8px 8px 8px 14px;border:1.5px solid #12292b;border-radius:16px;background:#fff}
+    .public-v2-roomsbar span{font-size:12.5px}
+    .public-v2-roomsbar button{min-height:38px;padding:0 14px;font-size:12.5px}
+    .public-v2-head-photo{width:30px;height:30px}
+    .public-v2-head-photo em{display:none}
+}
+@media(prefers-reduced-motion:reduce){.public-v2-head-room.is-flash{animation:none}.public-v2-roomchip{transition:none}}
