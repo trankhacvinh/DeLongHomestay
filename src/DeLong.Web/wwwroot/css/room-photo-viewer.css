@@ -108,4 +108,36 @@
     .rp-item-photo{width:84px;min-height:63px}
 }
 @keyframes rp-up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+/* Desktop album on the public site: dark full-size lightbox, same look as the room section gallery. */
+@media(min-width:900px){
+    body:not(.admin-tabler) .rp:has(.rp-album){--rp-stage:#08110f;width:min(1120px,94vw);max-height:none}
+    body:not(.admin-tabler) .rp:has(.rp-album)::backdrop{background:rgba(5,13,12,.84);backdrop-filter:blur(5px)}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-sheet{height:min(820px,90vh);background:#0b1715;color:#fff;border-radius:18px;box-shadow:0 30px 90px rgba(0,0,0,.5)}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-head{position:absolute;inset:0 0 auto;z-index:4;min-height:0;padding:14px 14px 28px 22px;border:0;background:linear-gradient(rgba(8,17,15,.78),rgba(8,17,15,0));pointer-events:none}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-head>*{pointer-events:auto}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-titles h2{color:#fff;font-size:16px}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-titles small{color:#b9c9c5}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-count{background:rgba(255,255,255,.12);color:#fff}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-close,body:not(.admin-tabler) .rp:has(.rp-album) .rp-back{width:42px;height:42px;border:1px solid rgba(255,255,255,.28);background:rgba(8,24,21,.65);color:#fff;backdrop-filter:blur(8px)}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-close:hover,body:not(.admin-tabler) .rp:has(.rp-album) .rp-back:hover{background:rgba(8,24,21,.9)}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-album{flex:1;overflow:hidden}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-stage{flex:1;min-height:0;display:flex}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-track{flex:1;height:100%}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-slide{aspect-ratio:auto;height:100%;max-height:none}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-nav{width:46px;height:60px;margin-top:-30px;border:1px solid rgba(255,255,255,.28);border-radius:12px;background:rgba(8,24,21,.65);color:#fff;font-size:34px;box-shadow:none;backdrop-filter:blur(8px)}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-nav:hover{background:rgba(8,24,21,.9)}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-prev{left:14px}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-next{right:14px}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-thumbs{flex:none;justify-content:safe center;gap:6px;padding:10px 16px;background:#0b1715;scrollbar-width:none}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-thumbs::-webkit-scrollbar{display:none}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-thumb{width:64px;height:48px;border-radius:8px;background:#13221f;opacity:.45}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-thumb[aria-current=true]{border-color:#fff;opacity:1}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-thumb:hover{opacity:.9}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-foot{display:flex;justify-content:center;padding:4px 16px 16px;border:0;background:#0b1715}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-foot[hidden]{display:none}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-choose{width:auto;min-width:260px;min-height:46px;padding:0 28px;border-radius:999px;background:#f3ead8;color:#12292b;font-size:15px}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-choose:hover{background:#fff}
+    body:not(.admin-tabler) .rp:has(.rp-album) .rp-choose:disabled{background:rgba(255,255,255,.12);color:#9fb3ae}
+    body:not(.admin-tabler) .rp:has(.rp-album) :focus-visible{outline-color:rgba(255,255,255,.6)}
+}
 @media(prefers-reduced-motion:reduce){.rp[open]{animation:none}.rp-slide{animation:none}.rp-dots i{transition:none}}
