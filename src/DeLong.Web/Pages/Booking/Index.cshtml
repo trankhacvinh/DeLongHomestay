@@ -50,9 +50,17 @@ else
                          v-bind:data-room-capacity="selectedRoom.capacity" aria-label="Lựa chọn đặt phòng">
                     <div class="public-embedded-selection-heading">
                         <div>
-                            <span class="public-eyebrow">Lựa chọn của bạn</span>
-                            <h2>{{ selectedRoom.name }}</h2>
-                            <p>{{ propertyName }}<template v-if="roomImageCount(selectedRoom) > 0"> · <button type="button" class="public-embedded-room-photo" v-on:click="openRoomGallery(selectedRoom)">Xem {{ roomImageCount(selectedRoom) }} ảnh phòng</button></template></p>
+                        <span class="public-eyebrow">Lựa chọn của bạn</span>
+                        <div class="public-embedded-room-head">
+                            <button type="button" class="public-embedded-room-photo" v-if="roomImageCount(selectedRoom) > 0" v-on:click="openRoomGallery(selectedRoom)">
+                                <img v-bind:src="roomImage(selectedRoom).thumbnailUrl" alt="" decoding="async" />
+                                <span>Xem {{ roomImageCount(selectedRoom) }} ảnh phòng</span>
+                            </button>
+                            <div>
+                                <h2>{{ selectedRoom.name }}</h2>
+                                <p>{{ propertyName }}</p>
+                            </div>
+                        </div>
                         </div>
                         <div class="public-embedded-selection-price">
                             <small>Tổng tiền</small>
