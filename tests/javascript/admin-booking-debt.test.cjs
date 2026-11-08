@@ -7,7 +7,7 @@ const localDateKey = new Function('timeZone', `${dateSource};return localDateKey
 const block = source.slice(source.indexOf('            filteredDebtSummary()'), source.indexOf('            editableStayRooms()'));
 const functions = new Function('localDateKey',`return ({${block}});`)(localDateKey);
 function app(bookings) {
-    const a = {bookings,search:'',statusFilter:'',debtOnly:true,dateFrom:'',dateTo:'',sortMode:'debt-desc'};
+    const a = {bookings,search:'',statusFilter:'',creationOriginFilter:'',debtOnly:true,dateFrom:'',dateTo:'',sortMode:'debt-desc'};
     Object.defineProperty(a,'filteredBookings',{get:()=>functions.filteredBookings.call(a)});
     return a;
 }

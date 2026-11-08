@@ -31,7 +31,8 @@ public sealed class BookingService(
         if (to.HasValue) { var utc = to.Value.UtcDateTime; query = query.Where(x => x.CheckInUtc < utc); }
         var bookings = await Project(query.OrderBy(x => x.CheckInUtc)).ToListAsync(cancellationToken);
         var displays = await BookingScheduleDisplay.LoadAsync(db, propertyId, bookings.Select(x => x.Id).ToArray(), cancellationToken);
-        return bookings.Select(x => x with { IsFlexibleTime = displays[x.Id].IsFlexibleTime, IsMixedSlot = displays[x.Id].IsMixedSlot }).ToList();
+        var origins = await BookingCreationOriginResolver.LoadAsync(db, propertyId, bookings.Select(x => x.Id).ToArray(), cancellationToken);
+        return bookings.Select(x => x with { IsFlexibleTime = displays[x.Id].IsFlexibleTime, IsMixedSlot = displays[x.Id].IsMixedSlot, CreationOrigin = origins.GetValueOrDefault(x.Id) }).ToList();
     }
 
     public async Task<BookingDto?> GetAsync(Guid propertyId, Guid bookingId, CancellationToken cancellationToken = default)
@@ -39,7 +40,8 @@ public sealed class BookingService(
         var booking = await Project(db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && x.Id == bookingId)).SingleOrDefaultAsync(cancellationToken);
         if (booking is null) return null;
         var displays = await BookingScheduleDisplay.LoadAsync(db, propertyId, [bookingId], cancellationToken);
-        return booking with { IsFlexibleTime = displays[bookingId].IsFlexibleTime, IsMixedSlot = displays[bookingId].IsMixedSlot };
+        var origins = await BookingCreationOriginResolver.LoadAsync(db, propertyId, [bookingId], cancellationToken);
+        return booking with { IsFlexibleTime = displays[bookingId].IsFlexibleTime, IsMixedSlot = displays[bookingId].IsMixedSlot, CreationOrigin = origins.GetValueOrDefault(bookingId) };
     }
 
     public async Task<(BookingDto? Booking, BookingOperationError? Error)> CreateAsync(Guid propertyId, CreateBookingRequest request, Guid? actorUserId = null, CancellationToken cancellationToken = default)
@@ -264,7 +266,7 @@ public sealed class BookingService(
         x.RoomAmount, x.SpecialSurchargeAmount, x.ExtraAmount, x.DiscountAmount, x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount,
         x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
         x.RoomAmount + x.SpecialSurchargeAmount + x.ExtraAmount - x.DiscountAmount - x.Payments.Where(p => !p.IsVoided).Sum(p => p.Type == PaymentType.Receipt ? p.Amount : -p.Amount),
-        x.Source, x.Note, x.RateSegments.Count(), x.CreatedAtUtc, x.DisplayColor, null, null));
+        x.Source, x.Note, x.RateSegments.Count(), x.CreatedAtUtc, x.DisplayColor, null, null, BookingCreationOrigin.Unknown));
 
     private static object Snapshot(Booking b) => new { b.Id, b.Code, Type = b.Type.ToString(), b.RoomId, b.CustomerId, b.RoomRateId, b.RateName, b.UnitPrice, b.NightCount, b.CheckInUtc, b.CheckOutUtc, Status = b.Status.ToString(), b.RoomAmount, b.SpecialSurchargeAmount, b.ExtraAmount, b.DiscountAmount, b.Source, b.Note, b.DisplayColor };
 

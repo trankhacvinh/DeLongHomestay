@@ -37,7 +37,8 @@ public sealed record BookingDto(
     DateTime CreatedAtUtc,
     string? DisplayColor = null,
     bool? IsFlexibleTime = null,
-    bool? IsMixedSlot = null);
+    bool? IsMixedSlot = null,
+    BookingCreationOrigin CreationOrigin = BookingCreationOrigin.Unknown);
 
 public sealed class CreateBookingRequest
 {

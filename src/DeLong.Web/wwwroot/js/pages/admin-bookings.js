@@ -59,6 +59,7 @@
                 canManage: window.DeLongBookingsCanManage === true,
                 search: '',
                 statusFilter: '',
+                creationOriginFilter: '',
                 debtOnly: false,
                 dateFrom: '',
                 dateTo: '',
@@ -101,6 +102,7 @@
                 if (this.dateFrom && this.dateTo && this.dateFrom > this.dateTo) return [];
                 if (this.createdFrom && this.createdTo && this.createdFrom > this.createdTo) return [];
                 const rows = this.bookings.filter(booking => {
+                    if (this.creationOriginFilter !== '' && Number(booking.creationOrigin ?? 0) !== Number(this.creationOriginFilter)) return false;
                     if (this.debtOnly && ([5, 6].includes(Number(booking.status)) || Number(booking.balanceAmount || 0) <= 0)) return false;
                     if (this.createdFrom || this.createdTo) {
                         if (!booking.createdAtUtc || !Number.isFinite(new Date(booking.createdAtUtc).getTime())) return false;
@@ -192,6 +194,9 @@
                 if (status === 2 || status === 3 || status === 4) return 'success';
                 if (status === 5 || status === 6) return 'danger';
                 return 'info';
+            },
+            creationOriginText(origin) {
+                return ({ 1: 'Khách tự đặt', 2: 'Nhân viên tạo' })[Number(origin)] || 'Chưa xác định';
             },
             sourceText(source) {
                 if (!source) return 'Không rõ nguồn';

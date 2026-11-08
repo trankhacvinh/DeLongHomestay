@@ -40,7 +40,7 @@
             <label>Từ ngày tạo booking<input type="date" v-model="createdFrom" v-bind:max="createdTo || undefined" /></label>
             <label>Đến ngày tạo booking<input type="date" v-model="createdTo" v-bind:min="createdFrom || undefined" /></label>
             <button class="btn btn-light" type="button" v-on:click="dateFrom = ''; dateTo = ''; createdFrom = ''; createdTo = ''">Tất cả thời gian</button>
-            <div role="status"><strong>{{ filteredDebtSummary.count }} booking còn nợ · {{ money(filteredDebtSummary.amount) }}</strong><small>Theo bộ lọc hiện tại; không tính đơn hủy/không đến. Ngày tạo booking là ngày khách hoặc nhân viên gửi đặt phòng, độc lập với ngày nhận phòng.</small></div>
+            <div role="status"><strong v-bind:class="{ 'text-danger': filteredDebtSummary.count > 0 }" data-booking-debt-summary>{{ filteredDebtSummary.count }} booking còn nợ · {{ money(filteredDebtSummary.amount) }}</strong><small>Theo bộ lọc hiện tại; không tính đơn hủy/không đến. Ngày tạo booking là ngày khách hoặc nhân viên gửi đặt phòng, độc lập với ngày nhận phòng.</small></div>
             <div role="status" data-booking-created-today><strong>Hôm nay tạo mới: {{ createdTodayCount }} lượt đặt</strong><small>Gồm khách tự đặt và nhân viên tạo, kể cả đơn đã hủy. Tính theo ngày tạo, không phụ thuộc bộ lọc.</small></div>
             <p class="text-danger" v-if="dateFrom && dateTo && dateFrom > dateTo">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>
             <p class="text-danger" v-if="createdFrom && createdTo && createdFrom > createdTo">Ngày tạo bắt đầu phải trước hoặc bằng ngày tạo kết thúc.</p>
@@ -58,6 +58,12 @@
                     <option value="5">Đã hủy</option>
                     <option value="6">Không đến</option>
                 </select>
+                <select class="filter-select" v-model="creationOriginFilter" aria-label="Người tạo booking">
+                    <option value="">Tất cả người tạo</option>
+                    <option value="1">Khách tự đặt</option>
+                    <option value="2">Nhân viên tạo</option>
+                    <option value="0">Chưa xác định</option>
+                </select>
                 <select class="filter-select booking-sort-select" v-model="sortMode" aria-label="Sắp xếp lượt đặt">
                     <option value="operations">Đang xử lý trước</option>
                     <option value="debt-desc">Nợ nhiều nhất</option>
@@ -73,7 +79,7 @@
                 <thead><tr><th>Mã</th><th>Khách hàng</th><th>Phòng</th><th>Thời gian</th><th>Trạng thái</th><th>Thanh toán</th><th>Còn lại</th><th></th></tr></thead>
                 <tbody>
                     <tr v-for="booking in filteredBookings" v-bind:key="booking.id" class="clickable-row" tabindex="0" v-bind:aria-label="`Xem chi tiết ${booking.code}`" v-on:click="openBooking(booking)" v-on:keydown.enter="openBooking(booking)" v-on:keydown.space.prevent="openBooking(booking)">
-                        <td data-label="Mã"><span class="booking-code">{{ booking.code }}</span><div class="tiny muted">{{ sourceText(booking.source) }}</div></td>
+                        <td data-label="Mã"><span class="booking-code">{{ booking.code }}</span><div class="tiny muted" data-booking-creation-origin>{{ creationOriginText(booking.creationOrigin) }}</div><div class="tiny muted">{{ sourceText(booking.source) }}</div></td>
                         <td data-label="Khách hàng">
                             <div class="entity-cell"><span class="entity-avatar">{{ (booking.customerName || '?').charAt(0) }}</span><div class="entity-copy"><strong>{{ booking.customerName }}</strong><span>{{ booking.customerPhone }}</span></div></div>
                         </td>
@@ -84,7 +90,7 @@
                         <td data-label="Còn lại"><strong class="booking-balance" v-bind:class="{ 'text-success': booking.balanceAmount <= 0, 'text-danger': booking.balanceAmount > 0 }">{{ money(booking.balanceAmount) }}</strong></td>
                         <td data-label="Thao tác"><button class="btn btn-light btn-sm row-action" type="button" v-on:click.stop="openBooking(booking)">Chi tiết</button></td>
                     </tr>
-                    <tr v-if="filteredBookings.length === 0" class="booking-empty-row"><td colspan="8" class="empty-state"><strong>Không tìm thấy lượt đặt</strong>Thử đổi từ khóa hoặc bộ lọc trạng thái.</td></tr>
+                    <tr v-if="filteredBookings.length === 0" class="booking-empty-row"><td colspan="8" class="empty-state"><strong>Không tìm thấy lượt đặt</strong>Thử đổi từ khóa hoặc bộ lọc.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -112,7 +118,7 @@
                         <div><span>Email</span><strong>{{ guestDetails.customerEmail || 'Không cung cấp' }}</strong></div>
                         <div><span>Số khách</span><strong>{{ guestDetails.guestCount || 1 }} khách</strong><small>Tối đa {{ guestDetails.maxGuests || 1 }} khách/phòng</small></div>
                     </div>
-                    <div class="admin-booking-policy-state" v-bind:class="{ 'is-staff': !guestDetails.policyAccepted }">{{ guestDetails.policyAccepted ? 'Đã đồng ý Nội quy & Chính sách' : (String(selectedBooking.source || '').toLowerCase() === 'website' ? 'Booking web chưa đồng bộ đủ xác nhận chính sách' : 'Booking do nhân viên tạo') }}</div>
+                    <div class="admin-booking-policy-state" v-bind:class="{ 'is-staff': !guestDetails.policyAccepted }">{{ guestDetails.policyAccepted ? 'Đã đồng ý Nội quy & Chính sách' : (Number(selectedBooking.creationOrigin) === 1 ? 'Booking web chưa đồng bộ đủ xác nhận chính sách' : (Number(selectedBooking.creationOrigin) === 2 ? 'Booking do nhân viên tạo' : 'Chưa có xác nhận Nội quy & Chính sách')) }}</div>
                     <div class="admin-booking-id-title"><strong>CCCD / giấy tờ tùy thân</strong><span>{{ guestDetails.documents.length }}/2 ảnh</span></div>
                     <div class="admin-booking-detail-id-grid">
                         <div class="admin-booking-detail-id" v-for="side in ['front', 'back']" v-bind:key="side"><strong>{{ side === 'front' ? 'Mặt trước' : 'Mặt sau' }}</strong><a v-if="hasIdentity(side)" v-bind:href="identityUrl(selectedBooking.id, side)" target="_blank" rel="noopener"><img v-bind:src="identityUrl(selectedBooking.id, side)" v-bind:alt="side === 'front' ? 'CCCD mặt trước' : 'CCCD mặt sau'" /></a><span v-else class="empty">Chưa có ảnh</span></div>
