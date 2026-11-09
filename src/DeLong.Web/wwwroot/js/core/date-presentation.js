@@ -5,6 +5,7 @@
 
     const selector = 'input[type="date"], input[type="datetime-local"], input[type="month"]';
     const fields = new Map();
+    const openPickers = new Set();
     const valueProperty = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
     const locale = global.flatpickr.l10ns.vn || global.flatpickr.l10ns.default;
     global.flatpickr.setDefaults({ locale, time_24hr: true, disableMobile: true });
@@ -91,6 +92,7 @@
         });
 
         fields.set(input, { instance, labels, previousValueProperty, defaultValue });
+        if (instance.timeContainer) openPickers.add(instance);
         syncAttributes(input);
     }
 
@@ -117,7 +119,21 @@
         root.querySelectorAll(selector).forEach(enhance);
     }
 
+    // Typing an hour/minute and then tapping outside the picker closed it before the typed value was
+    // read (flatpickr only reads the time boxes on blur), so the display and the form kept the old
+    // time. Blur the time box first so flatpickr commits it, then let the outside tap close the picker.
+    function commitTypedTime(event) {
+        const active = document.activeElement;
+        for (const instance of openPickers) {
+            if (!instance.isOpen || !instance.timeContainer?.contains(active)) continue;
+            if (instance.calendarContainer?.contains(event.target)) continue;
+            active.blur();
+        }
+    }
+
     function start() {
+        for (const type of ['pointerdown', 'mousedown', 'touchstart'])
+            document.addEventListener(type, commitTypedTime, { capture: true, passive: true });
         scan(document);
         new MutationObserver(mutations => {
             for (const mutation of mutations) {
@@ -130,6 +146,7 @@
             for (const [input, field] of fields) {
                 if (input.isConnected) continue;
                 fields.delete(input);
+                openPickers.delete(field.instance);
                 if (field.previousValueProperty) Object.defineProperty(input, 'value', field.previousValueProperty);
                 else delete input.value;
                 for (const label of field.labels) if (label.htmlFor === field.instance.altInput.id) label.htmlFor = input.id;

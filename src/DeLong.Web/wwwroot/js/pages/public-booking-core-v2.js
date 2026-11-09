@@ -661,6 +661,26 @@
         }
     }
 
+    // Photos chosen earlier in the form are usually already staged on the server. Their sides go
+    // with the booking request so the server attaches them before answering: guests often close
+    // the page right after booking. A side still uploading is not waited for; it goes through the
+    // background upload after the booking as before.
+    function stagedSidesForSubmit(documents) {
+        const staged = [];
+        for (const [side, file] of documents) {
+            const entry = stagedUploads.get(side);
+            if (entry && entry.done && !entry.cancelled && entry.file === file) staged.push(side);
+        }
+        return staged;
+    }
+
+    function markServerClaimed(bookingId, documents, sides) {
+        if (!Array.isArray(sides) || !sides.length) return;
+        const uploaded = uploadedIdentityFiles.get(bookingId) || new Map();
+        uploadedIdentityFiles.set(bookingId, uploaded);
+        for (const [side, file] of documents) if (sides.includes(side)) uploaded.set(side, file);
+    }
+
     // Guests must reach the QR at once: the booking is saved, so the remaining CCCD work (claiming
     // staged photos, uploading any still in flight, /complete) moves to the next page. The prepared
     // photos are kept in IndexedDB and identity-handoff.js finishes them on the payment page while the
@@ -670,7 +690,9 @@
         if (!handoff?.isSupported?.()) return false;
         try {
             const sides = [];
+            const attached = Array.isArray(result.identitySides) ? result.identitySides : [];
             for (const [side, file] of documents) {
+                if (attached.includes(side)) continue; // already on the booking (attached by the server)
                 const entry = stagedUploads.get(side);
                 const staged = !!(entry && entry.done && entry.file === file);
                 let blob = preparedFiles.get(file) || null;
@@ -727,6 +749,7 @@
                 }
                 setProgress('Đang lưu thông tin đặt phòng…');
                 await createPendingCustomerAccount(originalPost);
+                const stagedSides = stagedSidesForSubmit(selectedDocuments);
                 const payload = {
                     ...data,
                     customerEmail: state.email,
@@ -737,10 +760,13 @@
                     hasIdentityFront: !!state.front || state.savedIdentity,
                     hasIdentityBack: !!state.back || state.savedIdentity,
                     hasSecondIdentityFront: !!state.secondFront,
-                    hasSecondIdentityBack: !!state.secondBack
+                    hasSecondIdentityBack: !!state.secondBack,
+                    identityStagingKey: stagedSides.length ? stagingKey : null,
+                    identityStagedSides: stagedSides
                 };
                 const result = await withBookingTimeout(signal => originalPost(url, payload, headers, { signal }));
                 const requestKey = headers?.['Idempotency-Key'] || headers?.['idempotency-key'] || '';
+                if (result?.bookingId) markServerClaimed(result.bookingId, selectedDocuments, result.identitySides);
                 if (result?.bookingId && requestKey && await handOffIdentity(result, selectedDocuments, requestKey)) return result;
                 if (result?.bookingId && requestKey) {
                     const stage = showPaymentStage(selectedDocuments, Boolean(result.paymentUrl));
