@@ -7,7 +7,14 @@
     const STORE = 'jobs';
     const FLAG = 'delong.identityHandoff';
     const LEASE = 'delong.identityHandoff.lease';
-    const MAX_AGE_MS = 2 * 60 * 60 * 1000; // staged photos are purged on the server after 2 hours
+    // Staged copies on the server are purged after 2 hours, but every job also keeps the compressed
+    // photos themselves, so a guest who comes back later (after paying in the bank app, the next
+    // day...) still delivers them. Only give up after a few days.
+    const MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+    const RETRY_MS = 15000;
+    // Network trouble, rate limits and server errors are worth another try; other 4xx mean the
+    // booking is gone or already ended.
+    const retryable = status => !status || status === 408 || status === 425 || status === 429 || status >= 500;
     const labels = { front: 'mặt trước', back: 'mặt sau', 'second-front': 'mặt trước người thứ hai', 'second-back': 'mặt sau người thứ hai' };
 
     // iOS WebKit (Safari and Chrome on iPhone) can leave an IndexedDB request pending forever, for
@@ -97,7 +104,7 @@
                 const response = await postJson(`/api/public/booking-requests/${encodeURIComponent(job.bookingId)}/identity-staging/claim${query(job.siteSlug)}`,
                     { stagingKey: job.stagingKey, sides: staged }, job.requestKey);
                 claimed = Array.isArray(response?.sides) ? response.sides : [];
-            } catch (error) { if (!error.status || error.status >= 500) throw error; }
+            } catch (error) { if (retryable(error.status)) throw error; }
         }
         for (const item of job.sides) {
             if (claimed.includes(item.side)) continue;
@@ -109,7 +116,7 @@
         }
         await postJson(`/api/public/booking-requests/${encodeURIComponent(job.bookingId)}/complete${query(job.siteSlug)}`, {}, job.requestKey).catch(error => {
             // booking_incomplete only means staff will see a missing side; nothing more to retry.
-            if (!error.status || error.status >= 500) throw error;
+            if (retryable(error.status)) throw error;
         });
     }
 
@@ -119,7 +126,7 @@
         if (storage(local => local.getItem(FLAG)) !== '1') return Promise.resolve();
         // One tab at a time: a second tab waits for the first tab's lease to expire.
         const lease = Number(storage(local => local.getItem(LEASE)) || 0);
-        if (lease > Date.now()) return Promise.resolve();
+        if (lease > Date.now()) { scheduleRetry(); return Promise.resolve(); }
         running = (async () => {
             const renew = () => storage(local => local.setItem(LEASE, String(Date.now() + 60000)));
             renew();
@@ -130,20 +137,35 @@
                     if (Date.now() - (job.createdAt || 0) > MAX_AGE_MS) { await remove(job.bookingId); continue; }
                     try { await finish(job); await remove(job.bookingId); }
                     catch (error) {
-                        // 4xx other than conflicts: the booking is gone or locked, retrying cannot help.
-                        if (error.status >= 400 && error.status < 500) await remove(job.bookingId);
+                        // The booking is gone or ended: retrying cannot help. Anything else stays for the next try.
+                        if (!retryable(error.status)) await remove(job.bookingId);
                     }
                 }
                 const left = await withStore('readonly', store => store.count());
                 if (!left) storage(local => local.removeItem(FLAG));
-            } catch { /* IndexedDB unavailable: nothing to resume */ }
-            finally { clearInterval(timer); storage(local => local.removeItem(LEASE)); running = null; }
+            } catch { /* IndexedDB slow or unavailable: the retry timer tries again */ }
+            finally { clearInterval(timer); storage(local => local.removeItem(LEASE)); running = null; scheduleRetry(); }
         })();
         return running;
+    }
+
+    // Keep trying while this page is open and jobs are left: an upload cut off when the guest switched
+    // to the bank app, a slow IndexedDB open on iPhone or a dropped connection used to wait for the
+    // next page load, and the photos were lost if the guest never opened the site again.
+    let retryTimer = null;
+    function scheduleRetry() {
+        if (retryTimer || storage(local => local.getItem(FLAG)) !== '1') return;
+        retryTimer = setTimeout(() => { retryTimer = null; if (!document.hidden) void resume(); else scheduleRetry(); }, RETRY_MS);
+    }
+    function resumeNow() {
+        if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+        void resume();
     }
 
     window.DeLongIdentityHandoff = { save, resume, isSupported: () => !!window.indexedDB };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { void resume(); }, { once: true });
     else void resume();
-    window.addEventListener('online', () => { void resume(); });
+    window.addEventListener('online', resumeNow);
+    window.addEventListener('pageshow', event => { if (event.persisted) resumeNow(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) resumeNow(); });
 })();
