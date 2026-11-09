@@ -95,6 +95,27 @@ public static class PublicBookingEndpoints
                         customerUserId.Value, paymentProperty.Id, result.BookingId, identityStorage, ct);
                 }
                 logger.LogInformation("Booking submit: phase=account elapsedMs={ElapsedMs} trace={TraceId}", watch.ElapsedMilliseconds, http.TraceIdentifier);
+                if (!string.IsNullOrWhiteSpace(request.IdentityStagingKey) && request.IdentityStagedSides.Count > 0)
+                {
+                    // Attach the photos staged while the guest filled the form now, inside the submit,
+                    // so they do not depend on the guest keeping the next page open.
+                    IReadOnlyList<string> claimed = [];
+                    try
+                    {
+                        claimed = await identityStorage.ClaimStagedAsync(paymentProperty.Id, request.IdentityStagingKey,
+                            result.BookingId, request.IdentityStagedSides.Take(4), ct);
+                        if (customerUserId.HasValue)
+                            foreach (var side in claimed.Where(side => side is "front" or "back"))
+                                await identityStorage.CopyAsync(paymentProperty.Id, result.BookingId, customerUserId.Value, side, ct);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                    {
+                        // The page still holds the photos and uploads any side that was not attached here.
+                        logger.LogWarning(ex, "Booking submit: staged identity claim failed trace={TraceId}", http.TraceIdentifier);
+                    }
+                    result = result with { IdentitySides = claimed };
+                    logger.LogInformation("Booking submit: phase=identity claimed={Claimed} elapsedMs={ElapsedMs} trace={TraceId}", string.Join(',', claimed), watch.ElapsedMilliseconds, http.TraceIdentifier);
+                }
                 var prefix = PublicPropertyResolver.ScopePrefix(siteSlug);
                 if (!result.PaymentRequired)
                 {

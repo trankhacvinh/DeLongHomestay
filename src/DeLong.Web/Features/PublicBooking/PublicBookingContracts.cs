@@ -71,6 +71,10 @@ public sealed class PublicBookingRequest
     public bool HasIdentityBack { get; init; }
     public bool HasSecondIdentityFront { get; init; }
     public bool HasSecondIdentityBack { get; init; }
+    // Photos the guest already uploaded while filling the form. The server attaches them to the new
+    // booking before answering, so they are kept even if the guest closes the page right after.
+    public string? IdentityStagingKey { get; init; }
+    public IReadOnlyList<string> IdentityStagedSides { get; init; } = [];
     public IReadOnlyList<PublicBookingSlotRequest> Slots { get; init; } = [];
     public string? VoucherCode { get; init; }
     public string? Note { get; init; }
@@ -96,6 +100,7 @@ public sealed record PublicBookingResult(
     decimal? VoucherDiscountPercent = null,
     decimal VoucherDiscountAmount = 0,
     decimal? PriceBeforeVoucher = null,
-    bool PaymentRequired = true);
+    bool PaymentRequired = true,
+    IReadOnlyList<string>? IdentitySides = null);
 
 public sealed record PublicBookingError(string Code, string Message);

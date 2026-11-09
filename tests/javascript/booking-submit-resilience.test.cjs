@@ -37,12 +37,12 @@ test('Retry preserves the original key for server failures and incomplete upload
 });
 const wrapper = source.slice(source.indexOf('    function wrapBookingPost()'), source.indexOf('    const observer ='));
 function submitHarness({ uploadFailure = false, completionFailure = false, preparationFailure = false, handoff = false } = {}) {
-    const calls = [], progress = [];
+    const calls = [], progress = [], payloads = [];
     const sandbox = {
         root: { querySelectorAll: () => [], querySelector:()=>null, classList:{remove(){}} },
         showPaymentStage:()=>({querySelector:()=>({textContent:''})}),warmPaymentQr:async()=>{},
-        window: { DeLongImageUpload: { prepareFile: async (_,file) => { if(preparationFailure)throw new Error('preparation failed');return file; } }, DeLongApi: { post: async url => {
-            calls.push(url);
+        window: { DeLongImageUpload: { prepareFile: async (_,file) => { if(preparationFailure)throw new Error('preparation failed');return file; } }, DeLongApi: { post: async (url, payload) => {
+            calls.push(url); if (!url.includes('/complete')) payloads.push(payload);
             if (url.includes('/complete')) {
                 if (completionFailure) { const error = new Error('missing CCCD'); error.status = 409; throw error; }
                 return { complete: true };
@@ -53,11 +53,25 @@ function submitHarness({ uploadFailure = false, completionFailure = false, prepa
         validateExtraFields: () => null, createPendingCustomerAccount: async () => {}, claimStagedIdentity: async () => {},
         setProgress: message => progress.push(message), withBookingTimeout: action => action(undefined),
         uploadIdentity: async () => { if (uploadFailure) throw new Error('upload failed'); },
-        handOffIdentity: async () => handoff
+        handOffIdentity: async () => handoff,
+        stagedSidesForSubmit: () => ['front', 'back'], markServerClaimed: () => {}, stagingKey: 'staging-key'
     };
     vm.runInNewContext(`${wrapper}; wrapBookingPost();`, sandbox);
-    return { post: sandbox.window.DeLongApi.post, calls, progress };
+    return { post: sandbox.window.DeLongApi.post, calls, progress, payloads };
 }
+test('Booking request carries the staged CCCD sides so the server attaches them before answering', async () => {
+    const { post, payloads } = submitHarness({ handoff: true });
+    await post('/api/public/booking-requests?siteSlug=demo', {}, { 'Idempotency-Key': 'key-1' });
+    assert.equal(payloads[0].identityStagingKey, 'staging-key');
+    assert.deepEqual(payloads[0].identityStagedSides, ['front', 'back']);
+});
+const staging = source.slice(source.indexOf('    function stagedSidesForSubmit('), source.indexOf('    function markServerClaimed('));
+test('Only finished staged uploads of the current photo are sent; one still uploading is not waited for', () => {
+    const front = {}, back = {}, oldBack = {};
+    const stagedUploads = new Map([['front', { done: true, file: front }], ['back', { done: false, file: back }], ['second-front', { done: true, file: oldBack }]]);
+    const pick = vm.runInNewContext(`${staging}; stagedSidesForSubmit`, { stagedUploads });
+    assert.deepEqual(Array.from(pick([['front', front], ['back', back], ['second-front', {}]])), ['front']);
+});
 test('Successful submit verifies saved CCCD before returning the booking to redirect', async () => {
     const harness = submitHarness();
     const result = await harness.post('/api/public/booking-requests', {}, {'Idempotency-Key':'key'});
