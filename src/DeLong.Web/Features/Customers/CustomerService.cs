@@ -224,6 +224,45 @@ public sealed class CustomerService(AppDbContext db)
         return customer;
     }
 
+    public async Task<IReadOnlyList<CustomerAutocompleteItem>> AutocompleteAsync(
+        Guid propertyId,
+        Guid? userId,
+        string? q,
+        CancellationToken cancellationToken = default)
+    {
+        var query = q?.Trim() ?? "";
+        if (query.Length is < 3 or > 100) return [];
+        var normalized = NormalizePhone(query);
+        var lowered = query.ToLower();
+        var matches = await db.Customers.AsNoTracking().Where(x => x.PropertyId == propertyId &&
+                (x.Name.ToLower().Contains(lowered) || (normalized != "" && x.NormalizedPhone.Contains(normalized))))
+            // Exact phone first: with 20 rows sorted by name an exact match could fall off the list.
+            .OrderByDescending(x => normalized != "" && x.NormalizedPhone == normalized)
+            .ThenByDescending(x => x.IsActive && !x.IsBlocked).ThenBy(x => x.Name).ThenBy(x => x.Id).Take(20)
+            .Select(x => new CustomerAutocompleteItem(x.Id, x.Name, x.Phone, x.Email, x.IsActive, x.IsBlocked, null))
+            .ToListAsync(cancellationToken);
+
+        // Customers are stored per branch. A guest who stayed at another branch is not a customer of
+        // this one yet, so staff could not find them by phone. Offer those profiles (phone search only,
+        // active branches the user can open) to prefill name/email; saving creates the profile here.
+        if (normalized.Length < 6 || userId is null) return matches;
+        var localPhones = matches.Select(x => NormalizePhone(x.Phone)).ToHashSet();
+        var otherBranches = await db.Customers.AsNoTracking()
+            .Where(x => x.PropertyId != propertyId && x.Property.IsActive && x.NormalizedPhone.Contains(normalized) &&
+                !db.Customers.Any(local => local.PropertyId == propertyId && local.NormalizedPhone == x.NormalizedPhone) &&
+                db.UserPropertyAccesses.Any(access => access.UserId == userId && access.PropertyId == x.PropertyId))
+            .OrderByDescending(x => x.NormalizedPhone == normalized).ThenByDescending(x => x.UpdatedAtUtc).ThenBy(x => x.Id)
+            .Take(20)
+            .Select(x => new { x.NormalizedPhone, Item = new CustomerAutocompleteItem(null, x.Name, x.Phone, x.Email, x.IsActive, x.IsBlocked, x.Property.Name) })
+            .ToListAsync(cancellationToken);
+        foreach (var row in otherBranches)
+        {
+            if (matches.Count >= 30) break;
+            if (localPhones.Add(row.NormalizedPhone)) matches.Add(row.Item);
+        }
+        return matches;
+    }
+
     public static string NormalizePhone(string? phone)
     {
         if (string.IsNullOrWhiteSpace(phone)) return string.Empty;

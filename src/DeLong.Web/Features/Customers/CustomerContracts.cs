@@ -61,3 +61,6 @@ public sealed record UpdateCustomerInternalProfileRequest(
     bool IsBlacklisted,
     string? BlacklistReason,
     bool IsBlocked);
+
+/// <summary>Phone/name suggestion in the staff booking form. Id is null for a profile from another branch.</summary>
+public sealed record CustomerAutocompleteItem(Guid? Id, string Name, string Phone, string? Email, bool IsActive, bool IsBlocked, string? PropertyName);

@@ -35,3 +35,14 @@ test('manual block stays disabled even for hidden profiles',async()=>{
     assert.equal(loaded[0].disabled,true);
     assert.equal(owner.form.customerId,null);
 });
+test('server rows are not filtered again on raw text and a customer from another branch prefills the form',async()=>{
+    const {owner,loaded}=await lookup({id:null,phone:'+84 797 980 173',name:'Khách chi nhánh khác',email:'old@example.test',isActive:true,isBlocked:false,propertyName:'La Roman'});
+    assert.equal(loaded.length,1);
+    assert.equal(loaded[0].disabled,false);
+    assert.equal(owner.form.customerId,null);
+    assert.equal(owner.form.customerName,'Khách chi nhánh khác');
+    assert.equal(owner.form.customerEmail,'old@example.test');
+});
+test('autocomplete keeps every server match instead of re-filtering by raw text',()=>{
+    assert.match(source,/score:\s*\(\)\s*=>\s*\(\)\s*=>\s*1/);
+});
