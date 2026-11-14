@@ -594,15 +594,13 @@
                             this.notify(`Đã lưu ${booking.code} và ghi nhận ${this.money(initialPayment)}.`, 'success');
                         } catch (paymentError) {
                             this.notify(`Đã lưu ${booking.code}, nhưng chưa xác nhận được khoản thu: ${paymentError.message || 'lỗi thanh toán'}. Kiểm tra lịch sử thanh toán trước khi nhập lại.`, 'error');
-                            await this.saveGuestDetails(booking);
-                            this.editor.open = false;
+                            if (await this.finishGuestDetails(booking)) this.editor.open = false;
                             return;
                         }
                     } else if (this.editor.mode === 'create') {
                         this.notify(`Đã tạo ${booking.code}.`, 'success');
                     }
-                    await this.saveGuestDetails(booking);
-                    this.editor.open = false;
+                    if (await this.finishGuestDetails(booking)) this.editor.open = false;
                 } catch (error) {
                     this.notify(error.message || 'Không thể lưu lượt đặt.', 'error');
                 } finally {
@@ -683,9 +681,41 @@
                 for (const side of ['front', 'back']) {
                     const file = this.identityFiles[side];
                     if (!file) continue;
-                    const data = new FormData();
-                    data.append('file', file, file.name);
-                    await DeLongApi.postForm(this.identityUrl(booking.id, side), data);
+                    const upload = () => {
+                        const data = new FormData();
+                        data.append('file', file, file.name || `${side}.jpg`);
+                        return DeLongApi.postForm(this.identityUrl(booking.id, side), data);
+                    };
+                    try { await upload(); }
+                    catch (error) {
+                        // One quiet retry for a dropped mobile connection; a rejected image fails the same way twice.
+                        if (error?.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429) throw error;
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        await upload();
+                    }
+                    // Uploaded: a later retry only sends the side that is still missing.
+                    if (this.identityPreviews[side]) URL.revokeObjectURL(this.identityPreviews[side]);
+                    this.identityFiles[side] = null;
+                    this.identityPreviews[side] = '';
+                    if (!this.hasIdentity(side)) this.guestDetails.documents.push({ side });
+                }
+            },
+            // The booking already exists when guest details/CCCD are sent. If that step fails, keep the
+            // chosen photos and turn the form into "Sửa lượt đặt" of the new booking, so staff can press
+            // save again instead of closing the form and losing the CCCD (bookings BKPSDKVJYY, BKA9AZULJA).
+            async finishGuestDetails(booking) {
+                try {
+                    await this.saveGuestDetails(booking);
+                    return true;
+                } catch (error) {
+                    if (this.editor.mode === 'create') {
+                        this.selectedBooking = booking;
+                        this.form.customerId = booking.customerId || null;
+                        this.form.initialPaymentAmount = 0;
+                        this.editor = { open: true, mode: 'edit' };
+                    }
+                    this.notify(`Đã lưu ${booking.code}, nhưng chưa lưu được ảnh CCCD/thông tin khách: ${error.message || 'lỗi kết nối'}. Ảnh vẫn còn trong form, bấm "Lưu thay đổi" để gửi lại.`, 'error');
+                    return false;
                 }
             },
             nextActions(booking) {

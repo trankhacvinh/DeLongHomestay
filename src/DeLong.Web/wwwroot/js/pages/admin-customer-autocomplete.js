@@ -17,12 +17,15 @@ window.DeLongCustomerAutocomplete = {
             const select = new TomSelect(input, {
                 valueField: 'phone', labelField: 'phone', searchField: ['phone', 'name'], maxItems: 1,
                 loadThrottle: 300, createOnBlur: true, persist: false, disabledField: 'disabled',
+                // The server already matches by normalized phone (0xx = 84xx, spaces, dots) and name.
+                // Re-filtering on the raw text here hid real matches, so keep every row it returns.
+                score: () => () => 1,
                 options: initialPhone ? [{ phone: initialPhone, name: this.form.customerName || '' }] : [],
                 items: initialPhone ? [initialPhone] : [],
                 create: value => ({ phone: value.trim(), name: '' }),
                 shouldLoad: query => query.trim().length >= 3,
                 render: {
-                    option: (item, escape) => `<div>${escape(item.phone)} — ${escape(item.name || 'Khách mới')}${item.isBlocked ? ' · Đã chặn' : item.isActive === false ? ' · Hồ sơ đã ẩn' : ''}</div>`,
+                    option: (item, escape) => `<div>${escape(item.phone)} — ${escape(item.name || 'Khách mới')}${item.propertyName ? ` · khách cũ ở ${escape(item.propertyName)}` : ''}${item.isBlocked ? (item.propertyName ? ' (đã chặn ở đó)' : ' · Đã chặn') : item.isActive === false ? ' · Hồ sơ đã ẩn' : ''}</div>`,
                     item: (item, escape) => `<div>${escape(item.phone)}</div>`,
                     no_results: () => '<div>Chưa có khách phù hợp. Tiếp tục nhập để tạo khách mới.</div>'
                 },
@@ -30,8 +33,14 @@ window.DeLongCustomerAutocomplete = {
                     const version = ++requestVersion;
                     try {
                         const data = await DeLongApi.get(`/api/admin/properties/${owner.propertyId}/customers/autocomplete?q=${encodeURIComponent(query.trim())}`);
-                        if (version !== requestVersion || !input.isConnected) return callback();
-                        const options = data.map(item => ({ ...item, disabled: item.isBlocked }));
+                        if (version !== requestVersion || !input.isConnected) {
+                            // Tom Select remembers a query as loaded before this callback; forget the
+                            // discarded one so typing the same number again asks the server again.
+                            if (this.loadedSearches) delete this.loadedSearches[query];
+                            return callback();
+                        }
+                        // Blocked here stays unselectable; a block at another branch is shown as a warning only.
+                        const options = data.map(item => ({ ...item, disabled: !!item.isBlocked && !item.propertyName }));
                         callback(options);
                         const exact = options.find(item => !item.disabled && normalize(item.phone) === normalize(query));
                         if (exact && normalize(owner.form.customerPhone) === normalize(query)) {
@@ -39,7 +48,10 @@ window.DeLongCustomerAutocomplete = {
                             this.updateOption(exact.phone, exact);
                             this.setValue(exact.phone);
                         }
-                    } catch { callback(); }
+                    } catch {
+                        if (this.loadedSearches) delete this.loadedSearches[query];
+                        callback();
+                    }
                 },
                 onType(query) {
                     requestVersion++;
@@ -54,9 +66,10 @@ window.DeLongCustomerAutocomplete = {
                 onChange(value) {
                     owner.form.customerPhone = value || '';
                     const item = this.options[value];
-                    if (!item?.id) { owner.form.customerId = null; return; }
+                    if (!item?.id && !item?.propertyName) { owner.form.customerId = null; return; }
                     selected = item;
-                    owner.form.customerId = item.id;
+                    // A profile from another branch has no id here: saving creates this branch's profile.
+                    owner.form.customerId = item.id || null;
                     owner.form.customerName = item.name;
                     owner.form.customerEmail = item.email || '';
                 },

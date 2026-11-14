@@ -26,7 +26,7 @@ for (const payment of [0, 50000]) {
         const api = { post: async (url, body) => { calls.push({ url, body }); return booking; }, get: async () => ({ ...booking, paidAmount: payment }) };
         const save = new Function('DeLongApi', 'utcOffset', `return ({${source.slice(saveStart, saveEnd)}}).saveBooking;`)(api, '+07:00');
         const app = { selectedRoom: { id: 'room' }, selectedRoomRates: [], propertyId: 'branch', bookings: [], editor: { mode: 'create', open: true },
-            validateForm: () => null, saveGuestDetails: async () => {}, notify() {}, money: String };
+            validateForm: () => null, saveGuestDetails: async () => {}, finishGuestDetails: async () => true, notify() {}, money: String };
         const syncStart = source.indexOf('            syncDefaultPayment()');
         const syncEnd = source.indexOf('            setInitialPayment(', syncStart);
         app.syncDefaultPayment = new Function(`return ({${source.slice(syncStart, syncEnd)}}).syncDefaultPayment;`)();
