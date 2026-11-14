@@ -98,6 +98,33 @@ public sealed class PublicRedesignSourceContractTests
 
     [Fact]
     [Trait("Category", "Unit")]
+    public void Website_wide_custom_code_loads_on_every_public_page_only_when_an_admin_fills_it_in()
+    {
+        var store = ReadRepositoryFile("src/DeLong.Web/Features/Site/PublicThemeStore.cs");
+        var layout = ReadRepositoryFile("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
+        var endpoints = ReadRepositoryFile("src/DeLong.Web/Features/Site/SiteContentEndpoints.cs");
+        var page = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/Site/Global.cshtml");
+        var script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-global-site.js");
+
+        // Saved in the existing hidden theme row; saving the theme keeps the code and vice versa.
+        Assert.Contains("CustomCss = current.CustomCss,", store, StringComparison.Ordinal);
+        Assert.Contains("Mode = Normalize(current.Mode),", store, StringComparison.Ordinal);
+        Assert.Contains("if (css.Length == 0 && js.Length == 0) return PublicCustomCodeDto.Empty;", store, StringComparison.Ordinal);
+        // Not tied to property pages or to the custom theme mode, and nothing is emitted while empty.
+        Assert.Contains("@if (!isAdmin && publicCustomCode.HasCss)", layout, StringComparison.Ordinal);
+        Assert.Contains("@if (!isAdmin && publicCustomCode.HasJs)", layout, StringComparison.Ordinal);
+        Assert.True(layout.IndexOf("/site/global.css?v=", StringComparison.Ordinal) > layout.IndexOf("~/css/public-lux.css", StringComparison.Ordinal));
+        // Only Admin may change script that runs on every public page.
+        Assert.Contains("global.MapPut(\"/custom-code\"", endpoints, StringComparison.Ordinal);
+        Assert.Contains(".RequireAuthorization(\"ManageSiteCode\")", endpoints, StringComparison.Ordinal);
+        Assert.Contains("app.MapGet(\"/site/global.css\"", endpoints, StringComparison.Ordinal);
+        Assert.Contains("app.MapGet(\"/site/global.js\"", endpoints, StringComparison.Ordinal);
+        Assert.Contains("CSS toàn website", page, StringComparison.Ordinal);
+        Assert.Contains("/api/admin/site/global/custom-code", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public void Admin_can_restore_the_global_home_to_the_approved_layout_without_losing_old_blocks()
     {
         var service = ReadRepositoryFile("src/DeLong.Web/Features/Site/SiteContentService.cs");

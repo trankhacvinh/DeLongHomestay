@@ -41,6 +41,15 @@
         </div>
     </section>
 
+    <section class="panel global-branding-panel global-custom-code-panel">
+        <div class="global-branding-head"><div><span class="page-eyebrow">CSS/JS toàn website</span><h2>Giao diện riêng cho website này</h2><p>Chạy trên mọi trang khách: trang chủ, đặt phòng, tra cứu, chính sách và trang của từng cơ sở, ở cả hai chế độ giao diện. Được tải sau toàn bộ CSS hệ thống. Để trống thì website giữ nguyên giao diện có sẵn.</p></div></div>
+        <div class="site-code-grid">
+            <div class="site-section-card"><div class="site-section-title compact"><span>CSS</span><div><h2>CSS toàn website</h2><p>Tải từ <code>/site/global.css</code>.</p></div></div><textarea class="code-editor" v-model="customCss" spellcheck="false" aria-label="CSS toàn website" placeholder="/* CSS tùy chỉnh cho toàn website */"></textarea></div>
+            <div class="site-section-card"><div class="site-section-title compact"><span>JS</span><div><h2>JavaScript toàn website</h2><p>Tải từ <code>/site/global.js</code>, cuối trang.</p></div></div><p class="site-code-warning">Chỉ dán mã bạn tin tưởng: script chạy trên mọi trang khách, kể cả trang thanh toán.</p><textarea class="code-editor" v-model="customJs" spellcheck="false" aria-label="JavaScript toàn website" placeholder="// JavaScript tùy chỉnh cho toàn website"></textarea></div>
+        </div>
+        <div class="global-branding-actions"><button class="btn btn-primary" type="button" v-bind:disabled="customCodeSaving || !customCodeDirty" v-on:click="saveCustomCode">{{ customCodeSaving ? 'Đang lưu…' : 'Lưu CSS/JS toàn website' }}</button></div>
+    </section>
+
     <section class="panel global-branding-panel">
         <div class="global-branding-head"><div><span class="page-eyebrow">Thương hiệu chung</span><h2>Logo & nhận diện toàn hệ thống</h2><p>Trường để trống sẽ tự dùng cấu hình của cơ sở duy nhất đang hoạt động. Khi có nhiều cơ sở, chỉ các giá trị ghi đè bên dưới được dùng cho trang chung.</p></div></div>
         <div class="global-branding-preview">

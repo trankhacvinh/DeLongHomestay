@@ -23,10 +23,12 @@ public sealed class GlobalModel(
         var activeProperties = await publicPropertyResolver.GetActiveAsync(ct);
         var branding = await GlobalSiteBrandingStore.ResolveAsync(db, siteContentService, activeProperties, ct);
         var theme = await PublicThemeStore.ReadAsync(db, ct);
+        var customCode = await PublicThemeStore.ReadCustomCodeAsync(db, ct);
         PageDataJson = JsonSerializer.Serialize(new
         {
             branding,
             theme,
+            customCode = new { css = customCode.Css, js = customCode.Js },
             sections = site.Sections.Where(x =>
                 x.Type != PublicThemeStore.MetadataSectionType &&
                 x.Type != GlobalSiteBrandingStore.MetadataSectionType &&

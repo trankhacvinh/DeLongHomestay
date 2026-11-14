@@ -281,6 +281,17 @@ public sealed class SiteContentService(AppDbContext db, PublicPropertyResolver? 
             token: ct);
     }
 
+    /// <summary>Website-wide custom CSS/JS from Admin → Website chung; cached under the public-content tag like the theme.</summary>
+    public async Task<PublicCustomCodeDto> GetPublicCustomCodeAsync(CancellationToken ct = default)
+    {
+        if (cache is null) return await PublicThemeStore.ReadCustomCodeAsync(db, ct);
+        return await cache.GetOrSetAsync<PublicCustomCodeDto>(
+            PublicCacheKeys.CustomCode,
+            async (_, token) => await PublicThemeStore.ReadCustomCodeAsync(db, token),
+            tags: [PublicCacheKeys.Tag],
+            token: ct);
+    }
+
     public async Task<(SiteSettingsDto? Settings, SiteContentError? Error)> SaveSettingsAsync(
         Guid propertyId,
         SaveSiteSettingsRequest request,
