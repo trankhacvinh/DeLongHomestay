@@ -6,6 +6,7 @@ const source = readFileSync('src/DeLong.Web/wwwroot/js/pages/sepay-payment.js', 
 function setup(status = 'Pending', expired = false) {
     const initial = { amount: 250000, qrUrl: 'https://vietqr.app/img?acc=123',
         transferContent: 'DH123', bank: 'VCB', accountNumber: '123', status,
+        accountHolder: 'HKD CHI NHANH 2', propertyName: 'Chi nhánh 2',
         expiresAtUtc: new Date(Date.now() + (expired ? -1000 : 300000)).toISOString(), successUrl: '/booking/success' };
     let fetches = 0, srcWrites = 0, srcRemoves = 0, redirect;
     const nodes = new Map();
@@ -80,4 +81,11 @@ test('QR image timeout permits retry of the same session without creating a new 
     assert.equal(env.writes(), 1);
     assert.equal(env.fetches(), 0);
     assert.equal(env.redirect(), undefined);
+});
+
+test('Payment screen names the booked branch and its account holder', () => {
+    const env = setup();
+    assert.equal(env.root.querySelector('[data-sepay-branch]').textContent, 'Chi nhánh 2');
+    assert.equal(env.root.querySelector('[data-sepay-branch-row]').hidden, false);
+    assert.equal(env.root.querySelector('[data-sepay-holder]').textContent, 'HKD CHI NHANH 2');
 });

@@ -26,6 +26,16 @@ public sealed class SePayPaymentStateTests
     }
 
     [Fact]
+    public void Active_session_shows_account_holder_from_branch_QR()
+    {
+        var intent = Intent();
+        intent.SePayQrUrl += "&holder=HKD%20CHI%20NHANH%202";
+        Assert.Equal("HKD CHI NHANH 2", SePayPaymentState.FromIntent(intent, Now).AccountHolder);
+        intent.Booking.Status = BookingStatus.Cancelled;
+        Assert.Null(SePayPaymentState.FromIntent(intent, Now).AccountHolder);
+    }
+
+    [Fact]
     public void Expired_QR_remains_pending_during_bank_confirmation_grace()
     {
         var state = SePayPaymentState.FromIntent(Intent(), Now.AddMinutes(5));

@@ -71,12 +71,16 @@
         if (!state) return;
         const remaining = Math.max(0, Math.ceil((Date.parse(state.expiresAtUtc) - Date.now()) / 1000));
         time.textContent = remaining ? `${Math.floor(remaining / 60)} phút ${String(remaining % 60).padStart(2, '0')} giây` : 'Đã hết thời gian';
-        if (!remaining) { updateQr(null); qrPlaceholder.textContent = 'Phiên thanh toán đã hết hạn'; root.querySelector('[data-sepay-memo]').textContent = 'Đã hết thời gian chuyển khoản'; root.querySelector('[data-sepay-destination]').textContent = '—'; }
+        if (!remaining) { updateQr(null); qrPlaceholder.textContent = 'Phiên thanh toán đã hết hạn'; root.querySelector('[data-sepay-memo]').textContent = 'Đã hết thời gian chuyển khoản'; root.querySelector('[data-sepay-destination]').textContent = '—'; root.querySelector('[data-sepay-holder]').textContent = ''; }
     }
     function render() {
         root.querySelector('[data-sepay-amount]').textContent = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(state.amount);
         root.querySelector('[data-sepay-memo]').textContent = state.transferContent || 'Phiên đã đóng';
         root.querySelector('[data-sepay-destination]').textContent = state.accountNumber ? `${state.bank} · ${state.accountNumber}` : '';
+        root.querySelector('[data-sepay-holder]').textContent = state.accountNumber && state.accountHolder ? state.accountHolder : '';
+        const branchRow = root.querySelector('[data-sepay-branch-row]');
+        root.querySelector('[data-sepay-branch]').textContent = state.propertyName || '';
+        branchRow.hidden = !state.propertyName;
         if (state.status === 'Succeeded') {
             stopped = true;
             stateBox.classList.add('is-success');

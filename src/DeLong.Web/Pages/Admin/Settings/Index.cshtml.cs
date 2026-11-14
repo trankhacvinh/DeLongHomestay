@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Features.Notifications;
@@ -35,6 +36,9 @@ public sealed class IndexModel(
         var notificationSettings = await notificationSettingsService.GetAsync(PropertyId, cancellationToken);
         var customerAccountSettings = await customerAccountSettingsService.GetAsync(PropertyId, cancellationToken);
         var pay2SSettings = await pay2SSettingsService.GetAsync(PropertyId, cancellationToken);
+        IReadOnlyList<SePayBranchSummary> sePayBranches = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
+            ? await sePaySettingsService.ListBranchesAsync(userId, cancellationToken)
+            : [];
         PageDataJson = JsonSerializer.Serialize(
             new
             {
@@ -46,6 +50,7 @@ public sealed class IndexModel(
                 customerAccountSettings
                 ,pay2SSettings
                 ,sePaySettings = await sePaySettingsService.GetAsync(PropertyId, cancellationToken)
+                ,sePayBranches
             },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return Page();

@@ -12,6 +12,9 @@ public sealed record SePaySettingsRequest(bool Enabled, string BankId, string Ba
     string QrAccountNumber, string AccountHolder, string SubAccount, string MemoPrefix,
     string? WebhookKey, int HoldMinutes = 15, int SettlementGraceMinutes = 3, string? ApiToken = null);
 
+public sealed record SePayBranchSummary(Guid PropertyId, string Name, bool Enabled, string BankId,
+    string QrAccountNumber, string AccountHolder, bool WebhookKeyConfigured);
+
 public sealed class SePaySettingsService(AppDbContext db, IDataProtectionProvider protection)
 {
     private readonly IDataProtector protector = protection.CreateProtector("DeLong.SePay.Webhook.v1");
@@ -35,6 +38,27 @@ public sealed class SePaySettingsService(AppDbContext db, IDataProtectionProvide
         return new { x.Enabled, x.BankId, x.BankAccountNumber, x.QrAccountNumber, x.AccountHolder,
             x.SubAccount, x.MemoPrefix, x.HoldMinutes, x.SettlementGraceMinutes,
             ApiTokenConfigured = x.ApiTokenProtected.Length > 0, WebhookKeyConfigured = x.WebhookKeyProtected.Length > 0 };
+    }
+
+    // Each branch (property) keeps its own SePay account; this lists them side by side for the settings page.
+    public async Task<IReadOnlyList<SePayBranchSummary>> ListBranchesAsync(Guid userId, CancellationToken ct)
+    {
+        var rows = await (from access in db.UserPropertyAccesses.AsNoTracking()
+                          where access.UserId == userId && access.Property.IsActive
+                          join setting in db.PropertySePaySettings.AsNoTracking() on access.PropertyId equals setting.PropertyId into settings
+                          from setting in settings.DefaultIfEmpty()
+                          orderby access.Property.Name
+                          select new
+                          {
+                              access.PropertyId, access.Property.Name,
+                              Enabled = setting != null && setting.Enabled,
+                              BankId = setting == null ? "" : setting.BankId,
+                              QrAccountNumber = setting == null ? "" : setting.QrAccountNumber,
+                              AccountHolder = setting == null ? "" : setting.AccountHolder,
+                              WebhookKeyConfigured = setting != null && setting.WebhookKeyProtected != ""
+                          }).ToListAsync(ct);
+        return rows.Select(x => new SePayBranchSummary(x.PropertyId, x.Name, x.Enabled, x.BankId,
+            x.QrAccountNumber, x.AccountHolder, x.WebhookKeyConfigured)).ToList();
     }
 
     public async Task<string?> SaveAsync(Guid propertyId, SePaySettingsRequest request, CancellationToken ct)

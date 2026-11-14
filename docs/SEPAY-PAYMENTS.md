@@ -86,3 +86,10 @@ QR dùng `https://vietqr.app/img` theo tài liệu hiện hành. Khách thấy s
 - Không cần migration. Cần publish/deploy cả DLL, Razor và JavaScript cùng phiên bản.
 - Tài liệu tham chiếu: https://developer.sepay.vn/vi/sepay-webhooks/tao-qr-va-form-thanh-toan và https://docs.sepay.vn/tao-qr-code-vietqr-dong.html.
 - Build, unit test trạng thái và JavaScript là kiểm chứng cục bộ; độ trễ thực tế còn cần đo trên VPS và điện thoại/Zalo sau deploy. Chưa cam kết thời gian tải QR hoặc loại trừ ảnh hưởng mạng/database.
+
+## Một website, nhiều chi nhánh, mỗi chi nhánh một tài khoản (2026-11-14)
+
+- Mỗi chi nhánh là một cơ sở (`Property`) và có bản ghi `PropertySePaySettings` riêng. Booking thuộc cơ sở của phòng, nên QR tạo cho booking luôn dùng tài khoản của cơ sở đó; webhook nhận tại URL có `property-id` của đúng cơ sở. Không cần migration.
+- **Cấu hình → Thanh toán** hiện ghi rõ đang cấu hình chi nhánh nào, có bảng tài khoản SePay của mọi chi nhánh người dùng được quản lý, nút **Cấu hình** mở thẳng tab Thanh toán của chi nhánh đó (`?propertyId=…&tab=pay2s`) và cảnh báo khi hai chi nhánh dùng chung một tài khoản QR.
+- Trên SePay: liên kết cả ba tài khoản ngân hàng, tạo **ba webhook**, mỗi webhook chỉ chọn một tài khoản và trỏ tới URL webhook của đúng chi nhánh. Nếu một webhook nhận cả tiền của chi nhánh khác, giao dịch có mã của chi nhánh khác bị bỏ qua (`other_property_ignored`) và chi nhánh kia không được xác nhận, nên không dùng chung một webhook.
+- Trang `/payment/sepay` hiển thị tên chi nhánh và tên chủ tài khoản để khách kiểm tra trước khi chuyển. Trên điện thoại, cột QR được giới hạn trong khung (trước đây cột tự giãn theo ảnh và đẩy QR lệch phải, bị cắt); nút “Tải lại mã QR” chỉ hiện khi ảnh lỗi.
