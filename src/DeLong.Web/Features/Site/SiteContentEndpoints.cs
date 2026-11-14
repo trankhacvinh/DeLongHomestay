@@ -189,6 +189,25 @@ public static class SiteContentEndpoints
             return Results.Ok(await PublicThemeStore.SaveAsync(db, request, ct));
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 
+        // Website-wide CSS/JS runs on every public page, so only Admin may read or change it (same rule as property custom JS).
+        global.MapGet("/custom-code", async (AppDbContext db, CancellationToken ct) =>
+            Results.Ok(await PublicThemeStore.ReadCustomCodeAsync(db, ct)))
+            .RequireAuthorization("ManageSiteCode");
+
+        global.MapPut("/custom-code", async (
+            SavePublicCustomCodeRequest request,
+            AppDbContext db,
+            CancellationToken ct) =>
+        {
+            if ((request.Css?.Length ?? 0) > PublicThemeStore.MaxCustomCssLength)
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["css"] = ["CSS tối đa 100.000 ký tự."] });
+            if ((request.Js?.Length ?? 0) > PublicThemeStore.MaxCustomJsLength)
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["js"] = ["JavaScript tối đa 100.000 ký tự."] });
+            return Results.Ok(await PublicThemeStore.SaveCustomCodeAsync(db, request, ct));
+        })
+            .RequireAuthorization("ManageSiteCode")
+            .AddEndpointFilter<ApiAntiforgeryFilter>();
+
         global.MapPost("/reset-standard", async (SiteContentService service, AppDbContext db, CancellationToken ct) =>
         {
             var archived = await service.ResetGlobalHomeToStandardAsync(ct);
@@ -378,6 +397,20 @@ public static class SiteContentEndpoints
                 propertyId = property.Id;
             }
             return Results.Ok(await PublicShellSettingsStore.ReadAsync(db, propertyId, ct));
+        }).AllowAnonymous();
+
+        // Website-wide code (Admin → Website chung). The layout links these with ?v=<hash>, so they can be cached long.
+        app.MapGet("/site/global.css", async (HttpContext http, SiteContentService service, CancellationToken ct) =>
+        {
+            var code = await service.GetPublicCustomCodeAsync(ct);
+            if (http.Request.Query.ContainsKey("v")) http.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+            return Results.Text(code.Css, "text/css; charset=utf-8");
+        }).AllowAnonymous();
+        app.MapGet("/site/global.js", async (HttpContext http, SiteContentService service, CancellationToken ct) =>
+        {
+            var code = await service.GetPublicCustomCodeAsync(ct);
+            if (http.Request.Query.ContainsKey("v")) http.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+            return Results.Text(code.Js, "text/javascript; charset=utf-8");
         }).AllowAnonymous();
 
         MapCustomCss(app, "/site/custom.css", scoped: false);

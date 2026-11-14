@@ -28,8 +28,28 @@ public sealed record PublicThemeDto(string Mode, IReadOnlyDictionary<string, str
         RoomColors is not null && RoomColors.TryGetValue(roomId.ToString(), out var color) ? color : null;
 }
 
+/// <summary>
+/// Website-wide custom CSS/JS (Admin → Website chung). Loaded on every public page, global and property pages alike,
+/// in both theme modes, after all built-in stylesheets. Empty by default, so a deployment that never fills it in
+/// keeps its look. <see cref="Version"/> is a short content hash used to cache-bust the public URLs.
+/// </summary>
+public sealed record PublicCustomCodeDto(string Css, string Js, string Version)
+{
+    public static readonly PublicCustomCodeDto Empty = new(string.Empty, string.Empty, string.Empty);
+    public bool HasCss => Css.Length > 0;
+    public bool HasJs => Js.Length > 0;
+}
+
+public sealed class SavePublicCustomCodeRequest
+{
+    public string? Css { get; init; }
+    public string? Js { get; init; }
+}
+
 public static class PublicThemeStore
 {
+    public const int MaxCustomCssLength = 100_000;
+    public const int MaxCustomJsLength = 100_000;
     public const string MetadataSectionType = "__PublicTheme";
     public const string StandardMode = "standard";
     public const string CustomMode = "custom";
@@ -44,6 +64,8 @@ public static class PublicThemeStore
     {
         public string? Mode { get; init; }
         public Dictionary<string, string>? RoomColors { get; init; }
+        public string? CustomCss { get; init; }
+        public string? CustomJs { get; init; }
     }
 
     public static string Normalize(string? mode) =>
@@ -61,8 +83,43 @@ public static class PublicThemeStore
         var payload = new Payload
         {
             Mode = Normalize(request.Mode ?? current.Mode),
-            RoomColors = request.RoomColors is null ? CleanColors(current.RoomColors) : CleanColors(request.RoomColors)
+            RoomColors = request.RoomColors is null ? CleanColors(current.RoomColors) : CleanColors(request.RoomColors),
+            CustomCss = current.CustomCss,
+            CustomJs = current.CustomJs
         };
+        await WriteAsync(db, payload, ct);
+        return new PublicThemeDto(payload.Mode!, payload.RoomColors);
+    }
+
+    public static async Task<PublicCustomCodeDto> ReadCustomCodeAsync(AppDbContext db, CancellationToken ct = default) =>
+        ToCustomCode(await ReadPayloadAsync(db, ct));
+
+    /// <summary>Saves the website-wide CSS/JS; the theme mode and room colours stored in the same row are kept.</summary>
+    public static async Task<PublicCustomCodeDto> SaveCustomCodeAsync(AppDbContext db, SavePublicCustomCodeRequest request, CancellationToken ct = default)
+    {
+        var current = await ReadPayloadAsync(db, ct);
+        var payload = new Payload
+        {
+            Mode = Normalize(current.Mode),
+            RoomColors = CleanColors(current.RoomColors),
+            CustomCss = request.Css?.Trim() ?? string.Empty,
+            CustomJs = request.Js?.Trim() ?? string.Empty
+        };
+        await WriteAsync(db, payload, ct);
+        return ToCustomCode(payload);
+    }
+
+    private static PublicCustomCodeDto ToCustomCode(Payload payload)
+    {
+        var css = payload.CustomCss?.Trim() ?? string.Empty;
+        var js = payload.CustomJs?.Trim() ?? string.Empty;
+        if (css.Length == 0 && js.Length == 0) return PublicCustomCodeDto.Empty;
+        var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(css + "\n/*js*/\n" + js));
+        return new PublicCustomCodeDto(css, js, Convert.ToHexString(hash, 0, 6).ToLowerInvariant());
+    }
+
+    private static async Task WriteAsync(AppDbContext db, Payload payload, CancellationToken ct)
+    {
         var row = await db.Set<HomeSection>()
             .FirstOrDefaultAsync(x => x.PropertyId == null && x.Type == MetadataSectionType, ct);
         if (row is null)
@@ -82,7 +139,6 @@ public static class PublicThemeStore
         row.IsVisible = false;
         row.SortOrder = int.MinValue;
         await db.SaveChangesAsync(ct);
-        return new PublicThemeDto(payload.Mode!, payload.RoomColors);
     }
 
     private static async Task<Payload> ReadPayloadAsync(AppDbContext db, CancellationToken ct)

@@ -39,8 +39,9 @@
         };
     }
     createApp({
-        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, brandingEffective: initial.branding || {}, branding: brandingForm(initial.branding), brandingSaving: false, brandingUploading: '', themeMode: initial.theme?.mode || 'standard', themeSaved: initial.theme?.mode || 'standard', themeSaving: false, resetConfirm: false, resetting: false, palette: ['#5f8a8b', '#7d8f69', '#b5654f', '#6f6a8a', '#b88746', '#8c6a5a'], roomColors: Object.assign({}, initial.theme?.roomColors || {}), roomColorsDirty: false, roomColorsSaving: false, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
+        data() { return { sections: initial.sections || [], properties: initial.properties || [], rooms: initial.rooms || [], sectionTypes, brandingEffective: initial.branding || {}, branding: brandingForm(initial.branding), brandingSaving: false, brandingUploading: '', themeMode: initial.theme?.mode || 'standard', themeSaved: initial.theme?.mode || 'standard', themeSaving: false, customCss: initial.customCode?.css || '', customJs: initial.customCode?.js || '', customCodeSaved: { css: initial.customCode?.css || '', js: initial.customCode?.js || '' }, customCodeSaving: false, resetConfirm: false, resetting: false, palette: ['#5f8a8b', '#7d8f69', '#b5654f', '#6f6a8a', '#b88746', '#8c6a5a'], roomColors: Object.assign({}, initial.theme?.roomColors || {}), roomColorsDirty: false, roomColorsSaving: false, editor: { open: false, mode: 'create', id: null }, form: { type: 'Hero', name: '', variant: 'split', isVisible: true, content: defaultContent('Hero'), itemsText: '' }, saving: false, uploading: false, applyingPreset: false, sortable: null, toast: { show: false, type: 'success', message: '' } }; },
         computed: {
+            customCodeDirty() { return this.customCss !== this.customCodeSaved.css || this.customJs !== this.customCodeSaved.js; },
             brandPreviewLogo() { return this.branding.logoUrl || this.brandingEffective.logoUrl || ''; },
             brandPreviewName() { return this.branding.siteName || this.brandingEffective.siteName || 'Cơ sở lưu trú'; },
             brandPreviewTagline() { return this.branding.tagline || this.brandingEffective.tagline || ''; }
@@ -67,6 +68,18 @@
             removeFaqItem(index) { this.form.content.items.splice(index, 1); if (!this.form.content.items.length) this.form.content.items.push({ question: '', answer: '' }); },
             moveFaqItem(index, offset) { const items = this.form.content.items; const target = index + offset; if (target < 0 || target >= items.length) return; const [item] = items.splice(index, 1); items.splice(target, 0, item); },
             mountSortable() { if (!window.Sortable) return; if (this.sortable) this.sortable.destroy(); const el = document.getElementById('global-section-list'); if (!el) return; this.sortable = Sortable.create(el, { animation: 160, handle: '.home-drag-handle', ghostClass: 'dragging', onEnd: async e => { if (e.oldIndex === e.newIndex) return; const moved = this.sections.splice(e.oldIndex, 1)[0]; this.sections.splice(e.newIndex, 0, moved); try { await DeLongApi.put('/api/admin/site/global/sections/reorder', { ids: this.sections.map(x => x.id) }); this.notify('Đã cập nhật thứ tự.'); } catch (err) { this.notify(err.message || 'Không thể đổi thứ tự.', 'error'); } } }); },
+            async saveCustomCode() {
+                if (this.customCodeSaving) return;
+                this.customCodeSaving = true;
+                try {
+                    const saved = await DeLongApi.put('/api/admin/site/global/custom-code', { css: this.customCss, js: this.customJs });
+                    this.customCss = saved?.css ?? this.customCss;
+                    this.customJs = saved?.js ?? this.customJs;
+                    this.customCodeSaved = { css: this.customCss, js: this.customJs };
+                    this.notify('Đã lưu CSS/JS toàn website.');
+                } catch (err) { this.notify(err.message || 'Không thể lưu CSS/JS toàn website.', 'error'); }
+                finally { this.customCodeSaving = false; }
+            },
             async saveTheme() {
                 if (this.themeSaving) return;
                 this.themeSaving = true;

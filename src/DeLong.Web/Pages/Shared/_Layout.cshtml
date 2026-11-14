@@ -30,9 +30,12 @@
     IReadOnlyList<DeLong.Web.Features.Site.PublicPropertyContactDto> publicContacts = [];
     // Standard theme: the built-in design wins over visual-editor styling, header/footer designer and custom.css.
     var publicThemeStandard = false;
+    // Website-wide CSS/JS (Admin → Website chung): every public page, both theme modes. Empty unless an Admin fills it in.
+    var publicCustomCode = DeLong.Web.Features.Site.PublicCustomCodeDto.Empty;
     if (!isAdmin)
     {
         publicThemeStandard = (await SiteContentService.GetPublicThemeAsync(Context.RequestAborted)).IsStandard;
+        publicCustomCode = await SiteContentService.GetPublicCustomCodeAsync(Context.RequestAborted);
         var allContacts = await SiteContentService.GetPublicContactsAsync(Context.RequestAborted);
         publicContacts = isGlobalPublic
             ? allContacts
@@ -248,6 +251,10 @@
     @if (!isAdmin && !isGlobalPublic && !publicThemeStandard)
     {
         <link rel="stylesheet" href="@(publicScopePrefix + "/site/custom.css")"/>
+    }
+    @if (!isAdmin && publicCustomCode.HasCss)
+    {
+        <link rel="stylesheet" href="@("/site/global.css?v=" + publicCustomCode.Version)"/>
     }
     @if (!isAdmin && string.Equals(routePage, "/Booking/Index", StringComparison.OrdinalIgnoreCase) && Context.Request.Query["embed"] == "1")
     {
@@ -586,6 +593,10 @@
 @if (!isAdmin && !isGlobalPublic)
 {
     <script src="@(publicScopePrefix + "/site/custom.js")"></script>
+}
+@if (!isAdmin && publicCustomCode.HasJs)
+{
+    <script src="@("/site/global.js?v=" + publicCustomCode.Version)"></script>
 }
 </body>
 </html>
