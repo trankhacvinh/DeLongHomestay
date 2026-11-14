@@ -34,9 +34,13 @@
                 <strong data-sepay-amount>—</strong>
             </div>
             <dl class="sepay-transfer-details">
+                <div data-sepay-branch-row hidden="@(string.IsNullOrWhiteSpace(Model.PaymentState?.PropertyName))">
+                    <dt>Đặt phòng tại</dt>
+                    <dd><span data-sepay-branch>@Model.PaymentState?.PropertyName</span></dd>
+                </div>
                 <div>
                     <dt>Tài khoản nhận</dt>
-                    <dd><span data-sepay-destination>Đang tải…</span></dd>
+                    <dd class="sepay-destination"><span data-sepay-destination>Đang tải…</span><small data-sepay-holder></small></dd>
                 </div>
                 <div>
                     <dt>Nội dung chuyển khoản</dt>

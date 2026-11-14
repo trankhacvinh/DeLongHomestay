@@ -9,6 +9,7 @@
         data() {
             return {
                 propertyId: initial.propertyId,
+                propertyName: initial.propertyName || '',
                 activeTab: 'rooms',
                 telegramEvents: [
                     {key:'booking-requested',label:'Đặt phòng mới'}, {key:'booking-confirmed',label:'Xác nhận đặt phòng'},
@@ -47,6 +48,7 @@
                 savingCustomerAccounts: false,
                 savingPay2s: false,
                 sepay: { enabled: false, bankId: 'ACB', bankAccountNumber: '', qrAccountNumber: '', accountHolder: '', subAccount: '', memoPrefix: '', holdMinutes: 15, settlementGraceMinutes: 3, ...(initial.sePaySettings || {}), webhookKey: '', apiToken: '' },
+                sepayBranches: initial.sePayBranches || [],
                 savingSepay: false,
                 sepayTransactions: [],
                 sepayReconcileId: '',
@@ -62,7 +64,20 @@
                 toast: { show: false, message: '', type: 'success', timer: null }
             };
         },
+        mounted() {
+            // Links from the branch SePay table open straight on the payment tab.
+            if (new URLSearchParams(window.location?.search || '').get('tab') === 'pay2s') this.selectTab('pay2s');
+        },
         computed: {
+            sepaySharedAccounts() {
+                // Two branches pointing at the same bank account would send money to one place; warn the owner.
+                const groups = {};
+                this.sepayBranches.filter(x => x.enabled && x.qrAccountNumber).forEach(x => {
+                    const key = `${(x.bankId || '').toUpperCase()}|${x.qrAccountNumber}`;
+                    (groups[key] ||= []).push(x.name);
+                });
+                return Object.values(groups).filter(names => names.length > 1);
+            },
             activeRooms() {
                 return this.rooms.filter(x => x.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
             }
@@ -82,6 +97,9 @@
                 this.savingSepay = true;
                 try {
                     this.sepay = { ...await DeLongApi.put(`/api/admin/properties/${this.propertyId}/sepay/settings`, this.sepay), webhookKey: '', apiToken: '' };
+                    this.sepayBranches = this.sepayBranches.map(x => x.propertyId === this.propertyId ? { ...x,
+                        enabled: this.sepay.enabled, bankId: this.sepay.bankId, qrAccountNumber: this.sepay.qrAccountNumber,
+                        accountHolder: this.sepay.accountHolder, webhookKeyConfigured: this.sepay.webhookKeyConfigured } : x);
                     this.notify('Đã lưu cấu hình SePay.', 'success');
                 } catch (error) { this.notify(error.message, 'error'); }
                 finally { this.savingSepay = false; }
@@ -97,6 +115,9 @@
                     this.sepayResolution = { id: '', note: '' };
                     await this.loadSePayTransactions();
                 } catch (error) { this.notify(error.message, 'error'); }
+            },
+            sepayBranchUrl(id) {
+                return `/admin/settings?propertyId=${encodeURIComponent(id)}&tab=pay2s`;
             },
             sepayOutcome(value) {
                 return ({ succeeded: 'Đã ghi nhận', paid_after_expiry: 'Tiền đến muộn', amount_mismatch: 'Lệch số tiền', unmatched_code: 'Chưa khớp mã', additional_transfer: 'Chuyển thêm lần nữa' })[value] || value;
