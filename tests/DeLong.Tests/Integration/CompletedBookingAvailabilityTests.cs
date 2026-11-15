@@ -88,6 +88,22 @@ public sealed class CompletedBookingAvailabilityTests
     }
 
     [RoomLockPostgresFact]
+    public async Task Conflict_message_names_the_booking_that_holds_the_room_in_local_time()
+    {
+        await using var db = Db();
+        var (property, room) = await SeedAsync(db);
+        var service = Bookings(db);
+        var first = await service.CreateAsync(property.Id, Order(room.Id, Start, Start.AddHours(3)));
+        Assert.Null(first.Error);
+        var clash = await service.CreateAsync(property.Id, Order(room.Id, Start.AddHours(2), Start.AddHours(5)));
+        Assert.Equal("booking_conflict", clash.Error?.Code);
+        Assert.Contains(first.Booking!.Code, clash.Error!.Message);
+        Assert.Contains("Guest", clash.Error.Message);
+        Assert.Contains("14:00", clash.Error.Message); // 07:00 UTC shown in the branch's local time
+        Assert.Contains("17:00", clash.Error.Message);
+    }
+
+    [RoomLockPostgresFact]
     public async Task Create_update_and_move_cannot_overlap_completed_booking_but_exact_boundary_is_allowed()
     {
         await using var db = Db();
