@@ -58,7 +58,7 @@ public sealed class BookingService(
         var checkInUtc = request.CheckIn.UtcDateTime; var checkOutUtc = request.CheckOut.UtcDateTime;
         if (await RoomBookingGuard.HasScheduledLockAsync(db, propertyId, request.RoomId, checkInUtc, checkOutUtc, cancellationToken))
             return (null, new(RoomBookingGuard.ErrorCode, "Phòng tạm khóa trong thời gian đã chọn. Vui lòng chọn thời gian hoặc phòng khác."));
-        if (BookingRules.LocksRoom(request.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken)) return (null, ConflictError());
+        if (BookingRules.LocksRoom(request.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken)) return (null, await DescribeConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken));
         var customer = await customerService.FindOrCreateEntityAsync(propertyId, request.CustomerId, request.CustomerName, request.CustomerPhone, cancellationToken);
         if (customer is null) return (null, new("customer_invalid", "Thông tin khách chưa hợp lệ. Vui lòng kiểm tra họ tên và số điện thoại hoặc liên hệ Home để được hỗ trợ."));
         if (customer.IsBlocked) return (null, new("customer_blocked", "Khách hàng đã bị chặn. Vui lòng kiểm tra hồ sơ khách trước khi tạo booking."));
@@ -134,7 +134,7 @@ public sealed class BookingService(
         var extendsStay = request.RoomId != booking.RoomId || checkInUtc < booking.CheckInUtc || checkOutUtc > booking.CheckOutUtc;
         if (extendsStay && await RoomBookingGuard.HasScheduledLockAsync(db, propertyId, request.RoomId, checkInUtc, checkOutUtc, cancellationToken))
             return (null, new(RoomBookingGuard.ErrorCode, "Khoảng thời gian mới giao với lịch khóa phòng."));
-        if (BookingRules.LocksRoom(booking.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, booking.Id, cancellationToken)) return (null, ConflictError());
+        if (BookingRules.LocksRoom(booking.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, booking.Id, cancellationToken)) return (null, await DescribeConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, booking.Id, cancellationToken));
         var paymentTermsChanged = booking.RoomId != request.RoomId ||
                                   booking.CheckInUtc != checkInUtc ||
                                   booking.CheckOutUtc != checkOutUtc ||
@@ -323,5 +323,27 @@ public sealed class BookingService(
     }
 
     private static BookingOperationError ConflictError() => new("booking_conflict", "Phòng đã có booking trong khoảng thời gian này.");
+
+    // Name the booking that blocks the room so staff can see why: an overnight stay checking out at
+    // 10:30 sits on the previous day's row of the calendar, so a 10:00 booking looks free but is not.
+    private async Task<BookingOperationError> DescribeConflictAsync(Guid propertyId, Guid roomId, DateTime checkInUtc, DateTime checkOutUtc, Guid? excludeBookingId, CancellationToken cancellationToken)
+    {
+        var other = await db.Bookings.AsNoTracking()
+            .Where(x => x.PropertyId == propertyId && x.RoomId == roomId && LockingStatuses.Contains(x.Status) &&
+                        (!excludeBookingId.HasValue || x.Id != excludeBookingId.Value) &&
+                        x.CheckInUtc < checkOutUtc && checkInUtc < x.CheckOutUtc)
+            .OrderBy(x => x.CheckInUtc)
+            .Select(x => new { x.Code, CustomerName = x.Customer.Name, x.CheckInUtc, x.CheckOutUtc })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (other is null) return ConflictError();
+        var timeZoneId = await db.Properties.AsNoTracking().Where(x => x.Id == propertyId).Select(x => x.TimeZoneId).SingleOrDefaultAsync(cancellationToken);
+        TimeZoneInfo zone;
+        try { zone = TimeZoneInfo.FindSystemTimeZoneById(string.IsNullOrWhiteSpace(timeZoneId) ? "Asia/Ho_Chi_Minh" : timeZoneId); }
+        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException) { zone = TimeZoneInfo.Utc; }
+        string Local(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone).ToString("HH:mm dd/MM", System.Globalization.CultureInfo.InvariantCulture);
+        var guest = string.IsNullOrWhiteSpace(other.CustomerName) ? "" : $" ({other.CustomerName.Trim()})";
+        return new("booking_conflict",
+            $"Chưa lưu được: phòng đã có lượt {other.Code}{guest} từ {Local(other.CheckInUtc)} đến {Local(other.CheckOutUtc)}, trùng với giờ bạn chọn. Hãy đổi giờ nhận/trả phòng rồi bấm lưu lại.");
+    }
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

@@ -61,6 +61,7 @@
 
             <partial name="_BookingHistorySummary" />
             <template v-if="editor.mode === 'create' || editor.mode === 'edit'">
+                <div class="notice booking-draft-notice" v-if="editor.mode === 'create' && draftRestoredAt" role="status">Đang hiện lại thông tin bạn nhập dở lúc {{ draftRestoredAt }} (chưa được lưu). <button type="button" class="btn btn-light btn-sm" v-on:click="startFreshCreate">Nhập mới</button></div>
                 <section class="booking-form-section">
                     <div class="booking-form-title">Phòng & thời gian <span>Thời gian thực tế quyết định phòng có bận hay không</span></div>
                     <div class="form-grid">
@@ -153,6 +154,7 @@
                         <div class="summary-line"><span>Còn lại sau khoản thu thêm</span><strong>{{ money(Math.max(0, paymentLimit - Number(form.initialPaymentAmount || 0))) }}</strong></div>
                     </template>
                 </div>
+                <div class="notice booking-save-error" v-if="saveError" role="alert"><strong>Chưa lưu được.</strong> {{ saveError }}</div>
                 <div class="modal-actions">
                     @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                     {
