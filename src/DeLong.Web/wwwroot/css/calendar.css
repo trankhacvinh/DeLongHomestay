@@ -154,3 +154,9 @@
     .booking-time-inputs{grid-template-columns:minmax(0,1fr)}
     .booking-editor .form-grid{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Booking form: a failed save stays visible next to the buttons; a restored draft is flagged. */
+.modal-card .booking-save-error,
+.modal-card .booking-draft-notice { margin: 12px 0; font-size: 13px; line-height: 1.45; }
+.modal-card .booking-save-error { border-color: #f1b8b8; background: #fdecec; color: #8a1f1f; }
+.modal-card .booking-draft-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border-color: #f0d9a8; background: #fff7e6; color: #6b4a00; }

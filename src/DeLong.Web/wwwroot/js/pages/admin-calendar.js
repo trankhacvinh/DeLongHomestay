@@ -61,6 +61,9 @@
                 saving: false,
                 paymentEdited: false,
                 editor: { open: false, mode: 'create' },
+                saveError: '',
+                createDraft: null,
+                draftRestoredAt: '',
                 selectedLockSlot: null,
                 rateSuggestions: { scope: '', rates: [], loading: false, error: '', serial: 0 },
                 ratePresetStamp: null,
@@ -356,10 +359,14 @@
                 const query = new URLSearchParams({ propertyId: this.propertyId, from, to });
                 window.location.assign(`/Admin/Calendar?${query}`);
             },
-            openCreate(room, day) {
+            openCreate(room, day, options = {}) {
                 if (!this.canManage) return;
                 const selectedRoom = room || this.activeRooms.find(x => !x.isBookingLocked) || null;
                 if (!selectedRoom || selectedRoom.isBookingLocked) return this.notify('Phòng đang tạm ngừng nhận đặt phòng. Vui lòng chọn phòng khác.', 'error');
+                this.saveError = '';
+                this.draftRestoredAt = '';
+                if (!options.fresh && this.restoreCreateDraft(selectedRoom)) return;
+                this.discardCreateDraft();
                 this.selectedDayKey = day?.key || this.today;
                 this.selectedLockSlot = null;
                 this.ratePresetStamp = null;
@@ -385,6 +392,8 @@
             },
             async openEditBooking(booking) {
                 if (!this.canEditBooking(booking)) return;
+                this.saveError = '';
+                this.draftRestoredAt = '';
                 const checkInLocal = utcToLocalInput(booking.checkInUtc);
                 this.selectedDayKey = checkInLocal.slice(0, 10);
                 this.selectedBooking = booking;
@@ -469,8 +478,56 @@
             },
             closeEditor() {
                 if (this.saving) return;
+                if (this.editor.open && this.editor.mode === 'create') this.keepCreateDraft();
                 this.editor.open = false;
+                this.saveError = '';
                 this.closeStatusConfirm();
+            },
+            // A create form closed without saving (Hủy, ×, a tap outside, or after a failed save) keeps
+            // what staff typed, including CCCD photos, so reopening the same room does not start over.
+            keepCreateDraft() {
+                const form = this.form || {};
+                const hasInput = (form.customerName || '').trim() || (form.customerPhone || '').trim() || (form.note || '').trim() ||
+                    this.identityFiles.front || this.identityFiles.back;
+                if (!hasInput || !form.roomId) return this.discardCreateDraft();
+                this.createDraft = {
+                    form: { ...form },
+                    dayKey: this.selectedDayKey,
+                    identityFiles: { ...this.identityFiles },
+                    paymentEdited: this.paymentEdited,
+                    savedAt: Date.now()
+                };
+            },
+            discardCreateDraft() {
+                this.createDraft = null;
+                this.draftRestoredAt = '';
+            },
+            restoreCreateDraft(room) {
+                const draft = this.createDraft;
+                if (!draft || draft.form.roomId !== room.id || Date.now() - draft.savedAt > 3 * 60 * 60 * 1000) return false;
+                this.selectedDayKey = draft.dayKey;
+                this.selectedLockSlot = null;
+                this.ratePresetStamp = null;
+                this.rateSuggestions.scope = '';
+                this.rateSuggestions.rates = [];
+                this.paymentEdited = draft.paymentEdited;
+                this.selectedBooking = null;
+                this.resetGuestEditor();
+                this.form = { ...draft.form };
+                for (const side of ['front', 'back']) {
+                    const file = draft.identityFiles[side];
+                    this.identityFiles[side] = file || null;
+                    this.identityPreviews[side] = file ? URL.createObjectURL(file) : '';
+                }
+                this.editor = { open: true, mode: 'create' };
+                this.draftRestoredAt = new Date(draft.savedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                return true;
+            },
+            startFreshCreate() {
+                const room = this.activeRooms.find(x => x.id === this.form.roomId) || null;
+                const day = { key: this.selectedDayKey };
+                this.discardCreateDraft();
+                this.openCreate(room, day, { fresh: true });
             },
             canEditBooking(booking) {
                 return this.canManage && booking && Number(booking.type) !== 1 && ![4, 5, 6].includes(booking.status);
@@ -548,6 +605,7 @@
                 const validation = this.validateForm();
                 if (validation) return this.notify(validation, 'error');
                 this.saving = true;
+                this.saveError = '';
                 try {
                     const selectedRate = this.selectedRoomRates.find(x => x.id === this.form.rateId) || null;
                     const isNightly = Number(selectedRate?.type) === 2;
@@ -586,6 +644,7 @@
                             `/api/admin/properties/${this.propertyId}/bookings`,
                             { ...common, customerId: null, status: Number(this.form.status) });
                         this.bookings.push(booking);
+                        this.discardCreateDraft();
                     }
                     const initialPayment = Number(this.form.initialPaymentAmount || 0);
                     if (initialPayment > 0) {
@@ -602,7 +661,10 @@
                     }
                     if (await this.finishGuestDetails(booking)) this.editor.open = false;
                 } catch (error) {
-                    this.notify(error.message || 'Không thể lưu lượt đặt.', 'error');
+                    // Keep the reason inside the form next to the save button: the toast alone covers
+                    // the button for a few seconds and is easy to miss, so staff thought it was saved.
+                    this.saveError = error.message || 'Không thể lưu lượt đặt.';
+                    this.notify(this.saveError, 'error');
                 } finally {
                     this.saving = false;
                 }
