@@ -160,3 +160,5 @@
 .modal-card .booking-draft-notice { margin: 12px 0; font-size: 13px; line-height: 1.45; }
 .modal-card .booking-save-error { border-color: #f1b8b8; background: #fdecec; color: #8a1f1f; }
 .modal-card .booking-draft-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border-color: #f0d9a8; background: #fff7e6; color: #6b4a00; }
+.modal-card .booking-time-conflict { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 8px; padding: 9px 11px; border: 1px solid #f1b8b8; border-radius: 6px; background: #fdecec; color: #8a1f1f; font-size: 13px; line-height: 1.4; }
+.modal-card .booking-time-conflict .btn { margin-top: 4px; }

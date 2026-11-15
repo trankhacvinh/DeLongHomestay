@@ -154,3 +154,8 @@ tr.today .cal-ov-cell{background-color:#f4fbf9}
     .calendar-v2-panel.is-overview .calendar-v2-legend::-webkit-scrollbar{display:none}
     .calendar-v2-panel.is-overview .calendar-v2-legend span{flex:0 0 auto}
 }
+/* Overnight stay from the previous row that checks out this morning: a hatched band on top of the first column. */
+.cal-ov-carry{position:absolute;left:0;right:0;top:0;height:46%;display:flex;align-items:center;padding:0 calc(4px * var(--ov-s));background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--carry-color,#C94B4B) 32%,#fff) 0 5px,color-mix(in srgb,var(--carry-color,#C94B4B) 18%,#fff) 5px 10px);border-bottom:1px dashed var(--carry-color,#C94B4B);color:#1d2b2b;overflow:hidden;z-index:1}
+.cal-ov-carry-text{display:block;width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:calc(9.5px * var(--ov-s));font-weight:700;pointer-events:none}
+.cal-ov-cell.has-carry .cal-ov-booking{top:48%}
+.is-tiny .cal-ov-carry-text{display:none}

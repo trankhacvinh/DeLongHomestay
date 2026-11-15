@@ -2,6 +2,7 @@ using System.Text.Json;
 using DeLong.Web.Common.Operations;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
+using DeLong.Web.Domain.Enums;
 using DeLong.Web.Features.Bookings;
 using DeLong.Web.Features.PublicBooking;
 using DeLong.Web.Features.Site;
@@ -45,6 +46,33 @@ public static class OperationsEndpoints
             {
                 return Results.Problem(detail: "Ngày giờ không hợp lệ trong múi giờ chi nhánh.", statusCode: 400);
             }
+        }).RequireAuthorization("ViewOperations");
+
+        // Read-only check used by the booking form while staff pick times: which stays or room locks
+        // overlap [from, to) for this room. It mirrors the save-time conflict rule (Held, Confirmed,
+        // CheckedIn, Completed bookings and active room locks) so the warning appears before saving.
+        admin.MapGet("/booking-conflicts/rooms/{roomId:guid}", async (
+            Guid propertyId, Guid roomId, DateTimeOffset from, DateTimeOffset to, Guid? excludeBookingId,
+            AppDbContext db, HttpContext context, CancellationToken ct) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            var fromUtc = from.UtcDateTime; var toUtc = to.UtcDateTime;
+            if (toUtc <= fromUtc || toUtc - fromUtc > TimeSpan.FromDays(62))
+                return Results.Problem(detail: "Khoảng thời gian không hợp lệ.", statusCode: 400);
+            var bookings = await db.Bookings.AsNoTracking()
+                .Where(x => x.PropertyId == propertyId && x.RoomId == roomId &&
+                            (x.Status == BookingStatus.Held || x.Status == BookingStatus.Confirmed || x.Status == BookingStatus.CheckedIn || x.Status == BookingStatus.Completed) &&
+                            (!excludeBookingId.HasValue || x.Id != excludeBookingId.Value) &&
+                            x.CheckInUtc < toUtc && fromUtc < x.CheckOutUtc)
+                .OrderBy(x => x.CheckInUtc)
+                .Select(x => new BookingConflictDto(x.Id, x.Code, x.Customer.Name, x.CheckInUtc, x.CheckOutUtc, false, null))
+                .Take(10).ToListAsync(ct);
+            var locks = await db.RoomBookingBlocks.AsNoTracking()
+                .Where(x => x.PropertyId == propertyId && x.RoomId == roomId && x.CancelledAtUtc == null && x.StartUtc < toUtc && fromUtc < x.EndUtc)
+                .OrderBy(x => x.StartUtc)
+                .Select(x => new BookingConflictDto(null, null, null, x.StartUtc, x.EndUtc, true, x.Reason))
+                .Take(10).ToListAsync(ct);
+            return Results.Ok(bookings.Concat(locks).OrderBy(x => x.StartUtc).ToList());
         }).RequireAuthorization("ViewOperations");
 
         admin.MapGet("/availability/rooms/{roomId:guid}", async (
@@ -327,3 +355,5 @@ public static class OperationsEndpoints
         }
     }
 }
+
+public sealed record BookingConflictDto(Guid? BookingId, string? Code, string? CustomerName, DateTime StartUtc, DateTime EndUtc, bool IsRoomBlock, string? Reason);

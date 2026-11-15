@@ -53,6 +53,34 @@
         }
         return formatter.format(new Date(utcValue));
     }
+    const dateFormatters = new Map();
+    function dateKeyIn(utcValue, timeZone) {
+        let formatter = dateFormatters.get(timeZone);
+        if (!formatter) {
+            formatter = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' });
+            dateFormatters.set(timeZone, formatter);
+        }
+        return formatter.format(new Date(utcValue));
+    }
+    // A stay that started on an earlier day and checks out this morning (an overnight 22:00–10:30
+    // slot) is drawn only on the previous day's row, so this row looked free until the first slot.
+    // Collect those stays so the row can show "↳ guest đến 10:30" before its first column.
+    function carryOverRanges(previousDay, day, timeZone) {
+        if (!previousDay || !day) return [];
+        const shownToday = new Set();
+        (day.slots || []).forEach(slot => (slot?.occupied || []).forEach(range => shownToday.add(`${range.bookingId}|${range.endUtc}`)));
+        const seen = new Set();
+        const result = [];
+        (previousDay.slots || []).forEach(slot => (slot?.occupied || []).forEach(range => {
+            const key = `${range.bookingId}|${range.endUtc}`;
+            if (seen.has(key) || shownToday.has(key)) return;
+            if (dateKeyIn(range.endUtc, timeZone) !== day.date || dateKeyIn(range.startUtc, timeZone) >= day.date) return;
+            if (timeText(range.endUtc, timeZone) === '00:00') return;
+            seen.add(key);
+            result.push(range);
+        }));
+        return result;
+    }
     function minutesOfDay(utcValue, timeZone) {
         const [h, m] = timeText(utcValue, timeZone).split(':').map(Number);
         return h * 60 + m;
@@ -257,8 +285,9 @@
                     columns.sort((a, b) => a.sortKey - b.sortKey);
                     const days = (room.calendar || []).map(day => {
                         const byRate = new Map(visibleSlots(day.slots).map(slot => [slot.rateId, slot]));
-                        return { date: day.date, slots: columns.map(column => byRate.get(column.rateId) || null) };
+                        return { date: day.date, slots: columns.map(column => byRate.get(column.rateId) || null), carry: [] };
                     });
+                    days.forEach((day, index) => { day.carry = carryOverRanges(days[index - 1], day, property.timeZoneId); });
                     model.push({
                         key: `${property.id}:${room.roomId}`,
                         property,
@@ -416,6 +445,19 @@
                             if (name && !continues) segment.appendChild(el('span', 'cal-ov-guest', name));
                             td.appendChild(segment);
                         });
+                        if (columnIndex === 0 && day.carry.length) {
+                            const range = day.carry[day.carry.length - 1];
+                            const visual = bookingVisual(range, item.property.colors);
+                            const name = range.isRoomBlock ? (range.blockReason || 'Khóa') : (range.customerName || 'Khách');
+                            const until = timeText(range.endUtc, item.property.timeZoneId);
+                            const carry = el('span', 'cal-ov-carry');
+                            carry.dataset.k = String(day.carry.length - 1);
+                            carry.style.setProperty('--carry-color', visual.color);
+                            carry.title = `${name} ở từ hôm trước, trả phòng ${until} hôm nay`;
+                            carry.appendChild(el('span', 'cal-ov-carry-text', `↳ đến ${until} · ${name}`));
+                            td.classList.add('has-carry');
+                            td.appendChild(carry);
+                        }
                         tr.appendChild(td);
                     });
                 });
@@ -565,11 +607,17 @@
             const slot = day?.slots[columnIndex];
             if (!item || !slot) return;
             const segment = event.target.closest('.cal-ov-booking');
+            const carried = event.target.closest('.cal-ov-carry') ? day.carry[Number(event.target.closest('.cal-ov-carry').dataset.k)] : null;
             // Wait briefly so a double tap (zoom) does not also open a dialog.
             clearTimeout(clickTimer);
             clickTimer = setTimeout(() => {
                 if (Date.now() - lastZoomAt < 350) return;
                 const context = { propertyId: item.property.id, roomId: item.room.roomId, room: item.room, slot, day: { date: day.date } };
+                if (carried) {
+                    if (carried.isRoomBlock) options.onOpenBlock?.({ ...context, range: carried });
+                    else options.onOpenBooking?.({ ...context, bookingId: carried.bookingId });
+                    return;
+                }
                 if (segment) {
                     const range = slot.occupied[Number(segment.dataset.o)];
                     if (!range) return;

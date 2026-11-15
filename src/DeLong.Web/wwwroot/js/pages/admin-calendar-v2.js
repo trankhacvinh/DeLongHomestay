@@ -493,6 +493,45 @@
         return cell;
     }
 
+    // An overnight stay (22:00–10:30) is drawn on the day it starts, so the next row looked free
+    // in the morning. Name it at the start of that next row: "↳ guest đến 10:30".
+    function localDateKey(utcValue) {
+        const part = localParts(utcValue);
+        return `${part.year}-${part.month}-${part.day}`;
+    }
+
+    function carryOverRanges(previousDay, day) {
+        if (!previousDay || !day) return [];
+        const shownToday = new Set();
+        visibleSlots(day.slots).forEach(slot => (slot.occupied || []).forEach(range => shownToday.add(`${range.bookingId}|${range.endUtc}`)));
+        const seen = new Set();
+        const result = [];
+        visibleSlots(previousDay.slots).forEach(slot => (slot.occupied || []).forEach(range => {
+            const key = `${range.bookingId}|${range.endUtc}`;
+            if (seen.has(key) || shownToday.has(key)) return;
+            if (localDateKey(range.endUtc) !== day.date || localDateKey(range.startUtc) >= day.date || timeText(range.endUtc) === '00:00') return;
+            seen.add(key);
+            result.push(range);
+        }));
+        return result;
+    }
+
+    function carryOverBadge(range) {
+        const badge = document.createElement('button');
+        badge.type = 'button';
+        badge.className = 'calendar-v2-carry';
+        badge.style.setProperty('--carry-color', bookingVisual(range).color);
+        const name = range.isRoomBlock ? (range.blockReason || 'Tạm khóa') : (bookingGuestText(range) || 'Khách');
+        badge.textContent = `↳ đến ${timeText(range.endUtc)} · ${name}`;
+        badge.title = `${name} ở từ hôm trước, trả phòng ${timeText(range.endUtc)} hôm nay`;
+        if (!range.isRoomBlock) badge.dataset.bookingId = range.bookingId;
+        badge.addEventListener('click', event => {
+            event.stopPropagation();
+            if (!range.isRoomBlock) openBooking(range.bookingId);
+        });
+        return badge;
+    }
+
     function render(data) {
         state.data = data;
         if (data?.timeZoneId) timeZone = data.timeZoneId;
@@ -538,11 +577,12 @@
         table.appendChild(thead);
 
         const tbody = document.createElement('tbody');
-        calendar.forEach(day => {
+        calendar.forEach((day, dayIndex) => {
             const tr = document.createElement('tr');
             const th = document.createElement('th');
             th.textContent = dateText(day.date);
             if (dailySummary) { th.classList.add('calendar-day-heading'); th.appendChild(dailySummary.button(day.date)); }
+            carryOverRanges(calendar[dayIndex - 1], day).forEach(range => th.appendChild(carryOverBadge(range)));
             if (day.date === today) th.classList.add('today');
             tr.appendChild(th);
             const byRate = new Map(visibleSlots(day.slots).map(slot => [slot.rateId, slot]));
