@@ -62,6 +62,7 @@
                 paymentEdited: false,
                 editor: { open: false, mode: 'create' },
                 saveError: '',
+                timeConflicts: { key: '', items: [], timer: null, serial: 0 },
                 createDraft: null,
                 draftRestoredAt: '',
                 selectedLockSlot: null,
@@ -79,6 +80,23 @@
             };
         },
         computed: {
+            conflictCheckKey() {
+                if (!this.editor.open || !['create', 'edit'].includes(this.editor.mode)) return '';
+                const form = this.form || {};
+                if (!form.roomId || !form.checkInLocal || !form.checkOutLocal) return '';
+                return `${form.roomId}|${form.checkInLocal}|${form.checkOutLocal}|${this.editor.mode === 'edit' ? this.selectedBooking?.id || '' : ''}`;
+            },
+            // The stay that would block the chosen check-in (it starts before and ends after it):
+            // offer to move check-in to its check-out time.
+            conflictMoveTo() {
+                if (!this.timeConflicts.items.length || !this.form.checkInLocal) return '';
+                const checkIn = new Date(`${this.form.checkInLocal}${utcOffset}`).getTime();
+                const checkOut = new Date(`${this.form.checkOutLocal}${utcOffset}`).getTime();
+                const before = this.timeConflicts.items.filter(item => new Date(item.startUtc).getTime() <= checkIn);
+                if (!before.length || before.length !== this.timeConflicts.items.length) return '';
+                const end = Math.max(...before.map(item => new Date(item.endUtc).getTime()));
+                return end < checkOut ? utcToLocalInput(new Date(end).toISOString()) : '';
+            },
             days() {
                 return Array.from({ length: this.rangeDays }, (_, index) => {
                     const key = addDays(this.startDate, index);
@@ -123,7 +141,8 @@
             }
         },
         watch: {
-            totalAmount() { this.syncDefaultPayment(); }
+            totalAmount() { this.syncDefaultPayment(); },
+            conflictCheckKey() { this.scheduleConflictCheck(); }
         },
         methods: {
             syncDefaultPayment() {
@@ -475,6 +494,43 @@
                 this.additionalPayment = { amount: 0, method: 1 };
                 this.editor = { open: true, mode: 'view' };
                 await this.loadGuestDetails(booking.id);
+            },
+            scheduleConflictCheck() {
+                clearTimeout(this.timeConflicts.timer);
+                const key = this.conflictCheckKey;
+                if (!key) { this.timeConflicts.items = []; this.timeConflicts.key = ''; return; }
+                if (key === this.timeConflicts.key) return;
+                this.timeConflicts.timer = setTimeout(() => this.checkTimeConflicts(key), 350);
+            },
+            // Warn while staff pick times, before they fill in the guest and press save. Read-only:
+            // the server still decides on save, this only shows the same overlap earlier.
+            async checkTimeConflicts(key) {
+                const serial = ++this.timeConflicts.serial;
+                const [roomId, checkIn, checkOut, excludeId] = key.split('|');
+                const from = new Date(`${checkIn}${utcOffset}`);
+                const to = new Date(`${checkOut}${utcOffset}`);
+                if (!(to > from)) { this.timeConflicts.items = []; this.timeConflicts.key = key; return; }
+                const query = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+                if (excludeId) query.set('excludeBookingId', excludeId);
+                try {
+                    const items = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/operations/booking-conflicts/rooms/${roomId}?${query}`);
+                    if (serial !== this.timeConflicts.serial || key !== this.conflictCheckKey) return;
+                    this.timeConflicts.items = Array.isArray(items) ? items : [];
+                    this.timeConflicts.key = key;
+                } catch {
+                    if (serial === this.timeConflicts.serial) this.timeConflicts.items = [];
+                }
+            },
+            conflictText(item) {
+                const range = `${this.timeText(item.startUtc)} ${this.formatInProperty(item.startUtc, { day: '2-digit', month: '2-digit' })} → ${this.timeText(item.endUtc)} ${this.formatInProperty(item.endUtc, { day: '2-digit', month: '2-digit' })}`;
+                return item.isRoomBlock
+                    ? `Phòng tạm khóa ${range}${item.reason ? ` (${item.reason})` : ''}`
+                    : `Trùng lượt ${item.code}${item.customerName ? ` · ${item.customerName}` : ''} · ${range}`;
+            },
+            moveCheckInAfterConflict() {
+                if (!this.conflictMoveTo) return;
+                this.form.checkInLocal = this.conflictMoveTo;
+                this.ratePresetStamp = null;
             },
             closeEditor() {
                 if (this.saving) return;

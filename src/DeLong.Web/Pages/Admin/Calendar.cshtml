@@ -234,6 +234,11 @@
                                     <div class="field"><label>Trả phòng *</label><input type="datetime-local" v-model="form.checkOutLocal" v-on:change="bookingTimeChanged" /></div>
                                 </div>
                             </details>
+                            <div class="booking-time-conflict" v-if="timeConflicts.items.length" role="alert">
+                                <strong>Giờ này phòng chưa trống:</strong>
+                                <span v-for="item in timeConflicts.items" v-bind:key="(item.bookingId || 'lock') + item.startUtc">{{ conflictText(item) }}</span>
+                                <button v-if="conflictMoveTo" type="button" class="btn btn-light btn-sm" v-on:click="moveCheckInAfterConflict">Đổi giờ nhận thành {{ conflictMoveTo.slice(11, 16) }}</button>
+                            </div>
                         </div>
                     </div>
                 </section>
