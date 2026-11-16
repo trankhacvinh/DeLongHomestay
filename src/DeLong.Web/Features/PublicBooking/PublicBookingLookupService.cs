@@ -53,18 +53,30 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
 
     public async Task<PublicBookingLookupDto?> LookupAsync(string? siteSlug, string rawCode, string rawPhone, CancellationToken ct = default)
     {
-        var property = await publicPropertyResolver.ResolveAsync(siteSlug, ct);
-        if (property is null) return null;
+        // Global lookup page (no branch in the URL): search every active branch, so a guest of any branch
+        // finds the booking with code + phone. A branch page searches only that branch.
+        List<Guid> propertyIds;
+        if (string.IsNullOrWhiteSpace(siteSlug))
+            propertyIds = (await publicPropertyResolver.GetActiveAsync(ct)).Select(x => x.Id).ToList();
+        else
+        {
+            var property = await publicPropertyResolver.ResolveAsync(siteSlug, ct);
+            if (property is null) return null;
+            propertyIds = [property.Id];
+        }
+        if (propertyIds.Count == 0) return null;
 
         var code = (rawCode ?? string.Empty).Trim().ToUpperInvariant();
         var phone = CustomerService.NormalizePhone(rawPhone ?? string.Empty);
         if (code.Length is < 8 or > 50 || phone.Length < 8) return null;
 
         var booking = await db.Bookings.AsNoTracking()
-            .Where(x => x.PropertyId == property.Id && x.Code == code && x.Customer.NormalizedPhone == phone &&
+            .Where(x => propertyIds.Contains(x.PropertyId) && x.Code == code && x.Customer.NormalizedPhone == phone &&
                         x.Status != BookingStatus.Completed && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
+            .OrderByDescending(x => x.CheckInUtc)
             .Select(x => new
             {
+                x.PropertyId,
                 x.Code,
                 x.Status,
                 x.Type,
@@ -83,11 +95,11 @@ public sealed class PublicBookingLookupService(AppDbContext db, PublicPropertyRe
                 x.Property.TimeZoneId,
                 Payments = x.Payments.Where(p => !p.IsVoided).Select(p => new { p.Type, p.Amount }).ToList()
             })
-            .SingleOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(ct);
         if (booking is null) return null;
 
         var site = await db.Set<PropertySiteSettings>().AsNoTracking()
-            .Where(x => x.PropertyId == property.Id)
+            .Where(x => x.PropertyId == booking.PropertyId)
             .Select(x => new { x.Phone, x.Address, x.SiteName })
             .SingleOrDefaultAsync(ct);
 

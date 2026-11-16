@@ -47,8 +47,11 @@ public sealed class PublicPropertyResolver(AppDbContext db, IFusionCache? fusion
     {
         var properties = await GetActiveAsync(cancellationToken);
 
+        // No branch in the URL: the original De Long property, or on another deployment (same code, own database,
+        // no "DELONG" property) its first active property. Without this fallback global pages such as
+        // /booking/lookup answered 404 on those sites.
         if (string.IsNullOrWhiteSpace(siteSlug))
-            return properties.SingleOrDefault(x => x.Code == LegacyPropertyCode);
+            return properties.SingleOrDefault(x => x.Code == LegacyPropertyCode) ?? properties.FirstOrDefault();
 
         var normalized = NormalizeSiteSlug(siteSlug);
         var matches = properties

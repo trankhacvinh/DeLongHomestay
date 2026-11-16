@@ -125,9 +125,11 @@
 
     function applyShell(shell) {
         if (!shell) return;
-        applyNav(document.querySelector('.public-site-links'), shell);
+        // The server already renders the saved menu and header button (no jump on load); only fill in what it did not.
+        const nav = document.querySelector('.public-site-links');
+        if (nav && !nav.hasAttribute('data-shell-rendered')) applyNav(nav, shell);
         const cta = document.querySelector('.public-site-actions .public-btn-primary');
-        if (cta) {
+        if (cta && !cta.hasAttribute('data-shell-rendered')) {
             cta.textContent = shell.headerCtaText || shell.bookingLabel || cta.textContent;
             cta.href = resolveUrl(shell.headerCtaUrl || '@booking');
         }
