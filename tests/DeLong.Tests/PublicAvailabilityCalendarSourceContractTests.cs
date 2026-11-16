@@ -10,11 +10,12 @@ public sealed class PublicAvailabilityCalendarSourceContractTests
     {
         var service = ReadRepositoryFile("src/DeLong.Web/Features/Site/SiteContentService.cs");
         var editor = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/public-visual-editor-v2.js");
-        var home = ReadRepositoryFile("src/DeLong.Web/Pages/Index.cshtml");
+        var home = ReadRepositoryFile("src/DeLong.Web/Pages/Themes/theme1/_AvailabilityCalendar.cshtml");
+        var themes = ReadRepositoryFile("src/DeLong.Web/Features/Site/Themes/ThemeCatalog.cs");
 
         Assert.Contains("\"AvailabilityCalendar\"", service, StringComparison.Ordinal);
         Assert.Contains("['AvailabilityCalendar', 'Lịch phòng trống V2']", editor, StringComparison.Ordinal);
-        Assert.Contains("case \"AvailabilityCalendar\"", home, StringComparison.Ordinal);
+        Assert.Contains("new(\"AvailabilityCalendar\"", themes, StringComparison.Ordinal);
         Assert.Contains("data-public-availability-calendar", home, StringComparison.Ordinal);
         Assert.Contains("\"lich-phong\"", home, StringComparison.Ordinal);
     }

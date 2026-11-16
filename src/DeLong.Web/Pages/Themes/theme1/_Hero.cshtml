@@ -1,0 +1,70 @@
+@* Theme 1 · Hero block (moved unchanged from Index.cshtml). *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var eyebrow = Text(block.Content, "eyebrow", siteName.ToUpperInvariant());
+    var title = Text(block.Content, "title", "Chọn một không gian phù hợp với nhịp nghỉ của bạn.");
+    var body = Text(block.Content, "body", "Khám phá các cơ sở và phòng đang mở trên cùng một website.");
+    var primaryText = Text(block.Content, "primaryText", "Xem tất cả phòng");
+    var primaryUrl = Text(block.Content, "primaryUrl", "/rooms");
+    var secondaryText = Text(block.Content, "secondaryText");
+    var secondaryUrl = Text(block.Content, "secondaryUrl");
+    var imageUrl = Text(block.Content, "imageUrl");
+    var propertyCover = Page.GlobalCatalog.Properties.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+    var roomCover = Page.GlobalCatalog.Rooms.Select(x => x.Room.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+    if (string.IsNullOrWhiteSpace(imageUrl)) imageUrl = propertyCover ?? roomCover ?? string.Empty;
+    var accentImage = Page.GlobalCatalog.Rooms.Select(x => x.Room.CoverCardUrl)
+        .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x) && !string.Equals(x, imageUrl, StringComparison.OrdinalIgnoreCase));
+    var heroProperty = Page.GlobalCatalog.Properties.FirstOrDefault();
+    <section class="public-hero public-cms-hero public-hotel-hero variant-@(Variant(block.Variant))"><partial name="_LuxHeroDeco" />
+        <div class="public-container public-hero-grid public-hotel-hero-grid">
+            <div class="public-hero-copy public-hotel-hero-copy">
+                <span class="public-eyebrow @(V(block.Content, "eyebrow"))">@eyebrow</span>
+                <h1 class="@(V(block.Content, "title"))">@PublicTitleAccent.Render(title)</h1>
+                <p class="@(V(block.Content, "body"))">@body</p>
+                <div class="public-hero-actions"><a class="public-btn public-btn-primary @(V(block.Content, "primaryText"))" href="@primaryUrl">@primaryText</a>@if (!string.IsNullOrWhiteSpace(secondaryText)) { <a class="public-btn public-btn-ghost @(V(block.Content, "secondaryText"))" href="@secondaryUrl">@secondaryText</a> }</div>
+            </div>
+            @if (Page.ThemeStandard)
+            {
+                @Html.Raw(H.HeroCollage(block.Content, propertyCover ?? string.Empty, heroProperty?.Tagline ?? "Không gian nghỉ riêng tư", heroProperty?.SiteName ?? siteName))
+            }
+            else if (!string.IsNullOrWhiteSpace(imageUrl))
+            {
+                <div class="public-cms-hero-image public-hotel-hero-media @(V(block.Content, "imageUrl", true))">
+                    <img class="public-hotel-hero-main-image" src="@imageUrl" alt="@title" fetchpriority="high" decoding="async" />
+                    @if (!string.IsNullOrWhiteSpace(accentImage))
+                    {
+                        <span class="public-hotel-hero-inset"><img src="@accentImage" alt="Một góc không gian nghỉ" loading="lazy" /></span>
+                    }
+                    <span class="public-hotel-hero-label"><small>@(heroProperty?.Tagline ?? "Không gian nghỉ riêng tư")</small><strong>@(heroProperty?.SiteName ?? siteName)</strong></span>
+                    @if (!string.IsNullOrEmpty(heroPriceShort))
+                    {
+                        <span class="public-hero-price-sticker" aria-hidden="true"><small>đặt nhanh từ</small><strong>@heroPriceShort</strong><small>mỗi khung giờ</small></span>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="public-hero-art"><div class="hero-art-card hero-art-main"><span>@siteName.ToUpperInvariant()</span><strong>MULTI STAY</strong><small>@Page.GlobalCatalog.Properties.Count cơ sở · @roomCount phòng</small></div><div class="hero-art-card hero-art-float"><small>Đặt nhanh từ</small><strong>@(fromPrice > 0 ? $"{fromPrice:N0}đ" : "Giá rõ ràng")</strong></div></div>
+            }
+        </div>
+    </section>
+}

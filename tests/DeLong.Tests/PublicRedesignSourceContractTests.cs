@@ -51,7 +51,7 @@ public sealed class PublicRedesignSourceContractTests
     {
         var source = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/public-availability-calendar.js");
         var styles = ReadRepositoryFile("src/DeLong.Web/wwwroot/css/public-availability-calendar.css");
-        var home = ReadRepositoryFile("src/DeLong.Web/Pages/Index.cshtml");
+        var home = ReadHomeSources();
 
         Assert.Contains("data-calendar-branches", source, StringComparison.Ordinal);
         Assert.Contains("window.matchMedia('(min-width: 761px)')", source, StringComparison.Ordinal);
@@ -75,17 +75,17 @@ public sealed class PublicRedesignSourceContractTests
     {
         var store = ReadRepositoryFile("src/DeLong.Web/Features/Site/PublicThemeStore.cs");
         var layout = ReadRepositoryFile("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
-        var home = ReadRepositoryFile("src/DeLong.Web/Pages/Index.cshtml");
+        var home = ReadHomeSources();
         var custom = ReadRepositoryFile("src/DeLong.Web/Pages/CustomPage.cshtml");
         var api = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/core/api.js");
         var endpoints = ReadRepositoryFile("src/DeLong.Web/Features/Site/SiteContentEndpoints.cs");
         var styles = ReadRepositoryFile("src/DeLong.Web/wwwroot/css/public-redesign.css");
 
         Assert.Contains("MetadataSectionType = \"__PublicTheme\"", store, StringComparison.Ordinal);
-        Assert.Contains("return new PublicThemeDto(Normalize(payload.Mode)", store, StringComparison.Ordinal);
+        Assert.Contains("Normalize(payload.Mode),", store, StringComparison.Ordinal);
         Assert.Contains("!isGlobalPublic && !publicThemeStandard", layout, StringComparison.Ordinal);
         Assert.Contains("dl-theme-standard", layout, StringComparison.Ordinal);
-        Assert.Contains("Model.ThemeStandard ? string.Empty : CustomPageModel.VisualClass", home, StringComparison.Ordinal);
+        Assert.Contains("Page.ThemeStandard ? string.Empty : CustomPageModel.VisualClass", home, StringComparison.Ordinal);
         Assert.Contains("Model.ThemeStandard ? string.Empty : CustomPageModel.VisualClass", custom, StringComparison.Ordinal);
         Assert.DoesNotContain("variant-@(block.Variant)", home, StringComparison.Ordinal);
         Assert.DoesNotContain("variant-@(section.Variant)", custom, StringComparison.Ordinal);
@@ -107,8 +107,8 @@ public sealed class PublicRedesignSourceContractTests
         var script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-global-site.js");
 
         // Saved in the existing hidden theme row; saving the theme keeps the code and vice versa.
-        Assert.Contains("CustomCss = current.CustomCss,", store, StringComparison.Ordinal);
-        Assert.Contains("Mode = Normalize(current.Mode),", store, StringComparison.Ordinal);
+        Assert.Contains("payload.CustomCss = request.Css?.Trim() ?? string.Empty;", store, StringComparison.Ordinal);
+        Assert.DoesNotContain("payload.CustomCss = request.", store.Split("SaveCustomCodeAsync")[0], StringComparison.Ordinal);
         Assert.Contains("if (css.Length == 0 && js.Length == 0) return PublicCustomCodeDto.Empty;", store, StringComparison.Ordinal);
         // Not tied to property pages or to the custom theme mode, and nothing is emitted while empty.
         Assert.Contains("@if (!isAdmin && publicCustomCode.HasCss)", layout, StringComparison.Ordinal);
@@ -131,7 +131,7 @@ public sealed class PublicRedesignSourceContractTests
         var endpoints = ReadRepositoryFile("src/DeLong.Web/Features/Site/SiteContentEndpoints.cs");
         var page = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/Site/Global.cshtml");
         var script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-global-site.js");
-        var home = ReadRepositoryFile("src/DeLong.Web/Pages/Index.cshtml");
+        var home = ReadHomeSources();
 
         Assert.Contains("public async Task<int> ResetGlobalHomeToStandardAsync", service, StringComparison.Ordinal);
         Assert.Contains("section.IsVisible = false;", service, StringComparison.Ordinal);
@@ -142,9 +142,8 @@ public sealed class PublicRedesignSourceContractTests
         Assert.Contains("resetConfirm", page, StringComparison.Ordinal);
         Assert.Contains("/api/admin/site/global/reset-standard", script, StringComparison.Ordinal);
         Assert.DoesNotContain("window.confirm('Thay", script, StringComparison.Ordinal);
-        Assert.Contains("HowBand(block.Content", home, StringComparison.Ordinal);
-        Assert.Contains("@Html.Raw(HeroCollage(block.Content, propertyCover ?? string.Empty", home, StringComparison.Ordinal);
-        Assert.Contains("@Html.Raw(HeroCollage(block.Content, Model.SiteSettings?.CoverImageUrl ?? string.Empty", home, StringComparison.Ordinal);
+        Assert.Contains("ThemeHomeContext.HowBand(block.Content", home, StringComparison.Ordinal);
+        Assert.Contains("@Html.Raw(H.HeroCollage(block.Content, propertyCover ?? string.Empty", home, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -172,7 +171,7 @@ public sealed class PublicRedesignSourceContractTests
     public void Footer_map_room_lightbox_and_room_colours_are_wired()
     {
         var layout = ReadRepositoryFile("src/DeLong.Web/Pages/Shared/_Layout.cshtml");
-        var home = ReadRepositoryFile("src/DeLong.Web/Pages/Index.cshtml");
+        var home = ReadHomeSources();
         var gallery = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/public-room-gallery.js");
         var store = ReadRepositoryFile("src/DeLong.Web/Features/Site/PublicThemeStore.cs");
         var styles = ReadRepositoryFile("src/DeLong.Web/wwwroot/css/public-redesign.css");
@@ -180,7 +179,7 @@ public sealed class PublicRedesignSourceContractTests
 
         Assert.Contains("output=embed", layout, StringComparison.Ordinal);
         Assert.Contains("public-footer-contact-empty", layout, StringComparison.Ordinal);
-        Assert.Contains("data-room-lightbox=\"@RoomPhotos(room)\"", home, StringComparison.Ordinal);
+        Assert.Contains("data-room-lightbox=\"@ThemeHomeContext.RoomPhotos(room)\"", home, StringComparison.Ordinal);
         Assert.Contains("style=\"@RoomTone(room.Id)\"", home, StringComparison.Ordinal);
         Assert.Contains("public-room-lightbox", gallery, StringComparison.Ordinal);
         Assert.Contains("HexColor.IsMatch(color)", store, StringComparison.Ordinal);
@@ -204,6 +203,11 @@ public sealed class PublicRedesignSourceContractTests
     }
 
     private static string ReadRepositoryFile(string relativePath) => File.ReadAllText(RepositoryPath(relativePath));
+
+    // The homepage is Index.cshtml plus the active theme's block partials; Theme 1 holds the approved design.
+    private static string ReadHomeSources() =>
+        string.Join("\n", new[] { ReadRepositoryFile("src/DeLong.Web/Pages/Index.cshtml"), ReadRepositoryFile("src/DeLong.Web/Pages/Themes/ThemeHomeContext.cs") }
+            .Concat(Directory.GetFiles(RepositoryPath("src/DeLong.Web/Pages/Themes/theme1"), "*.cshtml").OrderBy(x => x, StringComparer.Ordinal).Select(File.ReadAllText)));
 
     private static string RepositoryPath(string relativePath)
     {

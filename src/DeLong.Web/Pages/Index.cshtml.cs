@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using DeLong.Web.Features.PublicRooms;
 using DeLong.Web.Features.Site;
+using DeLong.Web.Features.Site.Themes;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -19,6 +20,8 @@ public sealed class IndexModel(
     /// <summary>Standard theme: visual-editor style classes and layout variants are not rendered.</summary>
     public bool ThemeStandard { get; private set; }
     public PublicThemeDto Theme { get; private set; } = new(PublicThemeStore.StandardMode);
+    /// <summary>Theme drawing this page: the saved one, or the one an admin is previewing with <c>?theme=</c>.</summary>
+    public ThemeDefinition ActiveTheme { get; private set; } = ThemeCatalog.Theme1;
     public PublicGlobalRoomCatalogDto GlobalCatalog { get; private set; } = new([], []);
     public PublicRoomCatalogDto Catalog { get; private set; } = new([]);
     public string DefaultDate { get; private set; } = string.Empty;
@@ -36,14 +39,16 @@ public sealed class IndexModel(
         if (!string.IsNullOrWhiteSpace(siteSlug))
             return RedirectPermanent(PublicUrlBuilder.Home());
         Theme = await siteContentService.GetPublicThemeAsync(cancellationToken);
-        ThemeStandard = Theme.IsStandard;
+        var selection = PublicThemeSelection.Resolve(Theme, HttpContext);
+        ActiveTheme = selection.Theme;
+        ThemeStandard = selection.Standard;
 
         if (string.IsNullOrWhiteSpace(siteSlug))
         {
             IsGlobalHome = true;
             GlobalCatalog = await publicRoomContentService.GetGlobalCatalogAsync(cancellationToken);
             var globalSections = await siteContentService.GetGlobalPublicSectionsAsync(cancellationToken);
-            Sections = NormalizeGlobalSections(ToViewModels(globalSections));
+            Sections = NormalizeGlobalSections(ThemeSections(ActiveTheme, selection.Layout, globalSections));
             GlobalEditorial = await globalEditorialShowcaseService.GetPublicAsync(cancellationToken);
             var timeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
             var localNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
@@ -103,6 +108,37 @@ public sealed class IndexModel(
         }
 
         return GlobalCatalog.Rooms.Take(limit).ToList();
+    }
+
+    /// <summary>
+    /// Blocks of the homepage in the theme's order. A theme with a saved layout shows its switched-on blocks, each filled
+    /// with the content of the first stored block of that type (hidden or not, so switching themes never loses text or
+    /// photos); a block with no stored content renders its built-in defaults. Theme 1 without a saved layout shows the
+    /// stored blocks exactly as before themes existed; any other theme starts from its default blocks.
+    /// </summary>
+    public static IReadOnlyList<PublicHomeSectionVm> ThemeSections(
+        ThemeDefinition theme,
+        IReadOnlyList<ThemeLayoutItem>? layout,
+        IEnumerable<HomeSectionDto> stored)
+    {
+        var rows = stored.ToList();
+        if (layout is null && theme.Key == ThemeCatalog.DefaultKey) return ToViewModels(rows);
+        var items = layout ?? theme.Slots.Select(x => new ThemeLayoutItem(x.Type, x.DefaultVisible)).ToList();
+        var byType = ToViewModels(rows.Select(x => x with { IsVisible = true }))
+            .GroupBy(x => x.Type, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+        var visibleFirst = ToViewModels(rows).GroupBy(x => x.Type, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+        var result = new List<PublicHomeSectionVm>();
+        foreach (var item in items.Where(x => x.Visible))
+        {
+            var slot = theme.Slot(item.Type);
+            if (slot is null) continue;
+            if (visibleFirst.TryGetValue(slot.Type, out var shown)) result.Add(shown);
+            else if (byType.TryGetValue(slot.Type, out var hidden)) result.Add(hidden);
+            else result.Add(new PublicHomeSectionVm(Guid.Empty, slot.Type, slot.Label, "default", new JsonObject()));
+        }
+        return result;
     }
 
     private static IReadOnlyList<PublicHomeSectionVm> NormalizeGlobalSections(

@@ -1,0 +1,2 @@
+GSAP 3.13.0 (https://gsap.com) — distributed under the GreenSock "Standard No Charge" license, free for commercial use: https://gsap.com/standard-license
+Copied unmodified from the npm package gsap@3.13.0 (dist/gsap.min.js).

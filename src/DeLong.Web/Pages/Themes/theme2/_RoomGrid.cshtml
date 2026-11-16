@@ -1,0 +1,68 @@
+@* Theme 2 · Rooms: one horizontal rail of tall photo cards (scroll, swipe or the arrow buttons). *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var rooms = Page.SelectGlobalRooms(block.Content);
+    var title = Text(block.Content, "title", "Chọn phòng cho tối nay");
+}
+<section class="tc-rooms" aria-labelledby="tc-rooms-title">
+    <div class="public-container tc-rooms-head">
+        <h2 id="tc-rooms-title">@PublicTitleAccent.Render(title)</h2>
+        <div class="tc-rail-nav">
+            <button class="tc-rail-btn" type="button" data-tc-rail-prev aria-label="Xem phòng trước"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></button>
+            <button class="tc-rail-btn" type="button" data-tc-rail-next aria-label="Xem phòng tiếp theo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg></button>
+        </div>
+    </div>
+    <ul class="tc-rail" data-tc-rail>
+        @foreach (var item in rooms)
+        {
+            var room = item.Room;
+            var roomUrl = PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug);
+            <li class="tc-room" style="@RoomTone(room.Id)" data-room-lightbox="@ThemeHomeContext.RoomPhotos(room)" data-room-lightbox-title="@room.Name">
+                <a class="tc-room-photo public-room-art" href="@roomUrl" aria-label="Xem @room.Name">
+                    @if (!string.IsNullOrWhiteSpace(room.CoverCardUrl))
+                    {
+                        <img src="@room.CoverCardUrl" alt="@room.Name" width="900" height="1200" loading="lazy" decoding="async" />
+                    }
+                    else
+                    {
+                        <span class="tc-room-fallback" aria-hidden="true">@room.Name</span>
+                    }
+                </a>
+                <div class="tc-room-body">
+                    <h3><a href="@roomUrl">@room.Name</a></h3>
+                    <p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người, {item.PropertyName}" : room.ShortDescription)</p>
+                    <div class="tc-room-foot">
+                        <span class="tc-room-price">Từ <strong>@room.QuickFromPrice.ToString("N0")đ</strong></span>
+                        @if (room.IsBookingLocked)
+                        {
+                            <span class="tc-room-book is-locked" aria-disabled="true">Tạm ngừng nhận đặt</span>
+                        }
+                        else
+                        {
+                            <a class="tc-room-book" href="@PublicUrlBuilder.BookingHome(item.PropertySiteSlug)">Đặt phòng</a>
+                        }
+                    </div>
+                </div>
+            </li>
+        }
+    </ul>
+</section>

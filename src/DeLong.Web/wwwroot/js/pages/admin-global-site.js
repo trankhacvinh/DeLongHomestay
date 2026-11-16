@@ -46,7 +46,7 @@
             brandPreviewName() { return this.branding.siteName || this.brandingEffective.siteName || 'Cơ sở lưu trú'; },
             brandPreviewTagline() { return this.branding.tagline || this.brandingEffective.tagline || ''; }
         },
-        mounted() { nextTick(() => this.mountSortable()); },
+        mounted() { nextTick(() => { this.mountSortable(); this.openFromQuery(); }); },
         methods: {
             sectionTypeLabel(type) { return this.sectionTypes.find(x => x.value === type)?.label || type; },
             variantsFor(type) {
@@ -177,6 +177,17 @@
                     nextTick(() => this.mountSortable());
                 } catch (err) { this.notify(err.message || 'Không thể áp dụng bố cục khách sạn.', 'error'); }
                 finally { this.applyingPreset = false; }
+            },
+            // Admin → Giao diện links here with ?edit=<Type>: open that block's content, or start one (hidden; the theme decides visibility).
+            openFromQuery() {
+                const type = new URLSearchParams(window.location.search).get('edit');
+                if (!type || !sectionTypes.some(x => x.value === type)) return;
+                const section = this.sections.find(x => x.type === type && x.isVisible) || this.sections.find(x => x.type === type);
+                if (section) { this.openEdit(section); return; }
+                this.openCreate();
+                this.form.type = type;
+                this.typeChanged();
+                this.form.isVisible = false;
             },
             openCreate() { const type = 'Hero'; this.form = { type, name: '', variant: this.variantsFor(type)[0], isVisible: true, content: defaultContent(type), itemsText: '' }; this.editor = { open: true, mode: 'create', id: null }; },
             openEdit(section) { let content = {}; try { content = JSON.parse(section.contentJson || '{}'); } catch (_) {} this.form = { type: section.type, name: section.name, variant: section.variant, isVisible: section.isVisible, content: this.normalizeContent(section.type, content), itemsText: Array.isArray(content.items) ? content.items.join('\n') : '' }; this.editor = { open: true, mode: 'edit', id: section.id }; },

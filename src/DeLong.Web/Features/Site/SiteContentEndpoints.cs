@@ -186,6 +186,11 @@ public static class SiteContentEndpoints
         {
             if (request.Mode is not (null or PublicThemeStore.StandardMode or PublicThemeStore.CustomMode))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["mode"] = ["Chế độ giao diện không hợp lệ."] });
+            if ((request.ThemeKey is not null && !Themes.ThemeCatalog.Exists(request.ThemeKey)) ||
+                (request.EditTheme is not null && !Themes.ThemeCatalog.Exists(request.EditTheme)))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["themeKey"] = ["Theme không tồn tại."] });
+            if (request.Layout is { Count: > 50 })
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["layout"] = ["Danh sách khối quá dài."] });
             return Results.Ok(await PublicThemeStore.SaveAsync(db, request, ct));
         }).AddEndpointFilter<ApiAntiforgeryFilter>();
 

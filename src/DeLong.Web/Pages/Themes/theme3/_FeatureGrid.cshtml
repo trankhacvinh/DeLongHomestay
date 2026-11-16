@@ -1,0 +1,61 @@
+@* Theme 3 · Story: real numbers that count up, the highlights, and brass arches drifting at different depths behind. *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var items = (block.Content["items"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString()).Where(x => !string.IsNullOrWhiteSpace(x)).Take(6).ToList();
+    var body = Text(block.Content, "body");
+    var branches = Page.GlobalCatalog.Properties.Count;
+}
+<section class="t3-story">
+    <div class="t3-story-bg" aria-hidden="true">
+        <span class="t3-arch t3-arch-a" data-t3-speed="0.35"></span>
+        <span class="t3-arch t3-arch-b" data-t3-speed="-0.25"></span>
+        <span class="t3-arch t3-arch-c" data-t3-speed="0.6"></span>
+        <span class="t3-orb" data-t3-speed="-0.5"></span>
+    </div>
+    <div class="public-container t3-story-inner">
+        <div class="t3-story-head">
+            <h2>@PublicTitleAccent.Render(Text(block.Content, "title", "Ở đây có gì"))</h2>
+            @if (!string.IsNullOrWhiteSpace(body)) { <p>@body</p> }
+        </div>
+        <dl class="t3-stats">
+            @if (roomCount > 0)
+            {
+                <div><dt>phòng đang nhận khách</dt><dd data-t3-count="@roomCount">@roomCount</dd></div>
+            }
+            @if (branches > 1)
+            {
+                <div><dt>cơ sở</dt><dd data-t3-count="@branches">@branches</dd></div>
+            }
+            @if (fromPrice > 0)
+            {
+                <div><dt>giá đặt nhanh từ</dt><dd data-t3-count="@((int)(fromPrice >= 1000 ? fromPrice / 1000 : fromPrice))" data-t3-suffix="@(fromPrice >= 1000 ? "K" : "đ")">@heroPriceShort</dd></div>
+            }
+        </dl>
+        <ul class="t3-features">
+            @foreach (var item in items)
+            {
+                var parts = item!.Split(new[] { " — ", " – ", " - ", ": " }, 2, StringSplitOptions.TrimEntries);
+                <li><strong>@parts[0]</strong>@if (parts.Length > 1) { <span>@parts[1]</span> }</li>
+            }
+        </ul>
+    </div>
+</section>

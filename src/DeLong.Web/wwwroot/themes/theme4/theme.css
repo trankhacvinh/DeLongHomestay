@@ -1,0 +1,191 @@
+/*
+ * Theme 4 · Ambient ("lake at the hour you arrive"). Loaded only while Theme 4 is active (or previewed by an admin).
+ * A soft serif for headings, a quiet sans for reading. The hero landscape is the only moving thing; the sky takes
+ * the visitor's local time (dawn / day / dusk / night). Everything below is plain and practical: date first, rooms, calendar.
+ * Colours are --t4-* tokens; palettes (Admin → Giao diện → Bảng màu) only re-point them.
+ */
+html body.public-body[data-theme="theme4"]{
+    --t4-bg:#eef2f1;--t4-bg-2:#e2e9e8;--t4-surface:#fbfcfc;
+    --t4-ink:#233447;--t4-ink-2:#33475d;--t4-deep:#152230;
+    --t4-reed:#5e7a6e;--t4-lantern:#e9b872;
+    --t4-text:#3a4756;--t4-muted:#677382;--t4-line:#d6dfde;
+    --t4-radius:18px;
+    --t4-serif:"Noto Serif",Georgia,serif;
+    --t4-sans:"Be Vietnam Pro","Noto Sans",ui-sans-serif,system-ui,sans-serif;
+}
+html body.public-body[data-theme="theme4"][data-palette="tea"]{
+    --t4-bg:#f0f2ea;--t4-bg-2:#e4e8da;--t4-surface:#fbfcf8;
+    --t4-ink:#26392a;--t4-ink-2:#36503b;--t4-deep:#18261b;
+    --t4-reed:#7c8f5a;--t4-lantern:#e2b866;
+    --t4-text:#3c4a3e;--t4-muted:#687565;--t4-line:#d9dfcf;
+}
+html body.public-body[data-theme="theme4"][data-palette="plum"]{
+    --t4-bg:#f4f0f1;--t4-bg-2:#ebe3e6;--t4-surface:#fdfbfc;
+    --t4-ink:#3d2e3f;--t4-ink-2:#52405a;--t4-deep:#271c29;
+    --t4-reed:#9a7f8e;--t4-lantern:#f2b880;
+    --t4-text:#4a3f4c;--t4-muted:#7a6d7c;--t4-line:#e3d9de;
+}
+
+/* ---------- Shared tokens follow the theme (calendar, booking modal, header, footer, inner pages) ---------- */
+html body.public-body[data-theme="theme4"]{
+    --dl-ground:var(--t4-bg);--dl-ground-2:var(--t4-bg-2);--dl-surface:var(--t4-surface);
+    --dl-ink:var(--t4-ink);--dl-ink-2:var(--t4-ink-2);--dl-text:var(--t4-text);--dl-muted:var(--t4-muted);
+    --dl-line:var(--t4-line);--dl-line-2:color-mix(in srgb,var(--t4-line) 70%,var(--t4-ink));
+    --dl-accent:var(--t4-ink);--dl-accent-ink:var(--t4-ink);
+    --dl-accent-soft:color-mix(in srgb,var(--t4-reed) 14%,var(--t4-surface));
+    --dl-sky:var(--t4-bg-2);--dl-sand:var(--t4-bg-2);--dl-radius:var(--t4-radius);
+    --lux-dark:var(--t4-ink);--lux-dark-2:var(--t4-deep);--lux-dark-3:var(--t4-ink-2);
+    --lux-cream:var(--t4-bg);--lux-cream-2:color-mix(in srgb,var(--t4-bg) 72%,var(--t4-ink));
+    --lux-cream-3:color-mix(in srgb,var(--t4-bg) 55%,var(--t4-ink));--lux-gold:var(--t4-lantern);
+    --lux-serif:var(--t4-serif);--dl-sans:var(--t4-sans);
+    background:var(--t4-bg);color:var(--t4-text);font-family:var(--t4-sans);
+}
+html body.public-body[data-theme="theme4"] .public-main{background:var(--t4-bg)}
+html body.public-body[data-theme="theme4"] .public-main:has(> .t4-hero:first-child){padding-top:0}
+html body.public-body[data-theme="theme4"] .public-main h2,
+html body.public-body[data-theme="theme4"] .lux-display,
+html body.public-body[data-theme="theme4"] .lux-footer-cta h2{font-family:var(--t4-serif)!important;font-weight:400!important;letter-spacing:-.015em!important;line-height:1.18!important}
+html body.public-body[data-theme="theme4"] h1 em,html body.public-body[data-theme="theme4"] h2 em,
+html body.public-body[data-theme="theme4"] h1 i,html body.public-body[data-theme="theme4"] h2 i{font-style:normal!important;color:inherit!important;font-family:inherit!important;font-weight:inherit!important}
+html body.public-body[data-theme="theme4"] .public-eyebrow{letter-spacing:.02em!important;text-transform:none!important;font-weight:600;color:var(--t4-reed)!important}
+html body.public-body[data-theme="theme4"] :focus-visible{outline:3px solid color-mix(in srgb,var(--t4-reed) 70%,transparent);outline-offset:3px}
+
+/* ---------- Header / footer ---------- */
+html body.public-body[data-theme="theme4"] .public-site-header{background:color-mix(in srgb,var(--t4-deep) 90%,transparent)!important;border-bottom:1px solid rgba(255,255,255,.06)!important}
+html body.public-body[data-theme="theme4"] .public-site-brand strong{font-family:var(--t4-serif);font-weight:500;letter-spacing:-.01em}
+html body.public-body[data-theme="theme4"] .public-site-brand .brand-mark{background:var(--t4-lantern);color:var(--t4-deep);border-radius:50%;font-family:var(--t4-serif);font-weight:600}
+html body.public-body[data-theme="theme4"] .public-hospitality-footer{background:var(--t4-deep)!important}
+html body.public-body[data-theme="theme4"] .public-footer-wordmark{font-family:var(--t4-serif)!important;font-weight:300!important}
+html body.public-body[data-theme="theme4"] .public-ai-launch{background:var(--t4-ink)!important;border-color:color-mix(in srgb,var(--t4-lantern) 55%,transparent)!important}
+html body.public-body[data-theme="theme4"] .lux-hero-moon,
+html body.public-body[data-theme="theme4"] .lux-page-hero-moon{background:var(--t4-lantern)!important;box-shadow:0 0 120px 40px color-mix(in srgb,var(--t4-lantern) 25%,transparent)!important}
+html body.public-body[data-theme="theme4"] .lux-paper{background-image:none!important}
+html body.public-body[data-theme="theme4"] .public-btn-primary,
+html body.public-body[data-theme="theme4"] .public-room-book-now{background:var(--t4-ink)!important;border-color:var(--t4-ink)!important;color:#fff!important;border-radius:999px!important;font-weight:600!important}
+html body.public-body[data-theme="theme4"] .public-btn-primary:hover,
+html body.public-body[data-theme="theme4"] .public-room-book-now:hover{background:var(--t4-deep)!important;border-color:var(--t4-deep)!important}
+html body.public-body[data-theme="theme4"] .public-btn-ghost{border-radius:999px!important}
+html body.public-body[data-theme="theme4"] .public-site-header .public-btn-primary,
+html body.public-body[data-theme="theme4"] .public-hospitality-footer .public-btn-primary{background:var(--t4-lantern)!important;border-color:var(--t4-lantern)!important;color:var(--t4-deep)!important}
+html body.public-body[data-theme="theme4"] .public-site-header .public-btn-primary:hover,
+html body.public-body[data-theme="theme4"] .public-hospitality-footer .public-btn-primary:hover{background:#fff!important;border-color:#fff!important}
+html body.public-body[data-theme="theme4"] .public-main .public-cms-availability-calendar{background:var(--t4-bg)!important;background-image:none!important}
+html body.public-body[data-theme="theme4"] .public-main .public-section-head h2{color:var(--t4-ink)}
+
+/* ---------- Buttons ---------- */
+.t4-btn{display:inline-flex;align-items:center;justify-content:center;min-height:50px;padding:0 26px;border-radius:999px;font:600 1rem/1 var(--t4-sans);text-decoration:none;border:1.5px solid transparent;cursor:pointer;transition:background-color .3s,color .3s,border-color .3s}
+.t4-btn-solid{background:var(--t4-ink);color:#fff;border-color:var(--t4-ink)}
+.t4-btn-solid:hover{background:var(--t4-deep);border-color:var(--t4-deep);color:#fff}
+.t4-btn-quiet{color:inherit;border-color:currentColor;background:transparent}
+.t4-btn-quiet:hover{background:rgba(255,255,255,.14)}
+.t4-btn-lantern{background:var(--t4-lantern);color:var(--t4-deep);border-color:var(--t4-lantern)}
+.t4-btn-lantern:hover{background:#fff;border-color:#fff;color:var(--t4-deep)}
+.t4-btn:disabled{opacity:.5;cursor:default}
+.t4-link{color:var(--t4-ink);font-weight:600;text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--t4-reed) 60%,transparent);text-underline-offset:5px;text-decoration-thickness:1.5px}
+.t4-link:hover{text-decoration-color:currentColor}
+
+/* ---------- Hero: the landscape ---------- */
+.t4-hero{
+    /* Day sky by default; the inline script switches data-t4-time before the first paint. */
+    --sky-top:#8fb6d6;--sky-low:#e3eef0;--sky-deep:#9fb9c6;--glow:#fff7e0;--orb:#fffbf0;--sun-y:170px;
+    --cloud:#fff;--cloud-o:.55;--hero-ink:var(--t4-ink);--hero-sub:color-mix(in srgb,var(--t4-ink) 78%,transparent);--haze:#e3eef0;
+    position:relative;isolation:isolate;overflow:hidden;min-height:min(94svh,920px);display:flex;align-items:flex-start;color:var(--hero-ink);background:var(--sky-low)
+}
+.t4-hero[data-t4-time="dawn"]{--sky-top:#9fb0cf;--sky-low:#f5cfb0;--sky-deep:#b49aa6;--glow:#ffd9b0;--orb:#fff1dc;--sun-y:520px;--cloud:#fff1e6;--cloud-o:.5;--haze:#f5cfb0}
+.t4-hero[data-t4-time="dusk"]{--sky-top:#46557f;--sky-low:#f0aa80;--sky-deep:#5d5776;--glow:#ffc48e;--orb:#fff0d6;--sun-y:560px;--cloud:#ffd9c2;--cloud-o:.35;--hero-ink:#fff;--hero-sub:rgba(255,255,255,.85);--haze:#f0aa80}
+.t4-hero[data-t4-time="night"]{--sky-top:#0f1a2e;--sky-low:#2b3c5a;--sky-deep:#101b2b;--glow:#f3e6c4;--orb:#f6ecd0;--sun-y:150px;--cloud:#c9d4ea;--cloud-o:.07;--hero-ink:#fff;--hero-sub:rgba(255,255,255,.8);--haze:#2b3c5a}
+.t4-scene{position:absolute;inset:0;width:100%;height:100%;z-index:-2;display:block}
+.t4-stop-top{stop-color:var(--sky-top)}
+.t4-stop-low{stop-color:var(--sky-low)}
+.t4-stop-deep{stop-color:var(--sky-deep)}
+.t4-stop-glow{stop-color:var(--glow);stop-opacity:.5}
+.t4-stop-glow-out{stop-color:var(--glow);stop-opacity:0}
+.t4-orb{fill:var(--orb)}
+.t4-sun{transform:translateY(var(--sun-y))}
+.t4-sun > *{transform-box:fill-box}
+.t4-clouds ellipse{fill:var(--cloud);opacity:var(--cloud-o)}
+/* Hills fade toward the sky the further away they are. */
+.t4-far{fill:color-mix(in srgb,var(--t4-ink-2) 30%,var(--haze))}
+.t4-mid{fill:color-mix(in srgb,var(--t4-ink-2) 58%,var(--haze))}
+.t4-near{fill:color-mix(in srgb,var(--t4-deep) 88%,var(--haze))}
+.t4-ripple{fill:var(--orb);opacity:.35}
+.t4-cloud{animation:t4-drift 140s linear infinite alternate}
+.t4-cloud-b{animation-duration:190s;animation-direction:alternate-reverse}
+.t4-cloud-c{animation-duration:110s}
+.t4-ripple{animation:t4-shimmer 7s ease-in-out infinite}
+.t4-ripple-2{animation-delay:-2.3s}
+.t4-ripple-3{animation-delay:-4.6s}
+@keyframes t4-drift{from{transform:translateX(-60px)}to{transform:translateX(80px)}}
+@keyframes t4-shimmer{0%,100%{opacity:.12}50%{opacity:.45}}
+.t4-fireflies{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;display:block}
+.t4-hero-copy{position:relative;padding-top:clamp(48px,8vh,96px);padding-bottom:40px}
+.t4-greeting{margin:0 0 18px;font:400 1.05rem/1.4 var(--t4-serif);color:var(--hero-sub);min-height:1.4em}
+.t4-hero h1{margin:0;max-width:16ch;font:400 clamp(2.5rem,5.4vw,5rem)/1.1 var(--t4-serif)!important;letter-spacing:-.025em!important;color:var(--hero-ink);text-wrap:balance}
+.t4-hero-lead{margin:22px 0 0;max-width:44ch;font-size:clamp(1.02rem,1.3vw,1.18rem);line-height:1.7;color:var(--hero-sub)}
+.t4-hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.t4-hero[data-t4-time="dusk"] .t4-btn-solid,.t4-hero[data-t4-time="night"] .t4-btn-solid{background:var(--t4-lantern);border-color:var(--t4-lantern);color:var(--t4-deep)}
+.t4-hero[data-t4-time="dusk"] .t4-btn-solid:hover,.t4-hero[data-t4-time="night"] .t4-btn-solid:hover{background:#fff;border-color:#fff}
+
+/* ---------- Quick search sits on the lake ---------- */
+.t4-search{position:relative;z-index:2;padding:40px 0 0}
+.t4-hero + .t4-search{margin-top:-92px;padding-top:0}
+.t4-search-card{display:grid;grid-template-columns:minmax(0,1.2fr) repeat(auto-fit,minmax(170px,.7fr));align-items:end;gap:18px;padding:26px 28px;border-radius:var(--t4-radius);background:color-mix(in srgb,var(--t4-surface) 94%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 30px 60px -36px color-mix(in srgb,var(--t4-deep) 60%,transparent);border:1px solid var(--t4-line)}
+.t4-search-card h2{margin:0;align-self:center;color:var(--t4-ink);font-size:clamp(1.4rem,2.2vw,1.9rem)}
+.t4-field{display:flex;flex-direction:column;gap:6px;font-size:.88rem;color:var(--t4-muted);font-weight:600}
+.t4-field input,.t4-field select{min-height:50px;padding:0 14px;border:1.5px solid var(--t4-line);border-radius:12px;background:#fff;color:var(--t4-ink);font:500 1rem var(--t4-sans)}
+.t4-field input:focus,.t4-field select:focus{outline:none;border-color:var(--t4-reed);box-shadow:0 0 0 3px color-mix(in srgb,var(--t4-reed) 25%,transparent)}
+
+/* ---------- Rooms ---------- */
+.t4-rooms{padding:96px 0 88px}
+.t4-head{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:36px}
+.t4-head h2{margin:0;color:var(--t4-ink);font-size:clamp(2rem,3.6vw,3.1rem)}
+.t4-head p{margin:12px 0 0;color:var(--t4-muted);max-width:52ch;line-height:1.65}
+.t4-room-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:36px 28px}
+.t4-room{display:flex;flex-direction:column}
+.t4-room-photo{position:relative;display:block;aspect-ratio:4/3;border-radius:var(--t4-radius);overflow:hidden;background:color-mix(in srgb,var(--dl-tone,var(--t4-reed)) 70%,var(--t4-bg-2))}
+.t4-room-photo img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 1.2s cubic-bezier(.2,.7,.2,1)}
+.t4-room-photo:hover img{transform:scale(1.03)}
+.t4-room-fallback{position:absolute;inset:auto 0 0 0;height:38%;background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--t4-deep) 30%,transparent))}
+.t4-room-body{padding:16px 2px 0;display:flex;flex-direction:column;gap:6px;flex:1}
+.t4-room-body h3{margin:0;font:400 1.45rem/1.25 var(--t4-serif);letter-spacing:-.01em}
+.t4-room-body h3 a{color:var(--t4-ink);text-decoration:none}
+.t4-room-body p{margin:0;color:var(--t4-muted);font-size:.95rem;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.t4-room-foot{margin-top:auto;padding-top:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--t4-line)}
+.t4-room-price{color:var(--t4-muted);font-size:.92rem}
+.t4-room-price strong{color:var(--t4-ink);font-size:1.08rem;font-weight:700}
+.t4-room-book{display:inline-flex;align-items:center;min-height:40px;padding:0 18px;border-radius:999px;background:var(--t4-ink);color:#fff;font-weight:600;font-size:.92rem;text-decoration:none}
+.t4-room-book:hover{background:var(--t4-deep);color:#fff}
+.t4-room-book.is-locked{background:transparent;color:var(--t4-muted);padding:0}
+
+/* ---------- Highlights ---------- */
+.t4-features{padding:96px 0;background:var(--t4-surface);border-block:1px solid var(--t4-line)}
+.t4-features-head{max-width:640px;margin:0 auto 52px;text-align:center}
+.t4-features-head h2{margin:0;color:var(--t4-ink);font-size:clamp(2rem,3.6vw,3rem)}
+.t4-features-head p{margin:16px 0 0;color:var(--t4-muted);line-height:1.7}
+.t4-features-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:28px 36px}
+.t4-features-list li{display:flex;flex-direction:column;gap:8px;padding-top:20px;border-top:2px solid color-mix(in srgb,var(--t4-reed) 45%,transparent)}
+.t4-features-list strong{color:var(--t4-ink);font:400 1.3rem/1.3 var(--t4-serif)}
+.t4-features-list span{color:var(--t4-text);line-height:1.65}
+
+/* ---------- Closing: the lake at night ---------- */
+.t4-cta{position:relative;isolation:isolate;overflow:hidden;color:#fff;background:radial-gradient(60% 80% at 50% 110%,color-mix(in srgb,var(--t4-lantern) 22%,transparent),transparent 70%),linear-gradient(180deg,var(--t4-deep),color-mix(in srgb,var(--t4-deep) 70%,var(--t4-ink-2)))}
+.t4-cta-inner{padding-top:120px;padding-bottom:120px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:24px}
+.t4-cta h2{margin:0;color:#fff;font-size:clamp(2.2rem,5vw,4.2rem);max-width:16ch}
+.t4-cta p{margin:0;max-width:50ch;color:rgba(255,255,255,.78);font-size:1.08rem;line-height:1.7}
+
+@media (max-width:900px){
+    .t4-hero{min-height:min(84svh,760px)}
+    .t4-hero-copy{padding-top:48px}
+    .t4-hero + .t4-search{margin-top:-72px}
+    .t4-search-card{grid-template-columns:1fr;padding:22px 20px;gap:14px}
+    .t4-rooms{padding:64px 0}
+    .t4-head{flex-direction:column;align-items:flex-start}
+    .t4-features{padding:64px 0}
+    .t4-features-head{text-align:left;margin-bottom:32px}
+    .t4-cta-inner{padding-top:88px;padding-bottom:88px}
+}
+@media (prefers-reduced-motion:reduce){
+    .t4-cloud,.t4-ripple{animation:none}
+    .t4-fireflies{display:none}
+    .t4-room-photo img{transition:none}
+}

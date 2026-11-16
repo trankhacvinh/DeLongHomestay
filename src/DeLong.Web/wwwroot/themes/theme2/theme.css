@@ -1,0 +1,172 @@
+/*
+ * Theme 2 · Chill ("dusk lounge"). Loaded only while Theme 2 is the active theme (or previewed by an admin).
+ * One family (Be Vietnam Pro), a dusk sky as the single loud moment, everything else quiet.
+ * Colours are --tc-* tokens; each palette (Admin → Giao diện → Bảng màu) only re-points them, and the shared
+ * --dl-* / --lux-* tokens of the booking calendar, header, footer and inner pages follow from them.
+ */
+html body.public-body[data-theme="theme2"]{
+    --tc-bg:#efebf7;--tc-bg-2:#e5dff2;--tc-surface:#fbfaff;
+    --tc-ink:#282150;--tc-ink-2:#3a3170;--tc-night:#15112b;
+    --tc-accent:#23807c;--tc-accent-hover:#1b6966;--tc-accent-on-dark:#7fe0d6;
+    --tc-glow:#ffb48f;--tc-line:#d8d1ec;--tc-text:#3b3560;--tc-muted:#6e6894;
+    /* Sky shader stops (read by theme.js): zenith, middle, horizon. */
+    --tc-sky-1:#15112b;--tc-sky-2:#3a2f74;--tc-sky-3:#f08f7a;
+    --tc-radius:22px;
+    --tc-sans:"Be Vietnam Pro","Noto Sans",ui-sans-serif,system-ui,sans-serif;
+}
+html body.public-body[data-theme="theme2"][data-palette="forest"]{
+    --tc-bg:#f1f4ee;--tc-bg-2:#e4ebe0;--tc-surface:#fbfdf9;
+    --tc-ink:#1f3b2d;--tc-ink-2:#2c4f3c;--tc-night:#122419;
+    --tc-accent:#b2532c;--tc-accent-hover:#93431f;--tc-accent-on-dark:#f0a27a;
+    --tc-glow:#f0a27a;--tc-line:#d6e0d2;--tc-text:#3f5247;--tc-muted:#64746a;
+    --tc-sky-1:#0f2117;--tc-sky-2:#2c4f3c;--tc-sky-3:#e8956b;
+}
+html body.public-body[data-theme="theme2"][data-palette="ocean"]{
+    --tc-bg:#eef3f6;--tc-bg-2:#e0eaf0;--tc-surface:#fafcfd;
+    --tc-ink:#12304a;--tc-ink-2:#1d4466;--tc-night:#0a1c2c;
+    --tc-accent:#bf4f33;--tc-accent-hover:#9f3e26;--tc-accent-on-dark:#ff9c7a;
+    --tc-glow:#ffc48a;--tc-line:#d3e0e8;--tc-text:#2f4659;--tc-muted:#627789;
+    --tc-sky-1:#071624;--tc-sky-2:#1d4466;--tc-sky-3:#ff9c7a;
+}
+
+/* ---------- Shared tokens follow the theme (calendar, booking modal, header, footer, inner pages) ---------- */
+html body.public-body[data-theme="theme2"]{
+    --dl-ground:var(--tc-bg);--dl-ground-2:var(--tc-bg-2);--dl-surface:var(--tc-surface);
+    --dl-ink:var(--tc-ink);--dl-ink-2:var(--tc-ink-2);--dl-text:var(--tc-text);--dl-muted:var(--tc-muted);
+    --dl-line:var(--tc-line);--dl-line-2:color-mix(in srgb,var(--tc-line) 70%,var(--tc-ink));
+    --dl-accent:var(--tc-accent);--dl-accent-ink:var(--tc-accent-hover);
+    --dl-accent-soft:color-mix(in srgb,var(--tc-accent) 12%,var(--tc-surface));
+    --dl-sky:var(--tc-bg-2);--dl-sand:var(--tc-bg-2);--dl-radius:var(--tc-radius);
+    --lux-dark:var(--tc-ink);--lux-dark-2:var(--tc-night);--lux-dark-3:var(--tc-ink-2);
+    --lux-cream:var(--tc-bg);--lux-cream-2:color-mix(in srgb,var(--tc-bg) 72%,var(--tc-ink));
+    --lux-cream-3:color-mix(in srgb,var(--tc-bg) 55%,var(--tc-ink));--lux-gold:var(--tc-accent-on-dark);
+    --lux-serif:var(--tc-sans);--dl-sans:var(--tc-sans);
+    background:var(--tc-bg);color:var(--tc-text);font-family:var(--tc-sans);
+}
+html body.public-body[data-theme="theme2"] .public-main{background:var(--tc-bg)}
+html body.public-body[data-theme="theme2"] .public-main:has(> .tc-hero:first-child){padding-top:0}
+html body.public-body[data-theme="theme2"] .public-main h2 em{font-weight:inherit!important}
+html body.public-body[data-theme="theme2"] .lux-footer-cta h2{font-weight:900!important;letter-spacing:-.045em!important}
+html body.public-body[data-theme="theme2"] h1,
+html body.public-body[data-theme="theme2"] h2,
+html body.public-body[data-theme="theme2"] h3{font-family:var(--tc-sans)!important;color:inherit}
+html body.public-body[data-theme="theme2"] .public-main h2,
+html body.public-body[data-theme="theme2"] .lux-display{font-weight:900!important;letter-spacing:-.035em!important;line-height:1.04!important}
+/* Accent words stay in the line's own voice: no italics, no second colour. */
+html body.public-body[data-theme="theme2"] h1 em,html body.public-body[data-theme="theme2"] h2 em,
+html body.public-body[data-theme="theme2"] h1 i,html body.public-body[data-theme="theme2"] h2 i{font-style:normal!important;color:inherit!important;font-family:inherit!important}
+html body.public-body[data-theme="theme2"] .public-eyebrow{letter-spacing:.02em!important;text-transform:none!important;font-weight:600;color:var(--tc-muted)!important}
+html body.public-body[data-theme="theme2"] :focus-visible{outline:3px solid color-mix(in srgb,var(--tc-accent) 70%,transparent);outline-offset:3px}
+
+/* ---------- Header / footer ---------- */
+html body.public-body[data-theme="theme2"] .public-site-header{background:color-mix(in srgb,var(--tc-night) 88%,transparent)!important;border-bottom:1px solid rgba(255,255,255,.06)!important}
+html body.public-body[data-theme="theme2"] .public-site-brand strong{font-weight:900;letter-spacing:-.03em}
+html body.public-body[data-theme="theme2"] .public-site-brand .brand-mark{background:var(--tc-accent-on-dark);color:var(--tc-night);border-radius:12px;font-weight:900}
+html body.public-body[data-theme="theme2"] .public-hospitality-footer{background:var(--tc-night)!important}
+html body.public-body[data-theme="theme2"] .public-footer-wordmark{font-weight:900!important;letter-spacing:-.05em!important}
+html body.public-body[data-theme="theme2"] .public-ai-launch{background:var(--tc-ink)!important;border-color:color-mix(in srgb,var(--tc-accent-on-dark) 60%,transparent)!important}
+html body.public-body[data-theme="theme2"] .lux-hero-moon,
+html body.public-body[data-theme="theme2"] .lux-page-hero-moon{background:var(--tc-glow)!important;box-shadow:0 0 120px 40px color-mix(in srgb,var(--tc-glow) 30%,transparent)!important}
+html body.public-body[data-theme="theme2"] .lux-paper{background-image:none!important}
+
+/* ---------- Shared buttons (calendar, FAQ, inner pages) ---------- */
+html body.public-body[data-theme="theme2"] .public-btn-primary,
+html body.public-body[data-theme="theme2"] .public-room-book-now{background:var(--tc-accent)!important;border-color:var(--tc-accent)!important;color:#fff!important;border-radius:999px!important;font-weight:700!important}
+html body.public-body[data-theme="theme2"] .public-btn-primary:hover,
+html body.public-body[data-theme="theme2"] .public-room-book-now:hover{background:var(--tc-accent-hover)!important;border-color:var(--tc-accent-hover)!important}
+html body.public-body[data-theme="theme2"] .public-btn-ghost{border-radius:999px!important}
+
+/* ---------- Theme 2 buttons ---------- */
+.tc-btn{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 28px;border-radius:999px;font:700 1rem/1 var(--tc-sans);text-decoration:none;transition:background-color .2s,color .2s,border-color .2s}
+.tc-btn-solid{background:var(--tc-accent);color:#fff;border:2px solid var(--tc-accent)}
+.tc-btn-solid:hover{background:var(--tc-accent-hover);border-color:var(--tc-accent-hover);color:#fff}
+.tc-btn-line{border:2px solid currentColor;color:inherit;background:transparent}
+.tc-btn-line:hover{background:rgba(255,255,255,.1)}
+
+/* ---------- Hero: the one loud moment ---------- */
+.tc-hero{position:relative;isolation:isolate;overflow:hidden;min-height:min(92svh,920px);display:flex;flex-direction:column;justify-content:flex-end;color:#fff;
+    background:radial-gradient(120% 70% at 75% 100%,color-mix(in srgb,var(--tc-sky-3) 85%,transparent) 0%,transparent 60%),
+               linear-gradient(180deg,var(--tc-sky-1) 0%,var(--tc-sky-2) 62%,color-mix(in srgb,var(--tc-sky-2) 60%,var(--tc-sky-3)) 100%)}
+.tc-hero-canvas{position:absolute;inset:0;z-index:-1;width:100%;height:100%;display:block;opacity:0;transition:opacity 1.2s ease}
+.tc-hero.is-live .tc-hero-canvas{opacity:1}
+.tc-hero-inner{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr);gap:56px;align-items:end;padding-top:120px;padding-bottom:56px}
+.tc-hero-title{margin:0;font:900 clamp(2.9rem,7vw,7rem)/1.04 var(--tc-sans)!important;letter-spacing:-.045em!important;color:#fff;text-wrap:balance;max-width:12ch}
+.tc-hero-title em,.tc-cta h2 em,.tc-rooms-head h2 em,.tc-features-head h2 em{font-weight:inherit!important}
+.tc-hero-lead{margin:28px 0 0;max-width:46ch;font-size:clamp(1.05rem,1.4vw,1.25rem);line-height:1.6;color:rgba(255,255,255,.82)}
+.tc-hero-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:36px}
+.tc-hero .tc-btn-solid{background:var(--tc-accent-on-dark);border-color:var(--tc-accent-on-dark);color:var(--tc-night)}
+.tc-hero .tc-btn-solid:hover{background:#fff;border-color:#fff;color:var(--tc-night)}
+.tc-hero-photo{margin:0;aspect-ratio:3/4;border-radius:999px 999px var(--tc-radius) var(--tc-radius);overflow:hidden;box-shadow:0 40px 80px -40px rgba(0,0,0,.6);max-height:58svh;justify-self:end;width:100%;max-width:360px}
+.tc-hero-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.tc-hero-strip{display:flex;justify-content:space-between;gap:24px;margin:0 auto;padding-top:20px;padding-bottom:28px;border-top:1px solid rgba(255,255,255,.18);font-size:.95rem;color:rgba(255,255,255,.75)}
+.tc-hero-strip strong{color:#fff;font-weight:700}
+
+/* ---------- Rooms rail ---------- */
+.tc-rooms{padding:112px 0 96px}
+.tc-rooms-head{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:36px}
+.tc-rooms-head h2{margin:0;color:var(--tc-ink);font-size:clamp(2.2rem,4.6vw,4rem);max-width:14ch}
+.tc-rail-nav{display:flex;gap:10px}
+.tc-rail-btn{width:52px;height:52px;border-radius:50%;border:2px solid var(--tc-ink);background:transparent;color:var(--tc-ink);display:grid;place-items:center;cursor:pointer;transition:background-color .2s,color .2s}
+.tc-rail-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.tc-rail-btn:hover:not(:disabled){background:var(--tc-ink);color:var(--tc-bg)}
+.tc-rail-btn:disabled{opacity:.3;cursor:default}
+.tc-rail{list-style:none;margin:0;padding:4px max(20px,calc((100vw - 1320px)/2 + 24px)) 12px;display:flex;gap:22px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:max(20px,calc((100vw - 1320px)/2 + 24px));scrollbar-width:none;overscroll-behavior-x:contain}
+.tc-rail::-webkit-scrollbar{display:none}
+.tc-room{flex:0 0 clamp(260px,28vw,380px);scroll-snap-align:start;display:flex;flex-direction:column}
+.tc-room-photo{position:relative;display:block;aspect-ratio:3/4;border-radius:var(--tc-radius);overflow:hidden;background:var(--dl-tone,var(--tc-ink-2))}
+.tc-room-photo img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s cubic-bezier(.2,.7,.2,1)}
+.tc-room-photo:hover img{transform:scale(1.04)}
+.tc-room-fallback{position:absolute;inset:auto 24px 24px;color:#fff;font-weight:900;font-size:1.8rem;letter-spacing:-.03em;line-height:1}
+.tc-room-body{padding:18px 4px 0;display:flex;flex-direction:column;gap:8px;flex:1}
+.tc-room-body h3{margin:0;font-size:1.35rem;font-weight:700;letter-spacing:-.02em}
+.tc-room-body h3 a{color:var(--tc-ink);text-decoration:none}
+.tc-room-body p{margin:0;color:var(--tc-muted);font-size:.95rem;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tc-room-foot{margin-top:auto;padding-top:10px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.tc-room-price{color:var(--tc-muted);font-size:.92rem}
+.tc-room-price strong{color:var(--tc-ink);font-size:1.1rem;font-weight:700}
+.tc-room-book{font-weight:700;color:var(--tc-accent);text-decoration:none;border-bottom:2px solid currentColor;padding-bottom:2px}
+.tc-room-book:hover{color:var(--tc-accent-hover)}
+.tc-room-book.is-locked{color:var(--tc-muted);border:0}
+
+/* ---------- Highlights ---------- */
+.tc-features{padding:104px 0;background:var(--tc-surface);border-block:1px solid var(--tc-line)}
+.tc-features-grid{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:72px;align-items:start}
+.tc-features-head{position:sticky;top:110px}
+.tc-features-head h2{margin:0;color:var(--tc-ink);font-size:clamp(2.2rem,4.4vw,3.8rem)}
+.tc-features-head p{margin:20px 0 0;color:var(--tc-muted);max-width:38ch;line-height:1.65}
+.tc-features-list{list-style:none;margin:0;padding:0}
+.tc-features-list li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:28px;padding:28px 0;border-top:1px solid var(--tc-line)}
+.tc-features-list li:last-child{border-bottom:1px solid var(--tc-line)}
+.tc-features-list strong{color:var(--tc-ink);font-size:clamp(1.25rem,2vw,1.6rem);font-weight:700;letter-spacing:-.02em;line-height:1.2}
+.tc-features-list span{color:var(--tc-text);line-height:1.6}
+
+/* ---------- Closing band ---------- */
+.tc-cta{padding:0 0 0;background:var(--tc-ink);color:#fff}
+.tc-cta-inner{padding-top:112px;padding-bottom:112px;display:flex;flex-direction:column;align-items:flex-start;gap:28px}
+.tc-cta h2{margin:0;color:#fff;font-size:clamp(2.6rem,6vw,5.6rem);max-width:14ch;line-height:1.04!important;letter-spacing:-.05em!important}
+.tc-cta p{margin:0;max-width:52ch;color:rgba(255,255,255,.78);font-size:1.1rem;line-height:1.6}
+.tc-cta .tc-btn-solid{background:var(--tc-accent-on-dark);border-color:var(--tc-accent-on-dark);color:var(--tc-night)}
+.tc-cta .tc-btn-solid:hover{background:#fff;border-color:#fff}
+
+/* ---------- Theme 1 blocks reused by Theme 2: quieter frame ---------- */
+html body.public-body[data-theme="theme2"] .public-main .public-cms-availability-calendar{background:var(--tc-bg)!important;background-image:none!important}
+html body.public-body[data-theme="theme2"] .public-main .public-section-head h2{color:var(--tc-ink)}
+
+@media (max-width:900px){
+    .tc-hero{min-height:auto}
+    .tc-hero-inner{grid-template-columns:1fr;gap:36px;padding-top:88px;padding-bottom:40px}
+    .tc-hero-photo{justify-self:start;max-width:none;aspect-ratio:4/3;border-radius:var(--tc-radius);max-height:none}
+    .tc-hero-strip{flex-direction:column;gap:6px}
+    .tc-rooms{padding:72px 0 64px}
+    .tc-rail-nav{display:none}
+    .tc-room{flex-basis:78vw}
+    .tc-features{padding:72px 0}
+    .tc-features-grid{grid-template-columns:1fr;gap:32px}
+    .tc-features-head{position:static}
+    .tc-features-list li{grid-template-columns:1fr;gap:8px;padding:22px 0}
+    .tc-cta-inner{padding-top:80px;padding-bottom:80px}
+}
+@media (prefers-reduced-motion:reduce){
+    .tc-hero-canvas{display:none}
+    .tc-room-photo img{transition:none}
+}

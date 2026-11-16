@@ -1,0 +1,50 @@
+/*
+ * Theme 1 colour presets (Admin → Giao diện → Bảng màu). Loaded only when a preset other than the default
+ * "Xanh cổ vịt" is chosen; it re-points the --dl- and --lux- tokens of public-lux.css and the few rgba() literals
+ * that file hard-codes (sticky header, hero shade, AI button). Layout, sizes and the booking flow are untouched.
+ */
+html body.public-body[data-palette="forest"]{
+    --dl-ground:#f1efe6;--dl-ground-2:#e7e2d3;--dl-surface:#fffdf7;--dl-ink:#1f3326;--dl-ink-2:#2a4535;
+    --dl-text:#3d5044;--dl-muted:#62726a;--dl-line:#dcd7c4;--dl-line-2:#c4bfac;
+    --dl-accent:#d9a35b;--dl-accent-ink:#86561c;--dl-accent-soft:#f5ead6;--dl-sky:#dde7de;--dl-sand:#ece2cb;
+    --lux-dark:#1f3326;--lux-dark-2:#172a1e;--lux-dark-3:#2a4535;--lux-cream:#f1efe6;--lux-cream-2:#c9d6cb;--lux-cream-3:#a6b8aa;--lux-gold:#d9a35b;
+    background:var(--dl-ground);
+}
+html body.public-body[data-palette="forest"] .public-site-header{background:rgba(31,51,38,.94)}
+html body.public-body[data-palette="forest"] .public-main .public-hotel-hero .public-hero-collage::after,
+html body.public-body[data-palette="forest"] .public-main .public-hotel-hero .public-hotel-hero-media::after{background:linear-gradient(90deg,rgba(23,42,30,.86) 0%,rgba(23,42,30,.62) 55%,rgba(23,42,30,.42) 100%)}
+html body.public-body[data-palette="forest"] .lux-hero-moon{box-shadow:0 0 110px 30px rgba(217,163,91,.22)}
+html body.public-body[data-palette="forest"] .lux-hero-arches i{background:rgba(42,69,53,.85)}
+html body.public-body[data-palette="forest"] .lux-hero-arches i:nth-child(2){background:#2a4535}
+html body.public-body[data-palette="forest"] .public-ai-launch{background:rgba(31,51,38,.94)}
+html body.public-body[data-palette="forest"] :focus-visible{outline-color:rgba(217,163,91,.75)}
+html body.public-body[data-palette="ink"]{
+    --dl-ground:#f2efe9;--dl-ground-2:#e8e4dc;--dl-surface:#fffdf9;--dl-ink:#1c2333;--dl-ink-2:#283148;
+    --dl-text:#3d4557;--dl-muted:#646b7b;--dl-line:#ddd9d0;--dl-line-2:#c6c1b6;
+    --dl-accent:#c9a86a;--dl-accent-ink:#7a5c22;--dl-accent-soft:#f3ecdc;--dl-sky:#e1e5ee;--dl-sand:#ece4d3;
+    --lux-dark:#1c2333;--lux-dark-2:#151b28;--lux-dark-3:#283148;--lux-cream:#f2efe9;--lux-cream-2:#c8cdd8;--lux-cream-3:#a3abbb;--lux-gold:#c9a86a;
+    background:var(--dl-ground);
+}
+html body.public-body[data-palette="ink"] .public-site-header{background:rgba(28,35,51,.94)}
+html body.public-body[data-palette="ink"] .public-main .public-hotel-hero .public-hero-collage::after,
+html body.public-body[data-palette="ink"] .public-main .public-hotel-hero .public-hotel-hero-media::after{background:linear-gradient(90deg,rgba(21,27,40,.86) 0%,rgba(21,27,40,.62) 55%,rgba(21,27,40,.42) 100%)}
+html body.public-body[data-palette="ink"] .lux-hero-moon{box-shadow:0 0 110px 30px rgba(201,168,106,.22)}
+html body.public-body[data-palette="ink"] .lux-hero-arches i{background:rgba(40,49,72,.85)}
+html body.public-body[data-palette="ink"] .lux-hero-arches i:nth-child(2){background:#283148}
+html body.public-body[data-palette="ink"] .public-ai-launch{background:rgba(28,35,51,.94)}
+html body.public-body[data-palette="ink"] :focus-visible{outline-color:rgba(201,168,106,.75)}
+html body.public-body[data-palette="terracotta"]{
+    --dl-ground:#f6eee6;--dl-ground-2:#efe2d6;--dl-surface:#fffbf7;--dl-ink:#3b2420;--dl-ink-2:#4d302a;
+    --dl-text:#57423c;--dl-muted:#7a665f;--dl-line:#e8d9cc;--dl-line-2:#d3c0b1;
+    --dl-accent:#e09a6a;--dl-accent-ink:#9a4f24;--dl-accent-soft:#fbe8da;--dl-sky:#efe3dc;--dl-sand:#f2e1cf;
+    --lux-dark:#3b2420;--lux-dark-2:#2e1b18;--lux-dark-3:#4d302a;--lux-cream:#f6eee6;--lux-cream-2:#dccbc2;--lux-cream-3:#bfa89d;--lux-gold:#e09a6a;
+    background:var(--dl-ground);
+}
+html body.public-body[data-palette="terracotta"] .public-site-header{background:rgba(59,36,32,.94)}
+html body.public-body[data-palette="terracotta"] .public-main .public-hotel-hero .public-hero-collage::after,
+html body.public-body[data-palette="terracotta"] .public-main .public-hotel-hero .public-hotel-hero-media::after{background:linear-gradient(90deg,rgba(46,27,24,.86) 0%,rgba(46,27,24,.62) 55%,rgba(46,27,24,.42) 100%)}
+html body.public-body[data-palette="terracotta"] .lux-hero-moon{box-shadow:0 0 110px 30px rgba(224,154,106,.22)}
+html body.public-body[data-palette="terracotta"] .lux-hero-arches i{background:rgba(77,48,42,.85)}
+html body.public-body[data-palette="terracotta"] .lux-hero-arches i:nth-child(2){background:#4d302a}
+html body.public-body[data-palette="terracotta"] .public-ai-launch{background:rgba(59,36,32,.94)}
+html body.public-body[data-palette="terracotta"] :focus-visible{outline-color:rgba(224,154,106,.75)}
