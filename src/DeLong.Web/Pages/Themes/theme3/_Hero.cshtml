@@ -1,0 +1,56 @@
+@* Theme 3 · Hero: a small villa room built in three.js (desktop), entered by scrolling; a line drawing of the same room elsewhere. *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var title = Text(block.Content, "title", "Một căn phòng dành riêng cho bạn.");
+    var body = Text(block.Content, "body", "Phòng riêng theo giờ hoặc qua đêm, đèn ấm, giường êm, cửa sổ nhìn ra trời đêm. Chọn ngày và đặt trong vài phút.");
+    var primaryText = Text(block.Content, "primaryText", "Đặt phòng");
+    var primaryUrl = Text(block.Content, "primaryUrl", "/booking");
+    var secondaryText = Text(block.Content, "secondaryText");
+    var secondaryUrl = Text(block.Content, "secondaryUrl");
+}
+<section class="t3-hero" data-t3-hero>
+    <svg class="t3-hero-art" viewBox="0 0 600 600" aria-hidden="true" focusable="false" data-t3-draw-now>
+        <circle class="t3-moon" cx="300" cy="190" r="46" />
+        <path d="M170 520 V230 A130 130 0 0 1 430 230 V520" />
+        <path d="M200 520 V236 A100 100 0 0 1 400 236 V520" />
+        <path d="M300 136 V520 M200 330 H400" />
+        <path d="M60 520 H560" />
+        <path d="M110 520 V470 H490 V520 M120 470 V440 Q120 428 132 428 H468 Q480 428 480 440 V470" />
+        <path d="M150 428 Q150 404 176 404 H250 Q270 404 270 428 M330 428 Q330 404 354 404 H426 Q450 404 450 428" />
+        <path d="M84 40 V250 M60 250 Q84 214 108 250 Z" />
+        <circle class="t3-bulb" cx="84" cy="262" r="8" />
+        <path d="M520 520 V470 M500 470 H540 L534 520 M520 470 C 500 430 470 420 480 390 M520 470 C 540 430 560 420 556 380 M520 470 C 520 420 510 400 522 370" />
+    </svg>
+    <canvas class="t3-canvas" data-t3-canvas aria-hidden="true"></canvas>
+    <div class="t3-hero-shade" aria-hidden="true"></div>
+    <div class="public-container t3-hero-copy" data-t3-copy>
+        <h1 data-t3-line>@PublicTitleAccent.Render(title)</h1>
+        <p class="t3-hero-lead" data-t3-line>@body</p>
+        <div class="t3-hero-actions" data-t3-line>
+            <a class="t3-btn t3-btn-brass" href="@ScopedUrl(primaryUrl)">@primaryText</a>
+            @if (!string.IsNullOrWhiteSpace(secondaryText) && !string.IsNullOrWhiteSpace(secondaryUrl))
+            {
+                <a class="t3-btn t3-btn-line" href="@ScopedUrl(secondaryUrl)">@secondaryText</a>
+            }
+        </div>
+    </div>
+</section>

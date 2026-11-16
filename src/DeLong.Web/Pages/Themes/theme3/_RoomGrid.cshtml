@@ -1,0 +1,69 @@
+@* Theme 3 · Rooms: on desktop the section holds still while the rooms slide sideways; cards lean toward the pointer. *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var rooms = Page.SelectGlobalRooms(block.Content);
+    var title = Text(block.Content, "title", "Các phòng");
+    var body = Text(block.Content, "body");
+}
+<section class="t3-rooms" data-t3-rooms aria-labelledby="t3-rooms-title">
+    <div class="t3-rooms-pin">
+        <div class="public-container t3-rooms-head">
+            <h2 id="t3-rooms-title">@PublicTitleAccent.Render(title)</h2>
+            @if (!string.IsNullOrWhiteSpace(body)) { <p>@body</p> }
+            <a class="t3-link" href="@PublicUrlBuilder.BookingHome()">Xem lịch phòng</a>
+        </div>
+        <ul class="t3-rooms-track" data-t3-track>
+            @foreach (var item in rooms)
+            {
+                var room = item.Room;
+                var roomUrl = PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug);
+                <li class="t3-room" style="@RoomTone(room.Id)" data-t3-tilt data-room-lightbox="@ThemeHomeContext.RoomPhotos(room)" data-room-lightbox-title="@room.Name">
+                    <a class="t3-room-photo public-room-art" href="@roomUrl" aria-label="Xem @room.Name">
+                        @if (!string.IsNullOrWhiteSpace(room.CoverCardUrl))
+                        {
+                            <img src="@room.CoverCardUrl" alt="@room.Name" width="900" height="1100" loading="lazy" decoding="async" />
+                        }
+                        else
+                        {
+                            <svg class="t3-room-fallback" viewBox="0 0 200 240" aria-hidden="true"><path d="M50 240 V110 A50 50 0 0 1 150 110 V240" /><circle cx="100" cy="96" r="14" /></svg>
+                        }
+                    </a>
+                    <div class="t3-room-body">
+                        <h3><a href="@roomUrl">@room.Name</a></h3>
+                        <p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người, {item.PropertyName}" : room.ShortDescription)</p>
+                        <div class="t3-room-foot">
+                            <span class="t3-room-price">Từ <strong>@room.QuickFromPrice.ToString("N0")đ</strong></span>
+                            @if (room.IsBookingLocked)
+                            {
+                                <span class="t3-room-book is-locked" aria-disabled="true">Tạm ngừng nhận đặt</span>
+                            }
+                            else
+                            {
+                                <a class="t3-room-book" href="@PublicUrlBuilder.BookingHome(item.PropertySiteSlug)">Đặt phòng</a>
+                            }
+                        </div>
+                    </div>
+                </li>
+            }
+        </ul>
+    </div>
+</section>

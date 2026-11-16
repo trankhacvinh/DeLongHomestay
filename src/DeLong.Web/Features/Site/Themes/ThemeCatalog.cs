@@ -92,6 +92,30 @@ public static class ThemeCatalog
         ["/themes/theme2/theme.css"],
         ["/vendor/gsap/3.13.0/gsap.min.js", "/themes/theme2/theme.js"]);
 
+    public static readonly ThemeDefinition Theme3 = new(
+        "theme3",
+        "Theme 3 · Premium 3D",
+        "Sang trọng, nhiều hiệu ứng: đầu trang là căn phòng 3D, cuộn chuột để bước vào phòng, đèn sáng dần. Nét vẽ vàng đồng tự hiện, số liệu đếm chạy, các phòng trượt ngang. Trên điện thoại dùng bản nét vẽ nhẹ hơn.",
+        "/themes/theme3/preview.webp",
+        [
+            new("Hero", "Căn phòng 3D đầu trang"),
+            new("FeatureGrid", "Câu chuyện & con số"),
+            new("RoomGrid", "Các phòng trượt ngang"),
+            new("AvailabilityCalendar", "Lịch phòng"),
+            new("Faq", "Hỏi đáp"),
+            new("AvailabilitySearch", "Ô tìm phòng nhanh", DefaultVisible: false),
+            new("RichText", "Đoạn văn tự do", DefaultVisible: false),
+            new("Cta", "Lời mời đặt phòng cuối trang")
+        ],
+        [
+            new("espresso", "Gỗ & đồng", ["#17110e", "#f4efe7", "#c9a46a"]),
+            new("emerald", "Ngọc lục", ["#0d1a17", "#f1f2ec", "#c9a46a"]),
+            new("sapphire", "Lam ngọc", ["#0d1220", "#f1f1f4", "#d6b57f"])
+        ],
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Hero", "FeatureGrid", "RoomGrid", "Cta" },
+        ["/themes/theme3/theme.css"],
+        ["/vendor/gsap/3.13.0/gsap.min.js", "/vendor/gsap/3.13.0/ScrollTrigger.min.js", "/themes/theme3/theme.js"]);
+
     public static readonly ThemeDefinition Theme4 = new(
         "theme4",
         "Theme 4 · Ambient",
@@ -116,7 +140,7 @@ public static class ThemeCatalog
         ["/themes/theme4/theme.css"],
         ["/vendor/gsap/3.13.0/gsap.min.js", "/vendor/gsap/3.13.0/ScrollTrigger.min.js", "/themes/theme4/theme.js"]);
 
-    public static readonly IReadOnlyList<ThemeDefinition> All = [Theme1, Theme2, Theme4];
+    public static readonly IReadOnlyList<ThemeDefinition> All = [Theme1, Theme2, Theme3, Theme4];
 
     public static ThemeDefinition Get(string? key) =>
         All.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)) ?? Theme1;

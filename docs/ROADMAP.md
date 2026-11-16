@@ -339,4 +339,5 @@
 
 - [x] Theme 1 (giao diện De Long, không đổi), Theme 2 · Chill (three.js + GSAP), trang Admin → Giao diện với bảng màu và bật/tắt/sắp xếp khối. Xem [PUBLIC-THEMES.md](PUBLIC-THEMES.md).
 - [x] Theme 4 · Ambient: phong cảnh SVG, trời đổi theo giờ, parallax, đom đóm.
-- [ ] Deploy, chuyển thechillinghomestay.com sang Theme 2, xóa ô CSS toàn website cũ của web đó. Làm Theme 3 · Premium 3D.
+- [x] Theme 3 · Premium 3D: căn phòng three.js đi vào khi cuộn, nét vẽ, parallax, phòng trượt ngang.
+- [ ] Deploy, chuyển thechillinghomestay.com sang Theme 2, xóa ô CSS toàn website cũ của web đó. Theme 3 · Premium 3D đã làm, chờ UAT trên máy thật (GPU yếu, Safari).

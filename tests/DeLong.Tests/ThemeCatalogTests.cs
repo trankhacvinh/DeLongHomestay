@@ -145,4 +145,15 @@ public sealed class ThemeCatalogTests
         Assert.Equal("/Pages/Themes/theme1/_AvailabilityCalendar.cshtml", ThemeCatalog.Theme4.SectionPartial("AvailabilityCalendar"));
         Assert.Equal("lake", ThemeCatalog.Theme4.Palettes[0].Key);
     }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Theme3_tells_its_story_before_the_rooms_and_loads_scrolltrigger_first()
+    {
+        var layout = ThemeModel.CurrentLayout(ThemeCatalog.Theme3, null, new List<HomeSectionDto>());
+        Assert.Equal(["Hero", "FeatureGrid", "RoomGrid", "AvailabilityCalendar"], layout.Take(4).Select(x => x.Type));
+        Assert.Equal(["theme1", "theme2", "theme3", "theme4"], ThemeCatalog.All.Select(x => x.Key));
+        var scripts = ThemeCatalog.Theme3.Scripts.ToList();
+        Assert.True(scripts.IndexOf("/vendor/gsap/3.13.0/ScrollTrigger.min.js") < scripts.IndexOf("/themes/theme3/theme.js"));
+    }
 }
