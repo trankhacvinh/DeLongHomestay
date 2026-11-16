@@ -33,3 +33,14 @@ test('A same-day stay and a stay ending at midnight are not carried', () => {
     assert.equal(context.carryOverRanges(prev, day, tz).length, 0);
     assert.equal(context.carryOverRanges(null, day, tz).length, 0);
 });
+
+test('The carry-over strip lets taps through while the first slot still has free time', () => {
+    const passiveBlock = source.slice(source.indexOf('    function carryIsPassive('), source.indexOf('    function minutesOfDay('));
+    const ctx = {};
+    vm.runInNewContext(`${passiveBlock}\nthis.carryIsPassive = carryIsPassive;`, ctx);
+    assert.equal(ctx.carryIsPassive({ free: [{ startUtc: '2026-11-16T04:30:00Z', endUtc: '2026-11-16T07:30:00Z' }] }), true);
+    assert.equal(ctx.carryIsPassive({ free: [] }), false);
+    assert.equal(ctx.carryIsPassive(null), false);
+    const css = readFileSync('src/DeLong.Web/wwwroot/css/admin-calendar-overview.css', 'utf8');
+    assert.match(css, /\.cal-ov-carry\.is-passive\{pointer-events:none\}/);
+});

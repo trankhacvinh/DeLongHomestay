@@ -81,6 +81,11 @@
         }));
         return result;
     }
+    // The carry-over strip sits on top of the first slot. While that slot still has free time,
+    // a tap on the strip must start a new booking (staff could only tap the lower half before).
+    function carryIsPassive(slot) {
+        return !!slot && (slot.free || []).length > 0;
+    }
     function minutesOfDay(utcValue, timeZone) {
         const [h, m] = timeText(utcValue, timeZone).split(':').map(Number);
         return h * 60 + m;
@@ -455,6 +460,9 @@
                             carry.style.setProperty('--carry-color', visual.color);
                             carry.title = `${name} ở từ hôm trước, trả phòng ${until} hôm nay`;
                             carry.appendChild(el('span', 'cal-ov-carry-text', `↳ đến ${until} · ${name}`));
+                            // The guest has already left by the time this slot starts, so the strip is
+                            // only a reminder: let taps go through to the cell and open a new booking.
+                            if (carryIsPassive(slot)) carry.classList.add('is-passive');
                             td.classList.add('has-carry');
                             td.appendChild(carry);
                         }
