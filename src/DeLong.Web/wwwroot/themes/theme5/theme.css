@@ -75,7 +75,7 @@ html body.public-body[data-theme="theme5"] .public-main .public-cms-availability
 
 /* ---------- Pixel building blocks ---------- */
 /* Notched corners: four solid shadows draw a 1-pixel frame without the corner pixels; two more give the drop shadow. */
-.t5-panel,.t5-btn,.t5-room{
+.t5-panel,.t5-btn,.t5-room,.t5-menu,.t5-cta-screen{
     --t5-frame:var(--t5-ink);--t5-drop:color-mix(in srgb,var(--t5-ink) 30%,transparent);
     box-shadow:0 calc(-1*var(--t5-px)) 0 0 var(--t5-frame),0 var(--t5-px) 0 0 var(--t5-frame),calc(-1*var(--t5-px)) 0 0 0 var(--t5-frame),var(--t5-px) 0 0 0 var(--t5-frame),
                var(--t5-px) calc(2*var(--t5-px)) 0 0 var(--t5-drop),calc(2*var(--t5-px)) var(--t5-px) 0 0 var(--t5-drop);
@@ -96,21 +96,102 @@ html body.public-body[data-theme="theme5"] .public-main .public-cms-availability
 .t5-caret::before{content:"_"}
 @keyframes t5-blink{50%{opacity:0}}
 
-/* ---------- Hero ---------- */
-.t5-hero{position:relative;isolation:isolate;overflow:hidden;min-height:min(90svh,860px);display:flex;align-items:flex-start;color:#fff;background:linear-gradient(180deg,var(--t5-sky-1),var(--t5-sky-2) 45%,var(--t5-sky-3) 75%,var(--t5-sky-4))}
-.t5-world{position:absolute;inset:0;width:100%;height:100%;z-index:-1;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
-.t5-hero-copy{position:relative;padding-top:clamp(56px,10vh,110px);padding-bottom:48px}
-.t5-hero h1{margin:0;max-width:15ch;font:400 clamp(3.1rem,6.6vw,6.4rem)/.95 var(--t5-pixel)!important;letter-spacing:0!important;color:#fff;text-shadow:var(--t5-px) var(--t5-px) 0 color-mix(in srgb,var(--t5-sky-1) 80%,#000)}
-/* The lead reads like a game dialogue box, so it stays legible whatever part of the world passes behind it. */
-.t5-hero-lead{position:relative;margin:24px var(--t5-px) 0;max-width:44ch;padding:14px 18px;font-size:clamp(1rem,1.25vw,1.1rem);line-height:1.6;color:#fff;background:color-mix(in srgb,var(--t5-ink) 84%,transparent);box-shadow:0 calc(-1*var(--t5-px)) 0 0 var(--t5-paper),0 var(--t5-px) 0 0 var(--t5-paper),calc(-1*var(--t5-px)) 0 0 0 var(--t5-paper),var(--t5-px) 0 0 0 var(--t5-paper)}
+/* ---------- Hero: a game room ---------- */
+html body.public-body[data-theme="theme5"]{
+    --t5-wood:color-mix(in srgb,var(--t5-roof) 45%,#3a2418);--t5-wood-2:color-mix(in srgb,var(--t5-wood) 75%,#000);
+    --t5-plastic:color-mix(in srgb,var(--t5-paper) 82%,var(--t5-ink));--t5-plastic-2:color-mix(in srgb,var(--t5-paper) 60%,var(--t5-ink));
+}
+.t5-hero{position:relative;isolation:isolate;overflow:hidden;color:#fff;
+    background-color:var(--t5-sky-1);
+    background-image:
+        linear-gradient(180deg,transparent 60%,color-mix(in srgb,var(--t5-sky-1) 70%,#000)),
+        repeating-linear-gradient(90deg,transparent 0 46px,color-mix(in srgb,var(--t5-sky-2) 22%,transparent) 46px 50px),
+        linear-gradient(180deg,var(--t5-sky-1),color-mix(in srgb,var(--t5-sky-1) 80%,var(--t5-sky-2)))}
+.t5-floor{position:absolute;left:0;right:0;bottom:0;height:clamp(70px,14%,130px);z-index:-1;
+    background:repeating-linear-gradient(90deg,var(--t5-wood) 0 118px,var(--t5-wood-2) 118px 122px),var(--t5-wood);
+    box-shadow:0 calc(-1*var(--t5-px)) 0 color-mix(in srgb,var(--t5-wood) 60%,#fff)}
+.t5-hero-grid{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);align-items:center;gap:clamp(24px,4vw,64px);padding-top:clamp(40px,7vh,84px);padding-bottom:clamp(40px,6vh,72px);min-height:min(88svh,860px)}
+.t5-hero-copy{position:relative}
+.t5-hero h1{margin:0;font:400 clamp(3rem,5.6vw,5.6rem)/.95 var(--t5-pixel)!important;letter-spacing:0!important;color:#fff;text-shadow:var(--t5-px) var(--t5-px) 0 color-mix(in srgb,var(--t5-sky-1) 60%,#000)}
+/* The lead reads like a game dialogue box. */
+.t5-hero-lead{position:relative;margin:24px var(--t5-px) 0;max-width:44ch;padding:14px 18px 18px;font-size:clamp(1rem,1.2vw,1.08rem);line-height:1.6;color:#fff;background:color-mix(in srgb,var(--t5-ink) 84%,transparent);box-shadow:0 calc(-1*var(--t5-px)) 0 0 var(--t5-paper),0 var(--t5-px) 0 0 var(--t5-paper),calc(-1*var(--t5-px)) 0 0 0 var(--t5-paper),var(--t5-px) 0 0 0 var(--t5-paper)}
 .t5-hero-lead::after{content:"";position:absolute;right:12px;bottom:8px;border:5px solid transparent;border-top:6px solid var(--t5-gold);border-bottom:0;animation:t5-nudge 1s steps(2) infinite}
 @keyframes t5-nudge{50%{transform:translateY(3px)}}
-.t5-hero-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:28px}
-.t5-hud{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px;margin:26px 0 0;padding:8px 14px;background:color-mix(in srgb,var(--t5-ink) 78%,transparent);font:400 1.35rem/1.1 var(--t5-pixel);color:#fff}
+.t5-hud{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px;margin:24px 0 0;padding:8px 14px;background:color-mix(in srgb,var(--t5-ink) 78%,transparent);font:400 1.35rem/1.1 var(--t5-pixel);color:#fff}
 .t5-hud strong{font-weight:400;color:var(--t5-gold)}
 .t5-hud-sep{display:inline-block;width:6px;height:6px;margin:0 10px;background:var(--t5-mint)}
 
-/* ---------- Rooms with a fling-able rail ---------- */
+/* The TV: a wooden CRT set with knobs and a speaker, on a low cabinet. */
+.t5-set{position:relative;padding-bottom:clamp(70px,9vw,120px)}
+.t5-tv{position:relative;margin-top:40px}
+.t5-tv-antenna{position:absolute;left:50%;bottom:100%;width:0;height:0}
+.t5-tv-antenna::before,.t5-tv-antenna::after{content:"";position:absolute;bottom:-2px;width:4px;height:64px;background:var(--t5-plastic-2);transform-origin:50% 100%}
+.t5-tv-antenna::before{transform:rotate(-28deg)}
+.t5-tv-antenna::after{transform:rotate(24deg)}
+.t5-tv-body{position:relative;display:grid;grid-template-columns:1fr clamp(60px,16%,110px);gap:clamp(12px,1.6vw,20px);padding:clamp(14px,1.8vw,24px);border-radius:22px;
+    background:linear-gradient(180deg,color-mix(in srgb,var(--t5-wood) 85%,#fff) 0 6px,var(--t5-wood) 6px);
+    box-shadow:inset 0 -8px 0 var(--t5-wood-2),0 0 0 var(--t5-px) var(--t5-ink),10px 12px 0 color-mix(in srgb,var(--t5-ink) 45%,transparent)}
+.t5-tv-screen{position:relative;aspect-ratio:4/3;overflow:hidden;border-radius:26px/22px;background:#0b0b10;
+    box-shadow:0 0 0 8px color-mix(in srgb,var(--t5-plastic-2) 55%,#222),0 0 0 12px color-mix(in srgb,var(--t5-wood-2) 70%,#000)}
+.t5-world{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+.t5-tv-glass{position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+    background:
+        radial-gradient(120% 90% at 30% 18%,rgba(255,255,255,.16),transparent 42%),
+        repeating-linear-gradient(180deg,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.2) 2px 3px),
+        radial-gradient(ellipse at center,transparent 58%,rgba(0,0,0,.55));
+    box-shadow:inset 0 0 30px rgba(0,0,0,.6)}
+.t5-tv-power{position:absolute;inset:0;pointer-events:none;background:#fff;opacity:0;transform-origin:50% 50%}
+.t5-tv.is-on .t5-tv-power{animation:t5-power .9s steps(9) forwards}
+@keyframes t5-power{0%{opacity:1;transform:scale(.02,.004)}30%{opacity:1;transform:scale(1,.012)}60%{opacity:.9;transform:scale(1,1)}100%{opacity:0;transform:scale(1,1)}}
+.t5-tv.is-blip .t5-tv-power{animation:t5-blip .18s steps(3)}
+@keyframes t5-blip{0%,100%{opacity:0}40%{opacity:.35}}
+.t5-tv-side{display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:6px}
+.t5-tv-side span{width:clamp(30px,58%,52px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--t5-plastic),var(--t5-plastic-2));box-shadow:0 0 0 3px var(--t5-ink),3px 3px 0 3px color-mix(in srgb,var(--t5-ink) 40%,transparent)}
+.t5-tv-side span::after{content:"";display:block;width:4px;height:42%;margin:6% auto 0;background:var(--t5-ink)}
+.t5-tv-side span+span::after{transform:rotate(60deg);transform-origin:50% 100%}
+.t5-tv-side i{display:block;width:72%;height:4px;background:var(--t5-wood-2)}
+.t5-tv-side i:first-of-type{margin-top:auto}
+.t5-tv-cabinet{position:relative;display:block;height:clamp(34px,4vw,50px);margin:0 -5%;background:var(--t5-wood-2);box-shadow:0 0 0 var(--t5-px) var(--t5-ink),inset 0 6px 0 color-mix(in srgb,var(--t5-wood) 80%,#fff)}
+/* A generic little console on the cabinet shelf: flat box, cartridge slot, power light. */
+.t5-console{position:absolute;right:8%;bottom:6px;width:clamp(90px,24%,150px);height:58%;background:var(--t5-plastic);box-shadow:0 0 0 3px var(--t5-ink)}
+.t5-console i{position:absolute;left:12%;right:38%;top:28%;height:5px;background:var(--t5-ink)}
+.t5-console b{position:absolute;right:12%;top:26%;width:8px;height:8px;background:var(--t5-go);box-shadow:0 0 8px var(--t5-go)}
+
+/* The controller: original shape, two grips, cross pad, select/start, B and A. */
+.t5-pad{position:absolute;left:clamp(-40px,-3vw,0px);bottom:0;z-index:2;display:flex;align-items:center;gap:clamp(14px,2vw,26px);padding:18px clamp(20px,2.4vw,30px);border-radius:60px 60px 80px 80px / 50px 50px 70px 70px;
+    background:linear-gradient(180deg,var(--t5-plastic) 0 60%,var(--t5-plastic-2));color:var(--t5-ink);
+    box-shadow:0 0 0 var(--t5-px) var(--t5-ink),inset 0 -6px 0 color-mix(in srgb,var(--t5-plastic-2) 70%,#000),8px 10px 0 color-mix(in srgb,#000 35%,transparent);transform:rotate(-4deg)}
+.t5-pad-cord{display:none;position:absolute;right:42%;bottom:100%;width:min(30vw,260px);height:90px;border:4px solid var(--t5-ink);border-bottom:0;border-left:0;border-radius:0 90px 0 0;opacity:.75;pointer-events:none}
+.t5-dpad{position:relative;display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px)}
+.t5-dpad button{border:0;padding:0;margin:0;background:var(--t5-ink);cursor:pointer;box-shadow:inset 0 -4px 0 color-mix(in srgb,var(--t5-ink) 60%,#000);transition:transform .06s steps(2)}
+.t5-dpad button::after{content:"";display:block;margin:auto;border:6px solid transparent}
+.t5-dpad-up{grid-area:1/2}.t5-dpad-left{grid-area:2/1}.t5-dpad-right{grid-area:2/3}.t5-dpad-down{grid-area:3/2}
+.t5-dpad-up::after{border-bottom-color:var(--t5-plastic-2)!important;border-top:0!important}
+.t5-dpad-down::after{border-top-color:var(--t5-plastic-2)!important;border-bottom:0!important}
+.t5-dpad-left::after{border-right-color:var(--t5-plastic-2)!important;border-left:0!important}
+.t5-dpad-right::after{border-left-color:var(--t5-plastic-2)!important;border-right:0!important}
+.t5-dpad-hub{grid-area:2/2;background:var(--t5-ink);pointer-events:none}
+.t5-dpad button:active,.t5-dpad button.is-pressed{transform:translateY(2px);box-shadow:none;filter:brightness(1.4)}
+.t5-pad-mid{display:flex;gap:10px;font:400 1rem/1 var(--t5-pixel);color:var(--t5-ink);transform:translateY(16px)}
+.t5-pad-mid span{display:flex;flex-direction:column;align-items:center;gap:6px}
+.t5-pad-mid span::before{content:"";width:34px;height:10px;border-radius:6px;background:var(--t5-plastic-2);box-shadow:0 0 0 2px var(--t5-ink)}
+.t5-pad-ab{display:flex;gap:16px;align-items:flex-start}
+.t5-ab{display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;color:var(--t5-ink)}
+.t5-ab-b{transform:translateY(16px)}
+.t5-ab-key{display:grid;place-items:center;width:62px;height:62px;border-radius:50%;font:400 1.9rem/1 var(--t5-pixel);color:#fff;background:var(--t5-go);
+    box-shadow:0 0 0 var(--t5-px) var(--t5-ink),inset 0 -6px 0 var(--t5-go-dark),0 6px 0 var(--t5-px) color-mix(in srgb,var(--t5-ink) 70%,transparent);transition:transform .06s steps(2),box-shadow .06s steps(2)}
+.t5-ab-b .t5-ab-key{background:color-mix(in srgb,var(--t5-go) 55%,var(--t5-gold));box-shadow:0 0 0 var(--t5-px) var(--t5-ink),inset 0 -6px 0 color-mix(in srgb,var(--t5-go-dark) 60%,var(--t5-gold)),0 6px 0 var(--t5-px) color-mix(in srgb,var(--t5-ink) 70%,transparent)}
+.t5-ab-label{font:400 1.25rem/1 var(--t5-pixel);white-space:nowrap;padding:3px 6px;background:color-mix(in srgb,var(--t5-ink) 10%,transparent)}
+.t5-ab:hover .t5-ab-key{filter:brightness(1.08)}
+.t5-ab:active .t5-ab-key,.t5-ab.is-pressed .t5-ab-key{transform:translateY(6px);box-shadow:0 0 0 var(--t5-px) var(--t5-ink),inset 0 4px 0 color-mix(in srgb,#000 25%,transparent)}
+.t5-ab:focus-visible{outline:none}
+.t5-ab:focus-visible .t5-ab-key{outline:var(--t5-px) solid var(--t5-gold);outline-offset:4px}
+/* "+1" coin that pops out of whatever was pressed. */
+.t5-pop{position:fixed;z-index:60;pointer-events:none;font:400 1.4rem/1 var(--t5-pixel);color:var(--t5-gold);text-shadow:2px 2px 0 var(--t5-ink);animation:t5-pop .7s steps(7) forwards}
+.t5-pop::before{content:"";display:inline-block;width:10px;height:10px;margin-right:4px;background:var(--t5-gold);box-shadow:0 0 0 2px var(--t5-ink)}
+@keyframes t5-pop{0%{transform:translate(-50%,0);opacity:1}100%{transform:translate(-50%,-46px);opacity:0}}
+
+/* ---------- Rooms as game cartridges on a fling-able rail ---------- */
 .t5-rooms{padding:96px 0 88px;background:var(--t5-paper)}
 .t5-head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:28px}
 .t5-head h2{margin:0;color:var(--t5-ink);font-size:clamp(2.8rem,5.4vw,4.6rem)}
@@ -118,49 +199,82 @@ html body.public-body[data-theme="theme5"] .public-main .public-cms-availability
 .t5-rail-nav{display:flex;gap:8px}
 .t5-rail{overflow:hidden;padding:12px 0 20px;cursor:grab;touch-action:pan-y;user-select:none}
 .t5-rail.is-dragging{cursor:grabbing}
-.t5-track{list-style:none;margin:0;padding:0 max(20px,calc((100vw - 1320px)/2 + 24px));display:flex;gap:28px;width:max-content;will-change:transform}
-.t5-room{flex:0 0 clamp(250px,24vw,320px);min-width:0;display:flex;flex-direction:column;background:#fff;margin:var(--t5-px)}
-.t5-room-photo{position:relative;display:block;width:auto;min-width:0;max-width:none;border-radius:0;box-shadow:none;aspect-ratio:4/3;overflow:hidden;background:color-mix(in srgb,var(--dl-tone,var(--t5-mid)) 80%,var(--t5-paper-2));border-bottom:var(--t5-px) solid var(--t5-ink)}
+.t5-track{list-style:none;margin:0;padding:0 20px;display:flex;gap:30px;width:max-content;will-change:transform}
+.t5-room{flex:0 0 clamp(250px,24vw,310px);min-width:0;display:flex;flex-direction:column;margin:var(--t5-px)}
+.t5-cart{--t5-frame:var(--t5-ink);background:var(--t5-plastic-2);padding:0 14px 16px;clip-path:polygon(0 18px,18px 18px,18px 0,calc(100% - 18px) 0,calc(100% - 18px) 18px,100% 18px,100% 100%,0 100%);
+    box-shadow:inset 0 0 0 var(--t5-px) var(--t5-ink),inset 0 -10px 0 color-mix(in srgb,var(--t5-plastic-2) 70%,#000)}
+.t5-cart-grip{display:block;height:44px;margin:0 6px 10px;background:repeating-linear-gradient(90deg,transparent 0 10px,color-mix(in srgb,var(--t5-plastic-2) 70%,#000) 10px 14px);border-bottom:var(--t5-px) solid color-mix(in srgb,var(--t5-plastic-2) 70%,#000)}
+.t5-room-photo{position:relative;display:block;width:auto;min-width:0;max-width:none;border-radius:0;box-shadow:none;aspect-ratio:4/3;overflow:hidden;background:color-mix(in srgb,var(--dl-tone,var(--t5-mid)) 80%,var(--t5-paper-2));border:6px solid #fff;border-bottom:0}
 .t5-room-photo img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .t5-room-fallback{position:absolute;inset:0;background:
     linear-gradient(transparent 62%,var(--t5-near) 62% 70%,var(--t5-grass) 70%),
     linear-gradient(180deg,var(--t5-sky-2),var(--t5-sky-3))}
-.t5-room-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
+.t5-room-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1;background:#fff}
 .t5-room-body h3{margin:0;font:400 1.9rem/1 var(--t5-pixel);letter-spacing:0}
 .t5-room-body h3 a{color:var(--t5-ink);text-decoration:none}
 .t5-room-body p{margin:0;color:var(--t5-muted);font-size:.92rem;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .t5-room-foot{margin-top:auto;padding-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .t5-room-price{font:400 1.5rem/1 var(--t5-pixel);color:var(--t5-ink)}
 .t5-room-book.is-locked{font:400 1.3rem/1 var(--t5-pixel);color:var(--t5-muted)}
+.t5-room-photo::before,.t5-room-photo::after{display:none!important}
 
-/* ---------- Highlights on morphing blobs ---------- */
+/* ---------- Highlights: a level-select menu over morphing blobs ---------- */
 .t5-features{position:relative;isolation:isolate;overflow:hidden;padding:104px 0;background:var(--t5-paper-2)}
 .t5-blobs{position:absolute;inset:0;width:100%;height:100%;z-index:-1;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
-.t5-features-head{max-width:640px;margin-bottom:40px}
-.t5-features-head h2{margin:0;color:var(--t5-ink);font-size:clamp(2.8rem,5.4vw,4.6rem)}
+.t5-features-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(28px,5vw,72px);align-items:center}
+.t5-features-head h2{margin:0;color:var(--t5-ink);font-size:clamp(2.8rem,5vw,4.4rem)}
 .t5-features-head p{margin:16px 0 0;padding:6px 10px;color:var(--t5-text);font-size:1.05rem;line-height:1.65;background:color-mix(in srgb,var(--t5-paper-2) 88%,transparent);display:inline-block}
-.t5-features-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:28px}
-.t5-panel{background:var(--t5-paper);padding:20px 22px;margin:var(--t5-px);display:flex;flex-direction:column;gap:8px}
-.t5-panel strong{font:400 1.75rem/1 var(--t5-pixel);color:var(--t5-ink)}
-.t5-panel span{color:var(--t5-text);line-height:1.6}
+.t5-menu{--t5-frame:var(--t5-paper);margin:var(--t5-px);padding:22px 26px 26px;background:var(--t5-ink);color:#fff;
+    background-image:repeating-linear-gradient(180deg,transparent 0 2px,rgba(0,0,0,.18) 2px 3px)}
+.t5-menu-title{margin:0 0 14px;font:400 1.5rem/1 var(--t5-pixel);color:var(--t5-gold)}
+.t5-features-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.t5-menu-item{position:relative;display:flex;flex-direction:column;gap:4px;padding:10px 12px 10px 34px;cursor:default;outline:none}
+.t5-menu-item::before{content:"";position:absolute;left:8px;top:15px;border:7px solid transparent;border-left:10px solid var(--t5-gold);border-right:0;visibility:hidden;animation:t5-blink 0.9s steps(1) infinite}
+.t5-menu-item strong{font:400 1.7rem/1 var(--t5-pixel);color:#fff}
+.t5-menu-item span{color:rgba(255,255,255,.75);line-height:1.55}
+.t5-menu-item:hover,.t5-menu-item:focus-visible{background:color-mix(in srgb,var(--t5-paper) 10%,transparent)}
+.t5-menu-item:hover::before,.t5-menu-item:focus-visible::before,
+.t5-menu:not(:hover):not(:focus-within) .t5-menu-item:first-child::before{visibility:visible}
+.t5-menu-item:hover strong,.t5-menu-item:focus-visible strong{color:var(--t5-gold)}
 
-/* ---------- Closing ---------- */
+/* ---------- Closing: press start ---------- */
 .t5-cta{position:relative;isolation:isolate;overflow:hidden;background:var(--t5-ink);color:#fff}
-.t5-cta-inner{padding-top:120px;padding-bottom:120px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:22px}
-.t5-cta h2{margin:0;color:#fff;font-size:clamp(3.2rem,7vw,6rem);text-shadow:var(--t5-px) var(--t5-px) 0 color-mix(in srgb,var(--t5-ink) 60%,#000)}
-.t5-cta p{margin:0;max-width:46ch;padding:6px 10px;color:rgba(255,255,255,.9);font-size:1.05rem;line-height:1.65;background:color-mix(in srgb,var(--t5-ink) 80%,transparent)}
+.t5-cta-inner{padding-top:110px;padding-bottom:110px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:34px}
+.t5-cta-screen{--t5-frame:var(--t5-paper);max-width:760px;width:100%;padding:40px clamp(20px,4vw,48px) 34px;background:color-mix(in srgb,var(--t5-ink) 88%,#000);border-radius:0;
+    background-image:repeating-linear-gradient(180deg,transparent 0 2px,rgba(0,0,0,.25) 2px 3px),radial-gradient(ellipse at center,color-mix(in srgb,var(--t5-sky-2) 30%,transparent),transparent 70%)}
+.t5-cta h2{margin:0;color:#fff;font-size:clamp(2.8rem,6vw,5.2rem);text-shadow:var(--t5-px) var(--t5-px) 0 color-mix(in srgb,var(--t5-ink) 60%,#000)}
+.t5-cta p{margin:16px auto 0;max-width:46ch;color:rgba(255,255,255,.88);font-size:1.05rem;line-height:1.65}
+.t5-cta .t5-press-start{margin-top:26px;font:400 2rem/1 var(--t5-pixel);color:var(--t5-gold);animation:t5-blink 1.1s steps(1) infinite}
+.t5-start{display:inline-flex;align-items:center;gap:14px;padding:12px 26px 12px 14px;border-radius:999px;text-decoration:none;font:400 1.8rem/1 var(--t5-pixel);color:var(--t5-ink);background:var(--t5-plastic);
+    box-shadow:0 0 0 var(--t5-px) var(--t5-paper),0 8px 0 var(--t5-px) var(--t5-plastic-2);transition:transform .06s steps(2),box-shadow .06s steps(2)}
+.t5-start-key{width:54px;height:18px;border-radius:10px;background:var(--t5-go);box-shadow:inset 0 -4px 0 var(--t5-go-dark)}
+.t5-start:hover{color:var(--t5-ink)}
+.t5-start:active,.t5-start.is-pressed{transform:translateY(8px);box-shadow:0 0 0 var(--t5-px) var(--t5-paper),0 0 0 var(--t5-px) var(--t5-plastic-2)}
 
 @media (max-width:900px){
-    .t5-hero{min-height:min(86svh,760px)}
-    .t5-hero-copy{padding-top:44px}
+    .t5-hero-grid{grid-template-columns:1fr;min-height:0;padding-top:36px;gap:20px}
+    /* Phones: title, then the TV and controller (A is the booking button), then the text. */
+    .t5-hero-copy{display:contents}
+    .t5-hero h1{order:1}.t5-set{order:2}.t5-hero-lead{order:3;margin-top:4px}.t5-hud{order:4;justify-self:start;margin-top:0;margin-bottom:24px}
+    .t5-set{padding-bottom:150px;max-width:560px;width:100%;margin:0 auto}
+    .t5-tv{margin-top:48px}
+    .t5-pad{left:50%;transform:translateX(-50%) rotate(-3deg);gap:10px;padding:12px 16px;width:max-content;max-width:calc(100vw - 24px)}
+    .t5-pad-cord{display:none}
+    .t5-pad-mid{display:none}
+    .t5-dpad{grid-template-columns:repeat(3,30px);grid-template-rows:repeat(3,30px)}
+    .t5-ab-key{width:50px;height:50px}
+    .t5-ab-label{font-size:1.05rem;white-space:normal;max-width:9ch;text-align:center}
+    .t5-pad-ab{gap:10px}
     .t5-rooms{padding:64px 0}
     .t5-rail-nav{display:none}
-    .t5-room{flex-basis:74vw}
+    .t5-room{flex-basis:76vw}
     .t5-features{padding:72px 0}
-    .t5-cta-inner{padding-top:88px;padding-bottom:88px}
+    .t5-features-grid{grid-template-columns:1fr}
+    .t5-cta-inner{padding-top:80px;padding-bottom:80px}
 }
 @media (prefers-reduced-motion:reduce){
-    .t5-caret,.t5-hero-lead::after{animation:none}
-    .t5-btn{transition:none}
+    .t5-caret,.t5-hero-lead::after,.t5-menu-item::before,.t5-cta .t5-press-start{animation:none}
+    .t5-tv.is-on .t5-tv-power,.t5-tv.is-blip .t5-tv-power{animation:none}
+    .t5-btn,.t5-ab-key,.t5-start,.t5-dpad button{transition:none}
+    .t5-pop{display:none}
 }
-.t5-room-photo::before,.t5-room-photo::after{display:none!important}

@@ -53,7 +53,9 @@
         if (!ctx) return;
         var W = 0, H = 0, px = 4, ground = 0, sky = null, colors = null;
         var cam = 0, tiltX = 0, tiltY = 0, velX = 0, velY = 0, aimX = 0, aimY = 0, lift = 0;
-        var walkT = 0, smoke = [], flies = [], reveal = reduceMotion ? 0 : 1;
+        var walkT = 0, smoke = [], flies = [], reveal = 0;
+        var dir = 1, speed = 1, face = 1, jumpY = 0, jumpV = 0;   // driven by the controller's cross pad
+        var screen = canvas.parentNode;
         var small = document.createElement("canvas"), sctx = small.getContext("2d");
 
         function readColors() {
@@ -66,8 +68,9 @@
         }
 
         function size() {
-            var r = hero.getBoundingClientRect();
-            px = r.width < 640 ? 3 : r.width > 1600 ? 5 : 4;
+            // The world lives inside the TV screen: about 150 world pixels tall whatever the screen size.
+            var r = screen.getBoundingClientRect();
+            px = Math.max(1.5, r.height / 150);
             W = Math.max(120, Math.ceil(r.width / px));
             H = Math.max(90, Math.ceil(r.height / px));
             canvas.width = W; canvas.height = H;
@@ -158,15 +161,18 @@
         }
 
         /* Guest sprite, 7×12, two walking frames. */
-        function guest(x, base, frame) {
+        function guest(x0, base, frame) {
+            var x = x0;
+            // Mirror the sprite when walking left: draw through a rect() that flips around the sprite's 7px box.
+            var put = face > 0 ? rect : function (rx, ry, w, h, col) { rect(x0 + 7 - (rx - x0) - w, ry, w, h, col); };
             var c = colors, skin = [245, 197, 160], hair = mix(c.ink, [80, 50, 30], 0.4), shirt = c.go, pants = c.ink, bob = frame ? 0 : 1;
             var y = base - 12 + bob;
-            rect(x + 2, y, 3, 1, hair);
-            rect(x + 1, y + 1, 5, 3, skin); rect(x + 1, y + 1, 5, 1, hair); rect(x + 4, y + 2, 1, 1, c.ink);
-            rect(x + 1, y + 4, 5, 4, shirt); rect(x + 6, y + 5, 1, 2, skin);
-            rect(x, y + 4, 1, 3, mix(c.gold, c.ink, 0.3)); // backpack
-            if (frame) { rect(x + 1, y + 8, 2, 3 - bob, pants); rect(x + 4, y + 8, 2, 3 - bob, pants); }
-            else { rect(x + 2, y + 8, 3, 2, pants); rect(x + 1, y + 10, 2, 1, pants); rect(x + 4, y + 10, 2, 1, pants); }
+            put(x + 2, y, 3, 1, hair);
+            put(x + 1, y + 1, 5, 3, skin); put(x + 1, y + 1, 5, 1, hair); put(x + 4, y + 2, 1, 1, c.ink);
+            put(x + 1, y + 4, 5, 4, shirt); put(x + 6, y + 5, 1, 2, skin);
+            put(x, y + 4, 1, 3, mix(c.gold, c.ink, 0.3)); // backpack
+            if (frame) { put(x + 1, y + 8, 2, 3 - bob, pants); put(x + 4, y + 8, 2, 3 - bob, pants); }
+            else { put(x + 2, y + 8, 3, 2, pants); put(x + 1, y + 10, 2, 1, pants); put(x + 4, y + 10, 2, 1, pants); }
         }
 
         function draw(dt, t) {
@@ -219,7 +225,7 @@
             var pathY = ground + ny + 4;
             rect(0, pathY, W, 2, mix(near, c.wall, 0.35));
             for (var d = -((Math.floor(nearOff) % 7) + 7) % 7; d < W; d += 7) rect(d, pathY + 2, 2, 1, mix(near, c.wall, 0.2));
-            guest(Math.round(W * (W < 220 ? 0.66 : 0.56)), pathY + 1, Math.floor(walkT * 6) & 1);
+            guest(Math.round(W * 0.56), pathY + 1 - Math.round(jumpY), dir === 0 && !jumpY ? 1 : Math.floor(walkT * 6 * speed) & 1);
 
             // Fireflies hover over the meadow.
             ctx.fillStyle = css(c.light);
@@ -261,8 +267,9 @@
         }
 
         function step(dt, t) {
-            walkT += dt;
-            cam += dt * 14;
+            if (dir !== 0) walkT += dt;
+            cam += dt * 14 * dir * speed;
+            if (jumpY > 0 || jumpV > 0) { jumpV -= 260 * dt; jumpY = Math.max(0, jumpY + jumpV * dt); if (jumpY === 0) jumpV = 0; }
             // Spring the pointer tilt so layers overshoot slightly and settle: the "weight" of the world.
             velX += ((aimX - tiltX) * 38 - velX * 7.5) * dt; tiltX += velX * dt;
             velY += ((aimY - tiltY) * 38 - velY * 7.5) * dt; tiltY += velY * dt;
@@ -287,6 +294,98 @@
             hero.addEventListener("pointerleave", function () { aimX = 0; aimY = 0; });
         }
         loop(hero, finePointer ? 60 : 30, step);
+
+        // The cross pad: left and right walk (holding speeds up), down stops, up jumps. Arrow keys work while the hero is on screen.
+        function press(d) {
+            if (d === "up") { if (jumpY === 0) jumpV = 95; return; }
+            if (d === "down") { dir = 0; return; }
+            var nd = d === "left" ? -1 : 1;
+            speed = dir === nd ? 2.2 : 1;
+            dir = nd; face = nd;
+        }
+        function release() { speed = 1; }
+        Array.prototype.forEach.call(hero.querySelectorAll("[data-t5-dir]"), function (btn) {
+            var d = btn.getAttribute("data-t5-dir");
+            btn.addEventListener("pointerdown", function () { press(d); blip(btn); });
+            btn.addEventListener("pointerup", release);
+            btn.addEventListener("pointerleave", release);
+            btn.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); press(d); blip(btn); } });
+        });
+        var heroVisible = false;
+        new IntersectionObserver(function (en) { heroVisible = en[0].isIntersecting; }).observe(hero);
+        document.addEventListener("keydown", function (e) {
+            if (!heroVisible || e.altKey || e.ctrlKey || e.metaKey) return;
+            var tag = (document.activeElement && document.activeElement.tagName) || "";
+            if (/INPUT|TEXTAREA|SELECT/.test(tag) || (document.activeElement && document.activeElement.isContentEditable)) return;
+            var map = { ArrowLeft: "left", ArrowRight: "right" }, d = map[e.key];
+            if (!d) return;
+            press(d);
+            var btn = hero.querySelector('[data-t5-dir="' + d + '"]');
+            if (btn) { btn.classList.add("is-pressed"); setTimeout(function () { btn.classList.remove("is-pressed"); }, 120); }
+        });
+        document.addEventListener("keyup", release);
+    }
+
+    /* ---------------------------------------------------------------- button feel: press, beep, coin */
+    var audio = null;
+    function beep(freq, len) {
+        try {
+            audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+            var o = audio.createOscillator(), g = audio.createGain(), now = audio.currentTime;
+            o.type = "square"; o.frequency.setValueAtTime(freq, now); o.frequency.setValueAtTime(freq * 1.5, now + len * 0.45);
+            g.gain.setValueAtTime(0.035, now); g.gain.exponentialRampToValueAtTime(0.0001, now + len);
+            o.connect(g); g.connect(audio.destination); o.start(now); o.stop(now + len);
+        } catch (err) { /* no audio: the press still works */ }
+    }
+    function blip(btn) {
+        beep(440, 0.06);
+        var tv = document.querySelector("[data-t5-tv]");
+        if (tv && !reduceMotion) { tv.classList.remove("is-blip"); void tv.offsetWidth; tv.classList.add("is-blip"); }
+    }
+    function coin(x, y) {
+        if (reduceMotion) return;
+        var pop = document.createElement("span");
+        pop.className = "t5-pop"; pop.textContent = "+1";
+        pop.style.left = x + "px"; pop.style.top = (y - 20) + "px";
+        document.body.appendChild(pop);
+        setTimeout(function () { pop.remove(); }, 800);
+    }
+    function buttons() {
+        // Every pixel button and the controller's A, B and Start keys: a coin pops out and a short beep plays.
+        document.addEventListener("pointerdown", function (e) {
+            var el = e.target.closest && e.target.closest('body[data-theme="theme5"] .t5-btn, [data-t5-press]');
+            if (!el) return;
+            coin(e.clientX, e.clientY);
+            beep(el.matches(".t5-ab-a, .t5-btn-go, .t5-start") ? 660 : 520, 0.09);
+        });
+        // A, B and Start show their press before the page changes (a beat, not a delay you notice).
+        Array.prototype.forEach.call(document.querySelectorAll("[data-t5-press]"), function (link) {
+            link.addEventListener("click", function (e) {
+                if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                var href = link.getAttribute("href") || "";
+                e.preventDefault();
+                link.classList.add("is-pressed");
+                if (e.detail === 0) { var r = link.getBoundingClientRect(); coin(r.left + r.width / 2, r.top); beep(660, 0.09); }
+                setTimeout(function () {
+                    link.classList.remove("is-pressed");
+                    if (href.charAt(0) === "#") {
+                        var target = document.querySelector(href);
+                        if (target) target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+                    } else window.location.href = link.href;
+                }, reduceMotion ? 0 : 140);
+            });
+        });
+    }
+
+    /* The TV switches on (a white line opening into the picture) the first time it comes into view. */
+    function tvPower() {
+        var tv = document.querySelector("[data-t5-tv]");
+        if (!tv || reduceMotion) return;
+        var io = new IntersectionObserver(function (en) {
+            if (!en[0].isIntersecting) return;
+            tv.classList.add("is-on"); io.disconnect();
+        }, { threshold: 0.4 });
+        io.observe(tv);
     }
 
     /* ---------------------------------------------------------------- blob morphing */
@@ -490,6 +589,8 @@
         Array.prototype.forEach.call(document.querySelectorAll("[data-t5-world]"), world);
         Array.prototype.forEach.call(document.querySelectorAll("[data-t5-blobs]"), blobs);
         Array.prototype.forEach.call(document.querySelectorAll("[data-t5-rail]"), rail);
+        buttons();
+        tvPower();
     }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();

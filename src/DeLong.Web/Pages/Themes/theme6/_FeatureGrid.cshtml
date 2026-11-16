@@ -1,0 +1,41 @@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var items = (block.Content["items"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString()).Where(x => !string.IsNullOrWhiteSpace(x)).Take(8).ToList();
+    var body = Text(block.Content, "body");
+}
+@* The highlights roll like end credits; a focus plane in the middle of the screen keeps one line sharp and lets the others go soft. *@
+<section class="t6-credits" data-t6-credits>
+    <div class="public-container t6-credits-inner">
+        <h2>@PublicTitleAccent.Render(Text(block.Content, "title", "Có gì trong phòng"))</h2>
+        @if (!string.IsNullOrWhiteSpace(body)) { <p class="t6-credits-lead" data-t6-focus>@body</p> }
+        <dl class="t6-credits-list">
+            @foreach (var item in items)
+            {
+                var parts = item!.Split(new[] { " — ", " – ", " - ", ": " }, 2, StringSplitOptions.TrimEntries);
+                <div class="t6-credit" data-t6-focus>
+                    <dt>@parts[0]</dt>
+                    @if (parts.Length > 1) { <dd>@parts[1]</dd> }
+                </div>
+            }
+        </dl>
+    </div>
+</section>

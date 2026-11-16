@@ -27,8 +27,11 @@
 <section class="t5-cta">
     <canvas class="t5-blobs" width="96" height="40" data-t5-blobs data-t5-blobs-mood="night" aria-hidden="true"></canvas>
     <div class="public-container t5-cta-inner">
-        <h2>@PublicTitleAccent.Render(title)<span class="t5-caret" aria-hidden="true"></span></h2>
-        @if (!string.IsNullOrWhiteSpace(body)) { <p>@body</p> }
-        <a class="t5-btn t5-btn-go t5-btn-lg" href="@ScopedUrl(Text(block.Content, "buttonUrl", "/booking"))">@Text(block.Content, "buttonText", "Đặt phòng")</a>
+        <div class="t5-cta-screen">
+            <h2>@PublicTitleAccent.Render(title)</h2>
+            @if (!string.IsNullOrWhiteSpace(body)) { <p>@body</p> }
+            <p class="t5-press-start" aria-hidden="true">Bấm Start</p>
+        </div>
+        <a class="t5-start" href="@ScopedUrl(Text(block.Content, "buttonUrl", "/booking"))" data-t5-press><span class="t5-start-key" aria-hidden="true"></span>@Text(block.Content, "buttonText", "Đặt phòng")</a>
     </div>
 </section>

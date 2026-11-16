@@ -25,17 +25,21 @@
 }
 <section class="t5-features">
     <canvas class="t5-blobs" width="96" height="54" data-t5-blobs aria-hidden="true"></canvas>
-    <div class="public-container">
+    <div class="public-container t5-features-grid">
         <div class="t5-features-head">
             <h2>@PublicTitleAccent.Render(Text(block.Content, "title", "Ở đây có gì"))</h2>
             @if (!string.IsNullOrWhiteSpace(body)) { <p>@body</p> }
         </div>
-        <ul class="t5-features-list">
-            @foreach (var item in items)
-            {
-                var parts = item!.Split(new[] { " — ", " – ", " - ", ": " }, 2, StringSplitOptions.TrimEntries);
-                <li class="t5-panel"><strong>@parts[0]</strong>@if (parts.Length > 1) { <span>@parts[1]</span> }</li>
-            }
-        </ul>
+        @* The highlights as a level-select menu on a small screen: the cursor follows the pointer or keyboard focus. *@
+        <div class="t5-menu" data-t5-menu>
+            <p class="t5-menu-title" aria-hidden="true">Chọn màn</p>
+            <ul class="t5-features-list">
+                @foreach (var item in items)
+                {
+                    var parts = item!.Split(new[] { " — ", " – ", " - ", ": " }, 2, StringSplitOptions.TrimEntries);
+                    <li class="t5-menu-item" tabindex="0"><strong>@parts[0]</strong>@if (parts.Length > 1) { <span>@parts[1]</span> }</li>
+                }
+            </ul>
+        </div>
     </div>
 </section>

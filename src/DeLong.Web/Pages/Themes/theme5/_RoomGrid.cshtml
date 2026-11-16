@@ -24,7 +24,7 @@
     var title = Text(block.Content, "title", "Chọn phòng");
     var body = Text(block.Content, "body");
 }
-<section class="t5-rooms" aria-labelledby="t5-rooms-title">
+<section class="t5-rooms" id="t5-rooms" aria-labelledby="t5-rooms-title">
     <div class="public-container t5-head">
         <div>
             <h2 id="t5-rooms-title">@PublicTitleAccent.Render(title)</h2>
@@ -41,7 +41,8 @@
             {
                 var room = item.Room;
                 var roomUrl = PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug);
-                <li class="t5-room" style="@RoomTone(room.Id)" data-room-lightbox="@ThemeHomeContext.RoomPhotos(room)" data-room-lightbox-title="@room.Name">
+                <li class="t5-room t5-cart" style="@RoomTone(room.Id)" data-room-lightbox="@ThemeHomeContext.RoomPhotos(room)" data-room-lightbox-title="@room.Name">
+                    <span class="t5-cart-grip" aria-hidden="true"></span>
                     <a class="t5-room-photo public-room-art" href="@roomUrl" aria-label="Xem @room.Name" draggable="false">
                         @if (!string.IsNullOrWhiteSpace(room.CoverCardUrl))
                         {

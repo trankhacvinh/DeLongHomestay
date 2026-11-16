@@ -1,0 +1,70 @@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var rooms = Page.SelectGlobalRooms(block.Content);
+    var title = Text(block.Content, "title", "Đang chiếu");
+    var body = Text(block.Content, "body");
+}
+@* Rooms as posters behind a velvet curtain that opens as the section scrolls in. Pointing at one poster pulls focus to it. *@
+<section class="t6-rooms" aria-labelledby="t6-rooms-title" data-t6-rooms>
+    <span class="t6-curtain t6-curtain-l" aria-hidden="true" data-t6-curtain="l"></span>
+    <span class="t6-curtain t6-curtain-r" aria-hidden="true" data-t6-curtain="r"></span>
+    <div class="public-container">
+        <div class="t6-head">
+            <h2 id="t6-rooms-title">@PublicTitleAccent.Render(title)</h2>
+            @if (!string.IsNullOrWhiteSpace(body)) { <p>@body</p> }
+        </div>
+        <ul class="t6-posters">
+            @foreach (var item in rooms)
+            {
+                var room = item.Room;
+                var roomUrl = PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug);
+                <li class="t6-poster" style="@RoomTone(room.Id)" data-room-lightbox="@ThemeHomeContext.RoomPhotos(room)" data-room-lightbox-title="@room.Name">
+                    <a class="t6-poster-art public-room-art" href="@roomUrl" aria-label="Xem @room.Name">
+                        @if (!string.IsNullOrWhiteSpace(room.CoverCardUrl))
+                        {
+                            <img src="@room.CoverCardUrl" alt="@room.Name" width="600" height="900" loading="lazy" decoding="async" />
+                        }
+                        else
+                        {
+                            <span class="t6-poster-empty" aria-hidden="true"></span>
+                        }
+                    </a>
+                    <div class="t6-poster-body">
+                        <p class="t6-poster-meta">@room.Capacity người, @item.PropertyName</p>
+                        <h3><a href="@roomUrl">@room.Name</a></h3>
+                        <div class="t6-poster-foot">
+                            <span>Từ @room.QuickFromPrice.ToString("N0")đ</span>
+                            @if (room.IsBookingLocked)
+                            {
+                                <span class="t6-poster-locked" aria-disabled="true">Tạm ngừng</span>
+                            }
+                            else
+                            {
+                                <a class="t6-btn t6-btn-main t6-btn-small" href="@PublicUrlBuilder.BookingHome(item.PropertySiteSlug)">Đặt</a>
+                            }
+                        </div>
+                    </div>
+                </li>
+            }
+        </ul>
+    </div>
+</section>

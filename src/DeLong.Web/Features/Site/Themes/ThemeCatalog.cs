@@ -164,7 +164,31 @@ public static class ThemeCatalog
         ["/themes/theme5/theme.css"],
         ["/themes/theme5/theme.js"]);
 
-    public static readonly IReadOnlyList<ThemeDefinition> All = [Theme1, Theme2, Theme3, Theme4, Theme5];
+    public static readonly ThemeDefinition Theme6 = new(
+        "theme6",
+        "Theme 6 · Điện ảnh",
+        "Như một phòng chiếu riêng: đầu trang là màn chiếu trong khung phim, đếm ngược rồi lấy nét, cuộn trang là đi xuyên qua hàng ghế vào khung hình. Phòng hiện như poster sau tấm rèm nhung, điểm nổi bật chạy như danh đề cuối phim.",
+        "/themes/theme6/preview.webp",
+        [
+            new("Hero", "Màn chiếu đầu trang"),
+            new("RoomGrid", "Các phòng (poster)"),
+            new("FeatureGrid", "Điểm nổi bật (danh đề)"),
+            new("AvailabilitySearch", "Ô chọn ngày đặt nhanh", DefaultVisible: false),
+            new("AvailabilityCalendar", "Lịch phòng"),
+            new("Faq", "Hỏi đáp"),
+            new("RichText", "Đoạn văn tự do", DefaultVisible: false),
+            new("Cta", "Vé mời cuối trang")
+        ],
+        [
+            new("velvet", "Rèm nhung", ["#140e0f", "#f2e6cf", "#d9a441"]),
+            new("noir", "Phim đen trắng", ["#101215", "#eceff2", "#cfd3d8"]),
+            new("drivein", "Rạp ngoài trời", ["#0d1a23", "#fdf1dd", "#ff9e6b"])
+        ],
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Hero", "RoomGrid", "FeatureGrid", "Cta" },
+        ["/themes/theme6/theme.css"],
+        ["/vendor/gsap/3.13.0/gsap.min.js", "/vendor/gsap/3.13.0/ScrollTrigger.min.js", "/themes/theme6/theme.js"]);
+
+    public static readonly IReadOnlyList<ThemeDefinition> All = [Theme1, Theme2, Theme3, Theme4, Theme5, Theme6];
 
     public static ThemeDefinition Get(string? key) =>
         All.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)) ?? Theme1;

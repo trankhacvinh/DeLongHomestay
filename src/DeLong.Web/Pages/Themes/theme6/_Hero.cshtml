@@ -1,0 +1,77 @@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var title = Text(block.Content, "title", "Tối nay chiếu gì?");
+    var body = Text(block.Content, "body", "Phòng riêng có máy chiếu, sofa và chăn ấm. Đặt theo giờ hoặc qua đêm, bật phim là của riêng bạn.");
+    var primaryText = Text(block.Content, "primaryText", "Đặt phòng");
+    var primaryUrl = Text(block.Content, "primaryUrl", "/booking");
+    var secondaryText = Text(block.Content, "secondaryText");
+    var secondaryUrl = Text(block.Content, "secondaryUrl");
+    var imageUrl = Text(block.Content, "imageUrl");
+    if (string.IsNullOrWhiteSpace(imageUrl))
+        imageUrl = Page.GlobalCatalog.Rooms.Select(x => x.Room.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+            ?? Page.GlobalCatalog.Properties.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? string.Empty;
+}
+@* A screening room seen from the back rows: the projector beam, the film gate with the title card on screen,
+   and out-of-focus seat backs in the foreground. Scrolling walks through the seats into the picture. *@
+<section class="t6-hero" data-t6-hero>
+    <div class="t6-hero-stage">
+        <span class="t6-beam" aria-hidden="true"><canvas class="t6-dust" data-t6-dust></canvas></span>
+        <div class="t6-gate" data-t6-gate>
+            <span class="t6-strip t6-strip-top" aria-hidden="true"></span>
+            <div class="t6-frame">
+                @if (!string.IsNullOrWhiteSpace(imageUrl))
+                {
+                    <img class="t6-shot" src="@imageUrl" alt="" fetchpriority="high" decoding="async" data-t6-shot />
+                }
+                else
+                {
+                    <span class="t6-shot t6-shot-empty" aria-hidden="true" data-t6-shot></span>
+                }
+                <span class="t6-leader" aria-hidden="true" data-t6-leader><b data-t6-count>3</b></span>
+                <div class="t6-titlecard" data-t6-card>
+                    <h1>@PublicTitleAccent.Render(title)</h1>
+                    <p>@body</p>
+                </div>
+                <span class="t6-grain" aria-hidden="true"></span>
+            </div>
+            <span class="t6-strip t6-strip-bottom" aria-hidden="true"></span>
+        </div>
+        <div class="t6-hero-actions" data-t6-actions>
+            <a class="t6-btn t6-btn-main" href="@ScopedUrl(primaryUrl)">@primaryText</a>
+            @if (!string.IsNullOrWhiteSpace(secondaryText) && !string.IsNullOrWhiteSpace(secondaryUrl))
+            {
+                <a class="t6-btn t6-btn-ghost" href="@ScopedUrl(secondaryUrl)">@secondaryText</a>
+            }
+            @if (fromPrice > 0)
+            {
+                <p class="t6-hero-meta">Từ <strong>@heroPriceShort</strong> mỗi khung giờ, @roomCount phòng đang mở</p>
+            }
+        </div>
+        <svg class="t6-seats" data-t6-seats viewBox="0 0 1600 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+            <g class="t6-seats-back">
+                <path d="M-20 300V150q0-26 26-26h150q26 0 26 26v150zM200 300V140q0-26 26-26h150q26 0 26 26v160zM430 300V146q0-26 26-26h150q26 0 26 26v154zM660 300V138q0-26 26-26h150q26 0 26 26v162zM890 300V146q0-26 26-26h150q26 0 26 26v154zM1120 300V140q0-26 26-26h150q26 0 26 26v160zM1350 300V148q0-26 26-26h150q26 0 26 26v152z"/>
+                <circle cx="520" cy="96" r="44"/><path d="M450 170q70-60 140 0v40H450z"/>
+                <circle cx="1210" cy="88" r="40"/><circle cx="1262" cy="102" r="36"/><path d="M1150 170q60-58 150-6v50h-150z"/>
+            </g>
+        </svg>
+    </div>
+</section>

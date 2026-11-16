@@ -1,4 +1,3 @@
-@* Theme 5 · Hero: a side-scrolling pixel world drawn on a tiny canvas (layers at different depths, a walking guest, the homestay). *@
 @model DeLong.Web.Pages.Themes.ThemeSectionModel
 @using System.Text.Json
 @using System.Text.Json.Nodes
@@ -21,27 +20,54 @@
 }
 @{
     var title = Text(block.Content, "title", "Nghỉ một màn, rồi chơi tiếp.");
-    var body = Text(block.Content, "body", "Phòng riêng theo giờ hoặc qua đêm. Chọn khung giờ, đặt online, đến là có phòng.");
+    var body = Text(block.Content, "body", "Phòng riêng theo giờ hoặc qua đêm, có phòng chơi game. Chọn khung giờ, đặt online, đến là có phòng.");
     var primaryText = Text(block.Content, "primaryText", "Đặt phòng");
     var primaryUrl = Text(block.Content, "primaryUrl", "/booking");
     var secondaryText = Text(block.Content, "secondaryText");
     var secondaryUrl = Text(block.Content, "secondaryUrl");
+    if (string.IsNullOrWhiteSpace(secondaryText) || string.IsNullOrWhiteSpace(secondaryUrl)) { secondaryText = "Xem phòng"; secondaryUrl = "#t5-rooms"; }
 }
+@* A game room: the copy on the wall, an old TV on a cabinet playing the pixel world, a controller in front of it.
+   The controller's A and B buttons are the two calls to action; the cross pad walks the guest on screen. *@
 <section class="t5-hero" data-t5-hero>
-    <canvas class="t5-world" width="320" height="180" data-t5-world aria-hidden="true"></canvas>
-    <div class="public-container t5-hero-copy">
-        <h1>@PublicTitleAccent.Render(title)<span class="t5-caret" aria-hidden="true"></span></h1>
-        <p class="t5-hero-lead">@body</p>
-        <div class="t5-hero-actions">
-            <a class="t5-btn t5-btn-go" href="@ScopedUrl(primaryUrl)">@primaryText</a>
-            @if (!string.IsNullOrWhiteSpace(secondaryText) && !string.IsNullOrWhiteSpace(secondaryUrl))
+    <div class="public-container t5-hero-grid">
+        <div class="t5-hero-copy">
+            <h1>@PublicTitleAccent.Render(title)<span class="t5-caret" aria-hidden="true"></span></h1>
+            <p class="t5-hero-lead">@body</p>
+            @if (fromPrice > 0)
             {
-                <a class="t5-btn t5-btn-alt" href="@ScopedUrl(secondaryUrl)">@secondaryText</a>
+                <p class="t5-hud"><span class="t5-coin" aria-hidden="true"></span>Từ <strong>@heroPriceShort</strong> mỗi khung giờ<span class="t5-hud-sep" aria-hidden="true"></span>@roomCount phòng đang mở</p>
             }
         </div>
-        @if (fromPrice > 0)
-        {
-            <p class="t5-hud"><span class="t5-coin" aria-hidden="true"></span>Từ <strong>@heroPriceShort</strong> mỗi khung giờ<span class="t5-hud-sep" aria-hidden="true"></span>@roomCount phòng đang mở</p>
-        }
+        <div class="t5-set">
+            <div class="t5-tv" data-t5-tv>
+                <span class="t5-tv-antenna" aria-hidden="true"></span>
+                <div class="t5-tv-body">
+                    <div class="t5-tv-screen">
+                        <canvas class="t5-world" width="256" height="192" data-t5-world aria-hidden="true"></canvas>
+                        <span class="t5-tv-glass" aria-hidden="true"></span>
+                        <span class="t5-tv-power" aria-hidden="true"></span>
+                    </div>
+                    <div class="t5-tv-side" aria-hidden="true"><span></span><span></span><i></i><i></i><i></i><i></i></div>
+                </div>
+                <span class="t5-tv-cabinet" aria-hidden="true"><span class="t5-console"><i></i><b></b></span></span>
+            </div>
+            <div class="t5-pad">
+                <span class="t5-pad-cord" aria-hidden="true"></span>
+                <div class="t5-dpad" role="group" aria-label="Điều khiển nhân vật trên màn hình">
+                    <button type="button" class="t5-dpad-up" data-t5-dir="up" aria-label="Nhảy"></button>
+                    <button type="button" class="t5-dpad-left" data-t5-dir="left" aria-label="Đi sang trái"></button>
+                    <button type="button" class="t5-dpad-right" data-t5-dir="right" aria-label="Đi sang phải"></button>
+                    <button type="button" class="t5-dpad-down" data-t5-dir="down" aria-label="Dừng lại"></button>
+                    <span class="t5-dpad-hub" aria-hidden="true"></span>
+                </div>
+                <div class="t5-pad-mid" aria-hidden="true"><span>Chọn</span><span>Bắt đầu</span></div>
+                <div class="t5-pad-ab">
+                    <a class="t5-ab t5-ab-b" href="@ScopedUrl(secondaryUrl)" data-t5-press><span class="t5-ab-key" aria-hidden="true">B</span><span class="t5-ab-label">@secondaryText</span></a>
+                    <a class="t5-ab t5-ab-a" href="@ScopedUrl(primaryUrl)" data-t5-press><span class="t5-ab-key" aria-hidden="true">A</span><span class="t5-ab-label">@primaryText</span></a>
+                </div>
+            </div>
+        </div>
     </div>
+    <span class="t5-floor" aria-hidden="true"></span>
 </section>
