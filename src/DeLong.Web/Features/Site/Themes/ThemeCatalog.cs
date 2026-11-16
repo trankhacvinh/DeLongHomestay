@@ -140,7 +140,31 @@ public static class ThemeCatalog
         ["/themes/theme4/theme.css"],
         ["/vendor/gsap/3.13.0/gsap.min.js", "/vendor/gsap/3.13.0/ScrollTrigger.min.js", "/themes/theme4/theme.js"]);
 
-    public static readonly IReadOnlyList<ThemeDefinition> All = [Theme1, Theme2, Theme3, Theme4];
+    public static readonly ThemeDefinition Theme5 = new(
+        "theme5",
+        "Theme 5 · Pixel",
+        "Vui kiểu trò chơi điện tử: đầu trang là một thế giới pixel nhiều lớp có chiều sâu, khách nhỏ đi bộ tới căn nhà sáng đèn; hình khối pixel biến dạng theo chuột; danh sách phòng kéo, vuốt có quán tính.",
+        "/themes/theme5/preview.webp",
+        [
+            new("Hero", "Thế giới pixel đầu trang"),
+            new("RoomGrid", "Các phòng (kéo, vuốt)"),
+            new("FeatureGrid", "Điểm nổi bật"),
+            new("AvailabilitySearch", "Ô chọn ngày đặt nhanh", DefaultVisible: false),
+            new("AvailabilityCalendar", "Lịch phòng"),
+            new("Faq", "Hỏi đáp"),
+            new("RichText", "Đoạn văn tự do", DefaultVisible: false),
+            new("Cta", "Lời mời đặt phòng cuối trang")
+        ],
+        [
+            new("sunset", "Hoàng hôn", ["#2b2456", "#fff6e8", "#ef6351"]),
+            new("morning", "Buổi sáng", ["#4aa3df", "#f4fbff", "#f26b3a"]),
+            new("night", "Đêm sao", ["#0e1330", "#f2f0fa", "#ff7a59"])
+        ],
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Hero", "RoomGrid", "FeatureGrid", "Cta" },
+        ["/themes/theme5/theme.css"],
+        ["/themes/theme5/theme.js"]);
+
+    public static readonly IReadOnlyList<ThemeDefinition> All = [Theme1, Theme2, Theme3, Theme4, Theme5];
 
     public static ThemeDefinition Get(string? key) =>
         All.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)) ?? Theme1;

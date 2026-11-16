@@ -1,0 +1,47 @@
+@* Theme 5 · Hero: a side-scrolling pixel world drawn on a tiny canvas (layers at different depths, a walking guest, the homestay). *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var title = Text(block.Content, "title", "Nghỉ một màn, rồi chơi tiếp.");
+    var body = Text(block.Content, "body", "Phòng riêng theo giờ hoặc qua đêm. Chọn khung giờ, đặt online, đến là có phòng.");
+    var primaryText = Text(block.Content, "primaryText", "Đặt phòng");
+    var primaryUrl = Text(block.Content, "primaryUrl", "/booking");
+    var secondaryText = Text(block.Content, "secondaryText");
+    var secondaryUrl = Text(block.Content, "secondaryUrl");
+}
+<section class="t5-hero" data-t5-hero>
+    <canvas class="t5-world" width="320" height="180" data-t5-world aria-hidden="true"></canvas>
+    <div class="public-container t5-hero-copy">
+        <h1>@PublicTitleAccent.Render(title)<span class="t5-caret" aria-hidden="true"></span></h1>
+        <p class="t5-hero-lead">@body</p>
+        <div class="t5-hero-actions">
+            <a class="t5-btn t5-btn-go" href="@ScopedUrl(primaryUrl)">@primaryText</a>
+            @if (!string.IsNullOrWhiteSpace(secondaryText) && !string.IsNullOrWhiteSpace(secondaryUrl))
+            {
+                <a class="t5-btn t5-btn-alt" href="@ScopedUrl(secondaryUrl)">@secondaryText</a>
+            }
+        </div>
+        @if (fromPrice > 0)
+        {
+            <p class="t5-hud"><span class="t5-coin" aria-hidden="true"></span>Từ <strong>@heroPriceShort</strong> mỗi khung giờ<span class="t5-hud-sep" aria-hidden="true"></span>@roomCount phòng đang mở</p>
+        }
+    </div>
+</section>

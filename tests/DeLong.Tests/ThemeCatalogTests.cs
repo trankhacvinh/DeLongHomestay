@@ -148,11 +148,24 @@ public sealed class ThemeCatalogTests
 
     [Fact]
     [Trait("Category", "Unit")]
+    public void Theme5_opens_on_its_pixel_world_then_the_draggable_rooms()
+    {
+        var layout = ThemeModel.CurrentLayout(ThemeCatalog.Theme5, null, new List<HomeSectionDto>());
+        Assert.Equal(["Hero", "RoomGrid", "FeatureGrid"], layout.Take(3).Select(x => x.Type));
+        Assert.False(layout.Single(x => x.Type == "AvailabilitySearch").Visible);
+        Assert.Equal("/Pages/Themes/theme5/_RoomGrid.cshtml", ThemeCatalog.Theme5.SectionPartial("RoomGrid"));
+        Assert.Equal("/Pages/Themes/theme1/_Faq.cshtml", ThemeCatalog.Theme5.SectionPartial("Faq"));
+        Assert.Equal("sunset", ThemeCatalog.Theme5.Palettes[0].Key);
+        Assert.DoesNotContain(ThemeCatalog.Theme5.Scripts, x => x.Contains("three", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public void Theme3_tells_its_story_before_the_rooms_and_loads_scrolltrigger_first()
     {
         var layout = ThemeModel.CurrentLayout(ThemeCatalog.Theme3, null, new List<HomeSectionDto>());
         Assert.Equal(["Hero", "FeatureGrid", "RoomGrid", "AvailabilityCalendar"], layout.Take(4).Select(x => x.Type));
-        Assert.Equal(["theme1", "theme2", "theme3", "theme4"], ThemeCatalog.All.Select(x => x.Key));
+        Assert.Equal(["theme1", "theme2", "theme3", "theme4", "theme5"], ThemeCatalog.All.Select(x => x.Key));
         var scripts = ThemeCatalog.Theme3.Scripts.ToList();
         Assert.True(scripts.IndexOf("/vendor/gsap/3.13.0/ScrollTrigger.min.js") < scripts.IndexOf("/themes/theme3/theme.js"));
     }
