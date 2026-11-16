@@ -338,4 +338,5 @@
 ## Chọn theme website (16/11/2026)
 
 - [x] Theme 1 (giao diện De Long, không đổi), Theme 2 · Chill (three.js + GSAP), trang Admin → Giao diện với bảng màu và bật/tắt/sắp xếp khối. Xem [PUBLIC-THEMES.md](PUBLIC-THEMES.md).
-- [ ] Deploy, chuyển thechillinghomestay.com sang Theme 2, xóa ô CSS toàn website cũ của web đó. Làm Theme 3.
+- [x] Theme 4 · Ambient: phong cảnh SVG, trời đổi theo giờ, parallax, đom đóm.
+- [ ] Deploy, chuyển thechillinghomestay.com sang Theme 2, xóa ô CSS toàn website cũ của web đó. Làm Theme 3 · Premium 3D.

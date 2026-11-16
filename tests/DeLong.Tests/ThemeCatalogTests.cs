@@ -133,4 +133,16 @@ public sealed class ThemeCatalogTests
         Assert.Equal("/Pages/Themes/theme1/_Faq.cshtml", ThemeCatalog.Theme2.SectionPartial("Faq"));
         Assert.Equal("dusk", ThemeCatalog.Theme2.Palette("nope").Key);
     }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void Theme4_puts_the_date_search_right_under_its_landscape()
+    {
+        var layout = ThemeModel.CurrentLayout(ThemeCatalog.Theme4, null, new List<HomeSectionDto>());
+        Assert.Equal(["Hero", "AvailabilitySearch", "RoomGrid"], layout.Take(3).Select(x => x.Type));
+        Assert.All(layout.Take(3), x => Assert.True(x.Visible));
+        Assert.Equal("/Pages/Themes/theme4/_AvailabilitySearch.cshtml", ThemeCatalog.Theme4.SectionPartial("AvailabilitySearch"));
+        Assert.Equal("/Pages/Themes/theme1/_AvailabilityCalendar.cshtml", ThemeCatalog.Theme4.SectionPartial("AvailabilityCalendar"));
+        Assert.Equal("lake", ThemeCatalog.Theme4.Palettes[0].Key);
+    }
 }

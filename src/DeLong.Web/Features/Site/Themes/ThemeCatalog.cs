@@ -92,7 +92,31 @@ public static class ThemeCatalog
         ["/themes/theme2/theme.css"],
         ["/vendor/gsap/3.13.0/gsap.min.js", "/themes/theme2/theme.js"]);
 
-    public static readonly IReadOnlyList<ThemeDefinition> All = [Theme1, Theme2];
+    public static readonly ThemeDefinition Theme4 = new(
+        "theme4",
+        "Theme 4 · Ambient",
+        "Nhẹ nhàng, thư thái: đầu trang là phong cảnh đồi và hồ trôi chậm, bầu trời đổi theo giờ khách vào web, đom đóm buổi tối. Ô chọn ngày nằm ngay dưới để đặt nhanh.",
+        "/themes/theme4/preview.webp",
+        [
+            new("Hero", "Phong cảnh đầu trang"),
+            new("AvailabilitySearch", "Ô chọn ngày đặt nhanh"),
+            new("RoomGrid", "Các phòng"),
+            new("AvailabilityCalendar", "Lịch phòng"),
+            new("FeatureGrid", "Điểm nổi bật"),
+            new("Faq", "Hỏi đáp"),
+            new("RichText", "Đoạn văn tự do", DefaultVisible: false),
+            new("Cta", "Lời mời đặt phòng cuối trang")
+        ],
+        [
+            new("lake", "Hồ sương", ["#233447", "#eef2f1", "#e9b872"]),
+            new("tea", "Đồi chè", ["#26392a", "#f0f2ea", "#e2b866"]),
+            new("plum", "Hoa mận", ["#3d2e3f", "#f4f0f1", "#f2b880"])
+        ],
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Hero", "AvailabilitySearch", "RoomGrid", "FeatureGrid", "Cta" },
+        ["/themes/theme4/theme.css"],
+        ["/vendor/gsap/3.13.0/gsap.min.js", "/vendor/gsap/3.13.0/ScrollTrigger.min.js", "/themes/theme4/theme.js"]);
+
+    public static readonly IReadOnlyList<ThemeDefinition> All = [Theme1, Theme2, Theme4];
 
     public static ThemeDefinition Get(string? key) =>
         All.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)) ?? Theme1;
