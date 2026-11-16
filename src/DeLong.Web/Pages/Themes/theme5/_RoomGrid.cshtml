@@ -1,0 +1,75 @@
+@* Theme 5 · Rooms: a rail you can fling with the mouse or finger; it glides and settles on a card. *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var rooms = Page.SelectGlobalRooms(block.Content);
+    var title = Text(block.Content, "title", "Chọn phòng");
+    var body = Text(block.Content, "body");
+}
+<section class="t5-rooms" id="t5-rooms" aria-labelledby="t5-rooms-title">
+    <div class="public-container t5-head">
+        <div>
+            <h2 id="t5-rooms-title">@PublicTitleAccent.Render(title)</h2>
+            @if (!string.IsNullOrWhiteSpace(body)) { <p>@body</p> }
+        </div>
+        <div class="t5-rail-nav">
+            <button class="t5-btn t5-btn-icon" type="button" data-t5-prev aria-label="Phòng trước">&lt;</button>
+            <button class="t5-btn t5-btn-icon" type="button" data-t5-next aria-label="Phòng tiếp theo">&gt;</button>
+        </div>
+    </div>
+    <div class="t5-rail" data-t5-rail>
+        <ul class="t5-track" data-t5-track>
+            @foreach (var item in rooms)
+            {
+                var room = item.Room;
+                var roomUrl = PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug);
+                <li class="t5-room t5-cart" style="@RoomTone(room.Id)" data-room-lightbox="@ThemeHomeContext.RoomPhotos(room)" data-room-lightbox-title="@room.Name">
+                    <span class="t5-cart-grip" aria-hidden="true"></span>
+                    <a class="t5-room-photo public-room-art" href="@roomUrl" aria-label="Xem @room.Name" draggable="false">
+                        @if (!string.IsNullOrWhiteSpace(room.CoverCardUrl))
+                        {
+                            <img src="@room.CoverCardUrl" alt="@room.Name" width="900" height="675" loading="lazy" decoding="async" draggable="false" />
+                        }
+                        else
+                        {
+                            <span class="t5-room-fallback" aria-hidden="true"></span>
+                        }
+                    </a>
+                    <div class="t5-room-body">
+                        <h3><a href="@roomUrl" draggable="false">@room.Name</a></h3>
+                        <p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người, {item.PropertyName}" : room.ShortDescription)</p>
+                        <div class="t5-room-foot">
+                            <span class="t5-room-price"><span class="t5-coin" aria-hidden="true"></span>@room.QuickFromPrice.ToString("N0")đ</span>
+                            @if (room.IsBookingLocked)
+                            {
+                                <span class="t5-room-book is-locked" aria-disabled="true">Tạm ngừng</span>
+                            }
+                            else
+                            {
+                                <a class="t5-btn t5-btn-go t5-btn-sm" href="@PublicUrlBuilder.BookingHome(item.PropertySiteSlug)" draggable="false">Đặt</a>
+                            }
+                        </div>
+                    </div>
+                </li>
+            }
+        </ul>
+    </div>
+</section>

@@ -1,0 +1,45 @@
+@* Theme 5 · Highlights on a field of morphing pixel blobs. Items "Tiêu đề — mô tả" split in two. *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var items = (block.Content["items"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString()).Where(x => !string.IsNullOrWhiteSpace(x)).Take(8).ToList();
+    var body = Text(block.Content, "body");
+}
+<section class="t5-features">
+    <canvas class="t5-blobs" width="96" height="54" data-t5-blobs aria-hidden="true"></canvas>
+    <div class="public-container t5-features-grid">
+        <div class="t5-features-head">
+            <h2>@PublicTitleAccent.Render(Text(block.Content, "title", "Ở đây có gì"))</h2>
+            @if (!string.IsNullOrWhiteSpace(body)) { <p>@body</p> }
+        </div>
+        @* The highlights as a level-select menu on a small screen: the cursor follows the pointer or keyboard focus. *@
+        <div class="t5-menu" data-t5-menu>
+            <p class="t5-menu-title" aria-hidden="true">Chọn màn</p>
+            <ul class="t5-features-list">
+                @foreach (var item in items)
+                {
+                    var parts = item!.Split(new[] { " — ", " – ", " - ", ": " }, 2, StringSplitOptions.TrimEntries);
+                    <li class="t5-menu-item" tabindex="0"><strong>@parts[0]</strong>@if (parts.Length > 1) { <span>@parts[1]</span> }</li>
+                }
+            </ul>
+        </div>
+    </div>
+</section>

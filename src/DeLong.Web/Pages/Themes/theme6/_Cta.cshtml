@@ -1,0 +1,40 @@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var title = Text(block.Content, "title");
+    if (string.IsNullOrWhiteSpace(title)) title = "Giữ chỗ cho suất tối nay.";
+    var body = Text(block.Content, "body");
+}
+@* A ticket: the main part carries the invitation, the stub is the button. *@
+<section class="t6-cta">
+    <div class="public-container">
+        <div class="t6-ticket" data-t6-ticket>
+            <div class="t6-ticket-main">
+                <h2>@PublicTitleAccent.Render(title)</h2>
+                @if (!string.IsNullOrWhiteSpace(body)) { <p>@body</p> }
+            </div>
+            <div class="t6-ticket-stub">
+                <span class="t6-ticket-label">@siteName</span>
+                <a class="t6-btn t6-btn-main" href="@ScopedUrl(Text(block.Content, "buttonUrl", "/booking"))">@Text(block.Content, "buttonText", "Đặt phòng")</a>
+            </div>
+        </div>
+    </div>
+</section>
