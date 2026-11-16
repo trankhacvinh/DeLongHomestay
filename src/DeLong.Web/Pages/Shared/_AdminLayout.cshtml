@@ -83,6 +83,7 @@
         }),
         ("Website", new List<NavItem>
         {
+            new("Giao diện", "i-sparkles", "/Admin/Site/Theme", "/Admin/Site/Theme", Exact: true, Visible: User.IsInRole("Admin"), NoProperty: true),
             new("Trang cơ sở", "i-settings", "/Admin/Site/Index", "/Admin/Site", Exact: true, Visible: canManageSite),
             new("Trang chủ chung", "i-grid", "/Admin/Site/Global", "/Admin/Site/Global", Exact: true, Visible: User.IsInRole("Admin"), NoProperty: true),
             new("Gallery", "i-image", "/Admin/Site/Editorial", "/Admin/Site/Editorial", Tab: "gallery"),

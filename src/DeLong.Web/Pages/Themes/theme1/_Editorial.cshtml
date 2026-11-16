@@ -1,0 +1,44 @@
+@* Theme 1 · global Gallery + Blog showcase under the blocks (moved unchanged from Index.cshtml). *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    if (Page.GlobalEditorial is { } editorial)
+    {
+    if (editorial.Gallery.Count > 0)
+    {
+    <section class="public-section public-editorial-gallery"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">GALLERY</span><h2>@PublicTitleAccent.Render(editorial.Settings.GalleryTitle)</h2></div></div><div class="public-gallery-mosaic public-gallery-layout-@editorial.Settings.GalleryLayout">
+    @foreach (var item in editorial.Gallery)
+    {
+        <figure><button class="public-gallery-lightbox-trigger" type="button" data-gallery-open data-src="@item.ImageUrl" data-alt="@item.AltText" data-caption="@item.Caption"><img src="@item.ImageUrl" alt="@item.AltText" loading="lazy" /></button><figcaption><a href="@PublicUrlBuilder.PropertyHome(item.PropertySiteSlug)">@item.PropertyName</a>@if (!string.IsNullOrWhiteSpace(item.Caption)) { <span>@item.Caption</span> }</figcaption></figure>
+    }
+    </div></div></section>
+    }
+    if (editorial.Posts.Count > 0)
+    {
+    <section class="public-section public-editorial-blog"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">BLOG</span><h2>@PublicTitleAccent.Render(editorial.Settings.BlogTitle)</h2></div><a class="public-text-link" href="/blog">Xem tất cả bài viết →</a></div><div class="public-blog-grid">
+    @foreach (var post in editorial.Posts)
+    {
+        <article class="public-blog-card"><a class="public-blog-media" href="/h/@post.PropertySiteSlug/blog/@post.Slug">@if (!string.IsNullOrWhiteSpace(post.CoverImageUrl)) { <img src="@post.CoverImageUrl" alt="@post.Title" loading="lazy" /> } else { <span>@post.PropertyName</span> }</a><div class="public-blog-copy"><small>@post.PropertyName</small><h3><a href="/h/@post.PropertySiteSlug/blog/@post.Slug">@post.Title</a></h3><p>@post.Excerpt</p><a class="public-text-link" href="/h/@post.PropertySiteSlug/blog/@post.Slug">Đọc bài →</a></div></article>
+    }
+    </div></div></section>
+    }
+    }
+}

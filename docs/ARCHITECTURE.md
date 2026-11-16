@@ -1,5 +1,9 @@
 # Kiến trúc DeLongHomestay
 
+## Theme website công khai (16/11/2026)
+
+Trang chủ vẽ từng khối bằng partial của theme đang chọn (`/Pages/Themes/<key>/_<Type>.cshtml`). Nếu theme không có partial cho khối đó thì dùng partial của Theme 1. Theme được khai báo trong code (`ThemeCatalog`). Lựa chọn của chủ homestay lưu ở dòng ẩn `__PublicTheme`. Xem [PUBLIC-THEMES.md](PUBLIC-THEMES.md).
+
 ## Ngày tháng giao diện (01/11/2026)
 
 Ngày đầy đủ hiển thị `dd/MM/yyyy`; ô nhập có giờ dùng `dd/MM/yyyy HH:mm`, bộ lọc tháng dùng `MM/yyyy`. Layout nạp Flatpickr 4.6.13 tiếng Việt từ `wwwroot/vendor/flatpickr`, dùng chung cho public và Admin. `date-presentation.js` tăng cường các input date/datetime-local/month sau khi Vue mount, đồng bộ model/giới hạn ngày/disabled và dọn instance khi tháo modal. Giá trị form/API tiếp tục là ISO; chuyển đổi timezone giữ tại feature hiện có. Calendar range, Pricing và Voucher dùng cùng bản thư viện thay vì nạp CDN riêng.

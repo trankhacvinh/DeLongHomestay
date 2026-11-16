@@ -1,0 +1,34 @@
+@* Theme 1 · RoomGrid block (moved unchanged from Index.cshtml). *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var rooms = Page.SelectGlobalRooms(block.Content);
+    var eyebrow = Text(block.Content, "eyebrow", "PHÒNG");
+    var title = Text(block.Content, "title", "Một vài lựa chọn đang mở");
+    <section class="public-section public-home-rooms public-cms-room-grid variant-@(Variant(block.Variant))">@if (!string.IsNullOrWhiteSpace(roomMarqueeText)) { <div class="public-room-marquee" aria-hidden="true"><div class="public-room-marquee-track"><span>@roomMarqueeText ✦ </span><span>@roomMarqueeText ✦ </span></div></div> }<div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@eyebrow</span><h2 class="@(V(block.Content, "title"))">@PublicTitleAccent.Render(title)</h2></div><a class="public-text-link" href="@PublicUrlBuilder.BookingHome()">Xem lịch phòng →</a></div><div class="public-room-grid">
+        @foreach (var item in rooms)
+        {
+            var room = item.Room;
+            <article class="public-room-card public-room-card-content" style="@RoomTone(room.Id)" data-room-lightbox="@ThemeHomeContext.RoomPhotos(room)" data-room-lightbox-title="@room.Name"><a class="public-room-art" data-room-gallery="@JsonSerializer.Serialize(room.GalleryCardUrls)" href="@PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug)" aria-label="Xem @room.Name">@if (!string.IsNullOrWhiteSpace(room.CoverCardUrl)) { <img class="public-room-cover-image" src="@room.CoverCardUrl" alt="@room.Name" width="900" height="675" loading="lazy" /><span class="public-room-image-scrim"></span> } else { <span class="public-room-poster"><small>@item.PropertyName · @room.Code</small><strong>@room.Name</strong></span> }<span class="public-room-image-title"><small>@item.PropertyName</small><strong>@room.Name</strong></span></a><div class="public-room-body"><div><h3><a href="@PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug)">@room.Name</a></h3><p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người · {item.PropertyName}" : room.ShortDescription)</p></div><div class="public-room-conversion"><div class="public-room-price"><small>Đặt nhanh từ</small><strong>@room.QuickFromPrice.ToString("N0")đ</strong></div>@if (room.IsBookingLocked) { <span class="public-room-book-now" aria-disabled="true">Tạm ngừng nhận đặt phòng</span> } else { <a class="public-room-book-now" href="@PublicUrlBuilder.BookingHome(item.PropertySiteSlug)">Đặt ngay →</a> }</div></div></article>
+        }
+    </div></div></section>
+    if (!H.BookingStepsRendered) { H.BookingStepsRendered = true; <partial name="_LuxBookingSteps" /> }
+}

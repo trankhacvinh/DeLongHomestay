@@ -1,0 +1,24 @@
+@* Theme 1 · Cta block (moved unchanged from Index.cshtml). *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    <section class="public-section public-cms-cta variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-cms-cta-card"><div><span class="public-eyebrow">@siteName.ToUpperInvariant()</span><h2 class="@(V(block.Content, "title"))">@PublicTitleAccent.Render(Text(block.Content, "title"))</h2><p class="@(V(block.Content, "body"))">@Text(block.Content, "body")</p></div><a class="public-btn public-btn-primary @(V(block.Content, "buttonText"))" href="@ScopedUrl(Text(block.Content, "buttonUrl", "/booking"))">@Text(block.Content, "buttonText", "Đặt phòng")</a></div></div></section>
+}

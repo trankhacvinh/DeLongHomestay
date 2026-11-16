@@ -1,0 +1,56 @@
+@* Theme 2 · Hero: full-bleed dusk sky (WebGL on capable desktops, CSS gradient elsewhere), oversized headline bottom-left. *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var title = Text(block.Content, "title", "Chill một chút, rồi về.");
+    var body = Text(block.Content, "body", "Phòng riêng theo giờ hoặc qua đêm. Chọn khung giờ, đặt online, đến là nghỉ.");
+    var primaryText = Text(block.Content, "primaryText", "Đặt phòng");
+    var primaryUrl = Text(block.Content, "primaryUrl", "/booking");
+    var secondaryText = Text(block.Content, "secondaryText");
+    var secondaryUrl = Text(block.Content, "secondaryUrl");
+    var imageUrl = Text(block.Content, "imageUrl");
+    if (string.IsNullOrWhiteSpace(imageUrl)) imageUrl = Page.GlobalCatalog.Properties.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+        ?? Page.GlobalCatalog.Rooms.Select(x => x.Room.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? string.Empty;
+}
+<section class="tc-hero" data-tc-hero>
+    <canvas class="tc-hero-canvas" data-tc-dusk aria-hidden="true"></canvas>
+    <div class="public-container tc-hero-inner">
+        <div class="tc-hero-copy">
+            <h1 class="tc-hero-title" data-tc-reveal>@PublicTitleAccent.Render(title)</h1>
+            <p class="tc-hero-lead" data-tc-reveal>@body</p>
+            <div class="tc-hero-actions" data-tc-reveal>
+                <a class="tc-btn tc-btn-solid" href="@ScopedUrl(primaryUrl)">@primaryText</a>
+                @if (!string.IsNullOrWhiteSpace(secondaryText) && !string.IsNullOrWhiteSpace(secondaryUrl))
+                {
+                    <a class="tc-btn tc-btn-line" href="@ScopedUrl(secondaryUrl)">@secondaryText</a>
+                }
+            </div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(imageUrl))
+        {
+            <figure class="tc-hero-photo" data-tc-reveal><img src="@imageUrl" alt="Không gian tại @siteName" fetchpriority="high" decoding="async" /></figure>
+        }
+    </div>
+    @if (fromPrice > 0)
+    {
+        <p class="tc-hero-strip public-container"><span>Đặt nhanh từ <strong>@heroPriceShort</strong> mỗi khung giờ</span><span>@roomCount phòng đang nhận khách</span></p>
+    }
+</section>

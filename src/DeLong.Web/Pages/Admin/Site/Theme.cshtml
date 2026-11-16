@@ -1,0 +1,73 @@
+@page
+@model DeLong.Web.Pages.Admin.Site.ThemeModel
+@{ Layout = "_AdminLayout"; ViewData["UseVue"] = true;
+    ViewData["Title"] = "Giao diện";
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/site-cms.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-theme-picker.css" asp-append-version="true" />
+}
+
+<div id="theme-picker" class="site-admin-page theme-picker" v-cloak>
+    <script id="theme-picker-data" type="application/json">@Html.Raw(Model.PageDataJson)</script>
+    <div class="page-title-row site-page-head"><div><div class="page-eyebrow">Website</div><h1>Giao diện</h1><p>Chọn một theme cho toàn bộ website, chọn bảng màu, rồi bật/tắt và sắp xếp các khối trang chủ. Chữ và hình của từng khối sửa ở <a href="/Admin/Site/Global">Trang chủ chung</a>; đổi theme không làm mất nội dung.</p></div><div class="site-head-actions"><a class="btn btn-light" href="/" target="_blank" rel="noopener">Xem website</a></div></div>
+
+    <p class="theme-picker-legacy" v-if="legacyCustom">Website đang dùng chế độ <strong>Tùy chỉnh tự do</strong> cũ (cỡ chữ, màu header/footer chỉnh tay). Chọn một theme sẽ chuyển sang giao diện chuẩn của theme đó; các chỉnh tay cũ vẫn được lưu, không bị xóa.</p>
+
+    <section class="theme-picker-grid" aria-label="Danh sách theme">
+        <article class="panel theme-card" v-for="theme in themes" v-bind:key="theme.key" v-bind:class="{ active: theme.key === activeTheme, editing: theme.key === editKey }">
+            <div class="theme-card-preview" v-bind:style="previewStyle(theme)">
+                <img v-if="theme.previewImageUrl && !brokenPreviews[theme.key]" v-bind:src="theme.previewImageUrl" v-bind:alt="'Ảnh mẫu ' + theme.name" loading="lazy" v-on:error="brokenPreviews[theme.key] = true" />
+                <span v-else>{{ theme.name }}</span>
+                <em v-if="theme.key === activeTheme">Đang dùng</em>
+            </div>
+            <div class="theme-card-body">
+                <strong>{{ theme.name }}</strong>
+                <p>{{ theme.description }}</p>
+                <div class="theme-card-actions">
+                    <a class="btn btn-light btn-sm" v-bind:href="previewUrl(theme)" target="_blank" rel="noopener">Xem thử</a>
+                    <button class="btn btn-light btn-sm" type="button" v-if="theme.key !== editKey" v-on:click="editKey = theme.key">Tùy chỉnh</button>
+                    <button class="btn btn-primary btn-sm" type="button" v-if="theme.key !== activeTheme || legacyCustom" v-bind:disabled="busy" v-on:click="activate(theme)">Dùng theme này</button>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <section class="panel theme-editor" v-if="editing">
+        <div class="global-branding-head"><div><span class="page-eyebrow">{{ editing.key === activeTheme ? 'Theme đang dùng' : 'Chỉnh trước khi dùng' }}</span><h2>{{ editing.name }}</h2><p v-if="editing.key !== activeTheme">Bạn đang chỉnh theme chưa dùng. Khách vẫn thấy theme hiện tại cho đến khi bấm “Dùng theme này”.</p></div></div>
+
+        <div class="theme-editor-block">
+            <h3>Bảng màu</h3>
+            <div class="theme-palettes" role="radiogroup" aria-label="Bảng màu">
+                <label class="theme-palette" v-for="palette in editing.palettes" v-bind:key="palette.key" v-bind:class="{ active: palette.key === editing.palette }">
+                    <input type="radio" v-bind:value="palette.key" v-model="editing.palette" />
+                    <span class="theme-palette-swatches"><i v-for="color in palette.swatches" v-bind:key="color" v-bind:style="{ background: color }"></i></span>
+                    <span>{{ palette.name }}</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="theme-editor-block">
+            <h3>Các khối trang chủ</h3>
+            <p class="muted small">Kéo ⋮⋮ để đổi thứ tự. Tắt một khối chỉ ẩn nó, nội dung vẫn giữ nguyên.</p>
+            <ol id="theme-block-list" class="theme-blocks">
+                <li class="theme-block" v-for="block in editing.blocks" v-bind:key="block.type" v-bind:data-type="block.type" v-bind:class="{ off: !block.visible }">
+                    <button class="home-drag-handle" type="button" aria-label="Kéo để đổi thứ tự">⋮⋮</button>
+                    <label class="theme-switch"><input type="checkbox" v-model="block.visible" /><span></span></label>
+                    <div class="theme-block-copy"><strong>{{ block.label }}</strong><small>{{ block.visible ? 'Đang hiện' : 'Đang tắt' }}{{ block.hasContent ? '' : ' · dùng nội dung mẫu' }}</small></div>
+                    <a class="btn btn-light btn-sm" v-bind:href="'/Admin/Site/Global?edit=' + block.type">Sửa nội dung</a>
+                </li>
+            </ol>
+        </div>
+
+        <div class="global-branding-actions theme-editor-actions">
+            <button class="btn btn-light" type="button" v-bind:disabled="busy" v-on:click="resetLayout">Về mặc định của theme</button>
+            <a class="btn btn-light" v-bind:href="previewUrl(editing)" target="_blank" rel="noopener">Xem thử</a>
+            <button class="btn btn-primary" type="button" v-bind:disabled="busy" v-on:click="save">{{ busy ? 'Đang lưu…' : 'Lưu bảng màu & các khối' }}</button>
+        </div>
+    </section>
+
+    <div class="toast" v-if="toast.show" v-bind:class="toast.type" role="status">{{ toast.message }}</div>
+</div>
+
+@section Scripts { <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script><script src="~/js/pages/admin-theme-picker.js" asp-append-version="true"></script> }

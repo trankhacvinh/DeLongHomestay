@@ -14,6 +14,8 @@ public sealed class PublicBrandingSourceTests
     [Theory]
     [InlineData("Pages/Shared/_Layout.cshtml")]
     [InlineData("Pages/Index.cshtml")]
+    [InlineData("Pages/Themes/ThemeHomeContext.cs")]
+    [InlineData("Features/Site/Themes/ThemeCatalog.cs")]
     [InlineData("Pages/CustomPage.cshtml")]
     [InlineData("Pages/Rooms/Index.cshtml")]
     [InlineData("Pages/Blog/Index.cshtml")]
@@ -23,6 +25,21 @@ public sealed class PublicBrandingSourceTests
         var source = Read(path);
         Assert.DoesNotContain("De Long", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(">DL<", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Theme_views_do_not_embed_the_original_customer_brand()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "DeLongHomestay.sln"))) directory = directory.Parent;
+        var files = Directory.GetFiles(Path.Combine(directory!.FullName, "src/DeLong.Web/Pages/Themes"), "*.cshtml", SearchOption.AllDirectories);
+        Assert.NotEmpty(files);
+        foreach (var file in files)
+        {
+            var source = File.ReadAllText(file);
+            Assert.DoesNotContain("De Long", source, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(">DL<", source, StringComparison.Ordinal);
+        }
     }
 
     [Fact]

@@ -1,0 +1,35 @@
+@* Theme 1 · BranchGrid block (moved unchanged from Index.cshtml). *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var properties = Page.SelectGlobalProperties(block.Content);
+    var eyebrow = Text(block.Content, "eyebrow", "CƠ SỞ");
+    var title = Text(block.Content, "title", "Chọn nơi bạn muốn ghé");
+    <section id="co-so" class="public-section public-branch-section variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@eyebrow</span><h2 class="@(V(block.Content, "title"))">@PublicTitleAccent.Render(title)</h2></div></div><div class="public-branch-grid">
+        @foreach (var property in properties)
+        {
+            <article class="public-branch-card">
+                @if (!string.IsNullOrWhiteSpace(property.CoverCardUrl)) { <a class="public-branch-media" href="@PublicUrlBuilder.PropertyHome(property.SiteSlug)"><img src="@property.CoverCardUrl" alt="@property.SiteName" loading="lazy" /></a> }
+                <div class="public-branch-copy"><span class="public-eyebrow">@property.RoomCount phòng</span><h3><a href="@PublicUrlBuilder.BookingHome(property.SiteSlug)">@property.SiteName</a></h3>@if (!string.IsNullOrWhiteSpace(property.Tagline)) { <p>@property.Tagline</p> }@if (!string.IsNullOrWhiteSpace(property.Address)) { <small>@property.Address</small> }<div class="public-branch-actions"><a class="public-text-link" href="@PublicUrlBuilder.BookingHome(property.SiteSlug)">Xem lịch phòng →</a></div></div>
+            </article>
+        }
+    </div></div></section>
+}

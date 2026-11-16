@@ -1,0 +1,44 @@
+@* Theme 1 · AvailabilityCalendar block (moved unchanged from Index.cshtml). *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var days = Math.Clamp(block.Content["days"]?.GetValue<int>() ?? 7, 1, 14);
+    var calendarAnchorId = H.BookingCalendarAnchorRendered ? null : "lich-phong";
+    H.BookingCalendarAnchorRendered = true;
+    var roomsJson = JsonSerializer.Serialize(Page.GlobalCatalog.Rooms.Select(item => new
+    {
+        id = item.Room.Id,
+        isBookingLocked = item.Room.IsBookingLocked,
+        mobileAllRooms = item.Room.PublicCalendarMobileAllRooms,
+        code = item.Room.Code,
+        name = item.Room.Name,
+        propertyName = item.PropertyName,
+        siteSlug = item.PropertySiteSlug,
+        propertyId = item.PropertyId,
+        fromPrice = item.Room.QuickFromPrice,
+        coverImageUrl = item.Room.CoverCardUrl,
+        photos = item.Room.GalleryCardUrls ?? [],
+        bookingUrl = PublicUrlBuilder.Booking(item.PropertySiteSlug, room: item.Room.Code)
+    }));
+    <section id="@calendarAnchorId" class="public-section public-cms-availability-calendar variant-@(Variant(block.Variant))" data-public-availability-calendar data-days="@days">
+        <div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow">@Text(block.Content, "eyebrow", "LỊCH PHÒNG")</span><h2>@PublicTitleAccent.Render(Text(block.Content, "title", "Xem phòng và khung giờ còn trống"))</h2></div></div><script type="application/json" data-availability-rooms>@Html.Raw(roomsJson)</script><div data-availability-calendar-host></div></div>
+    </section>
+}
