@@ -188,7 +188,31 @@ public static class ThemeCatalog
         ["/themes/theme6/theme.css"],
         ["/vendor/gsap/3.13.0/gsap.min.js", "/vendor/gsap/3.13.0/ScrollTrigger.min.js", "/themes/theme6/theme.js"]);
 
-    public static readonly IReadOnlyList<ThemeDefinition> All = [Theme1, Theme2, Theme3, Theme4, Theme5, Theme6];
+    public static readonly ThemeDefinition Theme7 = new(
+        "theme7",
+        "Theme 7 · Mềm mại",
+        "Ấm và dịu như một căn phòng sau ô cửa vòm: nền kem như tường vữa, bóng lá đung đưa, đèn treo sáng dịu, tiêu đề chữ có chân màu nâu. Ảnh phòng trong khung vòm, chuyển động chậm và nhẹ, nhẹ cho điện thoại.",
+        "/themes/theme7/preview.webp",
+        [
+            new("Hero", "Ô cửa vòm đầu trang"),
+            new("AvailabilitySearch", "Ô chọn ngày đặt nhanh"),
+            new("RoomGrid", "Các phòng (khung vòm)"),
+            new("FeatureGrid", "Điểm nổi bật"),
+            new("AvailabilityCalendar", "Lịch phòng"),
+            new("Faq", "Hỏi đáp"),
+            new("RichText", "Đoạn văn tự do", DefaultVisible: false),
+            new("Cta", "Lời mời đặt phòng cuối trang")
+        ],
+        [
+            new("cream", "Kem & nâu", ["#5a3418", "#f5ece1", "#b68e66"]),
+            new("sand", "Cát sáng", ["#6b4a30", "#faf6f0", "#c4a07c"]),
+            new("cocoa", "Ca cao", ["#4a2812", "#ead9c4", "#a8784e"])
+        ],
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Hero", "AvailabilitySearch", "RoomGrid", "FeatureGrid", "Cta" },
+        ["/themes/theme7/theme.css"],
+        ["/themes/theme7/theme.js"]);
+
+    public static readonly IReadOnlyList<ThemeDefinition> All = [Theme1, Theme2, Theme3, Theme4, Theme5, Theme6, Theme7];
 
     public static ThemeDefinition Get(string? key) =>
         All.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)) ?? Theme1;
