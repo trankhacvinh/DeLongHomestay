@@ -127,6 +127,7 @@
         case "BranchGrid" when Model.IsGlobal:
         {
             var properties = Model.SelectGlobalProperties(content);
+            HttpContext.Items["PublicBranchSection"] = true;
             <section id="co-so" class="public-section public-branch-section variant-@(Variant(section.Variant))"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(content, "eyebrow"))">@CustomPageModel.Text(content, "eyebrow", "CƠ SỞ")</span><h2 class="@(V(content, "title"))">@CustomPageModel.Text(content, "title", "Chọn nơi bạn muốn ghé")</h2></div></div><div class="public-branch-grid">
                 @foreach (var property in properties)
                 {

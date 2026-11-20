@@ -166,7 +166,7 @@
         // Standard theme (body.dl-theme-standard): the built-in design wins, so the header/footer designer
         // colours/rows and the per-element font-size runtime are not applied. Navigation labels still are.
         const standardTheme = document.body.classList.contains('dl-theme-standard');
-        addScript('data-public-shell-runtime', '/js/pages/public-shell-runtime.js?v=20260817-2');
+        addScript('data-public-shell-runtime', '/js/pages/public-shell-runtime.js?v=20261116-1');
         if (!standardTheme) addScript('data-public-shell-designer-runtime', '/js/pages/public-shell-designer-runtime.js?v=20260818-1');
         addScript('data-public-row-advanced-runtime', '/js/pages/public-row-advanced-runtime.js?v=20260818-1');
         if (!standardTheme) addScript('data-public-visual-typography-runtime', '/js/pages/public-visual-typography-runtime.js?v=20260818-1');

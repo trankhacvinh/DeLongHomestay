@@ -23,7 +23,8 @@
     var properties = Page.SelectGlobalProperties(block.Content);
     var eyebrow = Text(block.Content, "eyebrow", "CƠ SỞ");
     var title = Text(block.Content, "title", "Chọn nơi bạn muốn ghé");
-    <section id="co-so" class="public-section public-branch-section variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@eyebrow</span><h2 class="@(V(block.Content, "title"))">@PublicTitleAccent.Render(title)</h2></div></div><div class="public-branch-grid">
+    Context.Items["PublicBranchSection"] = true;
+<section id="co-so" class="public-section public-branch-section variant-@(Variant(block.Variant))"><div class="public-container"><div class="public-section-head"><div><span class="public-eyebrow @(V(block.Content, "eyebrow"))">@eyebrow</span><h2 class="@(V(block.Content, "title"))">@PublicTitleAccent.Render(title)</h2></div></div><div class="public-branch-grid">
         @foreach (var property in properties)
         {
             <article class="public-branch-card">

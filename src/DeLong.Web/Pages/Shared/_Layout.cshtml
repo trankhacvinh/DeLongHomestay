@@ -2,6 +2,7 @@
 @inject DeLong.Web.Features.Site.SiteContentService SiteContentService
 @inject DeLong.Web.Features.Site.PublicPropertyResolver PublicPropertyResolver
 @inject DeLong.Web.Common.Security.CurrentPropertyService CurrentPropertyService
+@inject DeLong.Web.Data.AppDbContext PublicShellDb
 @{
     var csrf = Antiforgery.GetAndStoreTokens(Context).RequestToken;
     var isAdmin = Context.Request.Path.StartsWithSegments("/Admin");
@@ -357,6 +358,32 @@
     ViewData["PublicFacebookUrl"] = footerFacebookUrl;
     ViewData["PublicHotline"] = footerHotline;
     ViewData["PublicBookingUrl"] = bookingUrl;
+    // The saved menu (labels, order, extra links, header button) is rendered here so the page arrives with it;
+    // public-shell-runtime.js leaves a server-rendered menu alone instead of swapping it after an API call.
+    DeLong.Web.Features.Site.PublicShellSettingsDto? shellSettings = null;
+    try
+    {
+        Guid? shellPropertyId = null;
+        var shellReady = true;
+        if (!isGlobalPublic)
+        {
+            var shellProperty = await PublicPropertyResolver.ResolveAsync(publicSiteSlug, Context.RequestAborted);
+            shellPropertyId = shellProperty?.Id;
+            shellReady = shellProperty is not null;
+        }
+        if (shellReady) shellSettings = await DeLong.Web.Features.Site.PublicShellSettingsStore.ReadAsync(PublicShellDb, shellPropertyId, Context.RequestAborted);
+    }
+    catch (Exception) when (!Context.RequestAborted.IsCancellationRequested)
+    {
+        shellSettings = null; // fall back to the built-in menu, as the script did when the API failed
+    }
+    var shellCurrentKey = isHomePath ? "home" : isLookupPath ? "lookup" : isPolicyPath ? "policies"
+        : string.Equals(routePage, "/Booking/Index", StringComparison.OrdinalIgnoreCase) ? "booking"
+        : string.Equals(routePage, "/Rooms/Index", StringComparison.OrdinalIgnoreCase) ? "rooms" : null;
+    var shellLinks = shellSettings is null ? null : DeLong.Web.Features.Site.PublicShellNav.Build(
+        shellSettings, isGlobalPublic ? null : publicSiteSlug, shellCurrentKey, currentPublicPath, Context.Items.ContainsKey("PublicBranchSection"));
+    var headerCtaText = string.IsNullOrWhiteSpace(shellSettings?.HeaderCtaText) ? (string.IsNullOrWhiteSpace(shellSettings?.BookingLabel) ? "Đặt phòng" : shellSettings!.BookingLabel) : shellSettings!.HeaderCtaText;
+    var headerCtaUrl = shellSettings is null ? bookingUrl : DeLong.Web.Features.Site.PublicShellNav.ResolveUrl(string.IsNullOrWhiteSpace(shellSettings.HeaderCtaUrl) ? "@booking" : shellSettings.HeaderCtaUrl, isGlobalPublic ? null : publicSiteSlug);
     <header class="public-site-header">
         <span class="lux-scroll-progress" aria-hidden="true"></span>
         <div class="public-container public-site-nav">
@@ -376,6 +403,21 @@
             {
                 <button type="button" class="public-faq-mobile" data-public-faq-open aria-haspopup="dialog" aria-controls="public-faq-dialog">FAQ</button>
             }
+            @if (shellLinks is not null)
+            {
+                <nav class="public-site-links" aria-label="Điều hướng trang khách" data-shell-rendered="true">
+                    @foreach (var link in shellLinks)
+                    {
+                        <a href="@link.Href" data-shell-nav-id="@link.Id" aria-current="@(link.IsCurrent ? "page" : null)" target="@(link.OpenInNewTab ? "_blank" : null)" rel="@(link.OpenInNewTab ? "noopener noreferrer" : null)">@link.Label</a>
+                    }
+                    @if (publicFaqSections.Count > 0)
+                    {
+                        <button type="button" class="public-faq-menu" data-public-faq-open aria-haspopup="dialog" aria-controls="public-faq-dialog">FAQ</button>
+                    }
+                </nav>
+            }
+            else
+            {
             <nav class="public-site-links" aria-label="Điều hướng trang khách">
                 <a href="/" aria-current="@(isHomePath ? "page" : null)">Trang chủ</a>
                 <a href="@bookingUrl">Lịch phòng</a>
@@ -386,6 +428,7 @@
                 }
                 <a href="@lookupUrl" aria-current="@(isLookupPath ? "page" : null)">Tra cứu</a>
             </nav>
+            }
             <div class="public-site-actions">
                 <a class="public-mobile-lookup" href="@lookupUrl">Tra cứu đơn</a>
                 @if (User.IsInRole("Customer"))
@@ -404,7 +447,7 @@
                 {
                     <a class="public-admin-link public-customer-login-link" href="@customerLoginUrl">Đăng nhập</a>
                 }
-                <a class="public-btn public-btn-primary" href="@bookingUrl">Đặt phòng</a>
+                <a class="public-btn public-btn-primary" href="@headerCtaUrl" data-shell-rendered="@(shellSettings is null ? null : "true")">@headerCtaText</a>
             </div>
         </div>
     </header>
