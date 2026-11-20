@@ -163,10 +163,20 @@
     <div class="modal-backdrop staff-reset-layer" v-if="resetModal.open" v-on:click.self="closeResetPassword">
         <section class="modal-card staff-reset-modal" role="dialog" aria-modal="true" aria-labelledby="reset-password-title">
             <div class="modal-head"><div><h2 id="reset-password-title">Đặt lại mật khẩu</h2><p class="small muted">{{ editor.account?.displayName }} sẽ phải đổi mật khẩu này khi đăng nhập lại.</p></div><button class="icon-btn" type="button" v-on:click="closeResetPassword" aria-label="Đóng">×</button></div>
-            <div class="staff-notice warning"><strong>Session cũ sẽ bị vô hiệu.</strong><span>Chỉ gửi mật khẩu tạm qua kênh riêng cho đúng nhân viên.</span></div>
-            <div class="field"><label>Mật khẩu tạm mới *</label><div class="password-input-row"><input v-bind:type="resetModal.showPassword ? 'text' : 'password'" v-model="resetModal.password" minlength="8" autocomplete="new-password" /><button class="btn btn-light btn-sm" type="button" v-on:click="resetModal.showPassword = !resetModal.showPassword">{{ resetModal.showPassword ? 'Ẩn' : 'Hiện' }}</button></div></div>
-            <button class="btn btn-light btn-sm" type="button" v-on:click="generateResetPassword">Tạo mật khẩu tạm</button>
-            <div class="modal-actions"><button class="btn btn-light" type="button" v-on:click="closeResetPassword">Hủy</button><button class="btn btn-primary" type="button" v-bind:disabled="saving" v-on:click="resetPassword">{{ saving ? 'Đang xử lý...' : 'Đặt lại mật khẩu' }}</button></div>
+            <div class="staff-notice warning" v-if="resetModal.sessionExpired" role="alert">
+                <strong>Phiên đăng nhập không còn hợp lệ.</strong>
+                <span>Vui lòng đăng nhập lại để đặt lại mật khẩu nhân viên.</span>
+            </div>
+            <template v-else>
+                <div class="staff-notice warning"><strong>Session cũ sẽ bị vô hiệu.</strong><span>Chỉ gửi mật khẩu tạm qua kênh riêng cho đúng nhân viên.</span></div>
+                <div class="field"><label>Mật khẩu tạm mới *</label><div class="password-input-row"><input v-bind:type="resetModal.showPassword ? 'text' : 'password'" v-model="resetModal.password" minlength="8" autocomplete="new-password" /><button class="btn btn-light btn-sm" type="button" v-on:click="resetModal.showPassword = !resetModal.showPassword">{{ resetModal.showPassword ? 'Ẩn' : 'Hiện' }}</button></div></div>
+                <button class="btn btn-light btn-sm" type="button" v-on:click="generateResetPassword">Tạo mật khẩu tạm</button>
+            </template>
+            <div class="modal-actions">
+                <button class="btn btn-light" type="button" v-on:click="closeResetPassword">Hủy</button>
+                <a class="btn btn-primary" v-if="resetModal.sessionExpired" asp-page="/Account/Login" asp-route-returnUrl="@Url.Page("/Admin/Staff/Index")">Đăng nhập lại</a>
+                <button class="btn btn-primary" v-else type="button" v-bind:disabled="saving" v-on:click="resetPassword">{{ saving ? 'Đang xử lý...' : 'Đặt lại mật khẩu' }}</button>
+            </div>
         </section>
     </div>
 

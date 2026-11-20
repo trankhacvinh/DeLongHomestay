@@ -21,7 +21,7 @@
                 form: this.emptyForm ? this.emptyForm() : {
                     displayName: '', userName: '', email: '', role: 'Staff', propertyIds: [], temporaryPassword: '', isActive: true
                 },
-                resetModal: { open: false, password: '', showPassword: false },
+                resetModal: { open: false, password: '', showPassword: false, sessionExpired: false },
                 toast: { show: false, message: '', type: 'success', timer: null }
             };
         },
@@ -165,27 +165,42 @@
                 }
             },
             openResetPassword() {
-                this.resetModal = { open: true, password: '', showPassword: false };
+                this.resetModal = { open: true, password: '', showPassword: false, sessionExpired: false };
             },
             closeResetPassword() {
-                if (!this.saving) this.resetModal.open = false;
+                if (this.saving) return;
+                this.resetModal.password = '';
+                this.resetModal.open = false;
             },
             generateResetPassword() {
                 this.resetModal.password = this.generatePasswordValue();
                 this.resetModal.showPassword = true;
             },
             async resetPassword() {
-                if (!this.editor.account) return;
+                if (this.saving || this.resetModal.sessionExpired || !this.editor.account) return;
                 if (this.resetModal.password.length < 8) return this.notify('Mật khẩu tạm phải có ít nhất 8 ký tự.', 'error');
                 this.saving = true;
                 const accountId = this.editor.account.id;
                 try {
                     await DeLongApi.post(`/api/admin/staff/${accountId}/reset-password`, { temporaryPassword: this.resetModal.password });
-                    await this.refreshData(accountId);
+                    this.resetModal.password = '';
                     this.resetModal.open = false;
-                    this.notify('Đã đặt lại mật khẩu. Nhân viên sẽ phải đổi mật khẩu khi đăng nhập.', 'success');
+                    const account = this.accounts.find(x => x.id === accountId);
+                    if (account) account.mustChangePassword = true;
+                    this.editor.account.mustChangePassword = true;
+                    try {
+                        await this.refreshData(accountId);
+                        this.notify('Đã đặt lại mật khẩu. Nhân viên sẽ phải đổi mật khẩu khi đăng nhập.', 'success');
+                    } catch {
+                        this.notify('Đã đặt lại mật khẩu. Tải lại trang để cập nhật trạng thái tài khoản.', 'success');
+                    }
                 } catch (error) {
-                    this.notify(error.message || 'Không thể đặt lại mật khẩu.', 'error');
+                    if (error.status === 401) {
+                        this.resetModal.password = '';
+                        this.resetModal.sessionExpired = true;
+                    } else {
+                        this.notify(error.message || 'Không thể đặt lại mật khẩu.', 'error');
+                    }
                 } finally {
                     this.saving = false;
                 }
