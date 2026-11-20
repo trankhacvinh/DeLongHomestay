@@ -1,0 +1,73 @@
+@* Theme 7 · Mềm mại · Hero: a warm plaster wall with leaf shadows, the copy on one side and an arched window (photo + hanging lamp) on the other, like the logo. *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var title = Text(block.Content, "title", "Một góc nhỏ để chậm lại.");
+    var body = Text(block.Content, "body", "Phòng riêng ấm áp theo giờ hoặc qua đêm. Chọn ngày, xem phòng trống và đặt trong vài phút.");
+    var eyebrow = Text(block.Content, "eyebrow", "Homestay");
+    var primaryText = Text(block.Content, "primaryText", "Đặt phòng");
+    var primaryUrl = Text(block.Content, "primaryUrl", "/booking");
+    var secondaryText = Text(block.Content, "secondaryText", "Xem các phòng");
+    var secondaryUrl = Text(block.Content, "secondaryUrl", "#t7-rooms");
+    var imageUrl = Text(block.Content, "imageUrl");
+    if (string.IsNullOrWhiteSpace(imageUrl))
+        imageUrl = Page.GlobalCatalog.Properties.Select(x => x.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+            ?? Page.GlobalCatalog.Rooms.Select(x => x.Room.CoverCardUrl).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+            ?? string.Empty;
+}
+<section class="t7-hero" data-t7-hero>
+    @await Html.PartialAsync("/Pages/Themes/theme7/_Leaves.cshtml")
+    <div class="public-container t7-hero-grid">
+        <div class="t7-hero-copy">
+            <p class="t7-kicker"><span>@eyebrow</span></p>
+            <h1>@PublicTitleAccent.Render(title)</h1>
+            <p class="t7-hero-lead">@body</p>
+            <div class="t7-hero-actions">
+                <a class="t7-btn t7-btn-solid" href="@ScopedUrl(primaryUrl)">@primaryText</a>
+                @if (!string.IsNullOrWhiteSpace(secondaryText) && !string.IsNullOrWhiteSpace(secondaryUrl))
+                {
+                    <a class="t7-btn t7-btn-soft" href="@ScopedUrl(secondaryUrl)">@secondaryText</a>
+                }
+            </div>
+            @if (roomCount > 0)
+            {
+                <ul class="t7-hero-facts">
+                    <li><strong>@roomCount</strong> phòng riêng</li>
+                    @if (!string.IsNullOrEmpty(heroPriceShort)) { <li>từ <strong>@heroPriceShort</strong></li> }
+                    <li>theo giờ &amp; qua đêm</li>
+                </ul>
+            }
+        </div>
+        <figure class="t7-window">
+            <span class="t7-lamp" aria-hidden="true"><i></i><b></b><em></em></span>
+            <div class="t7-window-frame">
+                @if (!string.IsNullOrWhiteSpace(imageUrl))
+                {
+                    <img src="@imageUrl" alt="Không gian tại @siteName" fetchpriority="high" decoding="async" />
+                }
+                else
+                {
+                    @await Html.PartialAsync("/Pages/Themes/theme7/_RoomSketch.cshtml")
+                }
+            </div>
+        </figure>
+    </div>
+</section>

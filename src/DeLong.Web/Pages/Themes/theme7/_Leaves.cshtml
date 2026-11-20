@@ -1,0 +1,23 @@
+@* Theme 7 · Soft leaf shadows falling on the wall (decoration only). *@
+<svg class="t7-leaves" viewBox="0 0 600 520" aria-hidden="true" focusable="false">
+    <defs>
+        <filter id="t7-soften" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4" /></filter>
+        <path id="t7-leaf" d="M0 0 C 14 -16 40 -18 58 -4 C 40 10 16 12 0 0Z" />
+    </defs>
+    <g filter="url(#t7-soften)">
+        <g class="t7-branch t7-branch-a">
+            <path d="M600 40 C 500 70 420 110 330 190 S 190 300 110 330" />
+            @foreach (var (x, y, r) in new[] { (540, 58, 200), (500, 70, 150), (470, 86, 215), (430, 104, 160), (400, 128, 220), (370, 150, 150), (340, 178, 210), (310, 208, 145), (280, 232, 205), (245, 258, 150), (215, 280, 200), (180, 300, 140), (150, 316, 195) })
+            {
+                <use href="#t7-leaf" transform="translate(@x @y) rotate(@r) scale(1.15)" />
+            }
+        </g>
+        <g class="t7-branch t7-branch-b">
+            <path d="M600 250 C 520 270 470 300 410 360 S 330 450 290 500" />
+            @foreach (var (x, y, r) in new[] { (560, 258, 195), (520, 272, 145), (490, 292, 210), (455, 316, 150), (430, 342, 215), (400, 372, 150), (375, 400, 205), (345, 430, 140), (320, 462, 200) })
+            {
+                <use href="#t7-leaf" transform="translate(@x @y) rotate(@r)" />
+            }
+        </g>
+    </g>
+</svg>

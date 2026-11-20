@@ -1,0 +1,70 @@
+@* Theme 7 · Rooms: arched photo cards, name in serif, who it fits, price and a soft book button. *@
+@model DeLong.Web.Pages.Themes.ThemeSectionModel
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DeLong.Web.Features.Site
+@using DeLong.Web.Pages.Themes
+@{
+    var Page = Model.Page;
+    var H = Model.Home;
+    var block = Model.Block;
+    var siteName = H.SiteName;
+    var roomCount = H.RoomCount;
+    var fromPrice = H.FromPrice;
+    var heroPriceShort = H.HeroPriceShort;
+    var roomMarqueeText = H.RoomMarqueeText;
+    string Text(JsonObject content, string key, string fallback = "") => ThemeHomeContext.Text(content, key, fallback);
+    string V(JsonObject content, string path, bool image = false) => H.V(content, path, image);
+    string Variant(string variant) => H.Variant(variant);
+    string? RoomTone(Guid roomId) => H.RoomTone(roomId);
+    string ScopedUrl(string url) => H.ScopedUrl(url);
+}
+@{
+    var rooms = Page.SelectGlobalRooms(block.Content);
+    var title = Text(block.Content, "title", "Các phòng");
+    var body = Text(block.Content, "body");
+}
+<section class="t7-rooms" id="t7-rooms" aria-labelledby="t7-rooms-title">
+    <div class="public-container">
+        <div class="t7-head" data-t7-reveal>
+            <p class="t7-kicker"><span>Phòng nghỉ</span></p>
+            <h2 id="t7-rooms-title">@PublicTitleAccent.Render(title)</h2>
+            @if (!string.IsNullOrWhiteSpace(body)) { <p>@body</p> }
+        </div>
+        <ul class="t7-room-grid">
+            @foreach (var item in rooms)
+            {
+                var room = item.Room;
+                var roomUrl = PublicUrlBuilder.Room(item.PropertySiteSlug, room.Slug);
+                <li class="t7-room" style="@RoomTone(room.Id)" data-t7-reveal data-room-lightbox="@ThemeHomeContext.RoomPhotos(room)" data-room-lightbox-title="@room.Name">
+                    <a class="t7-room-photo public-room-art" href="@roomUrl" aria-label="Xem @room.Name">
+                        @if (!string.IsNullOrWhiteSpace(room.CoverCardUrl))
+                        {
+                            <img src="@room.CoverCardUrl" alt="@room.Name" width="600" height="760" loading="lazy" decoding="async" />
+                        }
+                        else
+                        {
+                            @await Html.PartialAsync("/Pages/Themes/theme7/_RoomSketch.cshtml")
+                        }
+                    </a>
+                    <div class="t7-room-body">
+                        <h3><a href="@roomUrl">@room.Name</a></h3>
+                        <p>@(string.IsNullOrWhiteSpace(room.ShortDescription) ? $"{room.Capacity} người · {item.PropertyName}" : room.ShortDescription)</p>
+                        <div class="t7-room-foot">
+                            <span class="t7-room-price">từ <strong>@room.QuickFromPrice.ToString("N0")đ</strong></span>
+                            @if (room.IsBookingLocked)
+                            {
+                                <span class="t7-room-book is-locked" aria-disabled="true">Tạm ngừng nhận đặt</span>
+                            }
+                            else
+                            {
+                                <a class="t7-room-book" href="@PublicUrlBuilder.BookingHome(item.PropertySiteSlug)">Đặt phòng</a>
+                            }
+                        </div>
+                    </div>
+                </li>
+            }
+        </ul>
+        <div class="t7-rooms-more"><a class="t7-link" href="@PublicUrlBuilder.BookingHome()">Xem lịch phòng trống</a></div>
+    </div>
+</section>
