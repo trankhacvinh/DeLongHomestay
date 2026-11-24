@@ -140,7 +140,7 @@
                 <section class="booking-form-section">
                     <div class="booking-form-title">Chi phí & ghi chú</div>
                     <div class="booking-money-grid">
-                        <div class="field"><label>Giá phòng</label><input type="text" inputmode="numeric" v-money-input="{ value: form.roomAmount, set: value => form.roomAmount = value }" /></div>
+                        <div class="field"><label>Giá phòng</label><input type="text" inputmode="numeric" v-money-input="{ value: form.roomAmount, set: value => form.roomAmount = value }" /><small class="price-quote-hint" v-if="priceQuoteSummary()">{{ priceQuoteSummary() }}</small><small class="price-quote-hint is-error" v-else-if="priceQuote.error">{{ priceQuote.error }}</small></div>
                         <div class="field"><label>Phụ thu</label><input type="text" inputmode="numeric" v-money-input="{ value: form.extraAmount, set: value => form.extraAmount = value }" /></div>
                         <div class="field"><label>Giảm giá</label><input type="text" inputmode="numeric" v-money-input="{ value: form.discountAmount, set: value => form.discountAmount = value }" /></div>
                     </div>
