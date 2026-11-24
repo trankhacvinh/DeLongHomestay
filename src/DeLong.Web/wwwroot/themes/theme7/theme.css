@@ -192,7 +192,9 @@ html body.public-body[data-theme="theme7"] .t7-room-photo.public-room-art::after
 .t7-shown{transition:opacity 1.2s ease,transform 1.2s cubic-bezier(.2,.7,.2,1),filter 1.2s ease}
 
 @media (max-width:900px){
-    .t7-hero-grid{grid-template-columns:1fr;min-height:0;gap:24px;padding-top:36px;padding-bottom:120px}
+    .t7-hero-grid{grid-template-columns:1fr;min-height:0;gap:24px;padding-top:36px;padding-bottom:56px}
+    /* Owner 2026-11-24: phones skip the arched picture so the booking calendar is reached sooner. */
+    .t7-hero .t7-window{display:none}
     .t7-hero h1{font-size:clamp(2.3rem,9.6vw,3.2rem)!important}
     .t7-window{width:min(74%,320px);padding-top:70px}
     .t7-window .t7-lamp{top:0;--cord:30px}
