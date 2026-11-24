@@ -173,10 +173,11 @@ public sealed class ThemeCatalogTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void Theme7_opens_on_its_arched_window_then_the_date_search_and_needs_no_libraries()
+    public void Theme7_opens_on_its_arched_window_then_the_booking_calendar_and_needs_no_libraries()
     {
         var layout = ThemeModel.CurrentLayout(ThemeCatalog.Theme7, null, new List<HomeSectionDto>());
-        Assert.Equal(["Hero", "AvailabilitySearch", "RoomGrid", "FeatureGrid"], layout.Take(4).Select(x => x.Type));
+        Assert.Equal(["Hero", "AvailabilityCalendar", "RoomGrid", "FeatureGrid"], layout.Take(4).Select(x => x.Type));
+        Assert.Null(ThemeCatalog.Theme7.Slot("AvailabilitySearch"));
         Assert.All(layout.Take(4), x => Assert.True(x.Visible));
         Assert.Equal("/Pages/Themes/theme7/_RoomGrid.cshtml", ThemeCatalog.Theme7.SectionPartial("RoomGrid"));
         Assert.Equal("/Pages/Themes/theme1/_AvailabilityCalendar.cshtml", ThemeCatalog.Theme7.SectionPartial("AvailabilityCalendar"));
