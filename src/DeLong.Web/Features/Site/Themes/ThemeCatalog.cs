@@ -195,10 +195,9 @@ public static class ThemeCatalog
         "/themes/theme7/preview.webp",
         [
             new("Hero", "Ô cửa vòm đầu trang"),
-            new("AvailabilitySearch", "Ô chọn ngày đặt nhanh"),
-            new("RoomGrid", "Các phòng (khung vòm)"),
-            new("FeatureGrid", "Điểm nổi bật"),
             new("AvailabilityCalendar", "Lịch phòng"),
+            new("RoomGrid", "Các phòng (khung vòm)"),
+            new("FeatureGrid", "Lời giới thiệu"),
             new("Faq", "Hỏi đáp"),
             new("RichText", "Đoạn văn tự do", DefaultVisible: false),
             new("Cta", "Lời mời đặt phòng cuối trang")
@@ -208,7 +207,7 @@ public static class ThemeCatalog
             new("sand", "Cát sáng", ["#6b4a30", "#faf6f0", "#c4a07c"]),
             new("cocoa", "Ca cao", ["#4a2812", "#ead9c4", "#a8784e"])
         ],
-        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Hero", "AvailabilitySearch", "RoomGrid", "FeatureGrid", "Cta" },
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Hero", "RoomGrid", "FeatureGrid", "Cta" },
         ["/themes/theme7/theme.css"],
         ["/themes/theme7/theme.js"]);
 

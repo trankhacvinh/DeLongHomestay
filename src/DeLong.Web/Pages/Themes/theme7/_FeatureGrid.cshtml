@@ -1,4 +1,4 @@
-@* Theme 7 · Highlights: small arched windows, each with a title and a line. Items "Tiêu đề — mô tả" split in two. *@
+@* Theme 7 · Introduction: kicker, title and a short paragraph only. The owner removed the arched 01–04 highlight items (2026-11-24); stored items are kept but not drawn. *@
 @model DeLong.Web.Pages.Themes.ThemeSectionModel
 @using System.Text.Json
 @using System.Text.Json.Nodes
@@ -20,7 +20,6 @@
     string ScopedUrl(string url) => H.ScopedUrl(url);
 }
 @{
-    var items = (block.Content["items"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString()).Where(x => !string.IsNullOrWhiteSpace(x)).Take(8).ToList();
     var body = Text(block.Content, "body");
 }
 <section class="t7-features">
@@ -30,18 +29,5 @@
             <h2>@PublicTitleAccent.Render(Text(block.Content, "title", "Những điều nhỏ làm nên một kỳ nghỉ êm"))</h2>
             @if (!string.IsNullOrWhiteSpace(body)) { <p>@body</p> }
         </div>
-        <ul class="t7-features-list">
-            @{ var index = 0; }
-            @foreach (var item in items)
-            {
-                index++;
-                var parts = item!.Split(new[] { " — ", " – ", " - ", ": " }, 2, StringSplitOptions.TrimEntries);
-                <li data-t7-reveal>
-                    <span class="t7-feature-arch" aria-hidden="true">@index.ToString("00")</span>
-                    <strong>@parts[0]</strong>
-                    @if (parts.Length > 1) { <span>@parts[1]</span> }
-                </li>
-            }
-        </ul>
     </div>
 </section>
