@@ -15,8 +15,6 @@ public sealed class CustomerAccountService(
     RoleManager<IdentityRole<Guid>> roleManager)
 {
     public const string CustomerRole = "Customer";
-    public const string BookingCodeRequiredMessage =
-        "Số điện thoại này đã có lịch sử đặt phòng. Vui lòng nhập mã một lần đặt phòng trước (ví dụ DH12345678) để xác minh.";
 
     public async Task<(ApplicationUser? User, string? Error)> RegisterAsync(
         Guid propertyId,
@@ -47,18 +45,6 @@ public sealed class CustomerAccountService(
             return (null, "Bạn cần đọc và đồng ý phiên bản điều khoản hiện tại.");
         if (await userManager.FindByNameAsync(phone) is not null) return (null, "Không thể tạo tài khoản với thông tin đã nhập.");
 
-        // Registration has no OTP. Anyone could type a returning guest's phone, so linking to an existing
-        // profile (and its booking history) requires the code of one of that guest's bookings.
-        var verifiedByBooking = false;
-        if (customer is not null && await db.Bookings.AsNoTracking().AnyAsync(x => x.PropertyId == propertyId && x.CustomerId == customer.Id, cancellationToken))
-        {
-            var code = (request.BookingCode ?? string.Empty).Trim().ToUpperInvariant();
-            verifiedByBooking = code.Length > 0 && await db.Bookings.AsNoTracking().AnyAsync(
-                x => x.PropertyId == propertyId && x.CustomerId == customer.Id && x.Code == code, cancellationToken);
-            if (!verifiedByBooking)
-                return (null, BookingCodeRequiredMessage);
-        }
-
         var email = string.IsNullOrWhiteSpace(request.Email) ? customer?.Email?.Trim() : request.Email.Trim();
         var identityEmail = email;
         if (identityEmail is not null && await userManager.FindByEmailAsync(identityEmail) is not null)
@@ -76,7 +62,7 @@ public sealed class CustomerAccountService(
             Id = Guid.CreateVersion7(),
             UserName = phone,
             PhoneNumber = phone,
-            PhoneNumberConfirmed = verifiedByBooking,
+            PhoneNumberConfirmed = true,
             Email = identityEmail,
             EmailConfirmed = identityEmail is not null,
             DisplayName = name,

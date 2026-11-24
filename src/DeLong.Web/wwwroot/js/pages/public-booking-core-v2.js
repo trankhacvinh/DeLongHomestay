@@ -121,7 +121,7 @@
                 const accountDescription = status.exists
                     ? 'Hồ sơ khách đã có, nhưng chưa có tài khoản đăng nhập. Tạo mật khẩu để dùng lại thông tin lần sau.'
                     : (state.accountSettings.benefitText || 'Lưu hồ sơ và không phải nhập lại thông tin.');
-                panel.innerHTML = `<div class="booking-account-summary"><div><strong>${escapeHtml(accountTitle)}</strong><small>${escapeHtml(accountDescription)}</small></div><button type="button" data-quick-register-open>Tạo tài khoản</button></div><div class="booking-account-register" data-quick-register-form hidden><label><span>Tạo mật khẩu</span><input type="password" minlength="8" autocomplete="new-password" placeholder="Ít nhất 8 ký tự" data-quick-new-password /></label>${status.exists ? '<label><span>Mã một lần đặt trước</span><input autocomplete="off" placeholder="Ví dụ DH12345678" data-quick-booking-code /><small>Để xác minh đúng là bạn. Không nhớ mã thì bỏ qua phần tạo tài khoản, bạn vẫn đặt phòng bình thường.</small></label>' : ''}<label class="booking-account-terms"><input type="checkbox" data-quick-terms /><span>Tôi đồng ý <button type="button" data-account-terms-open>${escapeHtml(state.accountSettings.termsTitle || 'điều khoản tài khoản')}</button></span></label><p class="booking-account-submit-note">Tài khoản sẽ được tạo cùng lúc khi bạn gửi yêu cầu đặt phòng.</p><p class="booking-account-message" data-account-message hidden></p><button type="button" class="booking-account-skip" data-quick-register-cancel>Bỏ qua, không tạo tài khoản</button></div>`;
+                panel.innerHTML = `<div class="booking-account-summary"><div><strong>${escapeHtml(accountTitle)}</strong><small>${escapeHtml(accountDescription)}</small></div><button type="button" data-quick-register-open>Tạo tài khoản</button></div><div class="booking-account-register" data-quick-register-form hidden><label><span>Tạo mật khẩu</span><input type="password" minlength="8" autocomplete="new-password" placeholder="Ít nhất 8 ký tự" data-quick-new-password /></label><label class="booking-account-terms"><input type="checkbox" data-quick-terms /><span>Tôi đồng ý <button type="button" data-account-terms-open>${escapeHtml(state.accountSettings.termsTitle || 'điều khoản tài khoản')}</button></span></label><p class="booking-account-submit-note">Tài khoản sẽ được tạo cùng lúc khi bạn gửi yêu cầu đặt phòng.</p><p class="booking-account-message" data-account-message hidden></p><button type="button" class="booking-account-skip" data-quick-register-cancel>Bỏ qua, không tạo tài khoản</button></div>`;
                 DeLongPassword.mount(panel.querySelector('[data-quick-new-password]'));
                 panel.querySelector('[data-quick-register-open]').addEventListener('click', event => { event.currentTarget.hidden = true; panel.querySelector('[data-quick-register-form]').hidden = false; });
                 panel.querySelector('[data-quick-register-cancel]').addEventListener('click', () => { panel.querySelector('[data-quick-register-form]').hidden = true; panel.querySelector('[data-quick-register-open]').hidden = false; });
@@ -521,9 +521,6 @@
             if (!DeLongPassword.evaluate(password).valid) return DeLongPassword.requirement;
             if (!registrationForm.querySelector('[data-quick-terms]')?.checked)
                 return 'Bạn cần đồng ý điều khoản tài khoản khách.';
-            const codeInput = registrationForm.querySelector('[data-quick-booking-code]');
-            if (codeInput && !codeInput.value.trim())
-                return 'Vui lòng nhập mã một lần đặt phòng trước để tạo tài khoản, hoặc bỏ phần tạo tài khoản.';
         }
         state.email = email.value.trim();
         return null;
@@ -545,8 +542,7 @@
             name,
             email: state.email || null,
             termsAccepted: true,
-            termsVersion: state.accountSettings.termsVersion,
-            bookingCode: form.querySelector('[data-quick-booking-code]')?.value?.trim() || null
+            termsVersion: state.accountSettings.termsVersion
         });
         await DeLongApi.refreshAntiforgery();
         const verificationQuery = new URLSearchParams({ phone });

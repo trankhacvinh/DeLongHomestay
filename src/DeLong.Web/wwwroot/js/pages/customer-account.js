@@ -15,7 +15,7 @@
                 settings: { registrationEnabled: true, authenticatorEnabled: true, loyaltyEnabled: false, benefitText: '', termsTitle: 'Điều khoản tài khoản khách', termsHtml: '', termsVersion: 1 },
                 profile: null,
                 login: { phone: '', password: '', code: '', rememberMe: true },
-                register: { name: '', phone: '', email: '', password: '', termsAccepted: false, bookingCode: '' },
+                register: { name: '', phone: '', email: '', password: '', termsAccepted: false },
                 password: { currentPassword: '', newPassword: '' },
                 identity: {
                     front: { previewUrl: '', uploading: false, uploaded: false },
@@ -85,8 +85,7 @@
                     await DeLongApi.refreshAntiforgery();
                     await DeLongApi.post(publicUrl('/api/public/customer-account/register'), {
                         phone: this.register.phone, password: this.register.password, name: this.register.name,
-                        email: this.register.email || null, termsAccepted: true, termsVersion: this.settings.termsVersion,
-                        bookingCode: this.register.bookingCode || null
+                        email: this.register.email || null, termsAccepted: true, termsVersion: this.settings.termsVersion
                     });
                     await DeLongApi.refreshAntiforgery();
                     await this.loadProfile();
