@@ -52,7 +52,12 @@ var roomConditionMaxRequestBytes = Math.Clamp(
     builder.Configuration.GetValue<long?>("RoomConditionUploads:MaxRequestBytes") ?? 1024L * 1024 * 1024,
     10L * 1024 * 1024,
     2L * 1024 * 1024 * 1024);
-builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = roomConditionMaxRequestBytes);
+// Most requests are small; admin photo uploads accept up to ImageUploadPolicy.MaxSourceBytes (60 MB).
+// Only room condition reports (videos) get the large limit, on that endpoint alone, so anonymous
+// endpoints cannot be fed gigabyte bodies.
+const long DefaultMaxRequestBytes = 64L * 1024 * 1024;
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = DefaultMaxRequestBytes);
+builder.Services.AddSingleton(new RoomConditionUploadLimit(roomConditionMaxRequestBytes));
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -199,6 +204,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ManageSiteCode", policy => policy.RequireRole("Admin"));
     options.AddPolicy("ManageImports", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageRooms", policy => policy.RequireRole("Admin", "Manager"));
+    options.AddPolicy("ManagePaymentSettings", policy => policy.RequireRole("Admin"));
     options.AddPolicy("ManageMediaContent", policy => policy.RequireRole("Admin", "Manager", "Media"));
     options.AddPolicy("ManageNotifications", policy => policy.RequireRole("Admin", "Manager"));
     options.AddPolicy("ManageDataQuality", policy => policy.RequireRole("Admin", "Manager"));
@@ -383,6 +389,7 @@ builder.Services.AddScoped<Pay2SService>();
 builder.Services.AddScoped<SePaySettingsService>();
 builder.Services.AddHttpClient<SePayService>(client => client.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddHostedService<Pay2SExpiryWorker>();
+builder.Services.AddHostedService<IdentityRetentionWorker>();
 builder.Services.AddScoped<HousekeepingService>();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<InventoryImportService>();
@@ -550,6 +557,7 @@ app.Use(async (context, next) =>
 });
 app.UseAuthentication();
 app.UseMiddleware<ForcePasswordChangeMiddleware>();
+app.UseMiddleware<RequireStaffTwoFactorMiddleware>();
 app.UseAuthorization();
 app.UseMiddleware<WorkingPropertyMiddleware>();
 app.UseRateLimiter();

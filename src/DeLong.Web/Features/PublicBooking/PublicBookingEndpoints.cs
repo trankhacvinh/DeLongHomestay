@@ -1,3 +1,6 @@
+using DeLong.Web.Common.Auditing;
+using DeLong.Web.Features.Cancellations;
+using DeLong.Web.Features.Operations;
 using DeLong.Web.Common.Operations;
 using DeLong.Web.Common.Security;
 using DeLong.Web.Data;
@@ -127,16 +130,22 @@ public static class PublicBookingEndpoints
                     paymentProperty.Id,
                     result.BookingId,
                     cancelBookingOnExpiry: true,
-                    ct,
+                    // The booking is already committed and holds the room. Finish this step even if the
+                    // guest's browser disconnects, otherwise the hold would have no payment session.
+                    CancellationToken.None,
                     siteSlug,
                     useSettlementGrace: true);
                 logger.LogInformation("Booking submit: phase=payment elapsedMs={ElapsedMs} success={Success} trace={TraceId}", watch.ElapsedMilliseconds, intent is not null, http.TraceIdentifier);
                 if (intent is null)
                 {
-                    var booking = await db.Bookings.SingleAsync(x => x.Id == result.BookingId, ct);
-                    booking.Status = BookingStatus.Cancelled;
-                    await voucherService.ReleaseReservedAsync(result.BookingId, "Booking bị hủy vì không thể khởi tạo thanh toán Pay2S.", ct);
-                    await db.SaveChangesAsync(ct);
+                    var booking = await db.Bookings.SingleAsync(x => x.Id == result.BookingId, CancellationToken.None);
+                    var cancelled = await CancellationRecorder.ApplyAutomaticAsync(db, new AuditService(db), booking,
+                        "Không khởi tạo được thanh toán online, hệ thống tự hủy.", "PaymentInitFailed", CancellationToken.None);
+                    if (cancelled is not null)
+                        await voucherService.ReleaseReservedAsync(result.BookingId, "Booking bị hủy vì không thể khởi tạo thanh toán online.", CancellationToken.None);
+                    await db.SaveChangesAsync(CancellationToken.None);
+                    OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(
+                        booking.PropertyId, OperationsEventTypes.BookingStatusChanged, booking.Id, booking.RoomId));
                     return Results.Problem(statusCode: 503, title: "Chưa thể tạo thanh toán", detail: paymentError?.Message, type: "pay2s_unavailable");
                 }
                 result = result with { HoldExpiresAtUtc = intent.ExpiresAtUtc, PaymentOrderId = intent.OrderId, PaymentUrl = intent.PayUrl };
@@ -161,7 +170,8 @@ public static class PublicBookingEndpoints
                 "spam" => Results.BadRequest(new ProblemDetails { Status = 400, Title = "Không thể gửi yêu cầu", Detail = error.Message, Type = "spam" }),
                 _ => Results.ValidationProblem(new Dictionary<string, string[]> { ["request"] = [error.Message] })
             };
-        }).AddEndpointFilter<ApiAntiforgeryFilter>().RequireRateLimiting("public-booking");
+        }).AddEndpointFilter<ApiAntiforgeryFilter>().RequireRateLimiting("public-booking")
+            .WithMetadata(new RequestSizeLimitAttribute(1024 * 1024));
 
         app.MapBookingCoreV2Endpoints();
         return app;

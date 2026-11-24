@@ -4,8 +4,18 @@ namespace DeLong.Web.Features.Bookings;
 
 public static class BookingRules
 {
+    // Statuses the database exclusion constraint ex_bookings_room_time_no_overlap covers.
     public static bool LocksRoom(BookingStatus status) => status is
         BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn;
+
+    // Statuses whose time range is "taken" for availability, conflicts, reports and housekeeping.
+    // Completed is included: its CheckOutUtc is the actual departure (early completion trims it).
+    // Use this single list instead of re-declaring it per service.
+    public static readonly BookingStatus[] OccupyingStatuses =
+        [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed];
+
+    public static bool OccupiesRoom(BookingStatus status) => status is
+        BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn or BookingStatus.Completed;
 
     public static bool CanTransition(BookingStatus current, BookingStatus next)
     {

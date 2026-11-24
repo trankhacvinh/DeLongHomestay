@@ -8,6 +8,7 @@ public static class DeLongClaimTypes
 {
     public const string DisplayName = "delong_display_name";
     public const string MustChangePassword = "delong_must_change_password";
+    public const string TwoFactorMissing = "delong_two_factor_missing";
 }
 
 public sealed class ApplicationClaimsPrincipalFactory(
@@ -27,6 +28,13 @@ public sealed class ApplicationClaimsPrincipalFactory(
         if (user.MustChangePassword)
         {
             identity.AddClaim(new Claim(DeLongClaimTypes.MustChangePassword, "true"));
+        }
+
+        // Staff accounts see CCCD, payments and site code. RequireStaffTwoFactorMiddleware uses this
+        // claim to send them to Authenticator setup when Authentication:RequireStaffTwoFactor is on.
+        if (!user.IsCustomerAccount && !user.TwoFactorEnabled)
+        {
+            identity.AddClaim(new Claim(DeLongClaimTypes.TwoFactorMissing, "true"));
         }
 
         return identity;

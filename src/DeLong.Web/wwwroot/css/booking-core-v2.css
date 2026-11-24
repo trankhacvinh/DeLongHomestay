@@ -82,3 +82,4 @@
 @media(max-width:600px) { .booking-payment-stage { padding:18px; margin:12px 0; } .booking-payment-stage h2 { font-size:21px; } }
 /* Email and guest count are stacked, so the empty spacer under email only adds a gap. */
 .booking-v2-fields .booking-email-field>small{display:none}
+.booking-account-panel button.booking-account-skip{grid-column:1/-1;justify-self:center;width:auto!important;min-height:34px;padding:0 8px;border-color:transparent;background:transparent;color:#5b7470;font-weight:700;text-decoration:underline;text-underline-offset:3px}.booking-account-panel button.booking-account-skip:hover:not(:disabled){background:transparent;color:#17666a}.booking-account-submit-note{grid-column:1/-1;margin:0}

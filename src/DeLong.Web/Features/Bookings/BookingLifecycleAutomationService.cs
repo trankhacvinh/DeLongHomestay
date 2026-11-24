@@ -7,7 +7,10 @@ namespace DeLong.Web.Features.Bookings;
 
 public sealed record BookingLifecycleAutomationResult(int CheckedIn, int CheckedOut);
 
-public sealed class BookingLifecycleAutomationService(AppDbContext db, BookingService bookingService)
+public sealed class BookingLifecycleAutomationService(
+    AppDbContext db,
+    BookingService bookingService,
+    ILogger<BookingLifecycleAutomationService>? logger = null)
 {
     private const int BatchSize = 200;
 
@@ -50,9 +53,26 @@ public sealed class BookingLifecycleAutomationService(AppDbContext db, BookingSe
         var changed = 0;
         foreach (var item in due)
         {
-            var (booking, error) = await bookingService.ChangeStatusAsync(
-                item.PropertyId, item.BookingId, targetStatus, cancellationToken: cancellationToken);
-            if (error is not null || booking is null) continue;
+            BookingDto? booking;
+            BookingOperationError? error;
+            try
+            {
+                (booking, error) = await bookingService.ChangeStatusAsync(
+                    item.PropertyId, item.BookingId, targetStatus, cancellationToken: cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // One bad booking must not stop the rest of the batch (it would be first again next tick).
+                logger?.LogError(ex, "Automatic {Status} failed for booking {BookingId}.", targetStatus, item.BookingId);
+                db.ChangeTracker.Clear();
+                continue;
+            }
+            if (error is not null || booking is null)
+            {
+                // Drop half-applied changes so they are not saved together with the next booking.
+                db.ChangeTracker.Clear();
+                continue;
+            }
 
             changed++;
             OperationsRealtimeBroker.Shared.Publish(OperationsRealtimeEvent.Create(

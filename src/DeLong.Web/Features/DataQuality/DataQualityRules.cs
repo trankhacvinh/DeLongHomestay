@@ -22,7 +22,7 @@ public static class DataQualityRules
             if (b.Status is BookingStatus.Cancelled or BookingStatus.NoShow && b.Paid > 0 && !b.CancellationRefundDecided)
                 findings.Add(Finding("cancelled_receipt", "Medium", b, null, "Đơn hủy/vắng mặt còn tiền đã thu; hãy hoàn tiền hoặc ghi nhận giữ cọc tại trang Hủy & hoàn tiền"));
         }
-        foreach (var room in bookings.Where(b => b.Status is BookingStatus.Held or BookingStatus.Confirmed or BookingStatus.CheckedIn or BookingStatus.Completed)
+        foreach (var room in bookings.Where(b => DeLong.Web.Features.Bookings.BookingRules.OccupiesRoom(b.Status))
                      .GroupBy(b => b.RoomId))
         {
             var active = new List<BookingQualityFact>();

@@ -174,8 +174,7 @@ public sealed class AvailabilityIntervalService(
     StoragePaths storagePaths,
     PricingService pricingService)
 {
-    private static readonly BookingStatus[] LockingStatuses =
-        [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed];
+    private static readonly BookingStatus[] LockingStatuses = DeLong.Web.Features.Bookings.BookingRules.OccupyingStatuses;
 
     public async Task<AdminRoomAvailabilityDto?> GetAdminAsync(
         Guid propertyId,
@@ -185,7 +184,6 @@ public sealed class AvailabilityIntervalService(
         CancellationToken cancellationToken = default)
     {
         days = Math.Clamp(days, 1, 31);
-        await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, propertyId, cancellationToken);
 
         var timeZoneId = await db.Properties.AsNoTracking()
             .Where(x => x.Id == propertyId && x.IsActive)
@@ -212,8 +210,6 @@ public sealed class AvailabilityIntervalService(
             .Select(x => x.TimeZoneId)
             .SingleOrDefaultAsync(cancellationToken);
         if (timeZoneId is null || maxRooms <= 0) return [];
-
-        await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, propertyId, cancellationToken);
         var roomIds = await db.Rooms.AsNoTracking()
             .Where(x => x.PropertyId == propertyId && x.IsActive)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Name).ThenBy(x => x.Id)
@@ -274,8 +270,6 @@ public sealed class AvailabilityIntervalService(
     {
         var property = await propertyResolver.ResolveAsync(siteSlug, cancellationToken);
         if (property is null) return null;
-
-        await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, property.Id, cancellationToken);
         return await BuildPublicRoomAsync(property, roomId, from, Math.Clamp(days, 1, 14), cancellationToken);
     }
 
@@ -293,8 +287,6 @@ public sealed class AvailabilityIntervalService(
     {
         var property = await propertyResolver.ResolveAsync(siteSlug, cancellationToken);
         if (property is null) return null;
-
-        await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, property.Id, cancellationToken);
         days = Math.Clamp(days, 1, 14);
         var result = new List<PublicRoomAvailabilityDto>();
         foreach (var roomId in roomIds.Distinct().Take(MaxRoomsPerPublicBatch))

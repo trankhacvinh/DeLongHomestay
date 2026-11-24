@@ -82,7 +82,7 @@ public sealed partial class AdminAiService
         if (room.IsBookingLocked || await RoomBookingGuard.HasScheduledLockAsync(db, propertyId, room.Id, start, end, ct))
             return "Phòng đang khóa trong khoảng đã chọn; cần chọn phòng hoặc giờ khác.";
         var occupied = await db.Bookings.AsNoTracking().AnyAsync(x => x.PropertyId == propertyId && x.RoomId == room.Id &&
-            (x.Status == BookingStatus.Held || x.Status == BookingStatus.Confirmed || x.Status == BookingStatus.CheckedIn || x.Status == BookingStatus.Completed) &&
+            DeLong.Web.Features.Bookings.BookingRules.OccupyingStatuses.Contains(x.Status) &&
             x.CheckInUtc < end && start < x.CheckOutUtc, ct);
         return occupied ? "Khoảng thời gian đã có khách. Hãy chọn giờ hoặc phòng khác." : null;
     }

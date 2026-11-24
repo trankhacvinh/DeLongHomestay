@@ -377,7 +377,7 @@
             },
             openCalendarRange(from, to) {
                 const query = new URLSearchParams({ propertyId: this.propertyId, from, to });
-                window.location.assign(`/Admin/Calendar?${query}`);
+                window.location.assign(`/Admin/CalendarV2?${query}`);
             },
             openCreate(room, day, options = {}) {
                 if (!this.canManage) return;

@@ -18,7 +18,7 @@ public static class Pay2SEndpoints
         {
             var (result, error) = await service.SaveAsync(propertyId, request, ct);
             return error is null ? Results.Ok(result) : Problem(error, "Không thể lưu cấu hình Pay2S");
-        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+        }).AddEndpointFilter<ApiAntiforgeryFilter>().RequireAuthorization("ManagePaymentSettings");
         settings.MapPost("/intents", async (Guid propertyId, CreatePay2SIntentRequest request, Pay2SService service, CancellationToken ct) =>
         {
             var (result, error) = await service.CreateIntentAsync(

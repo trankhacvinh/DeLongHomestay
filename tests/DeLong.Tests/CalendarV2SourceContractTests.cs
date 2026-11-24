@@ -7,7 +7,7 @@ public sealed class CalendarV2SourceContractTests
     [Fact]
     public void Default_and_today_ranges_include_yesterday_but_explicit_ranges_are_preserved()
     {
-        foreach (var page in new[] { "Calendar", "CalendarV2" })
+        foreach (var page in new[] { "CalendarV2" })
             Assert.Contains("var startDate = from ?? todayLocal.AddDays(-1);", ReadRepositoryFile($"src/DeLong.Web/Pages/Admin/{page}.cshtml.cs"));
         Assert.Contains("this.openCalendarRange(addDays(this.today, -1)", ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar.js"));
         Assert.Contains("setRange(today ? addDays(today, -1) : state.from", ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar-v2.js"));
@@ -92,12 +92,9 @@ public sealed class CalendarV2SourceContractTests
     [Trait("Category", "Unit")]
     public void Both_calendar_editors_can_record_an_initial_payment()
     {
-        var calendar = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/Calendar.cshtml");
         var calendarV2 = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/CalendarV2.cshtml");
         var script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar.js");
 
-        Assert.Contains("form.initialPaymentAmount", calendar, StringComparison.Ordinal);
-        Assert.Contains("form.initialPaymentMethod", calendar, StringComparison.Ordinal);
         Assert.Contains("form.initialPaymentAmount", calendarV2, StringComparison.Ordinal);
         Assert.Contains("form.initialPaymentMethod", calendarV2, StringComparison.Ordinal);
         Assert.Contains("/bookings/${booking.id}/payments", script, StringComparison.Ordinal);
@@ -108,18 +105,19 @@ public sealed class CalendarV2SourceContractTests
     [Trait("Category", "Unit")]
     public void Completed_bookings_remain_visible_and_preserve_occupancy()
     {
-        var calendarModel = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/Calendar.cshtml.cs");
         var calendarV2Model = ReadRepositoryFile("src/DeLong.Web/Pages/Admin/CalendarV2.cshtml.cs");
         var calendarScript = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar.js");
         var calendarV2Script = ReadRepositoryFile("src/DeLong.Web/wwwroot/js/pages/admin-calendar-v2.js");
         var availability = ReadRepositoryFile("src/DeLong.Web/Features/Operations/AvailabilityIntervalService.cs");
 
-        Assert.Contains("or BookingStatus.Completed", calendarModel, StringComparison.Ordinal);
+        // The old v1 calendar only redirects to CalendarV2 now.
+        Assert.Contains("RedirectToPage(\"/Admin/CalendarV2\"", ReadRepositoryFile("src/DeLong.Web/Pages/Admin/Calendar.cshtml.cs"), StringComparison.Ordinal);
         Assert.Contains("or BookingStatus.Completed", calendarV2Model, StringComparison.Ordinal);
         Assert.Contains("[0, 1, 2, 3, 4]", calendarScript, StringComparison.Ordinal);
         Assert.Contains("completedBookingsForSlot", calendarV2Script, StringComparison.Ordinal);
         Assert.Contains("Number(booking.status) === 4", calendarV2Script, StringComparison.Ordinal);
-        Assert.Contains("[BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed]", availability, StringComparison.Ordinal);
+        Assert.Contains("BookingRules.OccupyingStatuses", availability, StringComparison.Ordinal);
+        Assert.Contains(DeLong.Web.Domain.Enums.BookingStatus.Completed, DeLong.Web.Features.Bookings.BookingRules.OccupyingStatuses);
     }
 
     [Fact]

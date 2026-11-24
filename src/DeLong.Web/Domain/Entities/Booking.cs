@@ -36,6 +36,11 @@ public sealed class Booking : EntityBase
     public string? Note { get; set; }
     public string? DisplayColor { get; set; }
 
+    // What the guest typed for this booking. Kept on the booking so a web form never rewrites the
+    // shared customer profile (another person may have typed a returning guest's phone number).
+    public string? ContactName { get; set; }
+    public string? ContactEmail { get; set; }
+
     public ICollection<Payment> Payments { get; set; } = [];
     public ICollection<BookingRateSegment> RateSegments { get; set; } = [];
     public VoucherRedemption? VoucherRedemption { get; set; }

@@ -28,7 +28,7 @@
                     </select>
                 </form>
                 <a class="btn" asp-page="/Admin/Bookings/Index" asp-route-propertyId="@Model.PropertyId">Booking · @Model.WorkingPropertyName</a>
-                <a class="btn btn-primary" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId"><svg class="icon"><use href="#i-plus" /></svg>Đặt phòng · @Model.WorkingPropertyName</a>
+                <a class="btn btn-primary" asp-page="/Admin/CalendarV2" asp-route-propertyId="@Model.PropertyId"><svg class="icon"><use href="#i-plus" /></svg>Đặt phòng · @Model.WorkingPropertyName</a>
             </div>
         </div>
     </div>
@@ -111,7 +111,7 @@
         <section class="card h-100">
             <div class="card-header">
                 <div><h2 class="card-title">Sắp check-in</h2><div class="card-subtitle">Theo thứ tự thời gian hôm nay</div></div>
-                <div class="card-actions"><a class="btn btn-sm btn-ghost-primary" asp-page="/Admin/Calendar" asp-route-propertyId="@Model.PropertyId">Mở lịch · @Model.WorkingPropertyName</a></div>
+                <div class="card-actions"><a class="btn btn-sm btn-ghost-primary" asp-page="/Admin/CalendarV2" asp-route-propertyId="@Model.PropertyId">Mở lịch · @Model.WorkingPropertyName</a></div>
             </div>
             @if (Model.Arrivals.Count == 0)
             {

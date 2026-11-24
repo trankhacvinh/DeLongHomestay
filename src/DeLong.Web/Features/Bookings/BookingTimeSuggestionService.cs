@@ -44,7 +44,7 @@ public sealed class BookingTimeSuggestionService(AppDbContext db)
         var from = windows.Min(x => x.Start).AddMinutes(-cleaning);
         var to = windows.Max(x => x.End);
         var bookings = await db.Bookings.AsNoTracking().Where(x => x.PropertyId == propertyId && x.RoomId == roomId &&
-                (x.Status == BookingStatus.Held || x.Status == BookingStatus.Confirmed || x.Status == BookingStatus.CheckedIn || x.Status == BookingStatus.Completed) &&
+                DeLong.Web.Features.Bookings.BookingRules.OccupyingStatuses.Contains(x.Status) &&
                 x.CheckInUtc < to && x.CheckOutUtc > from)
             .Select(x => new BookingTimeBlock(x.CheckInUtc, x.CheckOutUtc, true)).ToListAsync(ct);
         var locked = await db.RoomBookingBlocks.AsNoTracking().Where(x => x.PropertyId == propertyId && x.RoomId == roomId && x.CancelledAtUtc == null && x.StartUtc < to && x.EndUtc > from)

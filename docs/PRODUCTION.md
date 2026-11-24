@@ -47,6 +47,13 @@ Database__SeedOnStartup=false
 
 De Long giữ media public ở `wwwroot/uploads/rooms` cho dễ quản lý. Đây là cấu trúc mặc định cả Development lẫn Production. Khi deploy, cần bảo đảm `App_Data` và `wwwroot/uploads` **không bị xóa khi release mới được triển khai**. Với host dùng một working directory cố định thì có thể giữ nguyên như trên; với host thay toàn bộ release directory thì mount/persist riêng hai thư mục này hoặc override `Storage__DataRoot` / `Storage__MediaPublicRoot` sang vị trí bền vững.
 
+### Cấu hình bảo mật mới (24/11/2026)
+
+- Chuỗi kết nối DB **không còn nằm trong `appsettings.json`**. Production phải đặt `ConnectionStrings__DefaultConnection` trong `/etc/delong/delong.env` (xem `UBUNTU-VPS-DEPLOYMENT.md`). Thiếu biến này app sẽ dừng ngay khi khởi động với thông báo rõ ràng.
+- `Authentication__RequireStaffTwoFactor=true`: bắt buộc tài khoản nhân viên bật Authenticator; chưa bật thì chỉ vào được trang cài Authenticator. Mặc định `false`.
+- `IdentityDocuments__RetentionDaysAfterCheckout=<số ngày>`: tự xóa ảnh CCCD của booking đã kết thúc quá số ngày đó sau giờ trả phòng (audit `IdentityPurged`). Mặc định `0` = tắt. Cập nhật chính sách bảo mật trên site trước khi bật.
+- Giới hạn body mặc định 64 MB; chỉ báo cáo tình trạng phòng (video) được `RoomConditionUploads:MaxRequestBytes`.
+
 ## 2. Health checks
 
 - `GET /health/live`: process ASP.NET đang chạy.
@@ -91,6 +98,14 @@ DELONG_MEDIA_ROOT=src/DeLong.Web/wwwroot/uploads/rooms
 ```
 
 Trên server nên dùng absolute path tương ứng với thư mục deploy thật.
+
+**Mã hóa backup (bắt buộc trước khi copy ra khỏi VPS).** `data-root.tar.gz` chứa ảnh CCCD đã mã hóa **cùng** khóa giải mã (`security/identity-master.key`) và khóa Data Protection. Cài `age` (`apt install age`), tạo cặp khóa trên máy của chủ (`age-keygen -o delong-backup.key`), chỉ đưa public key lên server:
+
+```text
+DELONG_BACKUP_AGE_RECIPIENT=age1...   # public key; private key cất offline
+```
+
+Khi có biến này, script mã hóa `database.dump` và `data-root.tar.gz` thành `*.age` rồi xóa bản rõ. Restore: `DELONG_BACKUP_AGE_IDENTITY=/path/delong-backup.key scripts/restore-production.sh --confirm <dir>`.
 
 Khuyến nghị tối thiểu khi go-live:
 

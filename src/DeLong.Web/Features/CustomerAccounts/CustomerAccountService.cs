@@ -90,8 +90,9 @@ public sealed class CustomerAccountService(
         }
         else
         {
-            customer.Name = name;
-            if (email is not null) customer.Email = email;
+            // Never rename or re-address an existing guest from a public form: staff own that profile.
+            if (string.IsNullOrWhiteSpace(customer.Name)) customer.Name = name;
+            if (email is not null && string.IsNullOrWhiteSpace(customer.Email)) customer.Email = email;
         }
 
         db.CustomerAccountLinks.Add(new CustomerAccountLink

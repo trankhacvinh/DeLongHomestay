@@ -12,6 +12,29 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 TARGET="${BACKUP_ROOT%/}/${STAMP}"
 
 mkdir -p "$TARGET"
+chmod 700 "$TARGET"
+umask 077
+
+# data-root.tar.gz contains the encrypted CCCD photos AND the key that decrypts them
+# (security/identity-master.key, data-protection keys). Encrypt the archives before they leave
+# the server: set DELONG_BACKUP_AGE_RECIPIENT to an `age` public key (age1...) whose private
+# key is kept offline. https://github.com/FiloSottile/age  (apt install age)
+AGE_RECIPIENT="${DELONG_BACKUP_AGE_RECIPIENT:-}"
+if [[ -n "$AGE_RECIPIENT" ]] && ! command -v age >/dev/null 2>&1; then
+  echo "DELONG_BACKUP_AGE_RECIPIENT is set but 'age' is not installed (apt install age)." >&2
+  exit 4
+fi
+if [[ -z "$AGE_RECIPIENT" ]]; then
+  echo "WARNING: DELONG_BACKUP_AGE_RECIPIENT is not set. This backup is NOT encrypted and contains" >&2
+  echo "         CCCD photos together with their decryption key. Do not copy it off the server." >&2
+fi
+
+encrypt_file() {
+  local file="$1"
+  [[ -z "$AGE_RECIPIENT" || ! -f "$file" ]] && return 0
+  age -r "$AGE_RECIPIENT" -o "$file.age" "$file"
+  rm -f "$file"
+}
 
 echo "[1/3] Backing up PostgreSQL..."
 pg_dump --format=custom --compress=9 --no-owner --no-privileges --file="$TARGET/database.dump" "$DATABASE_URL"
@@ -29,6 +52,9 @@ if [[ -d "$MEDIA_ROOT" ]]; then
 else
   echo "[3/3] Media root missing ($MEDIA_ROOT); skipping public media archive."
 fi
+
+encrypt_file "$TARGET/database.dump"
+encrypt_file "$TARGET/data-root.tar.gz"
 
 (
   cd "$TARGET"

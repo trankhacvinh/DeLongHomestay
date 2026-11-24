@@ -10,10 +10,18 @@
 </div>
 <form method="post" class="card" style="max-width:34rem">
     <div class="card-body d-grid gap-3">
+        <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+        @if (Model.Required && !Model.Enabled)
+        {
+            <div class="alert alert-warning mb-0">Cơ sở bắt buộc tài khoản nhân viên bật xác thực 2 lớp. Bật Authenticator xong bạn sẽ dùng hệ thống bình thường.</div>
+        }
         @if (Model.Enabled)
         {
-            <div class="alert alert-success mb-0">Authenticator đang bật. Bạn có thể dùng mã 6 số thay mật khẩu tại trang đăng nhập quản trị.</div>
-            <button class="btn btn-danger" type="submit" asp-page-handler="Disable">Tắt và tạo lại khóa</button>
+            <div class="alert alert-success mb-0">Authenticator đang bật. Sau khi nhập mật khẩu ở trang đăng nhập quản trị, bạn nhập thêm mã 6 số trong ứng dụng.</div>
+            @if (!Model.Required)
+            {
+                <button class="btn btn-danger" type="submit" asp-page-handler="Disable">Tắt và tạo lại khóa</button>
+            }
         }
         else
         {

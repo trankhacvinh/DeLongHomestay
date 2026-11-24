@@ -146,7 +146,15 @@ public static class HousekeepingEndpoints
                     extensions: new Dictionary<string, object?> { ["code"] = "room_condition_report_invalid" });
         })
         .RequireAuthorization("ManageHousekeeping")
-        .AddEndpointFilter<ApiAntiforgeryFilter>();
+        .AddEndpointFilter<ApiAntiforgeryFilter>()
+        .AddEndpointFilter(async (context, next) =>
+        {
+            // Raise the body limit for this upload only (videos); the server default is small.
+            var limit = context.HttpContext.RequestServices.GetRequiredService<RoomConditionUploadLimit>();
+            var feature = context.HttpContext.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+            if (feature is { IsReadOnly: false }) feature.MaxRequestBodySize = limit.MaxRequestBytes;
+            return await next(context);
+        });
 
         group.MapPost("/reports/{reportId:guid}/status", async (
             Guid propertyId,
@@ -214,3 +222,5 @@ public static class HousekeepingEndpoints
         return Guid.TryParse(value, out var userId) ? userId : null;
     }
 }
+
+public sealed record RoomConditionUploadLimit(long MaxRequestBytes);

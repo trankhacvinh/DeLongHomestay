@@ -15,7 +15,12 @@ public sealed class ReportsDashboardSourceContractTests
         Assert.Contains("Enumerable.Range(0, 12)", service, StringComparison.Ordinal);
         Assert.Contains("x.OccurredAtUtc >= fromUtc && x.OccurredAtUtc < toUtc", service, StringComparison.Ordinal);
         Assert.Contains("x.CheckInUtc >= fromUtc && x.CheckInUtc < toUtc", service, StringComparison.Ordinal);
-        Assert.Contains("x.Status is not BookingStatus.Cancelled and not BookingStatus.NoShow", service, StringComparison.Ordinal);
+        Assert.Contains("BookingRules.OccupiesRoom(x.Status)", service, StringComparison.Ordinal);
+        // Unconfirmed requests are not revenue; cancelled/no-show never are.
+        Assert.False(DeLong.Web.Features.Bookings.BookingRules.OccupiesRoom(DeLong.Web.Domain.Enums.BookingStatus.Requested));
+        Assert.False(DeLong.Web.Features.Bookings.BookingRules.OccupiesRoom(DeLong.Web.Domain.Enums.BookingStatus.Cancelled));
+        Assert.False(DeLong.Web.Features.Bookings.BookingRules.OccupiesRoom(DeLong.Web.Domain.Enums.BookingStatus.NoShow));
+        Assert.True(DeLong.Web.Features.Bookings.BookingRules.OccupiesRoom(DeLong.Web.Domain.Enums.BookingStatus.Completed));
         Assert.Contains("AsNoTracking()", service, StringComparison.Ordinal);
     }
 
