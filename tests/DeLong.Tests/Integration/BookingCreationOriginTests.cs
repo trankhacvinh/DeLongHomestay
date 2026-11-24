@@ -154,8 +154,11 @@ public sealed class BookingCreationOriginTests
         var original = RawBooking(f);
         var unknown = RawBooking(f, "Website");
         db.AddRange(original, unknown);
+        // SaveChanges stamps CreatedAtUtc, so save the first creation audit on its own to make it strictly earlier.
+        db.AuditLogs.Add(new AuditLog { PropertyId = f.Property.Id, EntityType = "Booking", EntityId = original.Id, Action = "Created", AfterJson = "{\"source\":\"Website\"}" });
+        await db.SaveChangesAsync();
+        await Task.Delay(5);
         db.AuditLogs.AddRange(
-            new AuditLog { PropertyId = f.Property.Id, EntityType = "Booking", EntityId = original.Id, Action = "Created", AfterJson = "{\"source\":\"Website\"}", CreatedAtUtc = DateTime.UtcNow.AddMinutes(-1) },
             new AuditLog { PropertyId = f.Property.Id, EntityType = "Booking", EntityId = original.Id, Action = "Created", ActorUserId = f.Staff.Id },
             new AuditLog { PropertyId = other.Property.Id, EntityType = "Booking", EntityId = unknown.Id, Action = "Created", ActorUserId = other.Staff.Id },
             new AuditLog { PropertyId = f.Property.Id, EntityType = "Customer", EntityId = unknown.Id, Action = "Created", ActorUserId = f.Staff.Id });
