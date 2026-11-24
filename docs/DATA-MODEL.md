@@ -80,6 +80,9 @@ Preset không phải booking slot cứng. Booking được phép dùng giờ kh�
 - created_by
 - created_at
 - row_version/concurrency metadata
+- contact_name, contact_email (24/11/2026): tên/email khách gõ cho **lượt đặt này**. Form web không còn ghi đè `customers.name`/`customers.email` của hồ sơ có sẵn (ai cũng có thể gõ số điện thoại của khách quen). Email hướng dẫn nhận phòng gửi tới `contact_email`, nếu trống thì dùng email hồ sơ.
+
+Trạng thái chiếm giờ phòng dùng chung một chỗ: `BookingRules.OccupyingStatuses` (Held, Confirmed, CheckedIn, Completed). Ràng buộc DB `ex_bookings_room_time_no_overlap` chỉ phủ Held/Confirmed/CheckedIn (`BookingRules.LocksRoom`). Bấm Hoàn tất trước giờ trả phòng sẽ đặt `check_out_utc` = lúc hoàn tất để mở lại phần giờ còn lại.
 
 ### Status đề xuất
 `pending → confirmed → checked-in → completed`

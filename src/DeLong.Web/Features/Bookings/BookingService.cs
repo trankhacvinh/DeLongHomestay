@@ -22,7 +22,7 @@ public sealed class BookingService(
     BookingNotificationService? notificationService = null)
 {
     private const string BookingCodeUniqueConstraint = "i_x_bookings_property_id_code";
-    private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed];
+    private static readonly BookingStatus[] LockingStatuses = BookingRules.OccupyingStatuses;
 
     public async Task<IReadOnlyList<BookingDto>> GetAllAsync(Guid propertyId, DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken cancellationToken = default)
     {
@@ -59,7 +59,10 @@ public sealed class BookingService(
         if (await RoomBookingGuard.HasScheduledLockAsync(db, propertyId, request.RoomId, checkInUtc, checkOutUtc, cancellationToken))
             return (null, new(RoomBookingGuard.ErrorCode, "Phòng tạm khóa trong thời gian đã chọn. Vui lòng chọn thời gian hoặc phòng khác."));
         if (BookingRules.LocksRoom(request.Status) && await HasConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken)) return (null, await DescribeConflictAsync(propertyId, request.RoomId, checkInUtc, checkOutUtc, null, cancellationToken));
-        var customer = await customerService.FindOrCreateEntityAsync(propertyId, request.CustomerId, request.CustomerName, request.CustomerPhone, cancellationToken);
+        // Staff may correct a returning guest's name; a public web form may not (anyone can type a phone).
+        var fromWebsite = !actorUserId.HasValue && string.Equals(request.Source, "Website", StringComparison.OrdinalIgnoreCase);
+        var customer = await customerService.FindOrCreateEntityAsync(propertyId, request.CustomerId, request.CustomerName, request.CustomerPhone, cancellationToken,
+            updateExistingName: !fromWebsite);
         if (customer is null) return (null, new("customer_invalid", "Thông tin khách chưa hợp lệ. Vui lòng kiểm tra họ tên và số điện thoại hoặc liên hệ Home để được hỗ trợ."));
         if (customer.IsBlocked) return (null, new("customer_blocked", "Khách hàng đã bị chặn. Vui lòng kiểm tra hồ sơ khách trước khi tạo booking."));
 
@@ -71,6 +74,12 @@ public sealed class BookingService(
             RoomAmount = request.RoomAmount, SpecialSurchargeAmount = request.SpecialSurchargeAmount, ExtraAmount = request.ExtraAmount, DiscountAmount = request.DiscountAmount,
             Source = Clean(request.Source), PublicRequestKey = Clean(request.PublicRequestKey), Note = Clean(request.Note), DisplayColor = BookingDisplayColors.Normalize(request.DisplayColor)
         };
+        if (fromWebsite && customer.Id != Guid.Empty && !string.Equals(customer.Name.Trim(), request.CustomerName.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            booking.ContactName = request.CustomerName.Trim();
+            booking.Note = string.Join(Environment.NewLine, new[] { booking.Note, $"Tên khách nhập khi đặt online: {request.CustomerName.Trim()}" }
+                .Where(x => !string.IsNullOrWhiteSpace(x)));
+        }
         foreach (var segment in request.RateSegments.OrderBy(x => x.SortOrder))
         {
             booking.RateSegments.Add(new BookingRateSegment
@@ -128,7 +137,22 @@ public sealed class BookingService(
         if (customer is null) return (null, new("customer_invalid", "Không tìm thấy khách hàng."));
         if (customer.IsBlocked) return (null, new("customer_blocked", "Khách hàng đã bị chặn. Vui lòng kiểm tra hồ sơ khách trước khi cập nhật booking."));
         var normalizedPhone = CustomerService.NormalizePhone(request.CustomerPhone);
-        if (await db.Customers.AnyAsync(x => x.PropertyId == propertyId && x.NormalizedPhone == normalizedPhone && x.Id != customer.Id, cancellationToken)) return (null, new("customer_invalid", "Số điện thoại đang thuộc một khách hàng khác."));
+        if (normalizedPhone != customer.NormalizedPhone)
+        {
+            // A different phone means a different person (e.g. a friend booked on the guest's behalf).
+            // Move this booking to that person instead of rewriting the profile every other booking shares.
+            var other = await db.Customers.SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.NormalizedPhone == normalizedPhone, cancellationToken);
+            if (other is { IsBlocked: true }) return (null, new("customer_blocked", "Số điện thoại mới thuộc một khách đã bị chặn."));
+            customer = other ?? new Customer
+            {
+                PropertyId = propertyId,
+                Name = request.CustomerName.Trim(),
+                Phone = request.CustomerPhone.Trim(),
+                NormalizedPhone = normalizedPhone,
+                IsActive = true
+            };
+            if (other is null) db.Customers.Add(customer);
+        }
 
         var checkInUtc = request.CheckIn.UtcDateTime; var checkOutUtc = request.CheckOut.UtcDateTime;
         var extendsStay = request.RoomId != booking.RoomId || checkInUtc < booking.CheckInUtc || checkOutUtc > booking.CheckOutUtc;
@@ -143,6 +167,8 @@ public sealed class BookingService(
                                   booking.ExtraAmount != request.ExtraAmount ||
                                   booking.DiscountAmount != request.DiscountAmount;
         var before = Snapshot(booking);
+        if (booking.RoomId != request.RoomId || booking.CheckInUtc != checkInUtc || booking.CheckOutUtc != checkOutUtc)
+            await BookingRateSegmentCleanup.RemoveAsync(db, booking.Id, cancellationToken);
         customer.Name = request.CustomerName.Trim(); customer.Phone = request.CustomerPhone.Trim(); customer.NormalizedPhone = normalizedPhone;
         booking.RoomId = request.RoomId; booking.CustomerId = customer.Id; booking.Type = request.Type; booking.RoomRateId = request.RoomRateId;
         booking.RateName = Clean(request.RateName); booking.UnitPrice = request.UnitPrice; booking.NightCount = request.NightCount;
@@ -185,6 +211,11 @@ public sealed class BookingService(
             await voucherService.ReleaseReservedAsync(bookingId, "Booking bị hủy trước khi thanh toán hoàn tất.", cancellationToken);
         if (nextStatus == BookingStatus.Completed)
         {
+            // Completed before the planned check-out = the guest left early. Record the real departure so
+            // the rest of the slot is free again (availability treats Completed as occupying its range).
+            var nowUtc = DateTime.UtcNow;
+            if (nowUtc > booking.CheckInUtc && nowUtc < booking.CheckOutUtc)
+                booking.CheckOutUtc = new DateTime(nowUtc.Ticks - nowUtc.Ticks % TimeSpan.TicksPerMinute, DateTimeKind.Utc);
             var room = await db.Rooms.SingleAsync(x => x.PropertyId == propertyId && x.Id == booking.RoomId, cancellationToken);
             room.HousekeepingStatus = HousekeepingStatus.Dirty; room.HousekeepingUpdatedAtUtc = DateTime.UtcNow; room.HousekeepingUpdatedByUserId = actorUserId;
             await AwardLoyaltyPointsAsync(booking, cancellationToken);

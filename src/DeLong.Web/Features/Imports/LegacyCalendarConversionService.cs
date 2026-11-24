@@ -98,7 +98,7 @@ public sealed class LegacyCalendarConversionService
 
             using var output = new MemoryStream();
             outputWorkbook.SaveAs(output);
-            return (new LegacyCalendarConversion(output.ToArray(), slots.Count, $"DeLong-calendar-converted-{DateTime.Today:yyyyMMdd}.xlsx"), null);
+            return (new LegacyCalendarConversion(output.ToArray(), slots.Count, $"DeLong-calendar-converted-{DeLong.Web.Common.Operations.ExportClock.VietnamNow():yyyyMMdd}.xlsx"), null);
         }
     }
 

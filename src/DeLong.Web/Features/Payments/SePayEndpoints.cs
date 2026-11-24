@@ -18,7 +18,9 @@ public static class SePayEndpoints
         {
             var error = await service.SaveAsync(propertyId, request, ct);
             return error is null ? Results.Ok(await service.GetAsync(propertyId, ct)) : Results.Problem(error, statusCode: 400);
-        }).AddEndpointFilter<ApiAntiforgeryFilter>();
+        }).AddEndpointFilter<ApiAntiforgeryFilter>()
+        // The receiving bank account decides where guests' money goes: Admin only.
+        .RequireAuthorization("ManagePaymentSettings");
         admin.MapPost("/reconcile/{transactionId:long}", async (Guid propertyId, long transactionId, SePayService service, CancellationToken ct) =>
         {
             var result = await service.ReconcileAsync(propertyId, transactionId, ct);

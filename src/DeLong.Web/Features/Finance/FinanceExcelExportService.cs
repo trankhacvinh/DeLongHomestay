@@ -210,7 +210,7 @@ public sealed class FinanceExcelExportService
         sheet.Range(1, 1, 1, columns).Style.Font.SetBold().Font.SetFontSize(16).Font.SetFontColor(XLColor.White)
             .Fill.SetBackgroundColor(Primary).Alignment.SetHorizontal(XLAlignmentHorizontalValues.Left).Alignment.SetVertical(XLAlignmentVerticalValues.Center);
         sheet.Row(1).Height = 30;
-        sheet.Range(2, 1, 2, columns).Merge().Value = $"Phạm vi: {scopeName} · Kỳ: {PeriodLabel(period)} · Xuất lúc: {DateTime.Now:dd/MM/yyyy HH:mm}";
+        sheet.Range(2, 1, 2, columns).Merge().Value = $"Phạm vi: {scopeName} · Kỳ: {PeriodLabel(period)} · Xuất lúc: {DeLong.Web.Common.Operations.ExportClock.VietnamNow():dd/MM/yyyy HH:mm}";
         sheet.Range(2, 1, 2, columns).Style.Font.SetFontColor(Muted).Fill.SetBackgroundColor(PrimaryLight);
         sheet.Row(2).Height = 24;
         return sheet;

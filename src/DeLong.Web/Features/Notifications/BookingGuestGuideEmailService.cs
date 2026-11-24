@@ -50,7 +50,7 @@ public sealed partial class BookingGuestGuideEmailService(
     {
         var booking = await db.Bookings.AsNoTracking()
             .Where(x => x.PropertyId == propertyId && x.Id == bookingId)
-            .Select(x => new { x.Customer.Email, x.Status })
+            .Select(x => new { Email = x.ContactEmail ?? x.Customer.Email, x.Status })
             .SingleOrDefaultAsync(cancellationToken);
         if (booking is null) return new("NotFound", null, null, null, 0, null, false, "Không tìm thấy booking.");
         if (string.IsNullOrWhiteSpace(booking.Email)) return new("NoEmail", null, null, null, 0, null, false, "Khách chưa cung cấp email.");
@@ -119,7 +119,7 @@ public sealed partial class BookingGuestGuideEmailService(
                 x.DiscountAmount,
                 CustomerName = x.Customer.Name,
                 CustomerPhone = x.Customer.Phone,
-                CustomerEmail = x.Customer.Email,
+                CustomerEmail = x.ContactEmail ?? x.Customer.Email,
                 RoomName = x.Room.Name,
                 GuestGuideHtml = x.Room.GuestGuideHtml,
                 x.Note,

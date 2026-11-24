@@ -103,6 +103,7 @@ public sealed class PublicRoomContentService(AppDbContext db, IFusionCache? fusi
                 x.IsBookingLocked,
                 x.Property.PublicCalendarMobileAllRooms,
                 Amenities = x.Amenities.Where(a => a.Amenity.IsActive).Select(a => a.Amenity.Name).OrderBy(a => a).ToList(),
+                PropertyCode = x.Property.Code,
                 Tags = x.Tags.Where(t => t.RoomTag.IsActive).Select(t => t.RoomTag.Name).OrderBy(t => t).ToList(),
                 Cover = x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder)
                     .Select(i => new { i.CardPath, i.FocalX, i.FocalY }).FirstOrDefault(),
@@ -128,7 +129,7 @@ public sealed class PublicRoomContentService(AppDbContext db, IFusionCache? fusi
                 MediaUrlVersioner.WithCropVersion(x.Cover?.CardPath, x.Cover?.FocalX ?? 0.5, x.Cover?.FocalY ?? 0.5),
                 x.Cover?.FocalX ?? 0.5,
                 x.Cover?.FocalY ?? 0.5,
-                HasBathtub(x.Code, x.Amenities),
+                DeLong.Web.Features.Rooms.RoomFeatureRules.HasBathtub(x.PropertyCode, x.Code, x.Amenities),
                 prices.QuickFrom,
                 prices.Overnight,
                 prices.Nightly,
@@ -187,6 +188,7 @@ public sealed class PublicRoomContentService(AppDbContext db, IFusionCache? fusi
                 x.IsBookingLocked,
                 x.DescriptionHtml,
                 Amenities = x.Amenities.Where(a => a.Amenity.IsActive).Select(a => a.Amenity.Name).OrderBy(a => a).ToList(),
+                PropertyCode = x.Property.Code,
                 Tags = x.Tags.Where(t => t.RoomTag.IsActive).Select(t => t.RoomTag.Name).OrderBy(t => t).ToList(),
                 Highlights = x.Highlights.OrderBy(h => h.SortOrder).Select(h => h.Text).ToList(),
                 Images = x.Images.OrderByDescending(i => i.IsCover).ThenBy(i => i.SortOrder)
@@ -241,7 +243,7 @@ public sealed class PublicRoomContentService(AppDbContext db, IFusionCache? fusi
             room.Capacity,
             room.ShortDescription,
             room.DescriptionHtml,
-            HasBathtub(room.Code, room.Amenities),
+            DeLong.Web.Features.Rooms.RoomFeatureRules.HasBathtub(room.PropertyCode, room.Code, room.Amenities),
             prices.QuickFrom,
             prices.Overnight,
             prices.Nightly,
@@ -269,7 +271,4 @@ public sealed class PublicRoomContentService(AppDbContext db, IFusionCache? fusi
         return (Math.Max(1, (int)Math.Round(width * scale)), Math.Max(1, (int)Math.Round(height * scale)));
     }
 
-    private static bool HasBathtub(string code, IReadOnlyCollection<string> amenities) =>
-        amenities.Any(x => x.Contains("bồn tắm", StringComparison.OrdinalIgnoreCase)) ||
-        code is "COCO-01" or "MOON-04" or "AMBER-05" or "ROMAN-06";
 }

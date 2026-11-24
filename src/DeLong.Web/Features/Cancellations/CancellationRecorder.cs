@@ -90,6 +90,30 @@ public static class CancellationRecorder
         }
     }
 
+    /// <summary>
+    /// Hủy tự động (hết hạn thanh toán, không tạo được QR, bỏ dở): đi cùng hồ sơ hủy và audit như hủy tay,
+    /// để danh sách hủy và lịch sử booking thấy ngay. Nếu khách đã trả một phần thì ghi "chờ hoàn".
+    /// </summary>
+    public static async Task<PreparedCancellation?> ApplyAutomaticAsync(
+        AppDbContext db,
+        AuditService audit,
+        Booking booking,
+        string reason,
+        string auditAction,
+        CancellationToken cancellationToken)
+    {
+        if (booking.Status == BookingStatus.Cancelled) return null;
+        var (prepared, error) = await PrepareAsync(db, audit, booking, null,
+            new CancelDetails(reason, new CancelRefundOption(CancelRefundModes.Later)), cancellationToken);
+        if (prepared is null || error is not null) return null;
+        var previous = booking.Status;
+        booking.Status = BookingStatus.Cancelled;
+        db.BookingCancellations.Add(prepared.Record);
+        audit.Add(booking.PropertyId, "Booking", booking.Id, auditAction, null,
+            new { Status = previous.ToString() }, new { Status = booking.Status.ToString(), Reason = reason });
+        return prepared;
+    }
+
     /// <summary>Đánh dấu các hồ sơ hủy đang hiệu lực của booking là đã khôi phục (không còn nằm trong danh sách hủy).</summary>
     public static async Task MarkRestoredAsync(AppDbContext db, Guid bookingId, CancellationToken cancellationToken)
     {

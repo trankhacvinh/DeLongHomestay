@@ -9,8 +9,7 @@ namespace DeLong.Web.Features.Housekeeping;
 
 public sealed class HousekeepingService(AppDbContext db, IRoomConditionMediaStorage? mediaStorage = null)
 {
-    private static readonly BookingStatus[] ScheduleStatuses =
-        [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed];
+    private static readonly BookingStatus[] ScheduleStatuses = DeLong.Web.Features.Bookings.BookingRules.OccupyingStatuses;
     private static readonly (string Name, string Category)[] DefaultConditionTags =
     [
         ("Phòng sạch", "Vệ sinh"),

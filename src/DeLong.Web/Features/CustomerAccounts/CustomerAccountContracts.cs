@@ -25,7 +25,9 @@ public sealed record RegisterCustomerRequest(
     string Name,
     string? Email,
     bool TermsAccepted,
-    int TermsVersion);
+    int TermsVersion,
+    // Required when the phone already has booking history: proves the person owns that history.
+    string? BookingCode = null);
 
 public sealed record CustomerLoginRequest(string Phone, string Password, bool RememberMe);
 public sealed record CustomerAuthenticatorLoginRequest(string Phone, string Code, bool RememberMe);

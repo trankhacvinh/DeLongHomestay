@@ -74,7 +74,7 @@ public static class ImportEndpoints
             return Results.File(
                 bytes,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                $"DeLong-booking-import-{DateTime.Today:yyyyMMdd}.xlsx");
+                $"DeLong-booking-import-{DeLong.Web.Common.Operations.ExportClock.VietnamNow():yyyyMMdd}.xlsx");
         });
 
         return app;

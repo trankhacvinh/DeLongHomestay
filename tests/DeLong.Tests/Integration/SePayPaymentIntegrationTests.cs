@@ -111,6 +111,86 @@ public sealed class SePayPaymentIntegrationTests
 
     [PostgresFact]
     [Trait("Category", "Integration")]
+    public async Task Wrong_amount_alerts_staff_and_keeps_the_room_instead_of_auto_cancelling()
+    {
+        await using var f = await Fixture.Create();
+        var (created, _) = await f.Lifecycle.CreateIntentAsync(f.Property.Id, f.Booking.Id, true);
+        var request = f.Request(created!.OrderId) with { TransferAmount = 100 };
+        Assert.Equal((200, "amount_mismatch"), await f.Service.ReceiveAsync(f.Property.Id, request, "Apikey " + Key, default));
+
+        var notification = await f.Db.PropertyNotifications.AsNoTracking()
+            .SingleAsync(x => x.PropertyId == f.Property.Id && x.Type == $"payment-mismatch:{request.Id}");
+        Assert.Contains(f.Booking.Code, notification.Title, StringComparison.Ordinal);
+
+        var intent = await f.Db.Pay2SPaymentIntents.SingleAsync(x => x.Id == created.Id);
+        Assert.False(intent.CancelBookingOnExpiry);
+        intent.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5);
+        intent.ReleaseAtUtc = DateTime.UtcNow.AddMinutes(-1);
+        await f.Db.SaveChangesAsync();
+        await f.Lifecycle.ExpirePendingAsync();
+        Assert.Equal(BookingStatus.Held, f.Booking.Status);
+    }
+
+    [PostgresFact]
+    [Trait("Category", "Integration")]
+    public async Task Unmatched_code_creates_an_alert_without_a_booking()
+    {
+        await using var f = await Fixture.Create();
+        await f.Lifecycle.CreateIntentAsync(f.Property.Id, f.Booking.Id, true);
+        var request = f.Request("WRONG") with { Content = "chuyen tien phong" };
+        Assert.Equal((200, "unmatched_code"), await f.Service.ReceiveAsync(f.Property.Id, request, "Apikey " + Key, default));
+        Assert.True(await f.Db.PropertyNotifications.AnyAsync(x => x.PropertyId == f.Property.Id &&
+            x.Type == $"payment-mismatch:{request.Id}" && x.BookingId == null));
+    }
+
+    [PostgresFact]
+    [Trait("Category", "Integration")]
+    public async Task Expiry_cancellation_is_recorded_like_a_manual_cancellation()
+    {
+        await using var f = await Fixture.Create();
+        var (created, _) = await f.Lifecycle.CreateIntentAsync(f.Property.Id, f.Booking.Id, true);
+        var intent = await f.Db.Pay2SPaymentIntents.SingleAsync(x => x.Id == created!.Id);
+        intent.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5);
+        intent.ReleaseAtUtc = DateTime.UtcNow.AddMinutes(-1);
+        await f.Db.SaveChangesAsync();
+        await f.Lifecycle.ExpirePendingAsync();
+        Assert.Equal(BookingStatus.Cancelled, f.Booking.Status);
+        Assert.True(await f.Db.BookingCancellations.AnyAsync(x => x.BookingId == f.Booking.Id && x.RestoredAtUtc == null));
+        Assert.True(await f.Db.AuditLogs.AnyAsync(x => x.EntityId == f.Booking.Id && x.Action == "PaymentExpired"));
+    }
+
+    [PostgresFact]
+    [Trait("Category", "Integration")]
+    public async Task Abandoned_web_hold_without_payment_session_is_cancelled()
+    {
+        await using var f = await Fixture.Create();
+        f.Booking.Source = "Website";
+        f.Booking.CreatedAtUtc = DateTime.UtcNow.AddMinutes(-30);
+        var staffHold = new Booking
+        {
+            PropertyId = f.Property.Id, RoomId = f.Booking.RoomId, CustomerId = f.Booking.CustomerId, Code = "S" + Guid.NewGuid().ToString("N")[..9],
+            CheckInUtc = f.Booking.CheckInUtc.AddDays(1), CheckOutUtc = f.Booking.CheckOutUtc.AddDays(1), Status = BookingStatus.Held,
+            RoomAmount = 100000, Source = "Zalo", CreatedAtUtc = DateTime.UtcNow.AddMinutes(-30)
+        };
+        var freshWebHold = new Booking
+        {
+            PropertyId = f.Property.Id, RoomId = f.Booking.RoomId, CustomerId = f.Booking.CustomerId, Code = "W" + Guid.NewGuid().ToString("N")[..9],
+            CheckInUtc = f.Booking.CheckInUtc.AddDays(2), CheckOutUtc = f.Booking.CheckOutUtc.AddDays(2), Status = BookingStatus.Held,
+            RoomAmount = 100000, Source = "Website"
+        };
+        f.Db.AddRange(staffHold, freshWebHold);
+        await f.Db.SaveChangesAsync();
+
+        Assert.True(await f.Lifecycle.CancelAbandonedWebHoldsAsync(TimeSpan.FromMinutes(15)) >= 1);
+        Assert.Equal(BookingStatus.Cancelled, f.Booking.Status);
+        Assert.Equal(VoucherRedemptionStatus.Released, f.Redemption.Status);
+        Assert.True(await f.Db.BookingCancellations.AnyAsync(x => x.BookingId == f.Booking.Id));
+        Assert.Equal(BookingStatus.Held, staffHold.Status);
+        Assert.Equal(BookingStatus.Held, freshWebHold.Status);
+    }
+
+    [PostgresFact]
+    [Trait("Category", "Integration")]
     public async Task Expiry_releases_voucher_late_transfer_is_recorded_without_restoring_room()
     {
         await using var f = await Fixture.Create();

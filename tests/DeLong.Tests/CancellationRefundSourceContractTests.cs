@@ -6,7 +6,6 @@ public sealed class CancellationRefundSourceContractTests
 {
     [Theory]
     [InlineData("src/DeLong.Web/Pages/Admin/Bookings/Index.cshtml")]
-    [InlineData("src/DeLong.Web/Pages/Admin/Calendar.cshtml")]
     [InlineData("src/DeLong.Web/Pages/Admin/CalendarV2.cshtml")]
     public void Every_booking_screen_uses_the_shared_cancel_dialog(string page)
     {

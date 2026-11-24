@@ -33,8 +33,9 @@ public sealed class PublicBookingEmailLookupService(AppDbContext db, PublicPrope
                 x.RecipientEmail == recipient && x.CreatedAtUtc >= cutoff, ct)) return;
 
         var bookings = await db.Bookings.AsNoTracking()
-            .Where(x => x.PropertyId == property.Id && x.Customer.Email != null &&
-                        x.Customer.Email.Trim().ToLower() == recipient)
+            .Where(x => x.PropertyId == property.Id &&
+                        ((x.ContactEmail != null && x.ContactEmail.Trim().ToLower() == recipient) ||
+                         (x.ContactEmail == null && x.Customer.Email != null && x.Customer.Email.Trim().ToLower() == recipient)))
             .OrderByDescending(x => x.CreatedAtUtc).Take(20)
             .Select(x => new
             {

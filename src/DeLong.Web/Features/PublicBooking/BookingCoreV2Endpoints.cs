@@ -16,6 +16,9 @@ namespace DeLong.Web.Features.PublicBooking;
 
 public static class BookingCoreV2Endpoints
 {
+    // Phones compress CCCD photos to ~100 KB before upload; 16 MB still covers an uncompressed photo.
+    private const long PublicIdentityMaxRequestBytes = 16L * 1024 * 1024;
+
     private const string IdentityStorageUnavailable = "Kho CCCD không thể đọc hoặc tạo khóa mã hóa trong DataRoot. Hãy kiểm tra quyền DataRoot/security hoặc khôi phục DataRoot đầy đủ từ bản sao lưu.";
 
     public static void MapBookingCoreV2Endpoints(this IEndpointRouteBuilder app)
@@ -94,6 +97,7 @@ public static class BookingCoreV2Endpoints
         .AllowAnonymous()
         .AddEndpointFilter<ApiAntiforgeryFilter>()
         .RequireRateLimiting("public-booking-identity")
+        .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(PublicIdentityMaxRequestBytes))
         .WithTags("Public Booking");
 
         // Photos uploaded while the guest is still filling the form (before the booking exists).
@@ -131,6 +135,7 @@ public static class BookingCoreV2Endpoints
         .AllowAnonymous()
         .AddEndpointFilter<ApiAntiforgeryFilter>()
         .RequireRateLimiting("public-booking-identity")
+        .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(PublicIdentityMaxRequestBytes))
         .WithTags("Public Booking");
 
         app.MapPost("/api/public/booking-requests/{bookingId:guid}/identity-staging/claim", async (
@@ -174,6 +179,7 @@ public static class BookingCoreV2Endpoints
         .AllowAnonymous()
         .AddEndpointFilter<ApiAntiforgeryFilter>()
         .RequireRateLimiting("public-booking-identity")
+        .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(PublicIdentityMaxRequestBytes))
         .WithTags("Public Booking");
 
         app.MapPost("/api/public/booking-requests/{bookingId:guid}/complete", async (
@@ -292,7 +298,7 @@ public static class BookingCoreV2Endpoints
             var checkInEmail = await guestGuideEmailService.GetStatusAsync(propertyId, bookingId, cancellationToken);
             return Results.Ok(new
             {
-                customerEmail = booking.Customer.Email ?? string.Empty,
+                customerEmail = booking.ContactEmail ?? booking.Customer.Email ?? string.Empty,
                 guestCount = details.GuestCount,
                 maxGuests = booking.Room.Capacity,
                 policyAccepted = details.PolicyAccepted,
@@ -342,8 +348,9 @@ public static class BookingCoreV2Endpoints
                 return Problem("email_invalid", "Email khách không hợp lệ.", StatusCodes.Status400BadRequest);
 
             var (current, cleanNote) = await LoadOrMigrateGuestDetailsAsync(db, paths, booking, cancellationToken);
-            var emailChanged = !string.Equals(booking.Customer.Email, email, StringComparison.OrdinalIgnoreCase);
-            booking.Customer.Email = email;
+            var emailChanged = !string.Equals(booking.ContactEmail ?? booking.Customer.Email, email, StringComparison.OrdinalIgnoreCase);
+            booking.ContactEmail = email;
+            if (email is not null && string.IsNullOrWhiteSpace(booking.Customer.Email)) booking.Customer.Email = email;
             booking.Note = cleanNote;
             await db.SaveChangesAsync(cancellationToken);
 
@@ -360,7 +367,7 @@ public static class BookingCoreV2Endpoints
                 await guestGuideEmailService.QueueAutomaticAsync(propertyId, bookingId, cancellationToken);
             return Results.Ok(new
             {
-                customerEmail = booking.Customer.Email ?? string.Empty,
+                customerEmail = booking.ContactEmail ?? booking.Customer.Email ?? string.Empty,
                 guestCount = updated.GuestCount,
                 maxGuests = booking.Room.Capacity,
                 policyAccepted = updated.PolicyAccepted,
@@ -426,6 +433,18 @@ public static class BookingCoreV2Endpoints
                 return Problem("identity_document_corrupt", "Không thể giải mã ảnh CCCD. Vui lòng kiểm tra file lưu trữ và master key trong DataRoot/security.", StatusCodes.Status500InternalServerError);
             }
             if (document is null) return Results.NotFound();
+            // Viewing a CCCD is a personal-data access (Nghị định 13/2023): keep a trail of who looked.
+            // One entry per user/booking/side per 10 minutes, since the viewer reloads the image.
+            var viewer = Guid.TryParse(httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier), out var viewerId) ? viewerId : (Guid?)null;
+            var recent = DateTime.UtcNow.AddMinutes(-10);
+            var sideKey = side.Trim().ToLowerInvariant();
+            if (!await db.AuditLogs.AsNoTracking().AnyAsync(x => x.PropertyId == propertyId && x.EntityType == "Booking" &&
+                    x.EntityId == bookingId && x.Action == "IdentityViewed" && x.ActorUserId == viewer &&
+                    x.CreatedAtUtc >= recent && x.AfterJson != null && x.AfterJson.Contains(sideKey), cancellationToken))
+            {
+                new AuditService(db).Add(propertyId, "Booking", bookingId, "IdentityViewed", viewer, after: new { Side = sideKey });
+                await db.SaveChangesAsync(cancellationToken);
+            }
             httpContext.Response.Headers.CacheControl = "private,no-store,max-age=0";
             httpContext.Response.Headers.Pragma = "no-cache";
             return Results.File(document.Bytes, document.ContentType, enableRangeProcessing: false);

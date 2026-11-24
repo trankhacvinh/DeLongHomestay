@@ -8,10 +8,14 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace DeLong.Web.Pages.Account;
 
 [Authorize(Policy = "AdminArea")]
-public sealed class AuthenticatorModel(UserManager<ApplicationUser> userManager) : PageModel
+public sealed class AuthenticatorModel(
+    UserManager<ApplicationUser> userManager,
+    SignInManager<ApplicationUser> signInManager,
+    IConfiguration configuration) : PageModel
 {
     public string SharedKey { get; private set; } = string.Empty;
     public bool Enabled { get; private set; }
+    public bool Required => configuration.GetValue<bool>("Authentication:RequireStaffTwoFactor");
     public IReadOnlyList<string> RecoveryCodes { get; private set; } = [];
     [BindProperty, Required] public string Code { get; set; } = string.Empty;
 
@@ -29,6 +33,8 @@ public sealed class AuthenticatorModel(UserManager<ApplicationUser> userManager)
             return Page();
         }
         await userManager.SetTwoFactorEnabledAsync(user, true);
+        // Re-issue the cookie now so the "2FA missing" claim disappears without waiting for revalidation.
+        await signInManager.RefreshSignInAsync(user);
         RecoveryCodes = (await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 8))?.ToArray() ?? [];
         await LoadAsync(true);
         return Page();
@@ -38,6 +44,12 @@ public sealed class AuthenticatorModel(UserManager<ApplicationUser> userManager)
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null) return Challenge();
+        if (Required)
+        {
+            ModelState.AddModelError(string.Empty, "Cơ sở đang bắt buộc xác thực 2 lớp cho nhân viên nên không thể tắt.");
+            await LoadAsync();
+            return Page();
+        }
         await userManager.SetTwoFactorEnabledAsync(user, false);
         await userManager.ResetAuthenticatorKeyAsync(user);
         return RedirectToPage();

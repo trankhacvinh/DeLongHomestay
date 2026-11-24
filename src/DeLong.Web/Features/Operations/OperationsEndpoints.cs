@@ -61,7 +61,7 @@ public static class OperationsEndpoints
                 return Results.Problem(detail: "Khoảng thời gian không hợp lệ.", statusCode: 400);
             var bookings = await db.Bookings.AsNoTracking()
                 .Where(x => x.PropertyId == propertyId && x.RoomId == roomId &&
-                            (x.Status == BookingStatus.Held || x.Status == BookingStatus.Confirmed || x.Status == BookingStatus.CheckedIn || x.Status == BookingStatus.Completed) &&
+                            DeLong.Web.Features.Bookings.BookingRules.OccupyingStatuses.Contains(x.Status) &&
                             (!excludeBookingId.HasValue || x.Id != excludeBookingId.Value) &&
                             x.CheckInUtc < toUtc && fromUtc < x.CheckOutUtc)
                 .OrderBy(x => x.CheckInUtc)
@@ -277,17 +277,8 @@ public static class OperationsEndpoints
 
         using var subscription = OperationsRealtimeBroker.Shared.Subscribe(propertyId);
         var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
-        var nextHoldSweepAtUtc = DateTime.UtcNow;
-
         while (!cancellationToken.IsCancellationRequested)
         {
-            if (DateTime.UtcNow >= nextHoldSweepAtUtc)
-            {
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, propertyId, cancellationToken);
-                nextHoldSweepAtUtc = DateTime.UtcNow.AddSeconds(5);
-            }
 
             var waitForEvent = subscription.Reader.WaitToReadAsync(cancellationToken).AsTask();
             var heartbeat = Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);

@@ -11,6 +11,15 @@ fi
 BACKUP_DIR="$2"
 DUMP="$BACKUP_DIR/database.dump"
 
+if [[ ! -f "$DUMP" && -f "$DUMP.age" ]]; then
+  : "${DELONG_BACKUP_AGE_IDENTITY:?Backup is encrypted. Set DELONG_BACKUP_AGE_IDENTITY to the age private key file.}"
+  DECRYPTED_DIR="$(mktemp -d)"
+  trap 'rm -rf "$DECRYPTED_DIR"' EXIT
+  age -d -i "$DELONG_BACKUP_AGE_IDENTITY" -o "$DECRYPTED_DIR/database.dump" "$DUMP.age"
+  DUMP="$DECRYPTED_DIR/database.dump"
+  echo "Decrypted database dump. Decrypt data-root.tar.gz.age the same way: age -d -i <key> -o data-root.tar.gz data-root.tar.gz.age"
+fi
+
 if [[ ! -f "$DUMP" ]]; then
   echo "Missing $DUMP" >&2
   exit 3

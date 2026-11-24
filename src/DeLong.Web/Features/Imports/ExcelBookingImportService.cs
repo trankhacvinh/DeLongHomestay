@@ -73,7 +73,7 @@ internal sealed record ResolvedImportRow(
 public sealed class ExcelBookingImportService(AppDbContext db, AuditService auditService)
 {
     private const long MaxFileBytes = 10L * 1024 * 1024;
-    private static readonly BookingStatus[] LockingStatuses = [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed];
+    private static readonly BookingStatus[] LockingStatuses = DeLong.Web.Features.Bookings.BookingRules.OccupyingStatuses;
     private static readonly string[] RequiredStructuredHeaders = ["Mã phòng", "Tên khách hàng", "Số điện thoại", "Ngày giờ checkin", "Ngày giờ checkout"];
 
     public async Task<(BookingImportPreview? Preview, BookingImportError? Error)> PreviewAsync(

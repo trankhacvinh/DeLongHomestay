@@ -276,7 +276,7 @@ public sealed class ReportExcelExportService
             .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Left)
             .Alignment.SetVertical(XLAlignmentVerticalValues.Center);
         sheet.Row(1).Height = 30;
-        sheet.Range(2, 1, 2, columns).Merge().Value = $"Phạm vi: {scopeName} · Kỳ báo cáo: {month:MM/yyyy} · Xuất lúc: {DateTime.Now:dd/MM/yyyy HH:mm}";
+        sheet.Range(2, 1, 2, columns).Merge().Value = $"Phạm vi: {scopeName} · Kỳ báo cáo: {month:MM/yyyy} · Xuất lúc: {DeLong.Web.Common.Operations.ExportClock.VietnamNow():dd/MM/yyyy HH:mm}";
         sheet.Range(2, 1, 2, columns).Style.Font.SetFontColor(Muted).Fill.SetBackgroundColor(PrimaryLight);
         sheet.Row(2).Height = 24;
         return sheet;

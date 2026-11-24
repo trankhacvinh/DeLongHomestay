@@ -10,6 +10,8 @@ public static class TelegramEvents
     {
         var key = type.Split(':')[0];
         if (key == "booking-email-only") key = "booking-requested";
+        // Tiền về nhưng không khớp đi chung công tắc với "tiền đến muộn": cùng là khoản cần xử lý tay.
+        if (key == "payment-mismatch") key = "pay2s-paid-after-expiry";
         return Parse(stored).Contains(key, StringComparer.Ordinal);
     }
 }

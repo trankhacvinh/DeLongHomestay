@@ -25,7 +25,16 @@ public sealed class PublicBookingCoreV2Service(
         PublicBookingRequest request,
         string? requestKey,
         Guid? customerUserId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        await CreateRequestAsync(siteSlug, request, requestKey, customerUserId, retriesLeft: 2, cancellationToken);
+
+    private async Task<(PublicBookingResult? Result, PublicBookingError? Error)> CreateRequestAsync(
+        string? siteSlug,
+        PublicBookingRequest request,
+        string? requestKey,
+        Guid? customerUserId,
+        int retriesLeft,
+        CancellationToken cancellationToken)
     {
         var property = await propertyResolver.ResolveAsync(siteSlug, cancellationToken);
         if (property is null) return (null, new("property_not_found", "Không tìm thấy cơ sở."));
@@ -43,11 +52,13 @@ public sealed class PublicBookingCoreV2Service(
         if (error is not null || result is null)
         {
             await transaction.RollbackAsync(cancellationToken);
-            if (error?.Code == "public_request_retry" && !string.IsNullOrWhiteSpace(requestKey))
+            // A duplicate submit races on the request key: retry so the second call replays the first
+            // booking. Bound it, because the same error code covers every unique violation.
+            if (error?.Code == "public_request_retry" && !string.IsNullOrWhiteSpace(requestKey) && retriesLeft > 0)
             {
                 await transaction.DisposeAsync();
                 db.ChangeTracker.Clear();
-                return await CreateRequestAsync(siteSlug, request, requestKey, customerUserId, cancellationToken);
+                return await CreateRequestAsync(siteSlug, request, requestKey, customerUserId, retriesLeft - 1, cancellationToken);
             }
             return (result, error);
         }
@@ -58,7 +69,11 @@ public sealed class PublicBookingCoreV2Service(
 
         booking.ExtraAmount = validation.Surcharge;
         booking.Note = CleanNote(request.Note);
-        booking.Customer.Email = request.CustomerEmail.Trim();
+        var contactEmail = request.CustomerEmail.Trim();
+        booking.ContactEmail = contactEmail;
+        booking.ContactName = request.CustomerName.Trim();
+        // Fill an empty profile, never overwrite one: the profile belongs to the phone's owner.
+        if (string.IsNullOrWhiteSpace(booking.Customer.Email)) booking.Customer.Email = contactEmail;
         VoucherApplicationResult? voucher = null;
         if (!string.IsNullOrWhiteSpace(request.VoucherCode))
         {
@@ -104,13 +119,6 @@ public sealed class PublicBookingCoreV2Service(
             PriceBeforeVoucher = voucher is null ? null : booking.RoomAmount + booking.SpecialSurchargeAmount + booking.ExtraAmount,
             PaymentRequired = booking.TotalAmount > 0
         }, null);
-    }
-
-    public async Task ReleaseExpiredHoldsAsync(string? siteSlug, CancellationToken cancellationToken = default)
-    {
-        var property = await propertyResolver.ResolveAsync(siteSlug, cancellationToken);
-        if (property is null) return;
-        await new PublicBookingHoldStore(storagePaths).ReleaseExpiredAsync(db, property.Id, cancellationToken);
     }
 
     private async Task<(PublicBookingError? Error, decimal Surcharge, int IncludedGuests)> ValidateAsync(
@@ -193,19 +201,6 @@ public sealed class PublicBookingCoreV2Service(
         if (outboxRows.Count > 0) await db.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task RemoveNotificationAsync(Guid propertyId, Guid bookingId, CancellationToken cancellationToken)
-    {
-        var notifications = await db.PropertyNotifications
-            .Where(x => x.PropertyId == propertyId && x.BookingId == bookingId)
-            .ToListAsync(cancellationToken);
-        if (notifications.Count == 0) return;
-        var ids = notifications.Select(x => x.Id).ToArray();
-        var outbox = await db.NotificationEmailOutbox.Where(x => ids.Contains(x.NotificationId)).ToListAsync(cancellationToken);
-        db.NotificationEmailOutbox.RemoveRange(outbox);
-        db.PropertyNotifications.RemoveRange(notifications);
-        await db.SaveChangesAsync(cancellationToken);
-    }
-
     private static string? CleanNote(string? note) =>
         string.IsNullOrWhiteSpace(note) ? null : note.Trim();
 
@@ -222,9 +217,6 @@ public sealed class PublicBookingCoreV2Service(
             return false;
         }
     }
-
-    private static string AppendLine(string? current, string line) =>
-        string.IsNullOrWhiteSpace(current) ? line : current.TrimEnd() + Environment.NewLine + line;
 
     private static void ReplaceOrAppend(List<string> lines, string prefix, string replacement)
     {

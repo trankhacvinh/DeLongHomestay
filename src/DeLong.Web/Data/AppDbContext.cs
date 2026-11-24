@@ -394,6 +394,8 @@ public sealed class AppDbContext
             entity.HasIndex(x => new { x.PropertyId, x.PublicRequestKey }).IsUnique().HasFilter("\"public_request_key\" IS NOT NULL");
             entity.Property(x => x.Code).HasMaxLength(30).IsRequired();
             entity.Property(x => x.DisplayColor).HasMaxLength(7);
+            entity.Property(x => x.ContactName).HasMaxLength(200);
+            entity.Property(x => x.ContactEmail).HasMaxLength(254);
             entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(20).HasDefaultValue(BookingType.TimeSlot).IsRequired();
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
             entity.Property(x => x.RateName).HasMaxLength(100);

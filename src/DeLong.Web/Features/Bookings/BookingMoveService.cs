@@ -19,8 +19,7 @@ public sealed class BookingMoveService(
     AuditService auditService,
     BookingService bookingService)
 {
-    private static readonly BookingStatus[] LockingStatuses =
-        [BookingStatus.Held, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.Completed];
+    private static readonly BookingStatus[] LockingStatuses = BookingRules.OccupyingStatuses;
 
     public async Task<(BookingDto? Booking, BookingOperationError? Error)> MoveAsync(
         Guid propertyId,
@@ -148,6 +147,8 @@ public sealed class BookingMoveService(
             return (null, ConflictError());
 
         var before = Snapshot(booking);
+        if (booking.RoomId != request.RoomId || booking.CheckInUtc != newCheckInUtc || booking.CheckOutUtc != newCheckOutUtc)
+            await BookingRateSegmentCleanup.RemoveAsync(db, booking.Id, cancellationToken);
         booking.RoomId = request.RoomId;
         booking.RoomRateId = newRateId;
         booking.RateName = newRateName;

@@ -118,8 +118,15 @@ public sealed class SePayService(AppDbContext db, SePaySettingsService settings,
         db.Add(received);
         if (received.Outcome != "matched")
         {
+            // A wrong amount means the guest did pay: keep the room for them instead of letting the
+            // expiry worker cancel the booking while the money sits in the account.
+            if (received.Outcome == "amount_mismatch" && intent is not null &&
+                intent.Booking.Status is BookingStatus.Requested or BookingStatus.Held)
+                intent.CancelBookingOnExpiry = false;
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
+            await notifications.NotifyPaymentMismatchAsync(propertyId, intent?.BookingId, request.Id, received.Outcome,
+                request.TransferAmount, intent?.Amount, request.Content, "SePay", ct);
             return (200, received.Outcome);
         }
         var now = DateTime.UtcNow;

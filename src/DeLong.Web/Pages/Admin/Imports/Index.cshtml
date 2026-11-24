@@ -106,7 +106,7 @@
     <section v-if="imported" class="panel import-success-card">
         <span class="import-success-mark">✓</span>
         <div><span class="page-eyebrow">Hoàn tất</span><h2>Đã import {{ imported.importedRows }} lượt đặt</h2><p>{{ imported.skippedDuplicates }} dòng trùng được bỏ qua. Bạn có thể mở Lịch phòng hoặc Đặt phòng để kiểm tra dữ liệu vừa nhập.</p></div>
-        <div class="import-success-actions"><a class="btn btn-primary" v-bind:href="'/Admin/Calendar?propertyId=' + propertyId">Mở Lịch phòng</a><a class="btn btn-light" v-bind:href="'/Admin/Bookings?propertyId=' + propertyId">Mở Đặt phòng</a></div>
+        <div class="import-success-actions"><a class="btn btn-primary" v-bind:href="'/Admin/CalendarV2?propertyId=' + propertyId">Mở Lịch phòng</a><a class="btn btn-light" v-bind:href="'/Admin/Bookings?propertyId=' + propertyId">Mở Đặt phòng</a></div>
     </section>
 
     <div class="toast" v-if="toast.show" v-bind:class="toast.type" aria-live="polite">{{ toast.message }}</div>

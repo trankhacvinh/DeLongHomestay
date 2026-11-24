@@ -97,7 +97,7 @@ public sealed class Pay2SService(
         var requestId = $"RQ{suffix}";
         var orderInfo = $"BOOK{booking.Code.Replace("-", string.Empty, StringComparison.Ordinal)[^Math.Min(20, booking.Code.Replace("-", string.Empty, StringComparison.Ordinal).Length)..]}";
         if (orderInfo.Length > 32) orderInfo = orderInfo[..32];
-        var customer = new Pay2SCustomerData(booking.Customer.Name, booking.Customer.Phone, booking.Customer.Email);
+        var customer = new Pay2SCustomerData(booking.Customer.Name, booking.Customer.Phone, booking.ContactEmail ?? booking.Customer.Email);
         var (created, createError) = await client.CreateAsync(profile, requestId, orderId, orderInfo, amount, customer, ct);
         if (created is null) return (null, createError);
 
@@ -285,6 +285,7 @@ public sealed class Pay2SService(
     public async Task<int> ExpirePendingAsync(CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
+        var cancelled = new List<(Guid PropertyId, Guid BookingId, Guid RoomId)>();
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var intents = await db.Pay2SPaymentIntents
             .FromSqlInterpolated($"""
@@ -295,21 +296,72 @@ public sealed class Pay2SService(
                 """)
             .Include(x => x.Booking)
             .ToListAsync(ct);
+        var audit = new DeLong.Web.Common.Auditing.AuditService(db);
         foreach (var intent in intents)
         {
             intent.Status = Pay2SPaymentIntentStatus.Expired;
-            if (intent.CancelBookingOnExpiry && intent.Booking.Status is BookingStatus.Held or BookingStatus.Requested)
+            if (intent.CancelBookingOnExpiry && intent.Booking.Status is BookingStatus.Held or BookingStatus.Requested &&
+                !await HasOtherOpenIntentAsync(intent, now, ct))
             {
-                var previousBookingStatus = intent.Booking.Status;
-                intent.Booking.Status = BookingStatus.Cancelled;
-                new DeLong.Web.Common.Auditing.AuditService(db).Add(intent.PropertyId, "Booking", intent.BookingId, "PaymentExpired", null,
-                    new { Status = previousBookingStatus.ToString() }, new { Status = intent.Booking.Status.ToString() });
+                var applied = await DeLong.Web.Features.Cancellations.CancellationRecorder.ApplyAutomaticAsync(
+                    db, audit, intent.Booking, "Hết thời gian thanh toán, hệ thống tự hủy.", "PaymentExpired", ct);
+                if (applied is null) continue;
                 await voucherService.ReleaseReservedAsync(intent.BookingId, "Booking bị hủy do hết thời gian thanh toán.", ct);
+                cancelled.Add((intent.PropertyId, intent.BookingId, intent.Booking.RoomId));
             }
         }
         if (intents.Count > 0) await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        PublishCancelled(cancelled);
         return intents.Count;
+    }
+
+    // A booking created from the website is Held before its QR exists. If the request is cut off between
+    // the two steps (guest closes the tab, gateway error, restart) no intent ever expires it, so the room
+    // would stay blocked until staff notice. Cancel such holds once they are clearly abandoned.
+    public async Task<int> CancelAbandonedWebHoldsAsync(TimeSpan grace, CancellationToken ct = default)
+    {
+        var cutoff = DateTime.UtcNow - grace;
+        var cancelled = new List<(Guid PropertyId, Guid BookingId, Guid RoomId)>();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var bookings = await db.Bookings
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM bookings
+                WHERE status = 'Held' AND source = 'Website' AND created_at_utc <= {cutoff}
+                FOR UPDATE SKIP LOCKED
+                """)
+            .Where(b => !db.Pay2SPaymentIntents.Any(x => x.BookingId == b.Id) &&
+                        !db.Payments.Any(p => p.BookingId == b.Id && !p.IsVoided) &&
+                        !db.AuditLogs.Any(a => a.EntityType == "Booking" && a.EntityId == b.Id &&
+                                               a.Action == "Created" && a.ActorUserId != null))
+            .Take(100)
+            .ToListAsync(ct);
+        var audit = new DeLong.Web.Common.Auditing.AuditService(db);
+        foreach (var booking in bookings)
+        {
+            var applied = await DeLong.Web.Features.Cancellations.CancellationRecorder.ApplyAutomaticAsync(
+                db, audit, booking, "Khách chưa hoàn tất bước thanh toán, hệ thống tự hủy để mở lại phòng.", "AbandonedHoldCancelled", ct);
+            if (applied is null) continue;
+            await voucherService.ReleaseReservedAsync(booking.Id, "Booking bị hủy do khách bỏ dở bước thanh toán.", ct);
+            cancelled.Add((booking.PropertyId, booking.Id, booking.RoomId));
+        }
+        if (cancelled.Count > 0) await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        PublishCancelled(cancelled);
+        return cancelled.Count;
+    }
+
+    private Task<bool> HasOtherOpenIntentAsync(Pay2SPaymentIntent intent, DateTime now, CancellationToken ct) =>
+        db.Pay2SPaymentIntents.AsNoTracking().AnyAsync(x => x.BookingId == intent.BookingId && x.Id != intent.Id &&
+            (x.Status == Pay2SPaymentIntentStatus.Pending || x.Status == Pay2SPaymentIntentStatus.Failed) && x.ReleaseAtUtc > now, ct);
+
+    private static void PublishCancelled(IEnumerable<(Guid PropertyId, Guid BookingId, Guid RoomId)> items)
+    {
+        foreach (var item in items)
+            DeLong.Web.Features.Operations.OperationsRealtimeBroker.Shared.Publish(
+                DeLong.Web.Features.Operations.OperationsRealtimeEvent.Create(
+                    item.PropertyId, DeLong.Web.Features.Operations.OperationsEventTypes.BookingStatusChanged, item.BookingId, item.RoomId));
     }
 
     public async Task<(Pay2SIntentDto? Intent, Pay2SOperationError? Error)> ResolveLatePaymentAsync(

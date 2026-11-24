@@ -1,3 +1,4 @@
+using DeLong.Web.Features.Bookings;
 using DeLong.Web.Data;
 using DeLong.Web.Features.Cancellations;
 using DeLong.Web.Domain.Enums;
@@ -69,7 +70,8 @@ public sealed class ReportService(AppDbContext db)
             .ToListAsync(cancellationToken);
 
         var bookingRows = allBookingRows
-            .Where(x => x.Status is not BookingStatus.Cancelled and not BookingStatus.NoShow)
+            // "Requested" is an unconfirmed, unpaid request (incl. restored cancellations): not revenue yet.
+            .Where(x => BookingRules.OccupiesRoom(x.Status))
             .ToList();
 
         var paymentRows = await db.Payments
@@ -93,7 +95,7 @@ public sealed class ReportService(AppDbContext db)
 
         var outstandingProjection = await db.Bookings
             .AsNoTracking()
-            .Where(x => x.PropertyId == propertyId && x.Status != BookingStatus.Cancelled && x.Status != BookingStatus.NoShow)
+            .Where(x => x.PropertyId == propertyId && BookingRules.OccupyingStatuses.Contains(x.Status))
             .Select(x => new
             {
                 x.CheckInUtc,
@@ -245,7 +247,7 @@ public sealed class ReportService(AppDbContext db)
             ? (netReceipts == 0 ? 0d : null)
             : Math.Round((double)((netReceipts - previousMonthReceipts) / Math.Abs(previousMonthReceipts) * 100), 1);
 
-        var cancelledBookingCount = allBookingRows.Count - bookingRows.Count;
+        var cancelledBookingCount = allBookingRows.Count(x => x.Status is BookingStatus.Cancelled or BookingStatus.NoShow);
         var cancellationRate = allBookingRows.Count == 0
             ? 0
             : Math.Round((double)cancelledBookingCount / allBookingRows.Count * 100, 1);

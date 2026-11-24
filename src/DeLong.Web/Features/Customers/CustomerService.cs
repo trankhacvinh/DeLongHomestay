@@ -191,7 +191,8 @@ public sealed class CustomerService(AppDbContext db)
         Guid? customerId,
         string customerName,
         string customerPhone,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool updateExistingName = true)
     {
         if (customerId.HasValue)
         {
@@ -208,7 +209,7 @@ public sealed class CustomerService(AppDbContext db)
             cancellationToken);
         if (existing is not null)
         {
-            existing.Name = customerName.Trim();
+            if (updateExistingName || string.IsNullOrWhiteSpace(existing.Name)) existing.Name = customerName.Trim();
             return existing;
         }
 

@@ -328,6 +328,19 @@ public sealed class IdentityDocumentStorage
         return Task.CompletedTask;
     }
 
+    /// <summary>Booking folders that currently hold CCCD photos (for the retention job).</summary>
+    public IEnumerable<(Guid PropertyId, Guid BookingId)> EnumerateBookingFolders()
+    {
+        if (!Directory.Exists(root)) yield break;
+        foreach (var propertyDirectory in Directory.EnumerateDirectories(root))
+        {
+            if (!Guid.TryParseExact(Path.GetFileName(propertyDirectory), "N", out var propertyId)) continue;
+            foreach (var bookingDirectory in Directory.EnumerateDirectories(propertyDirectory))
+                if (Guid.TryParseExact(Path.GetFileName(bookingDirectory), "N", out var bookingId))
+                    yield return (propertyId, bookingId);
+        }
+    }
+
     public string GetEncryptedPathForDiagnostics(Guid propertyId, Guid bookingId, string side)
     {
         var normalizedSide = NormalizeSide(side) ?? throw new ArgumentException("Invalid side.", nameof(side));

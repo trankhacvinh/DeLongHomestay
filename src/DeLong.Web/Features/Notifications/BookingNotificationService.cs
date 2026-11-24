@@ -18,6 +18,7 @@ public sealed class BookingNotificationService(
     private const string BookingCheckedInType = "booking-checked-in";
     private const string BookingCompletedType = "booking-completed";
     private const string Pay2SLatePaymentType = "pay2s-paid-after-expiry";
+    public const string PaymentMismatchType = "payment-mismatch";
     private static readonly string[] InAppTypes = [BookingRequestedType, Pay2SLatePaymentType, "data-quality"];
 
     public async Task NotifyLatePay2SPaymentAsync(Guid propertyId, Guid bookingId, decimal amount, CancellationToken cancellationToken = default, string provider = "Pay2S")
@@ -52,6 +53,77 @@ public sealed class BookingNotificationService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Could not create late Pay2S notification for booking {BookingId} in property {PropertyId}.", bookingId, propertyId);
+            DetachPendingNotificationEntries();
+        }
+    }
+
+    /// <summary>
+    /// Tiền đã về tài khoản nhưng không tự ghi nhận được (lệch số tiền, sai/thiếu mã, chuyển thêm lần nữa).
+    /// Nhân viên phải biết ngay, vì booking giữ chỗ có thể đang chờ đúng khoản tiền này.
+    /// </summary>
+    public async Task NotifyPaymentMismatchAsync(
+        Guid propertyId,
+        Guid? bookingId,
+        long transactionId,
+        string outcome,
+        decimal amount,
+        decimal? expectedAmount,
+        string? content,
+        string provider = "SePay",
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var type = $"{PaymentMismatchType}:{transactionId}";
+            if (type.Length > 50) type = type[..50];
+            if (await db.Set<PropertyNotification>().AsNoTracking()
+                    .AnyAsync(x => x.PropertyId == propertyId && x.Type == type, cancellationToken)) return;
+            var booking = bookingId.HasValue ? await LoadBookingAsync(propertyId, bookingId.Value, cancellationToken) : null;
+            var propertyName = booking?.PropertyName ?? await db.Properties.AsNoTracking()
+                .Where(x => x.Id == propertyId).Select(x => x.Name).SingleOrDefaultAsync(cancellationToken) ?? string.Empty;
+            var reason = outcome switch
+            {
+                "amount_mismatch" => expectedAmount.HasValue
+                    ? $"Lệch số tiền: cần {expectedAmount.Value:N0} đ, nhận {amount:N0} đ"
+                    : $"Lệch số tiền: nhận {amount:N0} đ",
+                "additional_transfer" => "Khách chuyển thêm một lần nữa cho phiên đã thanh toán",
+                _ => "Không khớp mã thanh toán của booking nào"
+            };
+            var notification = new PropertyNotification
+            {
+                PropertyId = propertyId,
+                BookingId = null,
+                Type = type,
+                Title = booking is null ? $"Tiền {provider} chưa khớp booking · {amount:N0} đ" : $"Tiền {provider} cần xử lý · {booking.Code}",
+                Message = Truncate($"{reason}. {(booking is null ? "" : booking.CustomerName + " · " + booking.RoomName + ". ")}Nội dung: {content?.Trim()}", 1200),
+                ActionUrl = booking is null
+                    ? $"/Admin/Settings?propertyId={propertyId}"
+                    : $"/Admin/Bookings?propertyId={propertyId}&bookingId={bookingId}"
+            };
+            db.Add(notification);
+            var lines = new List<string>
+            {
+                $"⚠️ {propertyName} · TIỀN {provider.ToUpperInvariant()} CẦN XỬ LÝ", string.Empty,
+                reason
+            };
+            if (booking is not null)
+            {
+                lines.Add($"Mã: {booking.Code}");
+                lines.Add($"Khách: {booking.CustomerName}");
+                lines.Add($"SĐT: {booking.CustomerPhone}");
+                lines.Add($"Phòng: {booking.RoomName}");
+            }
+            lines.Add($"Số tiền nhận: {amount:N0} VND");
+            if (!string.IsNullOrWhiteSpace(content)) lines.Add($"Nội dung CK: {Truncate(content.Trim(), 300)}");
+            lines.Add(string.Empty);
+            lines.Add("Tiền đã vào tài khoản nhưng hệ thống chưa ghi nhận. Vui lòng kiểm tra và ghi nhận thanh toán thủ công.");
+            await AddTelegramOutboxIfEnabledAsync(propertyId, notification, string.Join(Environment.NewLine, lines), cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+            realtimeBroker.Publish(new NotificationRealtimeEvent(notification.Id, propertyId, notification.Type, notification.CreatedAtUtc));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not create payment mismatch notification for transaction {TransactionId} in property {PropertyId}.", transactionId, propertyId);
             DetachPendingNotificationEntries();
         }
     }
@@ -355,7 +427,7 @@ public sealed class BookingNotificationService(
     private IQueryable<PropertyNotification> InAppNotifications(Guid propertyId) =>
         db.Set<PropertyNotification>().AsNoTracking()
             .Where(x => x.PropertyId == propertyId &&
-                (InAppTypes.Contains(x.Type) ||
+                (InAppTypes.Contains(x.Type) || x.Type.StartsWith(PaymentMismatchType + ":") ||
                  ((x.Type == BookingCancelledType || x.Type.StartsWith(BookingCancelledType + ":")) &&
                   !db.Set<PropertyNotificationSettings>().AsNoTracking()
                       .Any(settings => settings.PropertyId == propertyId && !settings.InAppBookingEnabled))));
@@ -371,7 +443,7 @@ public sealed class BookingNotificationService(
                 x.TotalAmount,
                 x.Customer.Name,
                 x.Customer.Phone,
-                x.Customer.Email,
+                x.ContactEmail ?? x.Customer.Email,
                 x.Room.Name,
                 x.Room.GuestGuideHtml,
                 x.Property.Name,
