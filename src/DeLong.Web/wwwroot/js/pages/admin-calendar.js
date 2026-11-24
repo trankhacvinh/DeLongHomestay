@@ -68,6 +68,7 @@
                 selectedLockSlot: null,
                 rateSuggestions: { scope: '', rates: [], loading: false, error: '', serial: 0 },
                 ratePresetStamp: null,
+                priceQuote: { key: '', slots: [], total: 0, error: '', serial: 0 },
                 quickBlock: { open: false, scope: 'slot', roomId: '', start: '', end: '', reason: '', error: '', conflicts: [], acknowledged: false },
                 selectedBooking: null,
                 additionalPayment: { amount: 0, method: 1 },
@@ -449,6 +450,7 @@
             },
             bookingTimeChanged() {
                 this.ratePresetStamp = null;
+                this.$nextTick(() => this.requestPriceQuote());
                 const day = this.form.checkInLocal?.slice(0, 10);
                 if (this.editor.mode === 'create' && day && day !== this.selectedDayKey) {
                     this.selectedDayKey = day;
@@ -488,6 +490,48 @@
                 }
                 this.ratePresetStamp = { rateId: rate.id, start: this.form.checkInLocal, end: this.form.checkOutLocal };
                 this.form.roomAmount = Number(rate.price || 0);
+                this.requestPriceQuote();
+            },
+            priceQuoteSummary() {
+                const quote = this.priceQuote;
+                if (quote.slots.length < 2 || quote.key !== this.priceQuoteKey()) return '';
+                const days = new Set(quote.slots.map(x => x.date)).size;
+                const parts = quote.slots.map(x => `${x.rateName}${days > 1 ? ` (${x.date.slice(8, 10)}/${x.date.slice(5, 7)})` : ''} ${this.money(x.listPrice)}`);
+                const listTotal = quote.slots.reduce((sum, x) => sum + Number(x.listPrice || 0), 0);
+                const notes = [];
+                if (Math.abs(listTotal - Number(quote.total)) >= 1) notes.push(`sau giảm giá/phụ thu: ${this.money(quote.total)}`);
+                const special = quote.slots.find(x => x.specialDayName);
+                if (special) notes.push(`ngày ${special.specialDayName}`);
+                return `Tính theo ${quote.slots.length} ca: ${parts.join(' + ')}${notes.length ? ` · ${notes.join(' · ')}` : ''}. Có thể sửa tay.`;
+            },
+            priceQuoteKey() {
+                return `${this.form.roomId}|${this.form.rateId || ''}|${this.form.checkInLocal}|${this.form.checkOutLocal}`;
+            },
+            // Prices the stay like the guest website: every ca it touches is added (weekend, special day,
+            // combo and full-day rules included). Runs only after staff pick a ca or change the times,
+            // and staff can still type another price afterwards.
+            async requestPriceQuote() {
+                const quote = this.priceQuote;
+                const serial = ++quote.serial;
+                quote.key = ''; quote.slots = []; quote.total = 0; quote.error = '';
+                if (!this.editor.open || !['create', 'edit'].includes(this.editor.mode)) return;
+                const rate = this.selectedRoomRates.find(x => x.id === this.form.rateId) || null;
+                if (Number(rate?.type) === 2 || !this.form.roomId || !this.form.checkInLocal || !this.form.checkOutLocal) return;
+                const key = this.priceQuoteKey();
+                try {
+                    const query = new URLSearchParams({ from: `${this.form.checkInLocal}${utcOffset}`, to: `${this.form.checkOutLocal}${utcOffset}` });
+                    if (rate) query.set('rateId', rate.id);
+                    const data = await DeLongApi.get(`/api/admin/properties/${this.propertyId}/operations/booking-price-quote/rooms/${this.form.roomId}?${query}`);
+                    if (serial !== quote.serial || key !== this.priceQuoteKey() || !data || !Array.isArray(data.slots) || !data.slots.length) return;
+                    quote.key = key;
+                    quote.slots = data.slots;
+                    quote.total = Number(data.total || 0);
+                    // On edit, the booking's saved holiday surcharge is already added to the total separately.
+                    const savedSurcharge = this.editor.mode === 'edit' ? Number(this.selectedBooking?.specialSurchargeAmount || 0) : 0;
+                    this.form.roomAmount = Math.max(0, quote.total - savedSurcharge);
+                } catch (error) {
+                    if (serial === quote.serial) quote.error = error.message || 'Không tính được giá theo ca.';
+                }
             },
             async openBooking(booking) {
                 this.selectedBooking = booking;

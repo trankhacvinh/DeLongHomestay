@@ -48,6 +48,18 @@ public static class OperationsEndpoints
             }
         }).RequireAuthorization("ViewOperations");
 
+        // Price for the booking form: counts every ca the stay touches, the same way the guest website does.
+        admin.MapGet("/booking-price-quote/rooms/{roomId:guid}", async (
+            Guid propertyId, Guid roomId, DateTimeOffset from, DateTimeOffset to, Guid? rateId,
+            AppDbContext db, PricingService pricingService, HttpContext context, CancellationToken ct) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            var (quote, error) = await new StaffBookingQuoteService(db, pricingService)
+                .QuoteAsync(propertyId, roomId, rateId, from.UtcDateTime, to.UtcDateTime, ct);
+            if (error is not null) return Results.Problem(detail: error, statusCode: 400);
+            return quote is null ? Results.NoContent() : Results.Ok(quote);
+        }).RequireAuthorization("ViewOperations");
+
         // Read-only check used by the booking form while staff pick times: which stays or room locks
         // overlap [from, to) for this room. It mirrors the save-time conflict rule (Held, Confirmed,
         // CheckedIn, Completed bookings and active room locks) so the warning appears before saving.
