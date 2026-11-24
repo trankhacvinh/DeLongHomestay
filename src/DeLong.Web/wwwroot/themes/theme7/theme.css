@@ -121,8 +121,6 @@ html body.public-body[data-theme="theme7"] .public-main .public-section-head h2{
 .t7-hero h1{margin:0;max-width:15ch;font:500 clamp(2.5rem,4.8vw,4.6rem)/1.1 var(--t7-serif)!important;letter-spacing:-.02em!important;color:var(--t7-ink);text-wrap:balance}
 .t7-hero-lead{margin:24px 0 0;max-width:42ch;font-size:clamp(1.02rem,1.25vw,1.15rem);line-height:1.75;color:var(--t7-text)}
 .t7-hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px}
-.t7-hero-facts{list-style:none;display:flex;flex-wrap:wrap;gap:8px 26px;margin:38px 0 0;padding:20px 0 0;border-top:1px solid color-mix(in srgb,var(--t7-ink) 18%,transparent);color:var(--t7-muted);font-size:.92rem}
-.t7-hero-facts strong{color:var(--t7-ink);font:600 1.3rem/1 var(--t7-serif);margin-right:4px}
 .t7-window{position:relative;margin:0;justify-self:center;width:min(100%,440px);padding-top:28px}
 .t7-window-frame{position:relative;aspect-ratio:5/6;border-radius:999px 999px 10px 10px;overflow:hidden;background:var(--t7-cream);
     box-shadow:0 0 0 10px var(--t7-wall),0 0 0 12px var(--t7-ink),0 40px 80px -40px color-mix(in srgb,var(--t7-deep) 70%,transparent)}
