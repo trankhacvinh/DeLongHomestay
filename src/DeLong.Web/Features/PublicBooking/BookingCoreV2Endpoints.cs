@@ -436,20 +436,7 @@ public static class BookingCoreV2Endpoints
             // Viewing a CCCD is a personal-data access (Nghị định 13/2023): keep a trail of who looked.
             // One entry per user/booking/side per 10 minutes, since the viewer reloads the image.
             var viewer = Guid.TryParse(httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier), out var viewerId) ? viewerId : (Guid?)null;
-            var recent = DateTime.UtcNow.AddMinutes(-10);
-            var sideKey = side.Trim().ToLowerInvariant();
-            // AfterJson is a jsonb column: PostgreSQL has no LIKE on jsonb, so match the side in memory.
-            var recentViews = await db.AuditLogs.AsNoTracking()
-                .Where(x => x.PropertyId == propertyId && x.EntityType == "Booking" &&
-                    x.EntityId == bookingId && x.Action == "IdentityViewed" && x.ActorUserId == viewer &&
-                    x.CreatedAtUtc >= recent && x.AfterJson != null)
-                .Select(x => x.AfterJson!)
-                .ToListAsync(cancellationToken);
-            if (!recentViews.Any(json => json.Contains(sideKey, StringComparison.Ordinal)))
-            {
-                new AuditService(db).Add(propertyId, "Booking", bookingId, "IdentityViewed", viewer, after: new { Side = sideKey });
-                await db.SaveChangesAsync(cancellationToken);
-            }
+            await IdentityViewAudit.RecordAsync(db, propertyId, bookingId, viewer, side, DateTime.UtcNow, cancellationToken);
             httpContext.Response.Headers.CacheControl = "private,no-store,max-age=0";
             httpContext.Response.Headers.Pragma = "no-cache";
             return Results.File(document.Bytes, document.ContentType, enableRangeProcessing: false);
